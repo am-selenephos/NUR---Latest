@@ -70,7 +70,7 @@ class OpenAITalkProvider:
 
     def _payload(self, request: TalkProviderRequest) -> dict:
         evidence = [r.model_dump() for r in request.retrieval]
-        return {
+        payload = {
             "model": self._settings.openai_model,
             "input": [
                 {"role": "system", "content": TALK_SYSTEM_PROMPT},
@@ -87,8 +87,10 @@ class OpenAITalkProvider:
                 },
             ],
             "text": {"format": talk_json_schema()},
-            "reasoning": {"effort": self._settings.openai_reasoning_effort},
         }
+        if _supports_reasoning_effort(self._settings.openai_model):
+            payload["reasoning"] = {"effort": self._settings.openai_reasoning_effort}
+        return payload
 
     async def _stream_response(self, payload: dict, event_sink: AIStreamSink):
         """Forward provider lifecycle and decoded direct-response deltas.
@@ -147,6 +149,13 @@ class OpenAITalkProvider:
                     raise
                 raise mapped from exc
         raise AIProviderUnavailable("OpenAI request failed closed.")
+
+
+def _supports_reasoning_effort(model: str) -> bool:
+    """The Responses API rejects reasoning.effort on non-reasoning models
+    (e.g. gpt-4.1) with 400 unsupported_parameter, so only send it to
+    reasoning-capable families."""
+    return model.lower().startswith(("o1", "o3", "o4", "gpt-5"))
 
 
 def _extract_response_json(response) -> dict:

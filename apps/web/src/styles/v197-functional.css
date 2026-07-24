@@ -170,11 +170,19 @@ body.universe-edition #nur-front-v61 #nur-outcome-composer[hidden],
 }
 
 .nur-v197-provider-status > span {
+  /* Status dot; its accessible title text stays clipped inside the dot. */
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--nur-success);
   box-shadow: 0 0 10px rgba(104, 232, 156, .38);
+  overflow: hidden;
+  white-space: nowrap;
+  color: transparent;
+}
+
+.nur-v197-provider-status > small {
+  grid-column: 1 / -1;
 }
 
 .nur-v197-provider-status > strong {

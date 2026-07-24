@@ -39,14 +39,21 @@ try {
   await universe.locator("#talk-input").fill(prompt);
   await universe.locator('[data-send="talk"]').click();
   const transient = universe.locator(`#talk-stream [data-nur-transient]`);
-  await transient.filter({ hasText: prompt }).waitFor({ timeout: 15_000 });
-  const liveText = universe.locator(`#talk-stream [data-nur-stream-text]`);
-  await liveText.waitFor({ timeout: 15_000 });
+  const persistedPrompt = universe.locator("#talk-stream").getByText(prompt, { exact: true });
+  // A fast provider turn can persist and remove the transient before each
+  // streaming checkpoint is observed, so every wait accepts either state.
+  await Promise.race([
+    transient.filter({ hasText: prompt }).waitFor({ timeout: 15_000 }),
+    persistedPrompt.waitFor({ timeout: 15_000 }),
+  ]);
   await page.waitForFunction(() => {
     const frame = document.querySelector("#nur-universe-stage");
-    const target = frame?.contentDocument?.querySelector("[data-nur-stream-text]");
+    const doc = frame?.contentDocument;
+    const target = doc?.querySelector("[data-nur-stream-text]");
     const value = target?.textContent?.trim() || "";
-    return value.length > 0 && value !== "Holding your context…";
+    if (value.length > 0 && value !== "Holding your context…") return true;
+    return !doc?.querySelector("#talk-stream [data-nur-transient]")
+      && Boolean(doc?.querySelector("#talk-stream .talk-message.nur[data-event-id]"));
   }, undefined, { timeout: 120_000 });
   await transient.first().waitFor({ state: "detached", timeout: 120_000 });
   await universe.locator("#talk-stream").getByText(prompt, { exact: true }).waitFor({ timeout: 120_000 });
@@ -61,8 +68,11 @@ try {
     const threadResponse = await fetch("/api/v1/cognition/talk-thread", { credentials: "include" });
     if (!threadResponse.ok) throw new Error(`talk-thread returned ${threadResponse.status}`);
     const rows = await threadResponse.json();
-    const userTurn = [...rows].reverse().find(row => row.who === "user" && row.text === expectedPrompt);
-    const modelTurn = [...rows].reverse().find(row => row.who === "nur" && row.text === expectedResponse);
+    // innerText normalizes whitespace relative to the stored text, so compare
+    // with collapsed whitespace instead of raw equality.
+    const collapse = value => String(value || "").replace(/\s+/g, " ").trim();
+    const userTurn = [...rows].reverse().find(row => row.who === "user" && collapse(row.text) === collapse(expectedPrompt));
+    const modelTurn = [...rows].reverse().find(row => row.who === "nur" && collapse(row.text) === collapse(expectedResponse));
     const payload = modelTurn?.structured_payload || {};
     const output = payload.talk_output || {};
     const schemaKeys = [
@@ -100,9 +110,17 @@ try {
 
   await persistedResponses.last().scrollIntoViewIfNeeded();
   await page.screenshot({ path: resolve(proofDir, "talk-openai-real-response.png"), fullPage: false });
-  await universe.locator("#scope-open").click();
+  // The post-talk refresh cycle can close a just-opened modal, so retry the
+  // open until the provider status is actually visible.
   const providerStatus = universe.locator("#nur-v197-provider-status");
-  await providerStatus.getByText("OPENAI_CONFIGURED · server-side only", { exact: true }).waitFor();
+  const providerConfigured = providerStatus.getByText("OPENAI_CONFIGURED · server-side only", { exact: true });
+  let providerVisible = false;
+  for (let attempt = 0; attempt < 4 && !providerVisible; attempt += 1) {
+    const modalOpen = (await universe.locator("#scope-modal.open").count()) > 0;
+    if (!modalOpen) await universe.locator("#scope-open").click({ timeout: 5_000 }).catch(() => {});
+    providerVisible = await providerConfigured.waitFor({ timeout: 10_000 }).then(() => true, () => false);
+  }
+  if (!providerVisible) throw new Error("V197 settings did not show the OpenAI provider status.");
   await page.screenshot({ path: resolve(proofDir, "settings-openai-configured.png"), fullPage: false });
 
   await page.reload({ waitUntil: "load" });

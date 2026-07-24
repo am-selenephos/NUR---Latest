@@ -221,9 +221,48 @@ ALTER SCHEMA public OWNER TO nur_admin;
 GRANT USAGE ON SCHEMA public TO nur_app;
 SQL
 
-python3 -m venv apps/api/.venv
-apps/api/.venv/bin/python -m pip install --upgrade pip
-apps/api/.venv/bin/python -m pip install -e "apps/api[dev]"
+API_VENV="apps/api/.venv"
+API_PY="$API_VENV/bin/python"
+
+# A venv survives boots but breaks when the system interpreter moves (common on
+# Arch after a python upgrade): the bin/python symlink dangles or pip's
+# site-packages no longer import. Only a venv that runs and can import pip is
+# reusable; anything else must be rebuilt from scratch.
+api_venv_healthy() {
+  [[ -x "$API_PY" ]] && "$API_PY" -c 'import pip' >/dev/null 2>&1
+}
+
+create_api_venv() {
+  if command -v uv >/dev/null 2>&1; then
+    uv venv --seed "$API_VENV" && return 0
+  fi
+  if command -v virtualenv >/dev/null 2>&1; then
+    virtualenv "$API_VENV" && return 0
+  fi
+  # Last resort: stdlib venv, which needs a working ensurepip.
+  python3 -m venv "$API_VENV" && return 0
+  return 1
+}
+
+if ! api_venv_healthy; then
+  if [[ -e "$API_VENV" ]]; then
+    printf 'Existing %s is not usable; recreating it.\n' "$API_VENV"
+    rm -rf "$API_VENV"
+  fi
+  if ! create_api_venv; then
+    cat >&2 <<'TXT'
+ERROR: could not create apps/api/.venv with any available mechanism.
+Tried, in order:
+  1. uv venv --seed   (install: https://docs.astral.sh/uv/ or pacman -S uv)
+  2. virtualenv       (install: python3 -m pip install --user virtualenv)
+  3. python3 -m venv  (needs working ensurepip; on Arch: pacman -S python-pip)
+Install one of the above, then rerun: bash RUN_NUR.sh
+TXT
+    exit 1
+  fi
+  "$API_PY" -m pip install --upgrade pip
+fi
+"$API_PY" -m pip install -e "apps/api[dev]"
 npm install
 
 (cd apps/api && .venv/bin/python -m alembic.config upgrade head)
