@@ -5,6 +5,10 @@
 #   bash infra/scripts/nur-gate.sh ALL
 #   bash infra/scripts/nur-gate.sh --list
 #
+# For a full ALL run, space the browser gates so repeated demo-owner sign-ins do not
+# exhaust the login rate-limit window (10 per 300s per ip+email):
+#   NUR_GATE_BROWSER_SPACING_SECONDS=310 bash infra/scripts/nur-gate.sh ALL
+#
 # Gates: G00_EVIDENCE … G16_FULL_RELEASE.
 #
 # Every run writes, per gate:
@@ -144,6 +148,17 @@ browser_gate() { # <spec...>
     skip browser_suite "API stack not running"
     return
   fi
+  # Every browser gate signs in as the same demo owner, and login is rate limited to
+  # 10 attempts per 300s per ip+email. Six browser gates back to back therefore exhaust
+  # the window and later gates fail at sign-in with an empty universe stage — which
+  # looks exactly like a presentation defect. Space consecutive browser gates rather
+  # than raising the production limit or weakening the specs.
+  local spacing="${NUR_GATE_BROWSER_SPACING_SECONDS:-0}"
+  if [ "$spacing" -gt 0 ] && [ -n "${NUR_GATE_BROWSER_RAN:-}" ]; then
+    printf '  %-34s waiting %ss for the login rate-limit window\n' "browser_spacing" "$spacing"
+    sleep "$spacing"
+  fi
+  NUR_GATE_BROWSER_RAN=1
   run browser_suite npm --workspace apps/web run e2e -- "$@" --project=chromium-desktop --workers=1
 }
 

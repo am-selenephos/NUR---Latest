@@ -1,0 +1,41 @@
+$ node infra/scripts/live-talk-two-turn-proof.mjs
+
+{
+  "verdict": "LIVE_TALK_PASS",
+  "turns": [
+    {
+      "prompt": "Reply with exactly: NUR TALK LIVE ONE",
+      "expected": "NUR TALK LIVE ONE",
+      "actual": "NUR TALK LIVE ONE",
+      "exact_match": true
+    },
+    {
+      "prompt": "Reply with exactly: NUR TALK LIVE TWO",
+      "expected": "NUR TALK LIVE TWO",
+      "actual": "NUR TALK LIVE TWO",
+      "exact_match": true
+    }
+  ],
+  "persistence": {
+    "user_turns": [
+      {
+        "prompt": "Reply with exactly: NUR TALK LIVE ONE",
+        "visible_after_reload": true
+      },
+      {
+        "prompt": "Reply with exactly: NUR TALK LIVE TWO",
+        "visible_after_reload": true
+      }
+    ],
+    "model_turns": [
+      {
+        "expected": "NUR TALK LIVE ONE",
+        "visible_after_reload": true
+      },
+      {
+        "expected": "NUR TALK LIVE TWO",
+        "visible_after_reload": true
+      }
+    ]
+  }
+}

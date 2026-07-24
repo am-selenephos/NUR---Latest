@@ -1,0 +1,295 @@
+$ npm --workspace apps/web run e2e -- e2e/v197-control-matrix.spec.ts e2e/v197-host-parity.spec.ts e2e/v197-forensic-shell.spec.ts e2e/v197-runtime-lifecycle.spec.ts --project=chromium-desktop --workers=1
+
+npm warn cli npm v12.0.1 does not support Node.js v20.20.2. This version of npm supports the following node versions: `^22.22.2 || ^24.15.0 || >=26.0.0`. You can find the latest version at https://nodejs.org/.
+npm notice run @nur/web@0.1.0 e2e
+npm notice run playwright test e2e/v197-control-matrix.spec.ts e2e/v197-host-parity.spec.ts e2e/v197-forensic-shell.spec.ts e2e/v197-runtime-lifecycle.spec.ts --project=chromium-desktop --workers=1
+
+Running 16 tests using 1 worker
+
+  ✓   1 [chromium-desktop] › e2e/v197-control-matrix.spec.ts:42:1 › control matrix is complete, consistent, and free of dead controls (132ms)
+  ✓   2 [chromium-desktop] › e2e/v197-control-matrix.spec.ts:175:3 › [chromium-desktop] project tabs render their own surfaces and the file picker is NUR-styled (9.1s)
+  ✓   3 [chromium-desktop] › e2e/v197-control-matrix.spec.ts:212:3 › [chromium-desktop] journal save persists and hydrates after reload (8.4s)
+  ✓   4 [chromium-desktop] › e2e/v197-control-matrix.spec.ts:232:3 › [chromium-desktop] settings save persists preferences with visible confirmation (7.2s)
+  -   5 [chromium-desktop] › e2e/v197-control-matrix.spec.ts:175:3 › [chromium-mobile] project tabs render their own surfaces and the file picker is NUR-styled
+  -   6 [chromium-desktop] › e2e/v197-control-matrix.spec.ts:212:3 › [chromium-mobile] journal save persists and hydrates after reload
+  -   7 [chromium-desktop] › e2e/v197-control-matrix.spec.ts:232:3 › [chromium-mobile] settings save persists preferences with visible confirmation
+  ✓   8 [chromium-desktop] › e2e/v197-forensic-shell.spec.ts:28:1 › shared shell stays inside every required viewport (36.1s)
+  ✓   9 [chromium-desktop] › e2e/v197-forensic-shell.spec.ts:182:1 › Today owns one visible exact V43 brain renderer (4.9s)
+  ✘  10 [chromium-desktop] › e2e/v197-host-parity.spec.ts:116:1 › Phase 1 serves a byte-faithful V197 universe without a visible React root (2.6s)
+  ✘  11 [chromium-desktop] › e2e/v197-host-parity.spec.ts:153:1 › Phase 1 keeps the canonical entry visual but blocks source-local authentication (10.4s)
+  ✘  12 [chromium-desktop] › e2e/v197-host-parity.spec.ts:180:1 › Phase 1 routed geometry matches canonical V197 at the current viewport (30.2s)
+  ✘  13 [chromium-desktop] › e2e/v197-host-parity.spec.ts:228:1 › native V197 navigation synchronizes the top-level URL without React routing (6.8s)
+  ✘  14 [chromium-desktop] › e2e/v197-host-parity.spec.ts:250:1 › Phase 1 blocks source-local writes with an honest native notice (6.8s)
+  ✘  15 [chromium-desktop] › e2e/v197-host-parity.spec.ts:269:1 › deferred adjunct routes fail honestly in Phase 1 instead of rendering React replacements (1.7s)
+  ✓  16 [chromium-desktop] › e2e/v197-runtime-lifecycle.spec.ts:5:1 › V43 brain owns one extended runtime with circular dispersal (3.2s)
+
+
+  1) [chromium-desktop] › e2e/v197-host-parity.spec.ts:116:1 › Phase 1 serves a byte-faithful V197 universe without a visible React root 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    - Expected  -  1
+    + Received  + 55
+
+    @@ -12,11 +12,65 @@
+        #nur-universe-stage.is-visible { opacity:1; pointer-events:auto; }
+        #nur-entry-stage.is-exiting { opacity:0; pointer-events:none; }
+        #nur-route-veil { position:fixed; inset:0; z-index:10; pointer-events:none; opacity:0; background:#000000; transition:opacity .23s ease; }
+        #nur-route-veil.is-active { opacity:1; }
+      </style>
+    - </head>
+    + <link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#000000"><script id="nur-v197-runtime-performance-profile">
+    + (() => {
+    +   "use strict";
+    +   const requested = new URLSearchParams(location.search).get("nur-quality");
+    +   if (requested === "canonical") {
+    +     document.documentElement.dataset.nurRuntimeProfile = "canonical";
+    +     return;
+    +   }
+    +   const profiles = { entry: [["DPR=Math.min(devicePixelRatio||1,1.65)","DPR=Math.min(devicePixelRatio||1,1.15)"],["(mobile?680:1140)","(mobile?440:760)"],["(mobile?460:720)","(mobile?250:440)"],["(mobile?192:320)","(mobile?72:124)"],["(mobile?44:76)","(mobile?20:34)"],[".slice(0,130)",".slice(0,18)"],["let energy=0,particles=[],last=0,frameRAF=0;","let energy=0,particles=[],last=0,frameRAF=0,projectionCache=[],rotCY=1,rotSY=0,rotCP=1,rotSP=0,rotCR=1,rotSR=0;"],["function project(p,yA,pA,rA,t=0){","function project(p,yA,pA,rA,t=0,out={x:0,y:0,z:0,scale:0}){"],["const living=p.kind===\"galaxy\"||p.kind===\"dust\"||p.kind===\"super\"||p.kind===\"event\";const radial=living?Math.hypot(p.x,p.z):0,arm=living?Math.atan2(p.z,p.x):0,wave=living?Math.sin(t*55e-6+arm*1.65+radial*4.6):0,swirl=living?Math.sin(t*38e-6+radial*3.4)*.006:0,breath=living?wave*.014:0,px=p.x*(1+breath)-p.z*swirl,pz=p.z*(1+breath*.72)+p.x*swirl,py=p.y+(living?Math.cos(t*52e-6+arm*1.4)*(.008+radial*.004):0);const cy=Math.cos(yA),sy=Math.sin(yA),cp=Math.cos(pA),sp=Math.sin(pA),cr=Math.cos(rA),sr=Math.sin(rA),x1=px*cy-pz*sy,z1=px*sy+pz*cy,y1=py*cp-z1*sp,z2=py*sp+z1*cp,x2=x1*cr-y1*sr,y2=x1*sr+y1*cr,sc=1/(3.05+z2);","const px=p.x,pz=p.z,py=p.y,cy=rotCY,sy=rotSY,cp=rotCP,sp=rotSP,cr=rotCR,sr=rotSR,x1=px*cy-pz*sy,z1=px*sy+pz*cy,y1=py*cp-z1*sp,z2=py*sp+z1*cp,x2=x1*cr-y1*sr,y2=x1*sr+y1*cr,sc=1/(3.05+z2);"],["return{x:W*.5+x2*minSide*1.34*sc,y:H*.5+y2*minSide*1.34*sc,z:z2,scale:sc}}","out.x=W*.5+x2*minSide*1.34*sc;out.y=H*.5+y2*minSide*1.34*sc;out.z=z2;out.scale=sc;return out}"],["const proj=particles.map(p=>({p,q:project(p,yaw,pitch,roll,t)}));proj.sort((a,b)=>a.q.z-b.q.z);","rotCY=Math.cos(yaw);rotSY=Math.sin(yaw);rotCP=Math.cos(pitch);rotSP=Math.sin(pitch);rotCR=Math.cos(roll);rotSR=Math.sin(roll);const proj=projectionCache;proj.length=particles.length;for(let i=0;i<particles.length;i++){const cached=proj[i]||(proj[i]={p:null,q:{x:0,y:0,z:0,scale:0}});cached.p=particles[i];project(cached.p,yaw,pitch,roll,t,cached.q)}proj.sort((a,b)=>a.q.z-b.q.z);"],["if(p.kind===\"dust\"){const dr=","if(!isS&&p.kind===\"galaxy\"){const simpleCol=p.prism?prismShift(p.col,p.prismPhase+t*p.prismSpeed+phase*.18,twinkle,false):p.col;const simpleR=Math.max(.52,rad*.82);c.fillStyle=`rgba(${simpleCol[0]},${simpleCol[1]},${simpleCol[2]},${Math.min(.92,alpha*2.35)})`;c.fillRect(q.x-simpleR*.5,q.y-simpleR*.5,simpleR,simpleR);if(alpha>.24&&rad>.82){c.fillStyle=`rgba(${simpleCol[0]},${simpleCol[1]},${simpleCol[2]},${Math.min(.2,alpha*.42)})`;c.fillRect(q.x-simpleR*2.2,q.y-.21,simpleR*4.4,.42);c.fillRect(q.x-.21,q.y-simpleR*1.5,.42,simpleR*3)}continue}if(p.kind===\"dust\"){const dustR=Math.max(.5,rad*.9);c.fillStyle=`rgba(${p.col[0]},${p.col[1]},${p.col[2]},${Math.min(.36,alpha*1.7)})`;c.fillRect(q.x-dustR*.5,q.y-dustR*.5,dustR,dustR);continue}if(false&&p.kind===\"dust\"){const dr="],["function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const rawDt=now-last;","function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const minFrameGap=innerWidth<700?48:38;if(now-last<minFrameGap){scheduleFrame();return}const rawDt=now-last;"]], universe: [["DPR=Math.min(devicePixelRatio||1,1.5)","DPR=Math.min(devicePixelRatio||1,1)"],["const PARTICLE_CAP=1880","const PARTICLE_CAP=1120"],["const density=mobile?{galaxy:620,far:430,dust:118,super:32}:{galaxy:900,far:585,dust:165,super:48}","const density=mobile?{galaxy:360,far:210,dust:52,super:18}:{galaxy:640,far:330,dust:82,super:30}"],["const nodeBudget=innerWidth<700?54:82","const nodeBudget=innerWidth<700?10:16"],["if(profile.nebula>.48)drawNebula(t);","if(false)drawNebula(t);"],["if(farAlpha>.095&&farR>.7)spike(q.x,q.y,farR*2.4,farCol,Math.min(.12,farAlpha*.24),phase);continue","continue"],["let energy=0,particles=[],last=0,frameRAF=0;","let energy=0,particles=[],last=0,frameRAF=0,projectionCache=[],rotCY=1,rotSY=0,rotCP=1,rotSP=0,rotCR=1,rotSR=0;"],["function project(p,yA,pA,rA,t=0){","function project(p,yA,pA,rA,t=0,out={x:0,y:0,z:0,scale:0}){"],["const living=p.kind===\"galaxy\"||p.kind===\"dust\"||p.kind===\"super\"||p.kind===\"event\";const radial=living?Math.hypot(p.x,p.z):0,arm=living?Math.atan2(p.z,p.x):0,wave=living?Math.sin(t*55e-6+arm*1.65+radial*4.6):0,swirl=living?Math.sin(t*38e-6+radial*3.4)*.006:0,breath=living?wave*.014:0,px=p.x*(1+breath)-p.z*swirl,pz=p.z*(1+breath*.72)+p.x*swirl,py=p.y+(living?Math.cos(t*52e-6+arm*1.4)*(.008+radial*.004):0);const cy=Math.cos(yA),sy=Math.sin(yA),cp=Math.cos(pA),sp=Math.sin(pA),cr=Math.cos(rA),sr=Math.sin(rA),x1=px*cy-pz*sy,z1=px*sy+pz*cy,y1=py*cp-z1*sp,z2=py*sp+z1*cp,x2=x1*cr-y1*sr,y2=x1*sr+y1*cr,sc=1/(3.05+z2);","const px=p.x,pz=p.z,py=p.y,cy=rotCY,sy=rotSY,cp=rotCP,sp=rotSP,cr=rotCR,sr=rotSR,x1=px*cy-pz*sy,z1=px*sy+pz*cy,y1=py*cp-z1*sp,z2=py*sp+z1*cp,x2=x1*cr-y1*sr,y2=x1*sr+y1*cr,sc=1/(3.05+z2);"],["return{x:W*.5+x2*minSide*1.34*sc,y:H*.5+y2*minSide*1.34*sc,z:z2,scale:sc}}","out.x=W*.5+x2*minSide*1.34*sc;out.y=H*.5+y2*minSide*1.34*sc;out.z=z2;out.scale=sc;return out}"],["const proj=particles.map(p=>({p,q:project(p,yaw,pitch,roll,t)}));proj.sort((a,b)=>a.q.z-b.q.z);","rotCY=Math.cos(yaw);rotSY=Math.sin(yaw);rotCP=Math.cos(pitch);rotSP=Math.sin(pitch);rotCR=Math.cos(roll);rotSR=Math.sin(roll);const proj=projectionCache;proj.length=particles.length;for(let i=0;i<particles.length;i++){const cached=proj[i]||(proj[i]={p:null,q:{x:0,y:0,z:0,scale:0}});cached.p=particles[i];project(cached.p,yaw,pitch,roll,t,cached.q)}proj.sort((a,b)=>a.q.z-b.q.z);"],["if(p.kind===\"dust\"){const dr=","if(!isS&&p.kind===\"galaxy\"){const simpleCol=p.prism?prismShift(p.col,p.prismPhase+t*p.prismSpeed+phase*.18,twinkle,false):p.col;const simpleR=Math.max(.52,rad*.82);c.fillStyle=`rgba(${simpleCol[0]},${simpleCol[1]},${simpleCol[2]},${Math.min(.92,alpha*2.35)})`;c.fillRect(q.x-simpleR*.5,q.y-simpleR*.5,simpleR,simpleR);if(alpha>.24&&rad>.82){c.fillStyle=`rgba(${simpleCol[0]},${simpleCol[1]},${simpleCol[2]},${Math.min(.2,alpha*.42)})`;c.fillRect(q.x-simpleR*2.2,q.y-.21,simpleR*4.4,.42);c.fillRect(q.x-.21,q.y-simpleR*1.5,.42,simpleR*3)}continue}if(p.kind===\"dust\"){const dustR=Math.max(.5,rad*.9);c.fillStyle=`rgba(${p.col[0]},${p.col[1]},${p.col[2]},${Math.min(.36,alpha*1.7)})`;c.fillRect(q.x-dustR*.5,q.y-dustR*.5,dustR,dustR);continue}if(false&&p.kind===\"dust\"){const dr="],["function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const rawDt=now-last;","function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const minFrameGap=innerWidth<700?48:38;if(now-last<minFrameGap){scheduleFrame();return}const rawDt=now-last;"]] };
+    +   const descriptor = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, "srcdoc");
+    +   if (!descriptor || typeof descriptor.set !== "function" || typeof descriptor.get !== "function") {
+    +     document.documentElement.dataset.nurRuntimeProfile = "canonical-fallback";
+    +     document.documentElement.dataset.nurRuntimeProfileError = "srcdoc-descriptor";
+    +     return;
+    +   }
+    +   const replaceOnce = (source, pair) => {
+    +     const [from, to] = pair;
+    +     const first = source.indexOf(from);
+    +     if (first < 0 || source.indexOf(from, first + from.length) >= 0) return null;
+    +     return source.slice(0, first) + to + source.slice(first + from.length);
+    +   };
+    +   Object.defineProperty(HTMLIFrameElement.prototype, "srcdoc", {
+    +     configurable: descriptor.configurable,
+    +     enumerable: descriptor.enumerable,
+    +     get: descriptor.get,
+    +     set(value) {
+    +       let next = value;
+    +       if (typeof value === "string") {
+    +         const kind = value.includes("const PARTICLE_CAP=1880")
+    +           ? "universe"
+    +           : value.includes("V106: 100% denser actual galaxy seed")
+    +             ? "entry"
+    +             : null;
+    +         if (kind) {
+    +           for (const pair of profiles[kind]) {
+    +             const replaced = replaceOnce(next, pair);
+    +             if (replaced === null) {
+    +               document.documentElement.dataset.nurRuntimeProfile = "canonical-fallback";
+    +               document.documentElement.dataset.nurRuntimeProfileError = kind + "-signature";
+    +               next = value;
+    +               break;
+    +             }
+    +             next = replaced;
+    +           }
+    +           if (next !== value) {
+    +             document.documentElement.dataset.nurRuntimeProfile = "balanced";
+    +             document.documentElement.dataset["nur" + kind[0].toUpperCase() + kind.slice(1) + "Profile"] = "applied";
+    +           }
+    +         }
+    +       }
+    +       descriptor.set.call(this, next);
+    +     },
+    +   });
+    + })();
+    + </script></head>
+      <body>
+        <iframe id="nur-entry-stage" class="nur-stage" title="NUR entry" aria-label="NUR entry"></iframe>
+        <iframe id="nur-universe-stage" class="nur-stage" title="NUR Systems Universe" aria-label="NUR Systems Universe" aria-hidden="true"></iframe>
+        <div id="nur-route-veil" aria-hidden="true"></div>
+
+
+      127 |   expect(createHash("sha256").update(canonical).digest("hex"))
+      128 |     .toBe("d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6");
+    > 129 |   expect(productDocument).toBe(
+          |                           ^
+      130 |     canonical.replace("</body>", '<script type="module" src="/assets/v197-bridge.js"></script></body>'),
+      131 |   );
+      132 |
+        at /home/nur/NUR-INTEGRATION-20260722/apps/web/e2e/v197-host-parity.spec.ts:129:27
+
+    Error Context: test-results/v197-host-parity-Phase-1-s-6882c-ithout-a-visible-React-root-chromium-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/v197-host-parity-Phase-1-s-6882c-ithout-a-visible-React-root-chromium-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/v197-host-parity-Phase-1-s-6882c-ithout-a-visible-React-root-chromium-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium-desktop] › e2e/v197-host-parity.spec.ts:153:1 › Phase 1 keeps the canonical entry visual but blocks source-local authentication 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('#nur-entry-stage').contentFrame().locator('#f4-status')
+    Expected substring: "Authentication is not connected in Phase 1"
+    Received string:    "⚠ [object Object]"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for locator('#nur-entry-stage').contentFrame().locator('#f4-status')
+        13 × locator resolved to <div role="alert" id="f4-status" aria-live="polite" class="f4-status nur-v197-auth-error">⚠ [object Object]</div>
+           - unexpected value "⚠ [object Object]"
+
+
+      171 |   await entry.locator("#f4-signup-form button[type='submit']").click();
+      172 |
+    > 173 |   await expect(entry.locator("#f4-status")).toContainText("Authentication is not connected in Phase 1");
+          |                                             ^
+      174 |   await expect(page.locator("#nur-entry-stage")).toBeVisible();
+      175 |   expect(await page.locator("body").evaluate(() => {
+      176 |     return (window as unknown as { NURConsolidated: { getStage: () => string } }).NURConsolidated.getStage() === "entry";
+        at /home/nur/NUR-INTEGRATION-20260722/apps/web/e2e/v197-host-parity.spec.ts:173:45
+
+    Error Context: test-results/v197-host-parity-Phase-1-k-808dd-source-local-authentication-chromium-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/v197-host-parity-Phase-1-k-808dd-source-local-authentication-chromium-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/v197-host-parity-Phase-1-k-808dd-source-local-authentication-chromium-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium-desktop] › e2e/v197-host-parity.spec.ts:180:1 › Phase 1 routed geometry matches canonical V197 at the current viewport 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: page.screenshot: Test timeout of 30000ms exceeded.
+    Call log:
+      - taking page screenshot
+        - disabled all CSS animations
+      - waiting for fonts to load...
+      - fonts loaded
+
+
+      16 |   const path = proofPath(project, name);
+      17 |   await mkdir(dirname(path), { recursive: true });
+    > 18 |   await page.screenshot({ path, fullPage: false, animations: "disabled" });
+         |              ^
+      19 | }
+      20 |
+      21 | async function json(route: Route, body: unknown): Promise<void> {
+        at screenshot (/home/nur/NUR-INTEGRATION-20260722/apps/web/e2e/v197-host-parity.spec.ts:18:14)
+        at /home/nur/NUR-INTEGRATION-20260722/apps/web/e2e/v197-host-parity.spec.ts:201:3
+
+    Error Context: test-results/v197-host-parity-Phase-1-r-14a09-197-at-the-current-viewport-chromium-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/v197-host-parity-Phase-1-r-14a09-197-at-the-current-viewport-chromium-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/v197-host-parity-Phase-1-r-14a09-197-at-the-current-viewport-chromium-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [chromium-desktop] › e2e/v197-host-parity.spec.ts:228:1 › native V197 navigation synchronizes the top-level URL without React routing 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('#nur-universe-stage').contentFrame().locator('#page-systems')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('#nur-universe-stage').contentFrame().locator('#page-systems')
+
+
+      230 |   await page.goto("/systems", { waitUntil: "load" });
+      231 |   const universe = page.frameLocator("#nur-universe-stage");
+    > 232 |   await expect(universe.locator("#page-systems")).toBeVisible();
+          |                                                   ^
+      233 |   await universe.locator("body").evaluate(async () => {
+      234 |     await document.fonts.ready;
+      235 |   });
+        at /home/nur/NUR-INTEGRATION-20260722/apps/web/e2e/v197-host-parity.spec.ts:232:51
+
+    Error Context: test-results/v197-host-parity-native-V1-f7dbd-l-URL-without-React-routing-chromium-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/v197-host-parity-native-V1-f7dbd-l-URL-without-React-routing-chromium-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/v197-host-parity-native-V1-f7dbd-l-URL-without-React-routing-chromium-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [chromium-desktop] › e2e/v197-host-parity.spec.ts:250:1 › Phase 1 blocks source-local writes with an honest native notice 
+
+    Error: expect(locator).toHaveClass(expected) failed
+
+    Locator: locator('#nur-universe-stage').contentFrame().locator('#page-talk')
+    Expected pattern: /active/
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toHaveClass" with timeout 5000ms
+      - waiting for locator('#nur-universe-stage').contentFrame().locator('#page-talk')
+
+
+      256 |   await page.goto("/talk", { waitUntil: "load" });
+      257 |   const universe = page.frameLocator("#nur-universe-stage");
+    > 258 |   await expect(universe.locator("#page-talk")).toHaveClass(/active/);
+          |                                                ^
+      259 |   const before = await universe.locator(".talk-message.user").count();
+      260 |
+      261 |   await universe.locator("#talk-input").fill("This must not become a fake local Talk turn.");
+        at /home/nur/NUR-INTEGRATION-20260722/apps/web/e2e/v197-host-parity.spec.ts:258:48
+
+    Error Context: test-results/v197-host-parity-Phase-1-b-3ad80-ith-an-honest-native-notice-chromium-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/v197-host-parity-Phase-1-b-3ad80-ith-an-honest-native-notice-chromium-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/v197-host-parity-Phase-1-b-3ad80-ith-an-honest-native-notice-chromium-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [chromium-desktop] › e2e/v197-host-parity.spec.ts:269:1 › deferred adjunct routes fail honestly in Phase 1 instead of rendering React replacements 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 404
+    Received: 200
+
+      269 | test("deferred adjunct routes fail honestly in Phase 1 instead of rendering React replacements", async ({ page }) => {
+      270 |   const response = await page.goto("/settings");
+    > 271 |   expect(response?.status()).toBe(404);
+          |                              ^
+      272 |   await expect(page.locator("body")).toContainText("intentionally not available in Phase 1");
+      273 |   await expect(page.locator("#root")).toHaveCount(0);
+      274 | });
+        at /home/nur/NUR-INTEGRATION-20260722/apps/web/e2e/v197-host-parity.spec.ts:271:30
+
+    Error Context: test-results/v197-host-parity-deferred--aa8f4-endering-React-replacements-chromium-desktop/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/v197-host-parity-deferred--aa8f4-endering-React-replacements-chromium-desktop/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/v197-host-parity-deferred--aa8f4-endering-React-replacements-chromium-desktop/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6 failed
+    [chromium-desktop] › e2e/v197-host-parity.spec.ts:116:1 › Phase 1 serves a byte-faithful V197 universe without a visible React root 
+    [chromium-desktop] › e2e/v197-host-parity.spec.ts:153:1 › Phase 1 keeps the canonical entry visual but blocks source-local authentication 
+    [chromium-desktop] › e2e/v197-host-parity.spec.ts:180:1 › Phase 1 routed geometry matches canonical V197 at the current viewport 
+    [chromium-desktop] › e2e/v197-host-parity.spec.ts:228:1 › native V197 navigation synchronizes the top-level URL without React routing 
+    [chromium-desktop] › e2e/v197-host-parity.spec.ts:250:1 › Phase 1 blocks source-local writes with an honest native notice 
+    [chromium-desktop] › e2e/v197-host-parity.spec.ts:269:1 › deferred adjunct routes fail honestly in Phase 1 instead of rendering React replacements 
+  3 skipped
+  7 passed (2.2m)
+npm error Lifecycle script `e2e` failed with error:
+npm error code 1
+npm error path /home/nur/NUR-INTEGRATION-20260722/apps/web
+npm error workspace @nur/web@0.1.0
+npm error location /home/nur/NUR-INTEGRATION-20260722/apps/web
+npm error command failed
+npm error command sh -c playwright test e2e/v197-control-matrix.spec.ts e2e/v197-host-parity.spec.ts e2e/v197-forensic-shell.spec.ts e2e/v197-runtime-lifecycle.spec.ts --project=chromium-desktop --workers=1

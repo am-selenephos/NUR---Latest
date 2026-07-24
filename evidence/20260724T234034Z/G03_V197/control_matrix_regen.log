@@ -1,0 +1,26 @@
+$ node apps/web/scripts/rebuild-v197-control-matrix.mjs
+
+{
+  "generated_from_sha": "28a911762502e14daef5ed118ef80962317aee84",
+  "canonical_v197_sha256": {
+    "host": "d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6",
+    "entry": "cdeac0c8574333c7261be2bc410357ecc5407ee0dd5b1b8089630f3914026030",
+    "universe": "3cff07b31e8360e5ce793287298d66127c4f278705dc0f8e6abdfbe7e874dc40"
+  },
+  "totals": {
+    "total": 90,
+    "LIVE_REAL": 73,
+    "BLOCKED_BY_EXTERNAL_PROVIDER": 2,
+    "INTENTIONAL_LOCAL_ONLY": 8,
+    "NOT_IMPLEMENTED_VISIBLE": 7,
+    "DEAD": 0,
+    "DUPLICATE": 0,
+    "MISLEADING": 0
+  },
+  "selector_origin_counts": {
+    "canonical": 31,
+    "bridge": 58,
+    "n-a": 1
+  },
+  "missing_proof_specs": []
+}

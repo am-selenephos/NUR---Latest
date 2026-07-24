@@ -1,0 +1,18 @@
+$ npm --workspace apps/web run e2e -- e2e/fresh-signup.spec.ts e2e/landing-auth.spec.ts e2e/presentation-auth-recovery.spec.ts --project=chromium-desktop --workers=1
+
+npm warn cli npm v12.0.1 does not support Node.js v20.20.2. This version of npm supports the following node versions: `^22.22.2 || ^24.15.0 || >=26.0.0`. You can find the latest version at https://nodejs.org/.
+npm notice run @nur/web@0.1.0 e2e
+npm notice run playwright test e2e/fresh-signup.spec.ts e2e/landing-auth.spec.ts e2e/presentation-auth-recovery.spec.ts --project=chromium-desktop --workers=1
+
+Running 8 tests using 1 worker
+
+  ✓  1 [chromium-desktop] › e2e/fresh-signup.spec.ts:40:1 › fresh signup enters the authenticated universe immediately and survives refresh (7.1s)
+  ✓  2 [chromium-desktop] › e2e/fresh-signup.spec.ts:143:1 › duplicate-email signup moves to real signin without faking authenticated state (4.5s)
+  ✓  3 [chromium-desktop] › e2e/fresh-signup.spec.ts:164:1 › existing owner can recover from signup directly into the platform (5.3s)
+  ✓  4 [chromium-desktop] › e2e/fresh-signup.spec.ts:182:1 › client validation keeps an incomplete signup on the form (3.6s)
+  ✓  5 [chromium-desktop] › e2e/fresh-signup.spec.ts:199:1 › registration 429 stays on signup with a clear retry message (4.1s)
+  ✓  6 [chromium-desktop] › e2e/landing-auth.spec.ts:7:1 › V197 landing preserves its hero and the mocked auth lifecycle (18.1s)
+  ✓  7 [chromium-desktop] › e2e/presentation-auth-recovery.spec.ts:25:1 › initial non-401 session failure stays on usable V197 Entry with a diagnostic (2.7s)
+  ✓  8 [chromium-desktop] › e2e/presentation-auth-recovery.spec.ts:45:1 › real demo signin verifies identity, survives refresh, and logs out (9.3s)
+
+  8 passed (55.2s)

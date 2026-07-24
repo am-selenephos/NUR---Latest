@@ -1,0 +1,52 @@
+{
+  "gate": "G05_LIVE_AI",
+  "verdict": "INCOMPLETE",
+  "commit": "256593cf7afe61148bbf750b2edfe956b9c91ea8",
+  "branch": "completion/nur-v5-full-pass",
+  "environment_class": "local",
+  "started_at": "2026-07-24T23:51:50Z",
+  "ended_at": "2026-07-24T23:52:10Z",
+  "dirty_state_manifest": [
+    " M docs/release/v197-control-matrix.json",
+    "?? audit-output/",
+    "?? evidence/20260724T234034Z/",
+    "?? evidence/20260724T235150Z/",
+    "?? proof/100-delta/",
+    "?? proof/100/",
+    "?? proof/fresh-signup/",
+    "?? proof/live-talk-two-turn/",
+    "?? proof/openai-live/",
+    "?? proof/presentation-auth-recovery/",
+    "?? proof/v197-phase1/"
+  ],
+  "steps": [
+    {
+      "step": "provider_contract_tests\n",
+      "command": "bash -c cd apps/api && .venv/bin/python -m pytest -q app/tests/test_ai_provider_failures.py app/tests/test_ai_structured_outputs.py app/tests/test_verifier_grounding.py app/tests/test_cognition_streaming.py\n",
+      "exit_code": 0,
+      "seconds": 4,
+      "log": "provider_contract_tests.log\n"
+    },
+    {
+      "step": "secret_scan\n",
+      "command": "npm run --silent secret-scan\n",
+      "exit_code": 0,
+      "seconds": 0,
+      "log": "secret_scan.log\n"
+    },
+    {
+      "step": "live_two_turn_proof\n",
+      "command": "node infra/scripts/live-talk-two-turn-proof.mjs\n",
+      "exit_code": 0,
+      "seconds": 16,
+      "log": "live_two_turn_proof.log\n"
+    },
+    {
+      "step": "budget_enforcement\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "per-user/plan/mode/global budgets not implemented (G05-013)\n"
+    }
+  ],
+  "notes": null
+}

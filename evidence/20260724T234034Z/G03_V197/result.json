@@ -1,0 +1,72 @@
+{
+  "gate": "G03_V197",
+  "verdict": "FAIL",
+  "commit": "28a911762502e14daef5ed118ef80962317aee84",
+  "branch": "completion/nur-v5-full-pass",
+  "environment_class": "local",
+  "started_at": "2026-07-24T23:42:15Z",
+  "ended_at": "2026-07-24T23:44:32Z",
+  "dirty_state_manifest": [
+    " M docs/release/v197-control-matrix.json",
+    " M infra/scripts/openai-ui-smoke.mjs",
+    "?? audit-output/",
+    "?? evidence/20260724T234034Z/",
+    "?? proof/100-delta/",
+    "?? proof/100/",
+    "?? proof/fresh-signup/",
+    "?? proof/live-talk-two-turn/",
+    "?? proof/openai-live/",
+    "?? proof/presentation-auth-recovery/",
+    "?? proof/v197-phase1/"
+  ],
+  "steps": [
+    {
+      "step": "v197_integrity\n",
+      "command": "npm run --silent v197:integrity\n",
+      "exit_code": 0,
+      "seconds": 1,
+      "log": "v197_integrity.log\n"
+    },
+    {
+      "step": "control_matrix_regen\n",
+      "command": "node apps/web/scripts/rebuild-v197-control-matrix.mjs\n",
+      "exit_code": 0,
+      "seconds": 0,
+      "log": "control_matrix_regen.log\n"
+    },
+    {
+      "step": "control_matrix_fresh\n",
+      "command": "bash -c [ \"$(python3 -c \"import json;print(json.load(open(\\\"docs/release/v197-control-matrix.json\\\"))[\\\"generated_from_sha\\\"])\")\" = \"$(git rev-parse HEAD)\" ]\n",
+      "exit_code": 0,
+      "seconds": 0,
+      "log": "control_matrix_fresh.log\n"
+    },
+    {
+      "step": "no_broken_controls\n",
+      "command": "bash -c python3 -c \"\nimport json,sys\nm=json.load(open(\\\"docs/release/v197-control-matrix.json\\\"))\nbad={k:m[\\\"totals\\\"].get(k,0) for k in (\\\"DEAD\\\",\\\"DUPLICATE\\\",\\\"MISLEADING\\\")}\nsys.exit(1 if any(bad.values()) else 0)\"\n",
+      "exit_code": 0,
+      "seconds": 0,
+      "log": "no_broken_controls.log\n"
+    },
+    {
+      "step": "browser_suite\n",
+      "command": "npm --workspace apps/web run e2e -- e2e/v197-control-matrix.spec.ts e2e/v197-host-parity.spec.ts e2e/v197-forensic-shell.spec.ts e2e/v197-runtime-lifecycle.spec.ts --project=chromium-desktop --workers=1\n",
+      "exit_code": 1,
+      "seconds": 136,
+      "log": "browser_suite.log\n"
+    },
+    {
+      "step": "deferred_controls\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "7 controls remain NOT_IMPLEMENTED_VISIBLE (G03-007)\n"
+    },
+    {
+      "step": "backend_only_surfaces\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "Personal Memory, Teach NUR and Billing unreachable from V197 (G03-008..010)\n"
+    }
+  ],
+  "notes": null
+}

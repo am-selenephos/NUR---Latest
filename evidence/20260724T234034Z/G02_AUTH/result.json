@@ -1,0 +1,50 @@
+{
+  "gate": "G02_AUTH",
+  "verdict": "INCOMPLETE",
+  "commit": "28a911762502e14daef5ed118ef80962317aee84",
+  "branch": "completion/nur-v5-full-pass",
+  "environment_class": "local",
+  "started_at": "2026-07-24T23:41:11Z",
+  "ended_at": "2026-07-24T23:42:15Z",
+  "dirty_state_manifest": [
+    " M infra/scripts/openai-ui-smoke.mjs",
+    "?? audit-output/",
+    "?? evidence/20260724T234034Z/",
+    "?? proof/100-delta/",
+    "?? proof/100/",
+    "?? proof/fresh-signup/",
+    "?? proof/live-talk-two-turn/",
+    "?? proof/openai-live/",
+    "?? proof/presentation-auth-recovery/",
+    "?? proof/v197-phase1/"
+  ],
+  "steps": [
+    {
+      "step": "auth_backend_tests\n",
+      "command": "bash -c cd apps/api && .venv/bin/python -m pytest -q app/tests/test_auth.py app/tests/test_password_recovery.py\n",
+      "exit_code": 0,
+      "seconds": 8,
+      "log": "auth_backend_tests.log\n"
+    },
+    {
+      "step": "browser_suite\n",
+      "command": "npm --workspace apps/web run e2e -- e2e/fresh-signup.spec.ts e2e/landing-auth.spec.ts e2e/presentation-auth-recovery.spec.ts --project=chromium-desktop --workers=1\n",
+      "exit_code": 0,
+      "seconds": 56,
+      "log": "browser_suite.log\n"
+    },
+    {
+      "step": "account_export_delete_e2e\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "export/delete surfaces not implemented (G02-014, G02-015)\n"
+    },
+    {
+      "step": "session_management_ui\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no session management surface (G02-013)\n"
+    }
+  ],
+  "notes": null
+}
