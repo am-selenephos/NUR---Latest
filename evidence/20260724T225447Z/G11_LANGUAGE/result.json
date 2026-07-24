@@ -1,0 +1,48 @@
+{
+  "gate": "G11_LANGUAGE",
+  "verdict": "FOUNDER_ACTION_REQUIRED",
+  "commit": "9a88eedea3fac406a0410b54ef4d99aafd4cc341",
+  "branch": "completion/nur-v5-full-pass",
+  "environment_class": "local",
+  "started_at": "2026-07-24T22:56:47Z",
+  "ended_at": "2026-07-24T22:56:51Z",
+  "dirty_state_manifest": [
+    " M docs/release/v197-control-matrix.json",
+    "?? audit-output/",
+    "?? evidence/",
+    "?? infra/scripts/nur-gate.sh",
+    "?? proof/100-delta/",
+    "?? proof/100/",
+    "?? proof/fresh-signup/",
+    "?? proof/presentation-auth-recovery/",
+    "?? proof/v197-phase1/"
+  ],
+  "steps": [
+    {
+      "step": "translation_tests\n",
+      "command": "bash -c cd apps/api && .venv/bin/python -m pytest -q app/tests/test_translations.py\n",
+      "exit_code": 0,
+      "seconds": 4,
+      "log": "translation_tests.log\n"
+    },
+    {
+      "step": "catalog_completeness\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no key-completeness validator (G11-003)\n"
+    },
+    {
+      "step": "locale_slots_35\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "35 locale slots not present (G11-004)\n"
+    },
+    {
+      "step": "string_extraction\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no zero-raw-string extraction test (G11-002)\n"
+    }
+  ],
+  "notes": "FOUNDER_ACTION_REQUIRED_LOCALE_HUMAN_REVIEW \u2014 an agent may not label its own output native-reviewed"
+}

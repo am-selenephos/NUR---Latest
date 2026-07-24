@@ -1,0 +1,49 @@
+{
+  "gate": "G05_LIVE_AI",
+  "verdict": "FOUNDER_ACTION_REQUIRED",
+  "commit": "9a88eedea3fac406a0410b54ef4d99aafd4cc341",
+  "branch": "completion/nur-v5-full-pass",
+  "environment_class": "local",
+  "started_at": "2026-07-24T22:56:02Z",
+  "ended_at": "2026-07-24T22:56:06Z",
+  "dirty_state_manifest": [
+    " M docs/release/v197-control-matrix.json",
+    "?? audit-output/",
+    "?? evidence/",
+    "?? infra/scripts/nur-gate.sh",
+    "?? proof/100-delta/",
+    "?? proof/100/",
+    "?? proof/fresh-signup/",
+    "?? proof/presentation-auth-recovery/",
+    "?? proof/v197-phase1/"
+  ],
+  "steps": [
+    {
+      "step": "provider_contract_tests\n",
+      "command": "bash -c cd apps/api && .venv/bin/python -m pytest -q app/tests/test_ai_provider_failures.py app/tests/test_ai_structured_outputs.py app/tests/test_verifier_grounding.py app/tests/test_cognition_streaming.py\n",
+      "exit_code": 0,
+      "seconds": 4,
+      "log": "provider_contract_tests.log\n"
+    },
+    {
+      "step": "secret_scan\n",
+      "command": "npm run --silent secret-scan\n",
+      "exit_code": 0,
+      "seconds": 0,
+      "log": "secret_scan.log\n"
+    },
+    {
+      "step": "live_two_turn_proof\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no server-side provider credential configured here\n"
+    },
+    {
+      "step": "budget_enforcement\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "per-user/plan/mode/global budgets not implemented (G05-013)\n"
+    }
+  ],
+  "notes": "FOUNDER_ACTION_REQUIRED_CONFIGURE_OPENAI \u2014 no .env.local on this candidate; a proof from another worktree must not be inherited"
+}

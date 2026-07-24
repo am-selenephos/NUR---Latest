@@ -1,0 +1,2 @@
+$ bash -c [ "$(python3 -c "import json;print(json.load(open(\"docs/release/v197-control-matrix.json\"))[\"generated_from_sha\"])")" = "$(git rev-parse HEAD)" ]
+

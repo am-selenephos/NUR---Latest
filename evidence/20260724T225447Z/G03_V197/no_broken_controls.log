@@ -1,0 +1,6 @@
+$ bash -c python3 -c "
+import json,sys
+m=json.load(open(\"docs/release/v197-control-matrix.json\"))
+bad={k:m[\"totals\"].get(k,0) for k in (\"DEAD\",\"DUPLICATE\",\"MISLEADING\")}
+sys.exit(1 if any(bad.values()) else 0)"
+

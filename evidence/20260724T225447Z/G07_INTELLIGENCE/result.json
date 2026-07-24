@@ -1,0 +1,48 @@
+{
+  "gate": "G07_INTELLIGENCE",
+  "verdict": "INCOMPLETE",
+  "commit": "9a88eedea3fac406a0410b54ef4d99aafd4cc341",
+  "branch": "completion/nur-v5-full-pass",
+  "environment_class": "local",
+  "started_at": "2026-07-24T22:56:11Z",
+  "ended_at": "2026-07-24T22:56:25Z",
+  "dirty_state_manifest": [
+    " M docs/release/v197-control-matrix.json",
+    "?? audit-output/",
+    "?? evidence/",
+    "?? infra/scripts/nur-gate.sh",
+    "?? proof/100-delta/",
+    "?? proof/100/",
+    "?? proof/fresh-signup/",
+    "?? proof/presentation-auth-recovery/",
+    "?? proof/v197-phase1/"
+  ],
+  "steps": [
+    {
+      "step": "intelligence_tests\n",
+      "command": "bash -c cd apps/api && .venv/bin/python -m pytest -q app/tests/test_live_intelligence.py app/tests/test_intelligence_contracts.py app/tests/test_personal_memory.py app/tests/test_teach_nur.py app/tests/test_omega.py app/tests/test_rls.py\n",
+      "exit_code": 0,
+      "seconds": 14,
+      "log": "intelligence_tests.log\n"
+    },
+    {
+      "step": "eval_suite\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "packages/evals does not exist; no multilingual/adversarial regression harness (G07-013)\n"
+    },
+    {
+      "step": "tool_registry\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no bounded tool registry with confirmation rules (G07-012)\n"
+    },
+    {
+      "step": "whole_chain_runtime\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no single runtime proof of the full Talk->Return->why-changed cycle (G07-001)\n"
+    }
+  ],
+  "notes": null
+}

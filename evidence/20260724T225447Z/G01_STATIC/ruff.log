@@ -1,0 +1,3 @@
+$ apps/api/.venv/bin/ruff check apps/api
+
+All checks passed!

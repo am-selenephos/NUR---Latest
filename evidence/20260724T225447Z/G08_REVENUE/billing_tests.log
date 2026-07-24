@@ -1,0 +1,4 @@
+$ bash -c cd apps/api && .venv/bin/python -m pytest -q app/tests/test_billing.py app/tests/test_feature_lock_endpoints.py
+
+............                                                             [100%]
+12 passed in 5.88s

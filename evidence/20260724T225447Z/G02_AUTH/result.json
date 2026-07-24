@@ -1,0 +1,48 @@
+{
+  "gate": "G02_AUTH",
+  "verdict": "BLOCKED_EXTERNAL",
+  "commit": "9a88eedea3fac406a0410b54ef4d99aafd4cc341",
+  "branch": "completion/nur-v5-full-pass",
+  "environment_class": "local",
+  "started_at": "2026-07-24T22:55:53Z",
+  "ended_at": "2026-07-24T22:56:01Z",
+  "dirty_state_manifest": [
+    " M docs/release/v197-control-matrix.json",
+    "?? audit-output/",
+    "?? evidence/",
+    "?? infra/scripts/nur-gate.sh",
+    "?? proof/100-delta/",
+    "?? proof/100/",
+    "?? proof/fresh-signup/",
+    "?? proof/presentation-auth-recovery/",
+    "?? proof/v197-phase1/"
+  ],
+  "steps": [
+    {
+      "step": "auth_backend_tests\n",
+      "command": "bash -c cd apps/api && .venv/bin/python -m pytest -q app/tests/test_auth.py app/tests/test_password_recovery.py\n",
+      "exit_code": 0,
+      "seconds": 8,
+      "log": "auth_backend_tests.log\n"
+    },
+    {
+      "step": "browser_suite\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "API stack not running\n"
+    },
+    {
+      "step": "account_export_delete_e2e\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "export/delete surfaces not implemented (G02-014, G02-015)\n"
+    },
+    {
+      "step": "session_management_ui\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no session management surface (G02-013)\n"
+    }
+  ],
+  "notes": "API not reachable at http://localhost:8000/healthz \u2014 start the stack: bash RUN_NUR.sh"
+}

@@ -1,0 +1,44 @@
+{
+  "gate": "G00_EVIDENCE",
+  "verdict": "FOUNDER_ACTION_REQUIRED",
+  "commit": "9a88eedea3fac406a0410b54ef4d99aafd4cc341",
+  "branch": "completion/nur-v5-full-pass",
+  "environment_class": "local",
+  "started_at": "2026-07-24T22:54:47Z",
+  "ended_at": "2026-07-24T22:54:48Z",
+  "dirty_state_manifest": [
+    " M docs/release/v197-control-matrix.json",
+    "?? audit-output/",
+    "?? evidence/",
+    "?? infra/scripts/nur-gate.sh",
+    "?? proof/100-delta/",
+    "?? proof/100/",
+    "?? proof/fresh-signup/",
+    "?? proof/presentation-auth-recovery/",
+    "?? proof/v197-phase1/"
+  ],
+  "steps": [
+    {
+      "step": "git_status\n",
+      "command": "git status --short\n",
+      "exit_code": 0,
+      "seconds": 0,
+      "log": "git_status.log\n"
+    },
+    {
+      "step": "v197_integrity\n",
+      "command": "npm run --silent v197:integrity\n",
+      "exit_code": 0,
+      "seconds": 1,
+      "log": "v197_integrity.log\n"
+    },
+    {
+      "step": "secret_scan\n",
+      "command": "npm run --silent secret-scan\n",
+      "exit_code": 0,
+      "seconds": 0,
+      "log": "secret_scan.log\n"
+    }
+  ],
+  "notes": "FOUNDER_ACTION_REQUIRED_ROTATE_OPENAI_KEYS \u2014 exposed archive keys not verified rotated"
+}

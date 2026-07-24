@@ -1,0 +1,53 @@
+{
+  "gate": "G16_FULL_RELEASE",
+  "verdict": "FOUNDER_ACTION_REQUIRED",
+  "commit": "9a88eedea3fac406a0410b54ef4d99aafd4cc341",
+  "branch": "completion/nur-v5-full-pass",
+  "environment_class": "local",
+  "started_at": "2026-07-24T22:57:22Z",
+  "ended_at": "2026-07-24T22:57:23Z",
+  "dirty_state_manifest": [
+    " M docs/release/v197-control-matrix.json",
+    "?? audit-output/",
+    "?? evidence/",
+    "?? infra/scripts/nur-gate.sh",
+    "?? proof/100-delta/",
+    "?? proof/100/",
+    "?? proof/fresh-signup/",
+    "?? proof/presentation-auth-recovery/",
+    "?? proof/v197-phase1/"
+  ],
+  "steps": [
+    {
+      "step": "all_gates_pass\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "prerequisite gates are not all PASS (G16-002)\n"
+    },
+    {
+      "step": "package_release\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "infra/scripts/package-release.sh not implemented (G16-012)\n"
+    },
+    {
+      "step": "verify_release_package\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "infra/scripts/verify-release-package.sh does not exist (G16-013)\n"
+    },
+    {
+      "step": "sbom\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no SBOM generator (G16-006)\n"
+    },
+    {
+      "step": "status_ledger_v6\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "docs/v6/NUR_EXACT_STATUS_LEDGER_V6.md not authored (G16-011)\n"
+    }
+  ],
+  "notes": "FOUNDER_ACTION_REQUIRED_RELEASE_APPROVAL \u2014 and G00..G15 are not all PASS"
+}

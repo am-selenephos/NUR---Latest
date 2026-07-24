@@ -1,0 +1,42 @@
+{
+  "gate": "G08_REVENUE",
+  "verdict": "FOUNDER_ACTION_REQUIRED",
+  "commit": "9a88eedea3fac406a0410b54ef4d99aafd4cc341",
+  "branch": "completion/nur-v5-full-pass",
+  "environment_class": "local",
+  "started_at": "2026-07-24T22:56:25Z",
+  "ended_at": "2026-07-24T22:56:32Z",
+  "dirty_state_manifest": [
+    " M docs/release/v197-control-matrix.json",
+    "?? audit-output/",
+    "?? evidence/",
+    "?? infra/scripts/nur-gate.sh",
+    "?? proof/100-delta/",
+    "?? proof/100/",
+    "?? proof/fresh-signup/",
+    "?? proof/presentation-auth-recovery/",
+    "?? proof/v197-phase1/"
+  ],
+  "steps": [
+    {
+      "step": "billing_tests\n",
+      "command": "bash -c cd apps/api && .venv/bin/python -m pytest -q app/tests/test_billing.py app/tests/test_feature_lock_endpoints.py\n",
+      "exit_code": 0,
+      "seconds": 7,
+      "log": "billing_tests.log\n"
+    },
+    {
+      "step": "provider_test_mode\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no billing provider configured (G08-002)\n"
+    },
+    {
+      "step": "billing_ui\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no billing control in the V197 matrix (G08-006)\n"
+    }
+  ],
+  "notes": "FOUNDER_ACTION_REQUIRED_CONFIGURE_BILLING_TEST_PROVIDER"
+}

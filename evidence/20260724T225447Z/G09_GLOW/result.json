@@ -1,0 +1,54 @@
+{
+  "gate": "G09_GLOW",
+  "verdict": "INCOMPLETE",
+  "commit": "9a88eedea3fac406a0410b54ef4d99aafd4cc341",
+  "branch": "completion/nur-v5-full-pass",
+  "environment_class": "local",
+  "started_at": "2026-07-24T22:56:32Z",
+  "ended_at": "2026-07-24T22:56:39Z",
+  "dirty_state_manifest": [
+    " M docs/release/v197-control-matrix.json",
+    "?? audit-output/",
+    "?? evidence/",
+    "?? infra/scripts/nur-gate.sh",
+    "?? proof/100-delta/",
+    "?? proof/100/",
+    "?? proof/fresh-signup/",
+    "?? proof/presentation-auth-recovery/",
+    "?? proof/v197-phase1/"
+  ],
+  "steps": [
+    {
+      "step": "glow_tests\n",
+      "command": "bash -c cd apps/api && .venv/bin/python -m pytest -q app/tests/test_notifications.py app/tests/test_sol_living_system.py\n",
+      "exit_code": 0,
+      "seconds": 7,
+      "log": "glow_tests.log\n"
+    },
+    {
+      "step": "fraud_detection\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no Glow fraud detection (G09-006)\n"
+    },
+    {
+      "step": "leaderboards\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no leaderboard implementation (G09-011)\n"
+    },
+    {
+      "step": "notification_delivery\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no push/email delivery adapter (G09-014)\n"
+    },
+    {
+      "step": "experiment_engine\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no experiment engine (G09-015)\n"
+    }
+  ],
+  "notes": null
+}

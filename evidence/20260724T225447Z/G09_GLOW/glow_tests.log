@@ -1,0 +1,4 @@
+$ bash -c cd apps/api && .venv/bin/python -m pytest -q app/tests/test_notifications.py app/tests/test_sol_living_system.py
+
+.......                                                                  [100%]
+7 passed in 5.68s

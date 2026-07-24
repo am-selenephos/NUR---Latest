@@ -1,0 +1,25 @@
+$ npm run --silent v197:integrity
+
+{
+  "files": {
+    "host": {
+      "path": "/home/nur/NUR-INTEGRATION-20260722/apps/web/public/v197/NUR_V197_CHECKBOX_TICK_RESTORED.html",
+      "expected": "d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6",
+      "actual": "d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6",
+      "pass": true
+    },
+    "entry": {
+      "path": "/home/nur/NUR-INTEGRATION-20260722/docs/reference/entry_decoded_v197.html",
+      "expected": "cdeac0c8574333c7261be2bc410357ecc5407ee0dd5b1b8089630f3914026030",
+      "actual": "cdeac0c8574333c7261be2bc410357ecc5407ee0dd5b1b8089630f3914026030",
+      "pass": true
+    },
+    "universe": {
+      "path": "/home/nur/NUR-INTEGRATION-20260722/docs/reference/universe_decoded_v197.html",
+      "expected": "3cff07b31e8360e5ce793287298d66127c4f278705dc0f8e6abdfbe7e874dc40",
+      "actual": "3cff07b31e8360e5ce793287298d66127c4f278705dc0f8e6abdfbe7e874dc40",
+      "pass": true
+    }
+  },
+  "pass": true
+}

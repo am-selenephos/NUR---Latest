@@ -1,0 +1,48 @@
+{
+  "gate": "G15_SCALE_OPS",
+  "verdict": "FOUNDER_ACTION_REQUIRED",
+  "commit": "9a88eedea3fac406a0410b54ef4d99aafd4cc341",
+  "branch": "completion/nur-v5-full-pass",
+  "environment_class": "local",
+  "started_at": "2026-07-24T22:57:19Z",
+  "ended_at": "2026-07-24T22:57:22Z",
+  "dirty_state_manifest": [
+    " M docs/release/v197-control-matrix.json",
+    "?? audit-output/",
+    "?? evidence/",
+    "?? infra/scripts/nur-gate.sh",
+    "?? proof/100-delta/",
+    "?? proof/100/",
+    "?? proof/fresh-signup/",
+    "?? proof/presentation-auth-recovery/",
+    "?? proof/v197-phase1/"
+  ],
+  "steps": [
+    {
+      "step": "ops_tests\n",
+      "command": "bash -c cd apps/api && .venv/bin/python -m pytest -q app/tests/test_health.py app/tests/test_ops_diagnostics.py app/tests/test_dr.py app/tests/test_bounded_load.py\n",
+      "exit_code": 0,
+      "seconds": 3,
+      "log": "ops_tests.log\n"
+    },
+    {
+      "step": "staging_deploy\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no staging environment (G15-008)\n"
+    },
+    {
+      "step": "timed_restore_drill\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "restore drill not executed with measured RPO/RTO (G15-013)\n"
+    },
+    {
+      "step": "privacy_center\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no privacy center (G15-019)\n"
+    }
+  ],
+  "notes": "FOUNDER_ACTION_REQUIRED_STAGING_ACCESS \u2014 no staging environment, no CI run on this candidate"
+}

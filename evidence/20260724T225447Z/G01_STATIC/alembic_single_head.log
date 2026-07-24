@@ -1,0 +1,2 @@
+$ bash -c cd apps/api && ../../apps/api/.venv/bin/alembic heads | grep -c "(head)" | grep -qx 1
+

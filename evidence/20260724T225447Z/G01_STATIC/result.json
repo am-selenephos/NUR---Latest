@@ -1,0 +1,130 @@
+{
+  "gate": "G01_STATIC",
+  "verdict": "INCOMPLETE",
+  "commit": "9a88eedea3fac406a0410b54ef4d99aafd4cc341",
+  "branch": "completion/nur-v5-full-pass",
+  "environment_class": "local",
+  "started_at": "2026-07-24T22:54:48Z",
+  "ended_at": "2026-07-24T22:55:53Z",
+  "dirty_state_manifest": [
+    " M docs/release/v197-control-matrix.json",
+    "?? audit-output/",
+    "?? evidence/",
+    "?? infra/scripts/nur-gate.sh",
+    "?? proof/100-delta/",
+    "?? proof/100/",
+    "?? proof/fresh-signup/",
+    "?? proof/presentation-auth-recovery/",
+    "?? proof/v197-phase1/"
+  ],
+  "steps": [
+    {
+      "step": "ruff\n",
+      "command": "apps/api/.venv/bin/ruff check apps/api\n",
+      "exit_code": 0,
+      "seconds": 0,
+      "log": "ruff.log\n"
+    },
+    {
+      "step": "backend_tests\n",
+      "command": "bash -c cd apps/api && .venv/bin/python -m pytest -q\n",
+      "exit_code": 0,
+      "seconds": 58,
+      "log": "backend_tests.log\n"
+    },
+    {
+      "step": "alembic_single_head\n",
+      "command": "bash -c cd apps/api && ../../apps/api/.venv/bin/alembic heads | grep -c \"(head)\" | grep -qx 1\n",
+      "exit_code": 0,
+      "seconds": 0,
+      "log": "alembic_single_head.log\n"
+    },
+    {
+      "step": "web_typecheck\n",
+      "command": "npm run --silent web:typecheck\n",
+      "exit_code": 0,
+      "seconds": 2,
+      "log": "web_typecheck.log\n"
+    },
+    {
+      "step": "web_unit_tests\n",
+      "command": "npm run --silent web:test\n",
+      "exit_code": 0,
+      "seconds": 1,
+      "log": "web_unit_tests.log\n"
+    },
+    {
+      "step": "web_build\n",
+      "command": "npm run --silent web:build\n",
+      "exit_code": 0,
+      "seconds": 2,
+      "log": "web_build.log\n"
+    },
+    {
+      "step": "v197_integrity\n",
+      "command": "npm run --silent v197:integrity\n",
+      "exit_code": 0,
+      "seconds": 1,
+      "log": "v197_integrity.log\n"
+    },
+    {
+      "step": "secret_scan\n",
+      "command": "npm run --silent secret-scan\n",
+      "exit_code": 0,
+      "seconds": 0,
+      "log": "secret_scan.log\n"
+    },
+    {
+      "step": "release_naming\n",
+      "command": "npm run --silent release:naming-scan\n",
+      "exit_code": 0,
+      "seconds": 0,
+      "log": "release_naming.log\n"
+    },
+    {
+      "step": "diff_check\n",
+      "command": "git diff --check\n",
+      "exit_code": 0,
+      "seconds": 0,
+      "log": "diff_check.log\n"
+    },
+    {
+      "step": "mobile_typecheck\n",
+      "command": "npm run --silent mobile:typecheck\n",
+      "exit_code": 0,
+      "seconds": 1,
+      "log": "mobile_typecheck.log\n"
+    },
+    {
+      "step": "dependency_audit\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no dependency-audit gate implemented yet (G01-009)\n"
+    },
+    {
+      "step": "sbom\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no SBOM generator implemented yet (G01-009)\n"
+    },
+    {
+      "step": "migration_upgrade_from_populated\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no populated-revision upgrade test yet (G01-014)\n"
+    },
+    {
+      "step": "migration_downgrade\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no downgrade execution test yet (G01-015)\n"
+    },
+    {
+      "step": "fresh_extract_boot\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "fresh-clone/extract boot not wired into this runner yet (G01-017)\n"
+    }
+  ],
+  "notes": null
+}

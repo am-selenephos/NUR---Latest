@@ -1,0 +1,3 @@
+$ npm run --silent release:naming-scan
+
+release-naming-scan: PASS — release surface uses only public NUR naming.

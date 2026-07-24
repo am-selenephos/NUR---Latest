@@ -1,0 +1,69 @@
+{
+  "gate": "G03_V197",
+  "verdict": "BLOCKED_EXTERNAL",
+  "commit": "9a88eedea3fac406a0410b54ef4d99aafd4cc341",
+  "branch": "completion/nur-v5-full-pass",
+  "environment_class": "local",
+  "started_at": "2026-07-24T22:56:01Z",
+  "ended_at": "2026-07-24T22:56:02Z",
+  "dirty_state_manifest": [
+    " M docs/release/v197-control-matrix.json",
+    "?? audit-output/",
+    "?? evidence/",
+    "?? infra/scripts/nur-gate.sh",
+    "?? proof/100-delta/",
+    "?? proof/100/",
+    "?? proof/fresh-signup/",
+    "?? proof/presentation-auth-recovery/",
+    "?? proof/v197-phase1/"
+  ],
+  "steps": [
+    {
+      "step": "v197_integrity\n",
+      "command": "npm run --silent v197:integrity\n",
+      "exit_code": 0,
+      "seconds": 0,
+      "log": "v197_integrity.log\n"
+    },
+    {
+      "step": "control_matrix_regen\n",
+      "command": "node apps/web/scripts/rebuild-v197-control-matrix.mjs\n",
+      "exit_code": 0,
+      "seconds": 0,
+      "log": "control_matrix_regen.log\n"
+    },
+    {
+      "step": "control_matrix_fresh\n",
+      "command": "bash -c [ \"$(python3 -c \"import json;print(json.load(open(\\\"docs/release/v197-control-matrix.json\\\"))[\\\"generated_from_sha\\\"])\")\" = \"$(git rev-parse HEAD)\" ]\n",
+      "exit_code": 0,
+      "seconds": 0,
+      "log": "control_matrix_fresh.log\n"
+    },
+    {
+      "step": "no_broken_controls\n",
+      "command": "bash -c python3 -c \"\nimport json,sys\nm=json.load(open(\\\"docs/release/v197-control-matrix.json\\\"))\nbad={k:m[\\\"totals\\\"].get(k,0) for k in (\\\"DEAD\\\",\\\"DUPLICATE\\\",\\\"MISLEADING\\\")}\nsys.exit(1 if any(bad.values()) else 0)\"\n",
+      "exit_code": 0,
+      "seconds": 0,
+      "log": "no_broken_controls.log\n"
+    },
+    {
+      "step": "browser_suite\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "API stack not running\n"
+    },
+    {
+      "step": "deferred_controls\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "7 controls remain NOT_IMPLEMENTED_VISIBLE (G03-007)\n"
+    },
+    {
+      "step": "backend_only_surfaces\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "Personal Memory, Teach NUR and Billing unreachable from V197 (G03-008..010)\n"
+    }
+  ],
+  "notes": "API not reachable at http://localhost:8000/healthz \u2014 start the stack: bash RUN_NUR.sh"
+}

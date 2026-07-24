@@ -1,0 +1,42 @@
+{
+  "gate": "G13_GROUP_RESEARCH",
+  "verdict": "BLOCKED_EXTERNAL",
+  "commit": "9a88eedea3fac406a0410b54ef4d99aafd4cc341",
+  "branch": "completion/nur-v5-full-pass",
+  "environment_class": "local",
+  "started_at": "2026-07-24T22:56:57Z",
+  "ended_at": "2026-07-24T22:57:02Z",
+  "dirty_state_manifest": [
+    " M docs/release/v197-control-matrix.json",
+    "?? audit-output/",
+    "?? evidence/",
+    "?? infra/scripts/nur-gate.sh",
+    "?? proof/100-delta/",
+    "?? proof/100/",
+    "?? proof/fresh-signup/",
+    "?? proof/presentation-auth-recovery/",
+    "?? proof/v197-phase1/"
+  ],
+  "steps": [
+    {
+      "step": "group_research_tests\n",
+      "command": "bash -c cd apps/api && .venv/bin/python -m pytest -q app/tests/test_group_research_completion.py app/tests/test_consultations.py app/tests/test_group_nur.py\n",
+      "exit_code": 0,
+      "seconds": 5,
+      "log": "group_research_tests.log\n"
+    },
+    {
+      "step": "live_research\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no lawful research provider configured (G13-005)\n"
+    },
+    {
+      "step": "expert_module\n",
+      "command": null,
+      "exit_code": null,
+      "skipped_reason": "no expert verification module (G13-009)\n"
+    }
+  ],
+  "notes": "research live fetch is BLOCKED_BY_EXTERNAL_PROVIDER in the control matrix"
+}

@@ -1,0 +1,11 @@
+$ npm run --silent web:test
+
+
+ RUN  v4.1.10 /home/nur/NUR-INTEGRATION-20260722/apps/web
+
+
+ Test Files  16 passed (16)
+      Tests  63 passed (63)
+   Start at  03:55:48
+   Duration  760ms (transform 960ms, setup 0ms, import 1.36s, tests 426ms, environment 6.88s)
+
