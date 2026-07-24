@@ -4,6 +4,10 @@ Buckets: login (per ip+email fingerprint) and registration (per ip — the
 abuse mode is mass account creation from one address).
 Development fails OPEN (with a warning) so a stopped Redis doesn't brick local
 auth; any non-development environment fails CLOSED (429) on limiter errors.
+
+Every key is written through `namespaced()`. Production leaves the namespace
+empty; a test run sets `NUR_REDIS_KEY_NAMESPACE` to a per-run value so two
+concurrent invocations sharing one Redis cannot corrupt each other's counters.
 """
 import logging
 
@@ -15,8 +19,15 @@ from app.core.logging import log
 logger = logging.getLogger("nur.rate_limit")
 
 
+def namespaced(key: str) -> str:
+    """Prefix a limiter key with the configured Redis namespace, if any."""
+    prefix = get_settings().redis_key_namespace
+    return f"{prefix}:{key}" if prefix else key
+
+
 async def _fixed_window(redis: Redis, *, key: str, max_n: int, window_s: int) -> bool:
     s = get_settings()
+    key = namespaced(key)
     try:
         n = await redis.incr(key)
         if n == 1:

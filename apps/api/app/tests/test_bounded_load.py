@@ -11,6 +11,8 @@ import asyncio
 from app.core.config import get_settings
 from app.tests.conftest import register_user
 
+from .conftest import clear_run_keys
+
 
 def H(client) -> dict[str, str]:
     return {"X-CSRF-Token": client.cookies.get("nur_csrf")}
@@ -59,6 +61,8 @@ async def test_upload_burst_is_bounded_and_service_recovers(client, monkeypatch)
 
     # Recovery: once the window clears (simulated by resetting the limiter), the
     # owner can upload again — the throttle was temporary, not a wedged state.
-    await client.app.state.redis.flushdb()
+    # Clear only this run's keys; flushdb is server-wide and would wipe the
+    # limiter state of any concurrently running suite.
+    await clear_run_keys(client.app.state.redis)
     recovered = await _upload(client, project_id, 999)
     assert recovered.status_code == 201, recovered.text

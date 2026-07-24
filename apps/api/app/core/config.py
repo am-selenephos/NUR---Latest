@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://nur_app:change_me@localhost:5432/nur"
     alembic_database_url: str | None = None  # schema-owner role; migrations only
     redis_url: str = "redis://localhost:6379/0"
+    # Prefix for every Redis key this process owns. Empty in production, where the
+    # instance is not shared. Test runs set a unique namespace so two concurrent
+    # invocations cannot read, increment, or delete each other's limiter state.
+    redis_key_namespace: str = Field(default="", validation_alias="NUR_REDIS_KEY_NAMESPACE")
 
     session_secret: str = "dev_only_change_me"
     csrf_secret: str = "dev_only_change_me"
