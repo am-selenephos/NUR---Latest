@@ -124,3 +124,69 @@ The founder ratified the **source identity**. Runtime and visual proof is **not*
 
 Until C2–C6 are met, `G03_V197` stays `FAIL`, and `CONFLICT-001` is recorded as
 **RESOLVED (identity) / CONDITIONS PENDING (proof)**.
+
+---
+
+## FD-002 — The existing OpenAI key is locked; no rotation
+
+**Decided:** 2026-07-25 · **Founder:** Mahnoor · **Status:** IN FORCE
+**Supersedes:** every earlier rotation instruction, including blocker B2 as originally written.
+
+### Decision
+
+The OpenAI API key that produced the verified `LIVE_TALK_PASS` is **reused unchanged**. It must
+not be rotated, revoked, replaced, regenerated, or disabled. `FOUNDER_ACTION_REQUIRED_ROTATE_OPENAI_KEYS`
+is withdrawn.
+
+### Retrieval
+
+Retrieved only from live local configuration, in the founder's stated priority order. Source:
+`/home/nur/NUR-LIVE-TALK-PROOF-20260723/.env.local` (mode 600). Never recovered from chat
+transcripts, audit reports, Git history, screenshots, public files, or archived plaintext.
+
+Provenance was confirmed rather than assumed: the live key line fingerprints to the same value
+the forensic audit recorded for archive snapshot 06 (`NUR-LIVE-TALK-PROOF`), which is the
+configuration that produced `LIVE_TALK_PASS` at commit `33a5dab`.
+
+### Competing configurations
+
+Two distinct active key values exist in live local worktree configuration:
+
+| Group | Paths |
+| --- | --- |
+| 1 — **selected** | `/home/nur/NUR-LIVE-TALK-PROOF-20260723/.env.local`, `/home/nur/NUR-FABLE-20260720-155600/.env.local` |
+| 2 — not selected | `/home/nur/NUR-DEMO-COUSIN-20260722/.env.local`, `/home/nur/NUR-DEMO-TALK-FIXED/.env.local` |
+
+`FOUNDER_ACTION_REQUIRED_IDENTIFY_EXISTING_OPENAI_KEY` was **not** raised. The founder's own
+priority list names source #1 explicitly, and that source resolves to exactly one value, so the
+choice is determinate rather than a guess. Group 2 belongs to demo worktrees that did not
+produce `LIVE_TALK_PASS`. Values were never displayed. **If the founder intends group 2 to be
+the locked key instead, say so and it will be re-provisioned.**
+
+### Provisioning
+
+The whole `.env.local` was copied to `/home/nur/NUR-INTEGRATION-20260722/.env.local` — it also
+carries the provider, model (`gpt-4.1`) and reasoning-effort settings the proven run used.
+
+| Control | State |
+| --- | --- |
+| value preserved exactly | `SAME_OPENAI_KEY=true` |
+| file mode | `600` |
+| ignored by Git | yes — `.gitignore:3` (`.env.*`) |
+| appears in `git status` | no |
+| `npm run secret-scan` | passes |
+| displayed, echoed, or logged | never |
+| in commits, patches, reports, evidence, ZIPs | never |
+| fingerprints | only in `/home/nur/NUR-V5-100-COMPLETION/.secret-evidence/` (dir 700, file 600) |
+
+### Exposure handling under this decision
+
+The key stays active and valid. Historical archives containing duplicate plaintext copies remain
+quarantined at `/home/nur/NUR-QUARANTINE-SECRETS/` (700/600) and are excluded from every release
+path. `docs/v6/credential-exposure-inventory.csv` rotation state changes from `UNROTATED_P0` to
+`FOUNDER_LOCKED_NO_ROTATION`.
+
+**The residual risk is unchanged and is now accepted by decision, not by oversight:** the archive
+copies were readable at `~/Downloads` before quarantine, so anyone who obtained them holds a
+working credential. Quarantine limits further spread; it does not revoke access already taken.
+Reviewing provider usage for unexpected spend remains worthwhile.

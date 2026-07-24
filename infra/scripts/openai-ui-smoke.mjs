@@ -59,12 +59,29 @@ try {
   await universe.locator("#talk-stream").getByText(prompt, { exact: true }).waitFor({ timeout: 120_000 });
   await persistedResponses.nth(beforeResponses).waitFor({ timeout: 120_000 });
 
-  const response = (await persistedResponses.last().innerText()).replace(/^NUR · model-generated\s*/i, "").trim();
+  // The persisted element keeps receiving streamed text for a moment after it appears,
+  // so a single innerText read can capture a partial answer. Comparing that partial
+  // string against the stored row then fails as `model_response_persisted: false` —
+  // a false negative that made this smoke flaky about half the time. Wait for the text
+  // to stop changing before treating it as the answer.
+  const answer = persistedResponses.nth(beforeResponses);
+  let response = "";
+  for (let stable = 0, elapsed = 0; stable < 3 && elapsed < 120_000; elapsed += 250) {
+    await page.waitForTimeout(250);
+    const current = (await answer.innerText()).replace(/^NUR · model-generated\s*/i, "").trim();
+    stable = current && current === response ? stable + 1 : 0;
+    response = current;
+  }
   if (!response || /not connected|disabled|not enabled/i.test(response)) {
     throw new Error("V197 Talk did not display a real provider response.");
   }
 
-  const persistence = await page.evaluate(async ({ expectedPrompt, expectedResponse }) => {
+  // Match the stored row by its event id, not by comparing rendered text. The message
+  // element renders the structured payload (next move, uncertainty) alongside the answer,
+  // and whether those appear depends on the model's output — so text equality failed
+  // intermittently even though persistence was correct.
+  const answerEventId = await answer.getAttribute("data-event-id");
+  const persistence = await page.evaluate(async ({ expectedPrompt, expectedResponse, expectedEventId }) => {
     const threadResponse = await fetch("/api/v1/cognition/talk-thread", { credentials: "include" });
     if (!threadResponse.ok) throw new Error(`talk-thread returned ${threadResponse.status}`);
     const rows = await threadResponse.json();
@@ -72,7 +89,8 @@ try {
     // with collapsed whitespace instead of raw equality.
     const collapse = value => String(value || "").replace(/\s+/g, " ").trim();
     const userTurn = [...rows].reverse().find(row => row.who === "user" && collapse(row.text) === collapse(expectedPrompt));
-    const modelTurn = [...rows].reverse().find(row => row.who === "nur" && collapse(row.text) === collapse(expectedResponse));
+    const modelTurn = [...rows].reverse().find(row => String(row.id) === String(expectedEventId))
+      ?? [...rows].reverse().find(row => row.who === "nur" && collapse(expectedResponse).includes(collapse(row.text)));
     const payload = modelTurn?.structured_payload || {};
     const output = payload.talk_output || {};
     const schemaKeys = [
@@ -94,7 +112,7 @@ try {
       schema_valid: schemaKeys.every(key => Object.hasOwn(output, key)),
       source_refs_valid: payload.verification?.checks?.source_refs_available === true,
     };
-  }, { expectedPrompt: prompt, expectedResponse: response });
+  }, { expectedPrompt: prompt, expectedResponse: response, expectedEventId: answerEventId });
 
   if (
     !persistence.user_turn_persisted
