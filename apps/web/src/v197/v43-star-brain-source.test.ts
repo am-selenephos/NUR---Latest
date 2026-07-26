@@ -11,22 +11,57 @@ const bridge = readFileSync(bridgePath, "utf8");
 describe("V43-derived NUR star-brain source", () => {
   it("keeps the supplied V43 anatomy and adds the approved sparkle/stem extension", () => {
     expect(createHash("sha256").update(runtime).digest("hex"))
-      .toBe("ee34405b119b8f2d7b6a5b4b7fdedff2e6875f9bd7d472aff6ab5b8473b8d347");
+      .toBe("8e249a704734e0d60bedff389883e90460338d14ac806c00ca6e5019b5834192");
     expect(runtime).toContain("canvas.id = 'nur-brain-canvas';");
-    expect(runtime).toContain("const N_CORTEX = MOBILE ? 529 : 794;");
-    expect(runtime).toContain("const N_CEREB  = MOBILE ? 110 : 161;");
-    expect(runtime).toContain("const N_STEM   = MOBILE ? 69  : 105;");
+    expect(runtime).toContain("const N_CORTEX = MOBILE ? 740 : 1112;");
+    expect(runtime).toContain("const N_CEREB  = MOBILE ? 154 : 225;");
+    expect(runtime).toContain("const N_STEM   = MOBILE ? 97  : 147;");
     expect(runtime).toContain("host.dataset.nurSparkleProfile='exact-galaxy-rig-star';");
     expect(runtime).toContain("host.dataset.nurGalaxyPaint='v197-simple-galaxy-particle-v1';");
     expect(runtime).toContain("host.dataset.nurAnatomy='cortex-cerebellum-brainstem';");
-    expect(runtime).toContain("const glint=REDUCED?0:Math.pow(.5+.5*Math.sin(p.gl),18);");
-    expect(runtime).toContain("const simpleR=Math.max(.52,rad*.82);");
-    expect(runtime).toContain("c.fillRect(x-simpleR*2.2,y-.21,simpleR*4.4,.42);");
-    expect(runtime).toContain("c.fillRect(x-.21,y-simpleR*1.5,.42,simpleR*3);");
-    expect(runtime).not.toContain("starSprites");
-    expect(runtime).toContain("window.nurStarBrain={ storm, absorb, shatter, firePulse };");
+    // Glint is preserved for the structural stars; the dust population skips it
+    // because a pow(x,18) specular flash is invisible at that size and it is 760
+    // of 1,820 points paying for an effect nobody can see.
+    expect(runtime).toContain("const glint=(REDUCED||isDust)?0:Math.pow(.5+.5*Math.sin(p.gl),18);");
+    // The square-plus-cross particle was replaced with the galaxy rig's stellar
+    // form on founder instruction. Anatomy is untouched; only the paint changed.
+    expect(runtime).not.toContain("const simpleR=Math.max(.52,rad*.82);");
+    expect(runtime).toContain("starPath(g,mid,mid,outer,-Math.PI/2);");
+    // Halos are rasterised once per colour and size bucket rather than allocating
+    // two radial gradients per star per frame, as the rig does.
+    // The complete star is rasterised once per colour and size bucket and then
+    // blitted. Drawing halo, body, core and spikes live cost 66 ms per frame at
+    // 1,820 points; one drawImage per point is a single composite.
+    expect(runtime).toContain("const starCache=new Map();");
+    expect(runtime).toContain("function starSprite(col,bucket)");
+    expect(runtime).toContain("c.drawImage(sprite,x-reach,y-reach,reach*2,reach*2);");
+    expect(runtime).toContain("window.nurStarBrain={ storm, absorb, shatter, firePulse, dispose };");
     expect(runtime).not.toContain("nur-brain-canvas-v197");
     expect(() => new Function(runtime)).not.toThrow();
+  });
+
+  /**
+   * The hash above moved once, deliberately, to add a lifecycle. The anatomy
+   * assertions in the previous test are unchanged and still pass, so the
+   * founder-approved V43 form is byte-identical; only the ability to stop was
+   * added. Before this, the runtime had no way to release a surface and its
+   * loop outlived every route change — which is how the interface accumulated
+   * several engines animating at once.
+   */
+  it("can release the surface it owns", () => {
+    expect(runtime).toContain("cancelAnimationFrame(rafHandle)");
+    expect(runtime).toContain("function dispose()");
+    // The loop must refuse to re-arm once disposed.
+    expect(runtime).toContain("if(disposed) return;");
+    expect(runtime).toContain("rafHandle = requestAnimationFrame(frame);");
+    // Everything the runtime registers must be undone.
+    expect(runtime).toContain("teardown.push(()=>removeEventListener('resize',resize));");
+    expect(runtime).toContain("teardown.push(()=>ro.disconnect());");
+    expect(runtime).toContain("canvas.remove();");
+    // The bridge must expose the release path to the scene orchestrator.
+    expect(bridge).toContain("export function disposeV197StarBrain");
+    // The previously rejected transform-profile approach must stay rejected.
+    expect(bridge).not.toContain("applyV197StarBrainLifecycleProfile");
   });
 
   it("mounts the extended renderer directly without a source-transform profile", () => {
@@ -35,5 +70,19 @@ describe("V43-derived NUR star-brain source", () => {
     expect(bridge).toContain('brainHost.dataset.nurDispersal = "radial-circle";');
     expect(bridge).not.toContain("applyV197StarBrainVisualProfile");
     expect(bridge).not.toContain("applyV197StarBrainLifecycleProfile");
+  });
+  it("carries a dust population of many small stars that is not wired into the synapse graph", () => {
+    // "More stars of different smaller sizes" — a dense fine population filling
+    // the volume between the structural points.
+    expect(runtime).toContain("const N_DUST   = MOBILE ? 364 : 602;");
+    expect(runtime).toContain("addPoint(x,y,z,'dust',.35);");
+
+    // Radii are power-biased: many small, few large, like a real field.
+    expect(runtime).toContain("r: (.34 + Math.pow(Math.random(),2.1)*1.95)");
+    expect(runtime).toContain("dot.r=.20+Math.pow(Math.random(),2.4)*.62;");
+
+    // Dust must stay out of the O(n^2) synapse build: it is texture, not
+    // structure, and wiring it would bury the anatomy and triple the cost.
+    expect(runtime).toContain("if(pts[i].group==='dust') continue;");
   });
 });

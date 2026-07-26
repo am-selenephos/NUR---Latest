@@ -12,7 +12,7 @@ function snapshot(): V197BridgeSnapshot {
       orbit: { id: "personal", title: "Personal Orbit", kind: "PERSONAL_BRIDGE", status: "ACTIVE" },
     },
     ownerState: null,
-    map: { provenance_label: "owner_ledger", counts: [], nodes: [{ id: "system-1", title: "Quiet Ambition", kind: "PROJECT", orbit_id: "system-1", active: true, counts: {} }] },
+    map: { provenance_label: "owner_ledger", counts: [], nodes: [{ id: "system-1", title: "Ambition", kind: "PROJECT", orbit_id: "system-1", active: true, counts: {} }] },
     orbits: null,
     timeline: null,
     insights: null,

@@ -10,7 +10,7 @@ const user = {
 
 const orbit = {
   id: "22222222-2222-2222-2222-222222222222",
-  title: "Quiet Ambition",
+  title: "Ambition",
   kind: "PROJECT",
   description: "Build without noise",
   status: "ACTIVE",

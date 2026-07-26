@@ -45,7 +45,7 @@ function fixture(): Document {
 }
 
 function snapshot(): V197BridgeSnapshot {
-  const titles = ["Personal Orbit", "Quiet Ambition", "Rebuild", "Study", "Money", "Body", "Connection", "Creation"];
+  const titles = ["Personal Orbit", "Ambition", "Rebuild", "Creation", "Growth", "Introspection", "Connection"];
   const nodes = titles.map((title, index) => ({
     id: `orbit-${index}`,
     title,
@@ -61,7 +61,36 @@ function snapshot(): V197BridgeSnapshot {
       profile: { chosen_name: "Mahnoor", locale: "en", writing_preference: "default" },
       orbit: { id: "orbit-0", title: "Personal Orbit", kind: "PERSONAL_BRIDGE", status: "ACTIVE" },
     },
-    ownerState: { active_systems: 7, outcomes_returned: 1, insights_evolving: 1, open_questions: 0, research_staged: 0, plans_active: 1, live_status: "owner_ledger" },
+    // System slots hydrate from living Systems, so the fixture must supply them.
+    systems: {
+      provenance_label: "OWNER_LEDGER",
+      systems: ["Ambition", "Rebuild", "Creation", "Growth", "Introspection", "Connection"].map(
+        (title, index) => ({
+          slug: title.toLowerCase(),
+          title,
+          definition: `${title} definition`,
+          orbit_id: `orbit-${index + 1}`,
+          questions: [],
+          checklist: [],
+          progress_percent: 0,
+          progress_sources: {
+            completed_actions: 0,
+            total_actions: 0,
+            action_completion_percent: 0,
+            goal_progress_percent: 0,
+            latest_diagnostic_score: 0,
+            glow_points: 0,
+            formula: "test",
+          },
+          active_goal_count: 0,
+          goals: [],
+          blockers: [],
+          next_move: { kind: "action", id: null, title: "Persisted step" },
+          prediction: { if_ignored: "", if_followed: "", basis: {}, provenance_label: "test" },
+        }),
+      ),
+    } as never,
+    ownerState: { active_systems: 6, outcomes_returned: 1, insights_evolving: 1, open_questions: 0, research_staged: 0, plans_active: 1, live_status: "owner_ledger" },
     live: {
       generated_at: "2026-07-11T10:00:00Z",
       provenance_label: "OWNER_LEDGER_AGGREGATE",
@@ -109,14 +138,19 @@ describe("Track A V197 persisted hydration", () => {
     expect(document.body.textContent).toContain("Persisted plan");
     expect(document.body.textContent).toContain("No rooms yet. Create one bounded room to open Group NUR.");
     expect(document.body.textContent).toContain("No fake people, replies, or rooms.");
-    expect([...document.querySelectorAll(".universe-system-node b")].map(node => node.textContent)).toEqual([
-      "Quiet Ambition", "Rebuild", "Study", "Money", "Body", "Connection", "Creation",
+    // System slots are driven by living Systems, never by the raw orbit graph.
+    // A slot with no living System is hidden rather than showing a stale orbit.
+    const visibleSystemTitles = [...document.querySelectorAll<HTMLElement>(".universe-system-node")]
+      .filter(slot => !slot.hidden)
+      .map(slot => slot.querySelector("b")?.textContent);
+    expect(visibleSystemTitles).toEqual([
+      "Ambition", "Rebuild", "Creation", "Growth", "Introspection", "Connection",
     ]);
     expect(document.querySelector(".plan-check")?.getAttribute("data-plan-step-id")).toBe("step-1");
     expect(document.querySelector(".clean-system-row .nur-exact-mini-host")?.textContent).toBe("RAIL_STAR");
-    expect(document.querySelector(".clean-system-row .system-label")?.textContent).toBe("Quiet Ambition");
+    expect(document.querySelector(".clean-system-row .system-label")?.textContent).toBe("Ambition");
     expect(document.querySelector(".universe-system-node .nur-exact-mini-host")?.textContent).toBe("NODE_STAR");
-    expect(document.querySelector(".universe-system-node .node-copy b")?.textContent).toBe("Quiet Ambition");
+    expect(document.querySelector(".universe-system-node .node-copy b")?.textContent).toBe("Ambition");
     expect(document.body.textContent).not.toContain("fake 1");
     expect(document.body.textContent).not.toContain("fake move");
     expect(document.body.textContent).not.toContain("fake revision");
@@ -124,11 +158,17 @@ describe("Track A V197 persisted hydration", () => {
     expect(document.body.textContent).not.toContain("78%");
     expect(document.querySelector(".system-badge .nur-exact-mini-host")?.textContent).toBe("BADGE_STAR");
     expect(document.querySelector(".insight-opportunity b")?.textContent).toBe("Persisted step");
-    expect(document.querySelector(".insight-strength b")?.textContent).toBe("1");
+    // Persisted progress now comes from the living System, not a raw orbit count.
+    expect(document.querySelector(".insight-strength span")?.textContent).toBe("Persisted progress");
+    expect(document.querySelector(".insight-strength b")?.textContent).toBe("0%");
     expect(document.querySelector("#page-systems .page-sub")?.textContent).toContain("12 owner-ledger sources");
-    expect(document.querySelector(".universe-state-strip")?.textContent).toContain("What NUR sees now");
-    expect(document.querySelector(".universe-state-strip")?.textContent).toContain("Finish the evidence pass");
-    expect(document.querySelector(".universe-state-strip")?.textContent).toContain("No people or group Orbit yet");
+    // With a System focused, the strip carries that System's persisted facts —
+    // this is the state the Systems page actually renders for a populated owner.
+    const strip = document.querySelector(".universe-state-strip")?.textContent ?? "";
+    expect(strip).toContain("System progress");
+    expect(strip).toContain("calculated from owner evidence");
+    expect(strip).toContain("Actions");
+    expect(strip).toContain("Active goals");
     expect(document.body.dataset.nurLiveProvenance).toBe("OWNER_LEDGER_AGGREGATE");
   });
 

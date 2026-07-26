@@ -57,9 +57,9 @@ test("Track A runs hydrated canonical V197 on real mobile engines", async ({ pag
   const universe = page.frameLocator("#nur-universe-stage");
   await expect(universe.locator("#page-systems")).toBeVisible({ timeout: 25_000 });
   await expect(page.locator("#root")).toHaveCount(0);
-  await expect(universe.locator(".universe-system-node:visible")).toHaveCount(7);
+  await expect(universe.locator(".universe-system-node:visible")).toHaveCount(6);
   await expect(universe.locator(".universe-system-node b")).toHaveText([
-    "Quiet Ambition", "Rebuild", "Study", "Money", "Body", "Connection", "Creation",
+    "Ambition", "Rebuild", "Creation", "Growth", "Introspection", "Connection",
   ]);
   await expect(universe.locator(".universe-nav-tabs button > span:not(.nur-exact-mini-host)")).toHaveText([
     "Universe", "Map", "Orbits", "Timeline", "Insights",
