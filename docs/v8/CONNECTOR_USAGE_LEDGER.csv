@@ -1,0 +1,22 @@
+connector_or_tool,available,authenticated,capabilities,data_source,read_or_write,purpose_in_this_mission,actions_taken,artifacts_created,limitations
+local_shell_filesystem,yes,n/a,"exec, read, write",local disk,read+write,"repo inspection, decode, analysis, evidence","decoded ENTRY/UNIVERSE Base64; rule-level dead-CSS analysis; hashing","docs/v8/*, proof/v8-*","none"
+git,yes,n/a,"history, branches, stash",local repo,read+write(local only),"verify branch/HEAD; measure bundle delta safely","confirmed completion/nur-v5-full-pass @ 902c31b; reversible stash for baseline bundle",none,"no push/merge/tag performed"
+github_cli,yes,yes (am-statementforge),"repos, commits, PRs",github.com/am-selenephos/NUR,read only,"verify remote truth instead of assuming","read default branch, main SHA, 5 open draft PRs",docs/v8/AVAILABLE_CONNECTORS_AND_TOOLS.md,"read-only by directive; no remote writes"
+playwright_chromium,yes,n/a,"automation, evaluate, screenshot",live app localhost,read only,"live inspection, FPS, teardown proof, 8-viewport capture","signed in as seeded owner; measured 180 frames; captured baseline+candidate","proof/v8-candidate/*, proof/v8-baseline/*","headless caps rAF at ~30 FPS; headed run still required"
+node_npm_vitest_vite,yes,n/a,"typecheck, test, build",local repo,read+write,"verify the implementation compiles and passes","typecheck clean; 81 unit tests; build green","dist/assets/v197-bridge.js","npm warns Node 20 unsupported; non-blocking"
+python3,yes,n/a,"parsing, hashing, byte diff",local disk,read+write,"CSS rule analysis, Base64 decode, wheel comparison","analysed 1118 files; decoded 530557 bytes",scratchpad analyses,"none"
+ffmpeg_ffprobe,yes,n/a,"video metadata, frame extraction",n/a,read,"shot-by-shot reference analysis","NONE — no videos present",none,"BLOCKED: /home/nur/Downloads/NUR-UI-REFERENCES absent"
+imagemagick,yes,n/a,"contact sheets, palettes",n/a,read+write,"reference contact sheets","NONE — nothing to process",none,"blocked by the same missing videos"
+google_drive,no,no,file access,n/a,n/a,"locate founder-supplied assets",none,none,CONNECTOR_UNAVAILABLE_GOOGLE_DRIVE — OAuth not possible in a non-interactive session
+gmail,no,no,mail,n/a,n/a,not required,none,none,CONNECTOR_UNAVAILABLE_GMAIL
+google_calendar,no,no,calendar,n/a,n/a,not required,none,none,CONNECTOR_UNAVAILABLE_GOOGLE_CALENDAR
+wolfram,no,no,computation,n/a,n/a,not required,none,none,CONNECTOR_UNAVAILABLE_WOLFRAM
+blaze_sql,no,no,sql,n/a,n/a,not required,none,none,CONNECTOR_UNAVAILABLE_BLAZE_SQL
+cb_insights,no,no,market data,n/a,n/a,not required,none,none,CONNECTOR_UNAVAILABLE_CB_INSIGHTS
+fmp,no,no,financial data,n/a,n/a,not required,none,none,CONNECTOR_UNAVAILABLE_FMP
+jobdatalake,no,no,jobs data,n/a,n/a,not required,none,none,CONNECTOR_UNAVAILABLE_JOBDATALAKE
+mindmap,no,no,diagrams,n/a,n/a,not required,none,none,CONNECTOR_UNAVAILABLE_MINDMAP
+moodys,no,no,credit data,n/a,n/a,not required,none,none,CONNECTOR_UNAVAILABLE_MOODYS
+oxford_economics,no,no,economics,n/a,n/a,not required,none,none,CONNECTOR_UNAVAILABLE_OXFORD_ECONOMICS
+v0,no,no,ui generation,n/a,n/a,"deliberately not used — generated UI would not be NUR-authored",none,none,CONNECTOR_UNAVAILABLE_V0
+adobe_canva_cloudinary_dropbox,no,no,design assets,n/a,n/a,"founder asset library",none,none,not connected in this environment; no asset licensing assumed

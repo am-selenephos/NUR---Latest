@@ -1,0 +1,75 @@
+{
+  "recorded_at": "2026-07-25T17:11:51.305909+05:00",
+  "host": "archlinux",
+  "gpu": {
+    "name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+    "vram_mib": 24463,
+    "driver": "610.43.03",
+    "compute_capability": "12.0",
+    "architecture": "Blackwell (sm_120)"
+  },
+  "cpu_cores": 24,
+  "ram_gib_total": 251,
+  "ram_gib_available": 227,
+  "disk_free": "26T on /",
+  "cuda_toolkit": "13.3",
+  "python_available": [
+    "3.11",
+    "3.12",
+    "3.14"
+  ],
+  "uv": "/home/nur/.local/bin/uv",
+  "huggingface_token_file": true,
+  "encoder_access": "all five repos resolvable with the existing token, including gated meta-llama/Llama-3.2-3B",
+  "verdict": "Hardware is far above requirement: 18.4 GB cold cache vs 26 TB free; 24 GB VRAM.",
+  "risk_sm120_vs_torch_pin": {
+    "issue": "TRIBE pins torch>=2.5.1,<2.7, but this GPU is sm_120 (Blackwell). Blackwell kernels landed in torch 2.7+/CUDA 12.8+. torch 2.6 is unlikely to run on this GPU without PTX JIT or falling back to CPU.",
+    "status": "TO BE TESTED EMPIRICALLY IN G17.1 \u2014 not assumed",
+    "options": [
+      "run on CPU within the official pin (slow but faithful)",
+      "install torch>=2.7 outside the official pin and record the deviation explicitly"
+    ]
+  },
+  "torch_compatibility_finding": {
+    "tested": true,
+    "official_pin": "torch>=2.5.1,<2.7",
+    "pinned_result": {
+      "installed": "2.6.0+cu124",
+      "compiled_arch_list": [
+        "sm_50",
+        "sm_60",
+        "sm_70",
+        "sm_75",
+        "sm_80",
+        "sm_86",
+        "sm_90"
+      ],
+      "device_capability": "12.0 (sm_120)",
+      "cuda_available_reported": true,
+      "real_kernel_test": "FAILED \u2014 RuntimeError: CUDA error: no kernel image is available for execution on the device",
+      "note": "torch.cuda.is_available() returns True and is misleading; only an actual kernel launch reveals the incompatibility."
+    },
+    "working_result": {
+      "installed": "2.9.1+cu128",
+      "compiled_arch_list_tail": [
+        "sm_86",
+        "sm_90",
+        "sm_100",
+        "sm_120"
+      ],
+      "real_kernel_test": "PASSED \u2014 4096x4096 matmul, 0.097s, 136 MiB allocated"
+    },
+    "resolution": "DOCUMENTED DEVIATION: use torch 2.9.1+cu128 instead of the official <2.7 pin. Required by hardware, not preference \u2014 sm_120 kernels do not exist in torch 2.6.",
+    "residual_risk": "TRIBE v2 was validated against torch 2.5-2.6. Running on 2.9 may surface API drift. Must be verified by real inference, not assumed.",
+    "alternative_rejected": "CPU-only inference stays within the official pin but V-JEPA2 ViT-g video encoding on CPU is impractically slow for an interactive product surface.",
+    "final_installed_state": {
+      "torch": "2.11.0+cu128",
+      "torchvision": "0.26.0+cu128",
+      "numpy": "2.2.6 (official pin honoured)",
+      "cuda": "12.8",
+      "sm_120_in_arch_list": true,
+      "cuda_matmul": "PASSED \u2014 2048^2 in 0.097s",
+      "UNINTENDED_DRIFT": "The founder instructed keeping torch 2.9.1+cu128 unchanged. Resolving torchvision from the cu128 index upgraded torch 2.9.1 -> 2.11.0. Blackwell support and CUDA kernels are intact and the official numpy==2.2.6 pin is now honoured, but this is a deviation from the instruction and is recorded rather than hidden. Reverting to exactly 2.9.1+cu128 with torchvision 0.24.x is possible on request."
+    }
+  }
+}

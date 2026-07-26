@@ -1,0 +1,70 @@
+{
+  "recorded_at": "2026-07-25T17:11:51.305736+05:00",
+  "recorded_from": "primary sources only \u2014 local official clone, HuggingFace API, official README/LICENSE/config.yaml",
+  "source": {
+    "repo": "facebookresearch/tribev2",
+    "local_clone": "/home/nur/NUR-TRIBE-V2",
+    "revision": "af58661791a351a448a489042a28f6c37e1c14b7",
+    "clean": true,
+    "note": "Pre-existing official clone. Not created by this mission and not modified by it."
+  },
+  "model": {
+    "repo": "facebook/tribev2",
+    "revision": "f894e783020944dcd96e5568550afe2aa9743f9f",
+    "last_modified": "2026-03-27T09:07:48.000Z",
+    "gated": false,
+    "license": "cc-by-nc-4.0",
+    "files": {
+      "best.ckpt": 708856138,
+      "config.yaml": 18041,
+      "LICENSE": null,
+      "README.md": null
+    }
+  },
+  "upstream_encoders_from_official_config": {
+    "text": {
+      "repo": "meta-llama/Llama-3.2-3B",
+      "revision": "13afe5124825",
+      "gated": "manual",
+      "approx_bytes": 6436879368
+    },
+    "video": {
+      "repo": "facebook/vjepa2-vitg-fpc64-256",
+      "revision": "875c192b7b70",
+      "gated": false,
+      "approx_bytes": 4138313707
+    },
+    "audio": {
+      "repo": "facebook/w2v-bert-2.0",
+      "revision": "da985ba0987f",
+      "gated": false,
+      "approx_bytes": 4651197868
+    },
+    "image": {
+      "repo": "facebook/dinov2-large",
+      "revision": "47b73eefe95e",
+      "gated": false,
+      "approx_bytes": 2435138442
+    }
+  },
+  "cold_cache_footprint_bytes": 18370403564,
+  "cold_cache_footprint_note": "~18.4 GB. The 676 MB checkpoint alone is NOT the footprint; four upstream encoders dominate.",
+  "capability_contract_verified_against_official_readme": {
+    "inputs": [
+      "text_path",
+      "audio_path",
+      "video_path"
+    ],
+    "output": "predicted fMRI BOLD time series, shape (n_timesteps, n_vertices)",
+    "subject": "average/population subject \u2014 NOT the user",
+    "surface": "fsaverage5, ~20k vertices (20,484)",
+    "sampling": "1 Hz",
+    "hemodynamic_lag": "predictions offset by 5 seconds in the past to compensate for hemodynamic lag",
+    "text_pipeline": "text is converted to speech then transcribed to obtain word-level timings",
+    "license": "CC-BY-NC-4.0",
+    "python": ">=3.11",
+    "torch_pin": ">=2.5.1,<2.7"
+  },
+  "paper": "https://arxiv.org/abs/2605.04326",
+  "citation": "d'Ascoli et al., A foundation model of vision, audition, and language for in-silico neuroscience, 2026"
+}

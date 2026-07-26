@@ -1,0 +1,55 @@
+{
+  "buttons": [
+    {
+      "slug": "quiet-ambition",
+      "system": "Quiet Ambition",
+      "label": "Quiet Ambition",
+      "describedBy": "nur-visual-telemetry-quiet-ambition"
+    },
+    {
+      "slug": "rebuild",
+      "system": "Rebuild",
+      "label": "Rebuild",
+      "describedBy": "nur-visual-telemetry-rebuild"
+    },
+    {
+      "slug": "study",
+      "system": "Study",
+      "label": "Study",
+      "describedBy": "nur-visual-telemetry-study"
+    },
+    {
+      "slug": "money",
+      "system": "Money",
+      "label": "Money",
+      "describedBy": "nur-visual-telemetry-money"
+    },
+    {
+      "slug": "body",
+      "system": "Body",
+      "label": "Body",
+      "describedBy": "nur-visual-telemetry-body"
+    },
+    {
+      "slug": "connection",
+      "system": "Connection",
+      "label": "Connection",
+      "describedBy": "nur-visual-telemetry-connection"
+    },
+    {
+      "slug": "creation",
+      "system": "Creation",
+      "label": "Creation",
+      "describedBy": "nur-visual-telemetry-creation"
+    }
+  ],
+  "telemetryIds": [
+    "nur-visual-telemetry-quiet-ambition",
+    "nur-visual-telemetry-rebuild",
+    "nur-visual-telemetry-study",
+    "nur-visual-telemetry-money",
+    "nur-visual-telemetry-body",
+    "nur-visual-telemetry-connection",
+    "nur-visual-telemetry-creation"
+  ]
+}

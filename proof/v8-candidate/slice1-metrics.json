@@ -1,0 +1,22 @@
+{
+  "canvases": 2,
+  "runtimeCanvases": 1,
+  "stages": 1,
+  "canonicalSystemButtons": 7,
+  "describedSystemButtons": 7,
+  "medianFrameMs": 49.9,
+  "p95FrameMs": 50.1,
+  "longFrames": 21,
+  "fpsMedian": 20,
+  "capturedViewports": [
+    "1920x1080",
+    "1440x900",
+    "1366x768",
+    "1024x768",
+    "768x1024",
+    "430x932",
+    "390x844",
+    "360x800"
+  ],
+  "capturedAt": "2026-07-25T22:28:05.989Z"
+}

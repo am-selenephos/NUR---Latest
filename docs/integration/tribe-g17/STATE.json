@@ -1,0 +1,51 @@
+{
+  "mission": "TRACK B — G17 NUR Neural Simulation Lab (TRIBE v2)",
+  "updated_at": "2026-07-26T02:20:00+05:00",
+  "verdict": "NUR_TRIBE_RESEARCH_PARTIAL",
+  "phase": "G17.1 — model loads and transcription works; text inference blocked on a gated encoder",
+  "nur_worktree": "/home/nur/NUR-TRIBE-V2-WT",
+  "nur_branch": "experiment/tribev2-neural-simulation",
+  "official_tribe_clone": "/home/nur/NUR-TRIBE-V2 (pre-existing, untouched, clean at af58661)",
+  "isolated_venv": "/home/nur/NUR-TRIBE-V2-PROOF/.venv-tribe (Python 3.12.13)",
+  "model_cache": "~/.cache/huggingface/hub/models--facebook--tribev2 = 677 MB (documented 676 MB)",
+  "provider_mode": "disabled (nothing wired into NUR)",
+  "requirements_total": 37,
+  "requirements_pass": 18,
+  "pipeline_progress": {
+    "tribev2_imports_from_official_clone": "PASS",
+    "model_from_pretrained": "PASS — checkpoint downloaded and loaded",
+    "text_to_speech_and_transcription": "PASS — gTTS + uvx whisperx on Python 3.12, 71 items",
+    "text_feature_extraction": "BLOCKED — 403 on meta-llama/Llama-3.2-3B",
+    "audio_inference": "NOT ATTEMPTED",
+    "video_inference": "NOT ATTEMPTED"
+  },
+  "blocker": {
+    "id": "T6",
+    "label": "FOUNDER_ACTION_REQUIRED_HUGGINGFACE_ACCESS",
+    "repo": "meta-llama/Llama-3.2-3B",
+    "scope": "text encoder only — not the TRIBE checkpoint, not the other three encoders",
+    "http": 403,
+    "failing_url": "https://huggingface.co/meta-llama/Llama-3.2-3B/resolve/main/config.json",
+    "token_present": true,
+    "revoked": false,
+    "reconciliation": "Earlier RESOURCE_PROFILE.json said all five repos were 'resolvable'. That was metadata-endpoint resolution, which is public for a gated:manual repo. MODEL_PROVENANCE.json had correctly recorded gated:'manual' at first contact. Metadata access was never download access; the over-claim was mine."
+  },
+  "environment": {
+    "torch": "2.11.0+cu128",
+    "torchvision": "0.26.0+cu128",
+    "numpy": "2.2.6 (official pin)",
+    "cuda": "12.8",
+    "device": "NVIDIA GeForce RTX 5090 Laptop GPU",
+    "capability": [12, 0],
+    "sm_120_in_arch_list": true,
+    "cuda_matmul": "PASSED",
+    "note": "The Blackwell override is not implicated in the current blocker; it has simply not been exercised through a full forward pass yet."
+  },
+  "env_integrity": {
+    "incident": "uv hardlink package corruption — see ENV_INTEGRITY_INCIDENT.md",
+    "venv_tribe": "repaired, 0 injected files, 0 .patched.py",
+    "machine_wide": "OPEN — ~1,100 files across 74 distributions still corrupted in ~/.cache/uv"
+  },
+  "next_action": "Founder: request access to meta-llama/Llama-3.2-3B. Agent meanwhile: attempt audio inference, which does not touch the text encoder.",
+  "incorporated": false
+}

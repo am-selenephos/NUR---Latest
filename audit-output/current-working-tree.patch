@@ -1,0 +1,6 @@
+# current-working-tree.patch — git diff HEAD --binary at audit freeze (2026-07-24)
+# HEAD=6d7eeefe6e3923015de879719e1a09056f30a6ce branch=release/nur-p0-candidate
+# Result: NO modifications to tracked files (empty diff).
+# Untracked (not part of a diff): proof/100/ proof/100-delta/ audit-output/
+# --- begin git diff HEAD --binary ---
+# --- end (no hunks: working tree clean vs HEAD) ---

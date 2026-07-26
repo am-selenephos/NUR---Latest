@@ -1,0 +1,20 @@
+feature,backend_model_service_routes,migration,bridge_api_client,v197_control_binding,hydration_state,e2e_spec_present,external_dep,status,notes
+Auth (register/login/session/CSRF),yes,0001/0002,yes,yes,yes,auth.spec/landing-auth/fresh-signup,none,LIVE_E2E,backend+frontend-unit green; E2E spec present
+Password recovery,yes (password_recovery.py),0022,yes,yes,yes,presentation-auth-recovery.spec,local-capture email,INTENTIONAL_LOCAL_ONLY,challenge lifecycle complete; email delivery is dev local-capture by design
+Talk (durable semantic stream),yes (cognition.py+streaming+kernel),0021,yes (v197StreamClient),yes (#talk-stream),yes,talk.spec/talk-persistence,OpenAI (server-only),BLOCKED_EXTERNAL,persistence/streaming/fail-closed proven by backend tests; live model call needs key (see Phase 6)
+Memory candidates,yes,0003/0023,yes,yes,yes,talk.spec (candidates surfaced),none,LIVE_E2E,persist_memory_candidates covered by cognition tests
+Personal memory (versioned),yes (memory.py),0023,yes,yes,yes,(covered in cognition),none,BACKEND_ONLY,routes+model present; limited dedicated V197 surface
+Teach NUR (governed pipeline),yes (learning.routes+models),0024,no,no,no,none,none,BACKEND_ONLY,router registered; ZERO frontend/bridge references
+Intelligence/Omega,yes (omega+insights+ops),0007/0008/0015,yes,yes,yes,omega-research.spec,none,LIVE_E2E,provider status/eval gate; backend tests green
+Seven Systems,yes (living.py),0012,yes (systems binding),yes,yes,sol-living-v197.spec,none,LIVE_E2E,persisted seven-system returns
+Translation/RTL,yes (translations.py),0010/0027,yes (v197I18n),yes (language control),yes,v197-language-wordmark.spec,none,LIVE_E2E,scoped translation contract
+Community/moderation,yes (community*.py x3),0017/0028,yes,yes,yes,community-group-nur.spec,none,LIVE_E2E,rooms/posts/moderation/council
+Group NUR / research,yes (group_research.py),0016/0029,yes,yes,yes,community-group-nur.spec,optional web,PARTIAL,backend complete; external web research gated off by default
+Consultations,yes (consultations.py),0019,yes,yes,yes,(demo seed),none,LIVE_E2E,staged consultation lifecycle + demo
+Projects (AM),yes (projects.py),0014/0030,yes,yes,yes,project-deliverables.spec,owner storage,LIVE_E2E,real execution + owner-scoped storage
+Glow (progression),yes (glow.py),0011/0026,yes (v197Rewards),yes,yes,(glow in specs),none,LIVE_E2E,server-authoritative award/reversal
+Context Capsules,yes (capsules.py),0004,yes,yes,yes,capsule.spec,none,LIVE_E2E,grant/revoke/answer
+Billing,yes (billing.routes+models),0025,no,no,no,none,Stripe,BACKEND_ONLY,revenue spine present; no UI; needs Stripe for live
+Export/delete,yes (storage hygiene/retention),0008/0030,partial,partial,partial,none,none,PARTIAL,deletion hygiene + orphan reconciliation proven in backend (Phase 8/15/16 commits)
+Notifications,yes (notifications.py),0020,yes,yes,yes,(sol-live-new-surfaces),push provider,PARTIAL,in-app live; push/email delivery providers off by default
+Mobile/PWA,yes (manifest/service-worker),n/a,n/a,yes,yes,track-a-mobile-webkit/final-webkit-mobile,none,LIVE_E2E,PWA manifest + webkit mobile specs
