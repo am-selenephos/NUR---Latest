@@ -73,27 +73,6 @@ export type V197NativeRoute =
   | `/universe/omega/why-changed/${string}`
   | `/capsule/${string}`;
 
-export const V197_NATIVE_ROUTES = new Set<V197NativeRoute>([
-  "/",
-  "/auth",
-  "/onboarding",
-  "/today",
-  "/talk",
-  "/journal",
-  "/plan",
-  "/systems",
-  "/universe",
-  "/universe/map",
-  "/universe/orbits",
-  "/universe/timeline",
-  "/universe/insights",
-  "/universe/research",
-  "/universe/community",
-  "/universe/web-signals",
-  "/settings",
-  "/universe/omega",
-  "/universe/omega/review",
-]);
 
 const pageRoutes: Record<string, V197NativeRoute> = {
   today: "/today",

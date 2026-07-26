@@ -1,9 +1,11 @@
 import V197_FUNCTIONAL_CSS from "../styles/v197-functional.css?raw";
 import V197_COSMIC_SKIN_CSS from "../styles/v197-cosmic-skin.css?raw";
 import V197_STAR_SEAL_CSS from "../styles/v197-star-seal.css?raw";
+import V197_HOLOGRAPHIC_CSS from "../styles/v197-holographic.css?raw";
 import { lockV197BrandIdentity } from "./v197Brand";
 import { V197_FONT_FACE_CSS } from "./v197Fonts";
 import { ensureV197BlackGalaxy, ensureV197StarBrain } from "./v197StarBrain";
+import { ensureV197StarField } from "./v197StarField";
 import { installV197StarSeals, V197_STAR_SEAL_CLASS } from "./v197StarSeal";
 
 export const V197_PREMIUM_POLISH_STYLE_ID = "nur-v197-track-a-premium-polish";
@@ -21,6 +23,7 @@ const V197_PRESENTATION_CSS = [
   V197_FUNCTIONAL_CSS,
   V197_STAR_SEAL_CSS,
   V197_COSMIC_SKIN_CSS,
+  V197_HOLOGRAPHIC_CSS,
 ].join("\n");
 
 function ensureStableMapWordmark(document: Document): HTMLElement | null {
@@ -55,6 +58,51 @@ export function removeV197TodayBrainAnnotations(document: Document): number {
   ));
   annotations.forEach(annotation => annotation.remove());
   return annotations.length;
+}
+
+/**
+ * The owner control in the topbar rendered as an unlabelled circle, so nothing
+ * told the owner it ends the session. Canonical CSS pins its size and display
+ * with `!important`, so the correction is applied as important inline
+ * declarations rather than as a stylesheet rule that would lose the cascade.
+ */
+function labelOwnerSignOutControl(document: Document): void {
+  const control = document.querySelector<HTMLElement>(".nur-user");
+  if (!control || control.dataset.nurSignOutLabelled === "true") return;
+  control.dataset.nurSignOutLabelled = "true";
+  control.setAttribute("role", "button");
+  control.setAttribute("aria-label", "Sign out of NUR");
+  control.tabIndex = 0;
+
+  // A real text node rather than a ::after. The pseudo-element resolved its
+  // content but rendered at zero width inside this control, and a text node is
+  // also what a screen reader and a translation pass can actually reach.
+  if (!control.querySelector(".nur-signout-label")) {
+    const label = control.ownerDocument.createElement("span");
+    label.className = "nur-signout-label";
+    label.textContent = "\u23FB Sign out";
+    label.style.setProperty("font", '500 12.5px/1 "Crimson Pro", serif', "important");
+    label.style.setProperty("letter-spacing", "0.06em", "important");
+    label.style.setProperty("color", "rgba(255, 240, 212, 0.92)", "important");
+    label.style.setProperty("white-space", "nowrap", "important");
+    control.append(label);
+  }
+  for (const [property, value] of [
+    ["width", "auto"],
+    ["min-width", "max-content"],
+    ["height", "auto"],
+    ["min-height", "38px"],
+    ["padding", "0 15px"],
+    ["gap", "7px"],
+    ["display", "inline-flex"],
+    ["align-items", "center"],
+    ["justify-content", "center"],
+    ["border-radius", "999px"],
+    ["white-space", "nowrap"],
+    ["aspect-ratio", "auto"],
+  ] as const) {
+    control.style.setProperty(property, value, "important");
+  }
 }
 
 function labelCompactTopbarControls(document: Document): void {
@@ -125,6 +173,7 @@ export function ensureV197EntryPolish(document: Document): HTMLStyleElement {
   installEntrySheetState(document);
   lockV197BrandIdentity(document);
   installV197StarSeals(document);
+  ensureV197StarField(document);
   ensureV197BlackGalaxy(document);
   ensureV197StarBrain(document);
   return style;
@@ -142,6 +191,8 @@ export function ensureV197PremiumPolish(document: Document): HTMLStyleElement {
   lockV197BrandIdentity(document);
   relocateSystemsMantra(document);
   labelCompactTopbarControls(document);
+  labelOwnerSignOutControl(document);
+  ensureV197StarField(document);
   ensureV197BlackGalaxy(document);
   ensureV197StarBrain(document);
   return style;

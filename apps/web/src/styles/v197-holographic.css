@@ -1,0 +1,263 @@
+/*
+ * Holographic panel tint, control corrections and scroll containment.
+ *
+ * Adjunct styling only — canonical V197 bytes are untouched. Everything here
+ * overrides presentation on existing canonical elements; no control is added,
+ * removed or rebound.
+ */
+
+/* ── 1. Holographic panels ──────────────────────────────────────────────────
+   Canonical translucent panels are tinted with a flat dark navy
+   (`.universe-map-panel` at rgb(69,99,160), `.universe-map-fog` at
+   rgb(64,115,179)). This replaces that single hue with a spectral sheen that
+   drifts across the surface.
+
+   The sheen lives on a pseudo-element carrying a wide multi-stop gradient which
+   is moved with `transform`. Animating transform keeps the work on the
+   compositor; animating `background-position` or `filter: hue-rotate` would
+   repaint the panel every frame instead. */
+
+@keyframes nurHoloDrift {
+  0%   { transform: translate3d(-28%, 0, 0); }
+  50%  { transform: translate3d(0%, 0, 0); }
+  100% { transform: translate3d(-28%, 0, 0); }
+}
+
+body.universe-edition .universe-map-panel,
+body.universe-edition .universe-card,
+body.universe-edition .universe-insight-panel,
+body.universe-edition .context-rail-card,
+body.universe-edition .v172-context-card,
+body.universe-edition .clean-audit-card,
+body.universe-edition .nur-panel,
+body.universe-edition .f4-sheet,
+body.universe-edition .share-sheet {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  /* The navy fill is replaced, not covered. Layering a sheen on top of
+     rgb(69,99,160) still reads blue; the base has to become neutral dark glass
+     so the spectral pass is the only colour in the panel. */
+  background-color: rgba(6, 7, 12, 0.82) !important;
+  background-image: none !important;
+  border-color: rgba(214, 226, 250, 0.13) !important;
+}
+
+body.universe-edition .universe-map-panel::before,
+body.universe-edition .universe-card::before,
+body.universe-edition .universe-insight-panel::before,
+body.universe-edition .context-rail-card::before,
+body.universe-edition .v172-context-card::before,
+body.universe-edition .clean-audit-card::before,
+body.universe-edition .nur-panel::before,
+body.universe-edition .f4-sheet::before,
+body.universe-edition .share-sheet::before {
+  content: "";
+  position: absolute;
+  inset: -40% -40% -40% -10%;
+  width: 180%;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.5;
+  will-change: transform;
+  animation: nurHoloDrift 34s ease-in-out infinite;
+  /* Spectral, but held at low alpha: a sheen across dark glass, not a rainbow
+     poster. Warm gold and peach carry the NUR highlights; cyan and violet carry
+     the cool side. */
+  background: linear-gradient(
+    104deg,
+    rgba(255, 214, 138, 0.00) 0%,
+    rgba(255, 196, 122, 0.10) 12%,
+    rgba(255, 138, 168, 0.09) 24%,
+    rgba(196, 138, 255, 0.10) 37%,
+    rgba(120, 168, 255, 0.10) 50%,
+    rgba(103, 232, 249, 0.09) 63%,
+    rgba(126, 237, 178, 0.08) 75%,
+    rgba(255, 226, 140, 0.10) 88%,
+    rgba(255, 214, 138, 0.00) 100%
+  );
+}
+
+/* The fog layer carries the same spectrum so the panel and its halo agree. */
+body.universe-edition .universe-map-fog {
+  background:
+    radial-gradient(120% 90% at 50% 40%, rgba(120, 168, 255, 0.12), transparent 62%),
+    radial-gradient(90% 70% at 22% 76%, rgba(255, 176, 132, 0.10), transparent 60%),
+    radial-gradient(80% 70% at 82% 22%, rgba(178, 132, 255, 0.10), transparent 58%) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.universe-edition .universe-map-panel::before,
+  body.universe-edition .universe-card::before,
+  body.universe-edition .universe-insight-panel::before,
+  body.universe-edition .context-rail-card::before,
+  body.universe-edition .v172-context-card::before,
+  body.universe-edition .clean-audit-card::before,
+  body.universe-edition .nur-panel::before,
+  body.universe-edition .f4-sheet::before,
+  body.universe-edition .share-sheet::before {
+    animation: none;
+    transform: translate3d(-14%, 0, 0);
+  }
+}
+
+/* ── 2. Send control: star centred, arrow removed ───────────────────────────
+   The canonical send button carries a label, an arrow glyph and a star seal.
+   The arrow duplicated the meaning the star already carries and pushed the star
+   off centre. */
+
+body.universe-edition .send-holo-pill > svg,
+body.universe-edition .thought-send-button > svg,
+body.universe-edition .send-button > svg {
+  display: none !important;
+}
+
+body.universe-edition .composer-action--send,
+body.universe-edition .send-button.nur-v136-v89-mini-host {
+  display: grid !important;
+  place-items: center !important;
+  place-content: center !important;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+/* The star seal is injected as a child; centre it on both axes. */
+body.universe-edition .composer-action--send > .nur-star-seal,
+body.universe-edition .composer-action--send > svg.nur-star-seal,
+body.universe-edition .send-button > .nur-star-seal {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
+}
+
+/* ── 3. Sign-out trigger states what it does ────────────────────────────────
+   The topbar trigger rendered as an unlabelled square, so nothing told the
+   owner it ends the session. */
+
+body.universe-edition .nur-user,
+body.universe-edition button.nur-user,
+body.universe-edition .nur-topbar .nur-user {
+  width: auto !important;
+  min-width: max-content !important;
+  height: auto !important;
+  min-height: 38px !important;
+  padding: 0 15px !important;
+  gap: 7px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 999px !important;
+  white-space: nowrap !important;
+  flex: 0 0 auto !important;
+  aspect-ratio: auto !important;
+  font: 500 12.5px/1 "Crimson Pro", serif !important;
+  letter-spacing: 0.06em;
+  color: rgba(255, 240, 212, 0.9) !important;
+}
+
+/* The label is a real element appended by the bridge, not a pseudo-element:
+   the ::after resolved but rendered at zero width inside this control. */
+body.universe-edition .nur-user .nur-signout-label {
+  display: inline-block !important;
+  overflow: visible !important;
+}
+
+/* ── 4. Journal composer breathing room ─────────────────────────────────────
+   The placeholder and first line sat flush against the field edge. */
+
+body.universe-edition #page-journal textarea,
+body.universe-edition .journal-composer textarea,
+body.universe-edition .nur-field textarea {
+  padding: 18px 20px 16px !important;
+  line-height: 1.65 !important;
+}
+
+body.universe-edition #page-journal textarea::placeholder,
+body.universe-edition .journal-composer textarea::placeholder,
+body.universe-edition .nur-field textarea::placeholder {
+  opacity: 0.62;
+}
+
+/* ── 5. Scroll containment ──────────────────────────────────────────────────
+   The page scrolled instead of the content, so the whole interface moved when
+   only a transcript or a draft needed to.
+
+   Two earlier attempts failed and both are worth recording:
+
+   1. Setting `flex` on the page element alone did nothing — the real scrollers
+      sit three levels deeper (`#page-talk > .page-grid > .talk-chamber >
+      #talk-stream`), and a flex child only shrinks below its content when every
+      ancestor is a flex column with `min-height: 0`.
+
+   2. Forcing that whole chain to flex *did* contain the scroll, but collapsed
+      the transcript to 38px: `.nur-viewport` sits in a CSS grid row, and once it
+      became a flex box with `overflow: hidden` the row sized to min-content.
+
+   So the chain is left exactly as canonical built it, and the two scrollers are
+   given a definite height of their own. Nothing above them is restructured,
+   which is why this cannot collapse the layout. */
+
+body.universe-edition #talk-stream {
+  /* Viewport height minus the topbar, the page heading block and the composer
+     that sits beneath the transcript. 330px left the composer below the fold at
+     800px tall, so the send control was unreachable; 430px keeps it on screen. */
+  /* Derived from measurement, not guessed. At a 800px window the Talk page came
+     to 897px inside a 736px viewport — 161px too tall, which pushed the composer
+     off screen and left the scrollbar on the viewport. Budget = window - target
+     stream height, so the heading, transcript and composer all fit and only the
+     transcript scrolls. */
+  max-height: calc(100vh - 600px) !important;
+  min-height: 180px !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+
+body.universe-edition #journal-input {
+  /* The journal tools row sits below the field and must stay visible. */
+  max-height: calc(100vh - 520px) !important;
+  min-height: 180px !important;
+  overflow-y: auto !important;
+  resize: none !important;
+}
+
+@media (max-width: 900px) {
+  body.universe-edition #talk-stream,
+  body.universe-edition #journal-input {
+    max-height: calc(100vh - 340px) !important;
+    min-height: 160px !important;
+  }
+}
+
+/* A visible, quiet scrollbar. The bar is styled rather than hidden — it is the
+   only affordance telling the owner there is more above or below. */
+body.universe-edition #talk-stream,
+body.universe-edition #journal-input {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(196, 222, 252, 0.38) transparent;
+}
+
+body.universe-edition #talk-stream::-webkit-scrollbar,
+body.universe-edition #journal-input::-webkit-scrollbar {
+  width: 10px;
+}
+
+body.universe-edition #talk-stream::-webkit-scrollbar-thumb,
+body.universe-edition #journal-input::-webkit-scrollbar-thumb {
+  background: rgba(196, 222, 252, 0.34);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+body.universe-edition #talk-stream::-webkit-scrollbar-thumb:hover,
+body.universe-edition #journal-input::-webkit-scrollbar-thumb:hover {
+  background: rgba(214, 232, 255, 0.52);
+  background-clip: content-box;
+}
+
+body.universe-edition #talk-stream::-webkit-scrollbar-track,
+body.universe-edition #journal-input::-webkit-scrollbar-track {
+  background: transparent;
+}

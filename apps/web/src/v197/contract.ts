@@ -55,12 +55,3 @@ export const V197_PROMPT_ACTIONS = [
   { key: "summarize", glyph: "☰", label: "Summarize" },
   { key: "plan", glyph: "→", label: "Create Plan" },
 ] as const;
-
-export const V197_GLOBAL_COMPOSER_ROUTES = [] as const;
-
-export const V197_TALK_THREAD_ACTIONS = [
-  { key: "private", label: "Keep private" },
-  { key: "journal", label: "Save to Journal" },
-  { key: "plan", label: "Make a Plan" },
-  { key: "outcome", label: "Record what changed" },
-] as const;

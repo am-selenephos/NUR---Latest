@@ -4,7 +4,7 @@ import { ensureV197AccessibleViewport } from "./v197Accessibility";
 export const V197_STAR_BRAIN_CANVAS_ID = "nur-brain-canvas";
 export const V197_STAR_BRAIN_HOST_ID = "front-nur-star";
 const V197_STAR_BRAIN_SCRIPT_ID = "nur-v43-exact-star-brain-runtime";
-const V43_STAR_BRAIN_RUNTIME_HASH = "ee34405b119b8f2d7b6a5b4b7fdedff2e6875f9bd7d472aff6ab5b8473b8d347";
+const V43_STAR_BRAIN_RUNTIME_HASH = "8e249a704734e0d60bedff389883e90460338d14ac806c00ca6e5019b5834192";
 
 type V197StarBrainSurface = "entry" | "today" | "universe" | "map";
 
@@ -14,6 +14,7 @@ type ExactBrainWindow = Window & {
     absorb: () => void;
     shatter: () => void;
     firePulse: (from?: number) => void;
+    dispose?: () => void;
   };
 };
 
@@ -197,4 +198,56 @@ export function ensureV197StarBrain(document: Document): HTMLCanvasElement | nul
   }
 
   return document.getElementById(V197_STAR_BRAIN_CANVAS_ID) as HTMLCanvasElement | null;
+}
+
+/**
+ * Hands a surface back from the V43 engine.
+ *
+ * The runtime is injected as a script into the canonical iframe, so the bridge
+ * cannot reach inside its closure — the runtime itself now exposes `dispose`,
+ * which cancels its frame loop, disconnects its observers and removes its
+ * canvas. Without this the engine kept animating behind every later route and
+ * any newer scene became an additional owner rather than a replacement.
+ *
+ * Returns true when an engine was actually stopped.
+ */
+export function disposeV197StarBrain(document: Document): boolean {
+  const frameWindow = document.defaultView as ExactBrainWindow | null;
+  let stopped = false;
+
+  try {
+    if (typeof frameWindow?.nurStarBrain?.dispose === "function") {
+      frameWindow.nurStarBrain.dispose();
+      stopped = true;
+    }
+  } catch {
+    // A disposed runtime must never prevent the replacement scene from mounting.
+  }
+
+  const controller = starBrainControllers.get(document);
+  if (controller) {
+    controller.observer.disconnect();
+    if (controller.frame !== null) frameWindow?.cancelAnimationFrame(controller.frame);
+    starBrainControllers.delete(document);
+    stopped = true;
+  }
+
+  for (const canvasId of [V197_STAR_BRAIN_CANVAS_ID, "nur-brain-canvas-v197"]) {
+    const canvas = document.getElementById(canvasId) as HTMLCanvasElement | null;
+    if (!canvas) continue;
+    try {
+      canvas.width = 0;
+      canvas.height = 0;
+    } catch {
+      // Detaching is what matters; a refused resize is not fatal.
+    }
+    canvas.remove();
+    stopped = true;
+  }
+
+  // Remove the injected script so a later mount re-runs the runtime cleanly.
+  document.getElementById(V197_STAR_BRAIN_SCRIPT_ID)?.remove();
+  document.getElementById(V197_STAR_BRAIN_HOST_ID)?.removeAttribute("data-nur-exact-bridge-bound");
+
+  return stopped;
 }

@@ -11,14 +11,18 @@ import { applyV197Locale } from "./v197I18n";
 import { hydrateReadOnlyV197 } from "./v197Mutations";
 import { renderPersistedGlow } from "./v197Rewards";
 
+/**
+ * The six Star Systems, in canonical order. This must match
+ * `apps/api/app/living/catalog.py`; a mismatch silently drops or duplicates
+ * System slots because the mapping is by title.
+ */
 const CORE_SYSTEMS = [
-  "Quiet Ambition",
+  "Ambition",
   "Rebuild",
-  "Study",
-  "Money",
-  "Body",
-  "Connection",
   "Creation",
+  "Growth",
+  "Introspection",
+  "Connection",
 ] as const;
 
 function empty(node: Element): void {
@@ -53,6 +57,15 @@ function number(value: unknown): string {
 function renderTalk(document: Document, rows: V197TalkThreadRow[]): void {
   const stream = document.querySelector<HTMLElement>("#talk-stream");
   if (!stream) return;
+
+  // Every refresh rebuilds the transcript, which destroys the scroll position.
+  // Two rules keep that from throwing the reader around:
+  //   - if they were at the bottom, stay pinned to the bottom;
+  //   - if they had scrolled up to read, restore exactly where they were.
+  const distanceFromBottom = stream.scrollHeight - stream.scrollTop - stream.clientHeight;
+  const wasPinned = stream.scrollHeight === 0 || distanceFromBottom < 48;
+  const previousTop = stream.scrollTop;
+
   empty(stream);
 
   if (rows.length === 0) {
@@ -80,7 +93,17 @@ function renderTalk(document: Document, rows: V197TalkThreadRow[]): void {
     message.append(document.createTextNode(row.text || "Persisted response without display text."));
     stream.append(message);
   });
-  stream.scrollTop = stream.scrollHeight;
+  // Deferred to the next frame: immediately after appending, `scrollHeight` is
+  // still the pre-layout value, so assigning it here landed the view near the
+  // top — which is why the transcript jumped back to the first message on every
+  // turn.
+  const view = document.defaultView;
+  const settle = (): void => {
+    if (wasPinned) stream.scrollTop = stream.scrollHeight;
+    else stream.scrollTop = Math.min(previousTop, stream.scrollHeight);
+  };
+  if (view) view.requestAnimationFrame(settle);
+  else settle();
 }
 
 function renderJournal(document: Document, snapshot: V197BridgeSnapshot): void {
@@ -356,7 +379,30 @@ function renderSystems(document: Document, snapshot: V197BridgeSnapshot): void {
   slots.forEach((slot, index) => {
     const system = living[index];
     const node = nodes[index];
-    if (!system && !node) {
+    // The canonical markup ships a fixed number of System slots. The Systems row
+    // must show Systems, so a slot with no living System is hidden rather than
+    // falling back to an arbitrary orbit — that fallback kept rendering retired
+    // Systems (Money, Body) as though they still existed.
+    if (!system) {
+      // Both signals: the attribute for semantics and assistive technology, and
+      // an inline style because canonical CSS sets `display` on this class and
+      // would otherwise keep the slot painted.
+      slot.hidden = true;
+      // Canonical CSS declares `display` on this class with `!important`, which
+      // beats both the `hidden` attribute and a plain inline style. Only an
+      // important inline declaration wins.
+      slot.style.setProperty("display", "none", "important");
+      slot.dataset.nurSystemSlot = "retired";
+      slot.removeAttribute("data-system-slug");
+      slot.setAttribute("aria-hidden", "true");
+      slot.tabIndex = -1;
+      return;
+    }
+    slot.style.removeProperty("display");
+    delete slot.dataset.nurSystemSlot;
+    slot.removeAttribute("aria-hidden");
+    slot.removeAttribute("tabindex");
+    if (!node && !system) {
       slot.hidden = true;
       return;
     }
