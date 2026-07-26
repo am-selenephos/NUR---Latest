@@ -1,0 +1,24 @@
+{
+  "commit": "FIXED-final",
+  "talk": {
+    "viewport": "short-desktop",
+    "surface": "talk",
+    "gesture": "mouse wheel ×8",
+    "scrollerDelta": 1760,
+    "pageDelta": 0,
+    "ancestorsThatMoved": [],
+    "endReachable": true,
+    "actionHitTestable": true
+  },
+  "journal": {
+    "viewport": "short-desktop",
+    "surface": "journal",
+    "gesture": "click + Control+End + wheel ×30",
+    "scrollerDelta": 6445,
+    "pageDelta": 0,
+    "ancestorsThatMoved": [],
+    "endReachable": true,
+    "actionHitTestable": true
+  },
+  "errors": []
+}
