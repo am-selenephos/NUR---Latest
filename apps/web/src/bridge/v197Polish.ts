@@ -5,7 +5,6 @@ import V197_HOLOGRAPHIC_CSS from "../styles/v197-holographic.css?raw";
 import { lockV197BrandIdentity } from "./v197Brand";
 import { V197_FONT_FACE_CSS } from "./v197Fonts";
 import { ensureV197BlackGalaxy, ensureV197StarBrain } from "./v197StarBrain";
-import { ensureV197StarField } from "./v197StarField";
 import { installV197StarSeals, V197_STAR_SEAL_CLASS } from "./v197StarSeal";
 
 export const V197_PREMIUM_POLISH_STYLE_ID = "nur-v197-track-a-premium-polish";
@@ -173,7 +172,6 @@ export function ensureV197EntryPolish(document: Document): HTMLStyleElement {
   installEntrySheetState(document);
   lockV197BrandIdentity(document);
   installV197StarSeals(document);
-  ensureV197StarField(document);
   ensureV197BlackGalaxy(document);
   ensureV197StarBrain(document);
   return style;
@@ -192,7 +190,6 @@ export function ensureV197PremiumPolish(document: Document): HTMLStyleElement {
   relocateSystemsMantra(document);
   labelCompactTopbarControls(document);
   labelOwnerSignOutControl(document);
-  ensureV197StarField(document);
   ensureV197BlackGalaxy(document);
   ensureV197StarBrain(document);
   return style;
