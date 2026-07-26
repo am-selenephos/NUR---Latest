@@ -25,7 +25,7 @@ async def test_am_project_owner_flow_requires_evidence_and_explicit_run_approval
     assert project["permission_policy"]["external_actions_require_owner_approval"] is True
     assert project["permission_policy"]["spend"] is False
     owner_state = (await client.get("/api/v1/orbits/current-state")).json()
-    assert owner_state["active_systems"] == 7
+    assert owner_state["active_systems"] == 6
 
     task = await client.post(
         f"/api/v1/projects/{project['id']}/tasks",

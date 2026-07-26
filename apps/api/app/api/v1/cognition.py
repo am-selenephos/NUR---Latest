@@ -278,18 +278,22 @@ async def cancel_talk_run(request_id: uuid.UUID, db: Scoped, identity: Identity)
 @router.get("/talk-thread", response_model=list[TalkThreadRow])
 async def talk_thread(db: Scoped, identity: Identity, orbit_id: uuid.UUID | None = None, limit: int = 80) -> list[TalkThreadRow]:
     user_id, _ = identity
+    # Ordering ascending and then limiting returns the OLDEST turns, so once a
+    # thread passed the limit the owner could never see recent messages — the
+    # transcript silently froze at the beginning of the conversation. Take the
+    # most recent rows, then restore chronological order for display.
     q = (
         select(CognitiveEvent)
         .where(
             CognitiveEvent.owner_user_id == user_id,
             or_(CognitiveEvent.event_kind == "TALK_TURN", CognitiveEvent.event_kind == "MODEL_RESPONSE"),
         )
-        .order_by(CognitiveEvent.created_at.asc())
+        .order_by(CognitiveEvent.created_at.desc())
         .limit(min(limit, 200))
     )
     if orbit_id:
         q = q.where(CognitiveEvent.orbit_id == orbit_id)
-    rows = (await db.execute(q)).scalars().all()
+    rows = list(reversed((await db.execute(q)).scalars().all()))
     return [
         TalkThreadRow(
             id=e.id,

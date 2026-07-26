@@ -4,13 +4,12 @@ from app.tests.conftest import register_user
 
 
 SYSTEM_TITLES = [
-    "Quiet Ambition",
+    "Ambition",
     "Rebuild",
-    "Study",
-    "Money",
-    "Body",
-    "Connection",
     "Creation",
+    "Growth",
+    "Introspection",
+    "Connection",
 ]
 
 

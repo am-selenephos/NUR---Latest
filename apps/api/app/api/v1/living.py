@@ -1057,8 +1057,10 @@ async def today_check_in(
 ) -> dict:
     owner_user_id, _ = identity
     now, _ = await owner_now(db, owner_user_id)
+    # The daily check-in records self-reported state, which is Introspection's
+    # scope now that Body has been folded into it.
     orbit = await owned_system_orbit(
-        db, owner_user_id=owner_user_id, system="body"
+        db, owner_user_id=owner_user_id, system="introspection"
     )
     row = (await db.execute(select(TodayCheckIn).where(
         TodayCheckIn.owner_user_id == owner_user_id,
@@ -1087,7 +1089,7 @@ async def today_check_in(
         object_id=row.id,
         metadata={
             "checkin_date": row.checkin_date.isoformat(),
-            "system_slug": "body",
+            "system_slug": "introspection",
         },
     )
     await db.flush()
@@ -1098,6 +1100,10 @@ async def today_check_in(
         source_kind="COGNITIVE_EVENT",
         source_id=event.id,
         orbit_id=orbit.id,
+        # Without this the check-in's Glow was recorded against no System at
+        # all, so it never appeared on the scoreboard for the System that
+        # actually owns self-reported state.
+        system_slug="introspection",
         idempotency_key=f"today-checkin:{row.checkin_date}:daily",
     )
     refreshed_today = await today_snapshot(db, owner_user_id=owner_user_id)

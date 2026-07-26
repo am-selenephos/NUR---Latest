@@ -52,7 +52,7 @@ def _capacity_band(score: int) -> tuple[str, int]:
 
 
 def _operating_boundary(slug: str) -> dict:
-    if slug == "body":
+    if slug == "introspection":
         return {
             "scope": "SELF_REPORTED_CAPACITY_SUPPORT",
             "statement": (
@@ -60,7 +60,7 @@ def _operating_boundary(slug: str) -> dict:
                 "it does not diagnose, prescribe, or replace qualified medical care."
             ),
         }
-    if slug == "money":
+    if slug == "growth":
         return {
             "scope": "FINANCIAL_ORGANIZATION_ONLY",
             "statement": (
@@ -356,15 +356,15 @@ async def today_snapshot(
 
     mind_system = sum(
         by_slug[slug]["progress_percent"]
-        for slug in ("quiet-ambition", "study", "rebuild")
+        for slug in ("ambition", "growth", "rebuild")
     ) / 3
     life_system = sum(
         by_slug[slug]["progress_percent"]
-        for slug in ("money", "connection", "creation", "rebuild")
-    ) / 4
+        for slug in ("connection", "creation", "rebuild")
+    ) / 3
     body_evidence = _checkin_body(checkin) if checkin else None
     mind_evidence = _checkin_mind(checkin) if checkin else None
-    body_score = _blend(body_evidence, by_slug["body"]["progress_percent"])
+    body_score = _blend(body_evidence, by_slug["introspection"]["progress_percent"])
     capacity_band, capacity_action_limit = _capacity_band(body_score)
     mind_score = _blend(mind_evidence, mind_system)
     life_score = _clamp(life_system)
@@ -491,30 +491,30 @@ async def today_snapshot(
             "score": body_score,
             "capacity_band": capacity_band,
             "action_limit_minutes": capacity_action_limit,
-            "operating_boundary": _operating_boundary("body"),
+            "operating_boundary": _operating_boundary("introspection"),
             "sources": {
                 "today_checkin": body_evidence,
-                "body_system": by_slug["body"]["progress_percent"],
+                "introspection_system": by_slug["introspection"]["progress_percent"],
             },
-            "calculation": "65% today's body check-in + 35% persisted Body System progress when a check-in exists",
+            "calculation": "65% today's body check-in + 35% persisted Introspection System progress when a check-in exists",
         },
         "mind": {
             "score": mind_score,
             "sources": {
                 "today_checkin": mind_evidence,
-                "quiet_ambition": by_slug["quiet-ambition"]["progress_percent"],
-                "study": by_slug["study"]["progress_percent"],
+                "ambition": by_slug["ambition"]["progress_percent"],
+                "growth": by_slug["growth"]["progress_percent"],
                 "rebuild": by_slug["rebuild"]["progress_percent"],
             },
-            "calculation": "check-in clarity/load blended with Quiet Ambition, Study, and Rebuild",
+            "calculation": "check-in clarity/load blended with Ambition, Growth, and Rebuild",
         },
         "life": {
             "score": life_score,
             "sources": {
                 slug: by_slug[slug]["progress_percent"]
-                for slug in ("money", "connection", "creation", "rebuild")
+                for slug in ("connection", "creation", "rebuild")
             },
-            "calculation": "mean persisted progress of Money, Connection, Creation, and Rebuild",
+            "calculation": "mean persisted progress of Connection, Creation, and Rebuild",
         },
         "glow_today": glow_today,
         "active_systems": [

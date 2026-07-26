@@ -14,7 +14,7 @@ async def test_map_timeline_and_feasibility_contract_routes_are_persisted(client
         "/api/v1/goals",
         headers=H(client),
         json={
-            "system_slug": "quiet-ambition",
+            "system_slug": "ambition",
             "title": "Ship one source-bound route",
             "why": "The Map must follow real owner evidence.",
         },
@@ -34,10 +34,10 @@ async def test_map_timeline_and_feasibility_contract_routes_are_persisted(client
     system_focus = await client.post(
         "/api/v1/map/from-system",
         headers=H(client),
-        json={"system_slug": "quiet-ambition"},
+        json={"system_slug": "ambition"},
     )
     assert system_focus.status_code == 201, system_focus.text
-    assert system_focus.json()["node"]["id"] == "system:quiet-ambition"
+    assert system_focus.json()["node"]["id"] == "system:ambition"
     assert system_focus.json()["appears_on_map"] is True
     goal_focus = await client.post(
         "/api/v1/map/from-goal",
@@ -107,7 +107,7 @@ async def test_map_timeline_and_feasibility_contract_routes_are_persisted(client
         "/api/v1/feasibility/assess",
         headers=H(client),
         json={
-            "system_slug": "quiet-ambition",
+            "system_slug": "ambition",
             "subject_kind": "ACTION",
             "subject_id": str(target_id),
             "title": "Bounded proof pass",

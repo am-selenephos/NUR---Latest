@@ -63,11 +63,11 @@ def _out(row: FeasibilityAssessment) -> dict:
 
 
 def _capacity_for(system_slug: str, today: dict) -> tuple[int, list[str]]:
-    if system_slug == "body":
+    if system_slug == "introspection":
         return today["body"]["score"], ["today.body"]
-    if system_slug in {"quiet-ambition", "study"}:
+    if system_slug in {"ambition", "growth"}:
         return today["mind"]["score"], ["today.mind"]
-    if system_slug in {"money", "connection", "creation"}:
+    if system_slug in {"connection", "creation"}:
         return today["life"]["score"], ["today.life"]
     return round(
         (today["body"]["score"] + today["mind"]["score"] + today["life"]["score"]) / 3

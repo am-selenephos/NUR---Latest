@@ -29,13 +29,12 @@ GENERIC_REGISTER_FAIL = "Could not create an Orbit with those details."
 CONSENT_POLICY_VERSION = "constitution-v5"
 
 CORE_SYSTEMS: tuple[tuple[str, str, str], ...] = (
-    ("Quiet Ambition", "CREATIVE", "Build meaningful work without abandoning quiet."),
+    ("Ambition", "CREATIVE", "Build meaningful work without abandoning quiet."),
     ("Rebuild", "CARE", "Recover capacity and rebuild from what is real."),
-    ("Study", "RESEARCH", "Turn questions into grounded understanding."),
-    ("Money", "PROJECT", "Build material freedom with evidence and intent."),
-    ("Body", "CARE", "Keep embodied capacity inside every decision."),
-    ("Connection", "CARE", "Hold relationships without losing the self."),
     ("Creation", "CREATIVE", "Move imagination into finished form."),
+    ("Growth", "PROJECT", "Compound capability with evidence, not effort alone."),
+    ("Introspection", "CARE", "Keep honest awareness of state inside every decision."),
+    ("Connection", "CARE", "Hold relationships without losing the self."),
 )
 
 

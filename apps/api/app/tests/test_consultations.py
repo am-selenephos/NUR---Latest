@@ -61,7 +61,7 @@ async def test_consultation_full_return_glow_and_room_boundary(client, app_engin
             "scope_statement": "Only room contributions and explicit stage records.",
             "room_id": room_id,
             "orbit_id": owner_orbit,
-            "system_slug": "quiet-ambition",
+            "system_slug": "ambition",
         },
     )
     assert created.status_code == 201, created.text

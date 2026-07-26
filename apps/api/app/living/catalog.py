@@ -1,4 +1,4 @@
-"""Founder-locked definitions for NUR's seven Star Systems."""
+"""Founder-locked definitions for NUR's six Star Systems."""
 
 from dataclasses import dataclass
 
@@ -16,8 +16,8 @@ class SystemDefinition:
 
 SYSTEMS: tuple[SystemDefinition, ...] = (
     SystemDefinition(
-        slug="quiet-ambition",
-        title="Quiet Ambition",
+        slug="ambition",
+        title="Ambition",
         definition=(
             "Private hunger, discipline, identity, long-range desire, self-respect, "
             "and work that matters even when nobody applauds."
@@ -70,88 +70,84 @@ SYSTEMS: tuple[SystemDefinition, ...] = (
         followed_prediction="Small stable repairs are likely to restore capacity before ambition expands.",
     ),
     SystemDefinition(
-        slug="study",
-        title="Study",
+        slug="creation",
+        title="Creation",
         definition=(
-            "Deliberate learning, skill-building, research, discipline, exams, reading, "
-            "practice, mastery, and understanding."
+            "Making things: art, writing, product, code, business, content, systems, "
+            "projects, ideas, releases, and deliverables."
         ),
         questions=(
-            "What subject or skill are you learning?",
-            "What is the deadline?",
-            "What do you already understand?",
-            "What is confusing?",
-            "What output proves learning?",
-            "Do you need reading, practice, testing, or project work?",
-            "What is the next 25-minute session?",
+            "What are you making?",
+            "Is it an idea, draft, prototype, product, release, content, or art?",
+            "What is the current state?",
+            "What proves progress?",
+            "What is the smallest shippable piece?",
+            "What keeps delaying release?",
+            "What needs review?",
         ),
         checklist=(
-            "Choose a study target.",
-            "Define success proof.",
-            "Create a study block.",
+            "Create the project.",
+            "Define the deliverable.",
+            "Create one task.",
+            "Attach evidence.",
+            "Run and review the work.",
+            "Ship one milestone.",
+            "Log the outcome.",
+        ),
+        ignored_prediction="The work is likely to stall in ideation, avoidance, or review without a shippable edge.",
+        followed_prediction="A small reviewed deliverable is likely to turn imagination into momentum.",
+    ),
+    SystemDefinition(
+        slug="growth",
+        title="Growth",
+        definition=(
+            "Expansion of capability: skill, learning, income, leverage, mastery, and "
+            "the compounding progress that changes what you are able to do."
+        ),
+        questions=(
+            "What capability are you trying to grow?",
+            "Is this skill, knowledge, income, leverage, or reach?",
+            "What can you already do that you could not before?",
+            "What is the bottleneck holding the next level?",
+            "What proves the growth is real and not just effort?",
+            "What is the next deliberate session or move?",
+        ),
+        checklist=(
+            "Name the capability.",
+            "Define what proof of growth looks like.",
+            "Create one deliberate practice or earning block.",
             "Complete one session.",
-            "Summarize the learning.",
-            "Test recall.",
-            "Add a source or research note.",
-            "Update the timeline.",
+            "Record what changed.",
+            "Return the outcome to the timeline.",
         ),
-        ignored_prediction="Passive intake without retrieval or output is likely to feel productive without mastery.",
-        followed_prediction="Practice plus recall evidence is likely to improve real readiness.",
+        ignored_prediction="Effort without a proof of change is likely to feel busy while capability stays flat.",
+        followed_prediction="Deliberate practice with recorded evidence is likely to compound into real capability.",
     ),
     SystemDefinition(
-        slug="money",
-        title="Money",
+        slug="introspection",
+        title="Introspection",
         definition=(
-            "Financial reality: earning, spending, debt, saving, survival, opportunity, "
-            "negotiation, and economic strategy."
+            "Honest awareness of your own state: energy, capacity, meaning, patterns, "
+            "what is actually happening beneath the activity, and what it is telling you."
         ),
         questions=(
-            "What money pressure exists right now?",
-            "Is this debt, income, spending, saving, business, or emergency?",
-            "What is urgent versus scary but not urgent?",
-            "What is the smallest stabilizing action?",
-            "What needs negotiation?",
-            "What can generate money?",
-            "What should wait because survival comes first?",
+            "What is actually true about your state right now?",
+            "Energy and capacity from 0 to 10?",
+            "What pattern keeps repeating?",
+            "What are you avoiding noticing?",
+            "What does this week want you to understand?",
+            "What is one honest thing to write down?",
         ),
         checklist=(
-            "Enter the money concern.",
-            "Classify urgent versus not urgent.",
-            "Create a money plan.",
-            "Log one payment, settlement, or action.",
-            "Create one earning task.",
-            "Create a debt tracker when needed.",
-            "Add the result to the timeline.",
+            "Check state and capacity honestly.",
+            "Write one unfiltered observation.",
+            "Name the pattern.",
+            "Decide whether it needs rest, repair, or a decision.",
+            "Log the reflection.",
+            "Return to it once more later.",
         ),
-        ignored_prediction="Unclassified pressure is likely to increase avoidance and compress options.",
-        followed_prediction="One verified stabilizing or earning action is likely to improve decision room.",
-    ),
-    SystemDefinition(
-        slug="body",
-        title="Body",
-        definition=(
-            "Physical reality: sleep, energy, pain, movement, food, rest, medical care, "
-            "load, and available capacity."
-        ),
-        questions=(
-            "Energy from 0 to 10?",
-            "Pain or load from 0 to 10?",
-            "Was sleep adequate?",
-            "Are food and water adequate?",
-            "Is movement or rest needed?",
-            "Is this a low-capacity day?",
-            "What body action fits under 10 minutes?",
-        ),
-        checklist=(
-            "Check energy.",
-            "Check pain or load.",
-            "Drink, eat, rest, or move.",
-            "Log sleep.",
-            "Create a realistic body plan.",
-            "Complete one body-supporting action.",
-        ),
-        ignored_prediction="Plans that exceed present capacity are likely to fail or deepen depletion.",
-        followed_prediction="Capacity-matched actions are likely to protect continuity and recovery.",
+        ignored_prediction="Activity without review is likely to repeat the same pattern at higher cost.",
+        followed_prediction="Recorded honest review is likely to surface the pattern early enough to change it.",
     ),
     SystemDefinition(
         slug="connection",
@@ -179,34 +175,6 @@ SYSTEMS: tuple[SystemDefinition, ...] = (
         ),
         ignored_prediction="Unspoken loops are likely to accumulate tension or distance.",
         followed_prediction="A clear conversation or boundary is likely to reduce relational ambiguity.",
-    ),
-    SystemDefinition(
-        slug="creation",
-        title="Creation",
-        definition=(
-            "Making things: art, writing, product, code, business, content, systems, "
-            "projects, ideas, releases, and deliverables."
-        ),
-        questions=(
-            "What are you making?",
-            "Is it an idea, draft, prototype, product, release, content, or art?",
-            "What is the current state?",
-            "What proves progress?",
-            "What is the smallest shippable piece?",
-            "What keeps delaying release?",
-            "What needs review?",
-        ),
-        checklist=(
-            "Create the project.",
-            "Define the deliverable.",
-            "Create one task.",
-            "Attach evidence.",
-            "Run and review the work.",
-            "Ship one milestone.",
-            "Log the outcome.",
-        ),
-        ignored_prediction="The work is likely to stall in ideation, avoidance, or review without a shippable edge.",
-        followed_prediction="A small reviewed deliverable is likely to turn imagination into momentum.",
     ),
 )
 

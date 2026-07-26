@@ -86,7 +86,7 @@ ensure_user(recipient, RECIPIENT_EMAIL, RECIPIENT_PASSWORD, "Recipient")
 
 orbits = owner.get(f"{API}/api/v1/orbits").json()
 core_systems = [
-    ("Quiet Ambition", "CREATIVE", "Build meaningful work without abandoning quiet."),
+    ("Ambition", "CREATIVE", "Build meaningful work without abandoning quiet."),
     ("Rebuild", "CARE", "Recover capacity and rebuild from what is real."),
     ("Study", "RESEARCH", "Turn questions into grounded understanding."),
     ("Money", "PROJECT", "Build material freedom with evidence and intent."),
@@ -103,18 +103,18 @@ for title, kind, description in core_systems:
         "kind": kind,
         "description": description,
     }), f"create demo System {title}")
-orbit = by_title["Quiet Ambition"]
+orbit = by_title["Ambition"]
 owner.patch(f"{API}/api/v1/profile/preferences", headers=csrf(owner), json={
     "active_orbit_id": orbit["id"],
     "default_boundary": "PRIVATE_ORBIT",
     "timezone": "Asia/Karachi",
 }).raise_for_status()
-diagnostic = expect_json(owner.post(f"{API}/api/v1/systems/quiet-ambition/diagnostics", headers=csrf(owner), json={
+diagnostic = expect_json(owner.post(f"{API}/api/v1/systems/ambition/diagnostics", headers=csrf(owner), json={
     "answers": {"private_direction": "Ship one exact V197-backed NUR slice."},
     "ratings": {"clarity": 8, "protection": 7, "movement": 6},
     "blockers": ["expanding scope before proof"],
     "strengths": ["continuity", "source fidelity"],
-}), "create Quiet Ambition diagnostic")
+}), "create Ambition diagnostic")
 # Reseeding an existing demo owner must not stack duplicate open actions:
 # reuse the still-scheduled seed action instead of creating another copy.
 existing_schedules = expect_json(owner.get(f"{API}/api/v1/schedules"), "list schedules")
@@ -130,7 +130,7 @@ if seed_schedule is not None:
     living_action = {"id": seed_schedule["system_action_id"], "title": seed_schedule["title"]}
 else:
     living_goal = expect_json(owner.post(f"{API}/api/v1/goals", headers=csrf(owner), json={
-        "system_slug": "quiet-ambition",
+        "system_slug": "ambition",
         "title": "Make exact V197 operate on the real owner ledger",
         "why": "The backend adapts to V197; V197 never gets replaced by the backend.",
     }), "create living Goal")
@@ -139,7 +139,7 @@ else:
         headers=csrf(owner),
         json={"title": "Return one browser-proven V197 action"},
     ), "create living Objective")
-    living_action = expect_json(owner.post(f"{API}/api/v1/systems/quiet-ambition/actions", headers=csrf(owner), json={
+    living_action = expect_json(owner.post(f"{API}/api/v1/systems/ambition/actions", headers=csrf(owner), json={
         "title": "Review the exact V197 Today and Systems hydration",
         "description": "Confirm geometry, persistence, Glow, and Timeline together.",
         "diagnostic_id": diagnostic["id"],
@@ -148,7 +148,7 @@ else:
         "effort_minutes": 20,
     }), "create living System action")
     expect_json(owner.post(f"{API}/api/v1/schedules", headers=csrf(owner), json={
-        "system_slug": "quiet-ambition",
+        "system_slug": "ambition",
         "title": living_action["title"],
         "scheduled_for": dt.datetime.now(dt.UTC).isoformat(),
         "duration_minutes": 20,
@@ -167,7 +167,7 @@ expect_json(owner.post(f"{API}/api/v1/today/check-in", headers=csrf(owner), json
     "note": "Demo capacity is measured, not invented.",
 }), "create structured Today check-in")
 expect_json(owner.post(f"{API}/api/v1/feasibility", headers=csrf(owner), json={
-    "system_slug": "quiet-ambition",
+    "system_slug": "ambition",
     "subject_kind": "ACTION",
     "subject_id": living_action["id"],
     "title": "Twenty-minute V197 proof pass",
@@ -180,7 +180,7 @@ expect_json(owner.post(f"{API}/api/v1/feasibility", headers=csrf(owner), json={
     "risk_level": "LOW",
 }), "create feasibility assessment")
 expect_json(owner.post(f"{API}/api/v1/map/predict-path", headers=csrf(owner), json={
-    "system_slug": "quiet-ambition",
+    "system_slug": "ambition",
     "path_type": "continue",
     "goal_id": living_goal["id"],
     "horizon_days": 14,
@@ -439,7 +439,7 @@ if consultation is None:
             "scope_statement": "Only room contributions and explicit Consultation records.",
             "room_id": group_room["id"],
             "orbit_id": group_orbit["id"],
-            "system_slug": "quiet-ambition",
+            "system_slug": "ambition",
             "is_demo": True,
         },
     ), "create demo bounded Consultation")
@@ -514,7 +514,7 @@ if not any(row.get("event_type") == "GOAL_MILESTONE" and row.get("goal_id") == l
 insight_rows = owner.get(f"{API}/api/v1/insights").json()
 if not insight_rows:
     demo_insight = expect_json(owner.post(f"{API}/api/v1/insights/generate", headers=csrf(owner), json={
-        "system_slug": "quiet-ambition",
+        "system_slug": "ambition",
     }), "generate demo evidence-linked Insight")
     expect_json(owner.post(
         f"{API}/api/v1/insights/{demo_insight['id']}/add-to-timeline",

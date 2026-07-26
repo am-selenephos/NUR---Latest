@@ -7,19 +7,18 @@ def H(client) -> dict[str, str]:
     return {"X-CSRF-Token": client.cookies.get("nur_csrf")}
 
 
-async def test_registration_provisions_the_seven_persisted_nur_systems(client):
+async def test_registration_provisions_the_six_persisted_nur_systems(client):
     await register_user(client, chosen_name="Seven Systems Owner")
     rows = (await client.get("/api/v1/orbits")).json()
     systems = [row for row in rows if row["kind"] != "PERSONAL_BRIDGE"]
 
     assert [row["title"] for row in systems] == [
-        "Quiet Ambition",
+        "Ambition",
         "Rebuild",
-        "Study",
-        "Money",
-        "Body",
-        "Connection",
         "Creation",
+        "Growth",
+        "Introspection",
+        "Connection",
     ]
     assert all(row["status"] == "ACTIVE" for row in systems)
 

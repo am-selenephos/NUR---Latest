@@ -50,6 +50,18 @@ def upgrade() -> None:
     op.execute("ALTER TABLE glow_transactions ADD COLUMN anti_abuse_state VARCHAR(24) NOT NULL DEFAULT 'CLEAR'")
     op.execute("ALTER TABLE glow_transactions ADD COLUMN timezone VARCHAR(64) NOT NULL DEFAULT 'UTC'")
     op.execute("ALTER TABLE glow_transactions ADD COLUMN local_date DATE")
+    # The backfill below runs as the migration role, which is not the RLS policy
+    # subject (`nur_app`) and does not hold BYPASSRLS. With FORCE ROW LEVEL
+    # SECURITY on, its INSERT and UPDATE match zero rows *silently*, and the
+    # SET NOT NULL that follows then fails with "contains null values" on any
+    # database that already holds Glow rows. It only ever succeeded on empty
+    # databases, which is why the test suite never caught it.
+    #
+    # FORCE is lifted for the duration of the backfill and restored immediately
+    # afterwards, so the tables spend no time outside RLS beyond this migration.
+    op.execute("ALTER TABLE glow_transactions NO FORCE ROW LEVEL SECURITY")
+    op.execute("ALTER TABLE domain_events NO FORCE ROW LEVEL SECURITY")
+
     op.execute("""
         INSERT INTO domain_events(
             owner_user_id, event_type, aggregate_type, aggregate_id,
@@ -69,6 +81,24 @@ def upgrade() -> None:
         WHERE event.owner_user_id = transaction.owner_user_id
           AND event.idempotency_key = 'glow-source-backfill:' || transaction.id::text
     """)
+    # Any row the join still could not resolve would fail the NOT NULL below with
+    # the same opaque error, so surface it as an explicit, actionable failure.
+    op.execute("""
+        DO $$
+        DECLARE orphaned integer;
+        BEGIN
+            SELECT count(*) INTO orphaned FROM glow_transactions WHERE source_event_id IS NULL;
+            IF orphaned > 0 THEN
+                RAISE EXCEPTION
+                    'glow_transactions has % rows with no backfilled source event; '
+                    'the domain_events backfill did not resolve them', orphaned;
+            END IF;
+        END $$;
+    """)
+
+    op.execute("ALTER TABLE glow_transactions FORCE ROW LEVEL SECURITY")
+    op.execute("ALTER TABLE domain_events FORCE ROW LEVEL SECURITY")
+
     op.execute("ALTER TABLE glow_transactions ALTER COLUMN source_event_id SET NOT NULL")
     op.execute("ALTER TABLE glow_transactions ALTER COLUMN local_date SET NOT NULL")
     op.execute("CREATE INDEX ix_glow_transactions_owner_local_date ON glow_transactions(owner_user_id, local_date DESC)")

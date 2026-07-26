@@ -45,7 +45,7 @@ async def _make_demo_consultation(client) -> str:
             "purpose": "Keep disagreement and proof inside one bounded decision path.",
             "desired_outcome": "A release decision with a verifiable return check.",
             "scope_statement": "Only room contributions and explicit Consultation records.",
-            "system_slug": "quiet-ambition",
+            "system_slug": "ambition",
             "is_demo": True,
         },
     )

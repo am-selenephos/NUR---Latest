@@ -34,7 +34,7 @@ async def test_register_creates_full_identity_graph(client, super_engine):
                       "event_type IN ('user.registered','consent.granted','session.created')"),
         }.items():
             counts[label] = (await conn.execute(text(sql), {"u": uid})).scalar_one()
-    assert counts == {"user": 1, "profile": 1, "orbit": 8, "consent": 1, "session": 1, "audit": 3}
+    assert counts == {"user": 1, "profile": 1, "orbit": 7, "consent": 1, "session": 1, "audit": 3}
 
 
 async def test_duplicate_email_fails_generically(client):
