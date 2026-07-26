@@ -12,11 +12,117 @@ const baseUser = {
 };
 const orbit = {
   id: "22222222-2222-2222-2222-222222222222",
-  title: "Quiet Ambition",
+  title: "Ambition",
   kind: "PROJECT",
   description: "Build without noise",
   status: "ACTIVE",
   created_at: now,
+};
+const systemTitles = [
+  "Ambition",
+  "Rebuild",
+  "Creation",
+  "Growth",
+  "Introspection",
+  "Connection",
+] as const;
+const systems = systemTitles.map((title, index) => {
+  const slug = title.toLowerCase();
+  return {
+    slug,
+    title,
+    definition: `${title} is held in the persisted owner ledger.`,
+    orbit_id: index === 0 ? orbit.id : `system-${slug}`,
+    questions: [`What matters inside ${title}?`],
+    checklist: [],
+    progress_percent: 0,
+    progress_sources: {
+      completed_actions: 0,
+      total_actions: 0,
+      action_completion_percent: 0,
+      goal_progress_percent: 0,
+      latest_diagnostic_score: 0,
+      glow_points: 0,
+      formula: "Persisted owner evidence only.",
+    },
+    active_goal_count: 0,
+    goals: [],
+    actions: [],
+    blockers: [],
+    next_move: { kind: "NONE", id: null, title: `Choose one honest ${title} move.` },
+    prediction: {
+      if_ignored: "No outcome has been persisted.",
+      if_followed: "A returned outcome can update this System.",
+      basis: {},
+      provenance_label: "OWNER_LEDGER",
+    },
+  };
+});
+const today = {
+  date: now.slice(0, 10),
+  day_label: "Today",
+  local_time: "12:00",
+  timezone: "UTC",
+  daypart: "day",
+  body: { score: 0, sources: {}, calculation: "No persisted reading." },
+  mind: { score: 0, sources: {}, calculation: "No persisted reading." },
+  life: { score: 0, sources: {}, calculation: "No persisted reading." },
+  glow_today: 0,
+  active_systems: systems,
+  active_goals: [],
+  active_plans: [],
+  scheduled_today: [],
+  completed_today: [],
+  missed_today: [],
+  daily_quest: {},
+  next_move: null,
+  latest_insight: null,
+  latest_timeline_event: null,
+  return_check: null,
+  provenance_label: "OWNER_LEDGER",
+};
+const liveUniverse = {
+  generated_at: now,
+  provenance_label: "OWNER_LEDGER_AGGREGATE",
+  owner: {
+    id: baseUser.id,
+    email: baseUser.email,
+    chosen_name: baseUser.profile.chosen_name,
+    timezone: "UTC",
+    locale: "en",
+    writing_preference: "default",
+    default_boundary: "PRIVATE_ORBIT",
+  },
+  state: {
+    summary: "Six founder-locked Systems are active.",
+    source_count: 0,
+    confidence: 0,
+    confidence_kind: "source_coverage_not_truth_probability",
+    last_updated: now,
+    today,
+    provenance_label: "DETERMINISTIC_OWNER_LEDGER_SYNTHESIS",
+  },
+  active_systems: systems,
+  active_goals: [],
+  active_objectives: [],
+  active_plans: [],
+  people_orbits: [],
+  group_orbits: [],
+  projects: [],
+  latest_insights: [],
+  timeline_highlights: [],
+  open_loops: [],
+  next_moves: [],
+  glow: { today_points: 0 },
+  signals: [],
+  community: {
+    live_connected: false,
+    status: "LOCAL_NOTES_ONLY",
+    note_count: 0,
+    latest_note: null,
+    honest_state: "No live community activity is invented.",
+  },
+  what_changed: [],
 };
 const decision = {
   id: "decision-1",
@@ -88,7 +194,10 @@ async function installVisualMocks(page: Page, locale = "en") {
     timezone: "UTC",
   }));
   await page.route("**/healthz", route => json(route, { status: "ok" }));
-  await page.route("**/api/v1/universe/live", route => json(route, null));
+  await page.route("**/api/v1/universe/live", route => json(route, {
+    ...liveUniverse,
+    owner: { ...liveUniverse.owner, locale },
+  }));
   await page.route("**/api/v1/universe/map-summary", route => json(route, null));
   await page.route("**/api/v1/universe/orbits-summary", route => json(route, null));
   await page.route("**/api/v1/universe/timeline", route => json(route, null));
@@ -113,7 +222,7 @@ async function installVisualMocks(page: Page, locale = "en") {
   await page.route("**/api/v1/projects/summary", route => json(route, null));
   await page.route("**/api/v1/community/rooms", route => json(route, []));
   await page.route("**/api/v1/orbits/current-state", route => json(route, {
-    active_systems: 1,
+    active_systems: systems.length,
     outcomes_returned: 2,
     insights_evolving: 3,
     open_questions: 1,
@@ -128,7 +237,7 @@ async function installVisualMocks(page: Page, locale = "en") {
   await page.route("**/api/v1/capsules", route => json(route, [{
     id: "cap-existing",
     orbit_id: orbit.id,
-    title: "Quiet Ambition shared context",
+    title: "Ambition shared context",
     purpose: "Get a designer useful in 20 minutes",
     capability: "ASK_SCOPED_QUESTIONS",
     expires_at: null,
@@ -147,7 +256,7 @@ async function installVisualMocks(page: Page, locale = "en") {
   await page.route("**/api/v1/capsules/cap-active/view", route => json(route, {
     capsule_id: "cap-active",
     state: "ACTIVE",
-    title: "Quiet Ambition",
+    title: "Ambition",
     purpose: "Get a designer useful in 20 minutes",
     owner_display: "Selene",
     capability: "ASK_SCOPED_QUESTIONS",
@@ -431,12 +540,12 @@ async function assertSystemsMapGeometry(page: Page, viewportLabel: string) {
   }
 
   if (viewport?.width === 1280) {
-    const quiet = await box("1280 Quiet Ambition label", frame.locator(".universe-system-node.quiet"));
-    const embodied = await box("1280 Embodied Edge label", frame.locator(".universe-system-node.embodied"));
-    const relational = await box("1280 Relational Gravity label", frame.locator(".universe-system-node.relational"));
-    assertNoOverlap("1280: Quiet Ambition and Embodied Edge have horizontal air", quiet, embodied, 18);
-    assertNoOverlap("1280: Quiet Ambition and Relational Gravity have diagonal air", quiet, relational, 18);
-    assertNoOverlap("1280: Embodied Edge and Relational Gravity have vertical air", embodied, relational, 18);
+    const ambition = await box("1280 Ambition label", frame.locator(".universe-system-node.quiet"));
+    const introspection = await box("1280 Introspection label", frame.locator(".universe-system-node.embodied"));
+    const connection = await box("1280 Connection label", frame.locator(".universe-system-node.relational"));
+    assertNoOverlap("1280: Ambition and Introspection have horizontal air", ambition, introspection, 18);
+    assertNoOverlap("1280: Ambition and Connection have diagonal air", ambition, connection, 18);
+    assertNoOverlap("1280: Introspection and Connection have vertical air", introspection, connection, 18);
     await expect(frame.locator(".universe-system-node.quiet b")).toBeVisible();
     await expect(frame.locator(".universe-system-node.embodied b")).toBeVisible();
     await expect(frame.locator(".universe-system-node.relational b")).toBeVisible();
@@ -555,7 +664,7 @@ test("Today and Systems controls keep one proportional geometry contract", async
   );
   await assertCouncilStageGeometry(frame, mobile);
   await expect(frame.locator("#page-systems #front-nur-star"))
-    .toHaveAttribute("data-nur-point-count", mobile ? "708" : "1060");
+    .toHaveAttribute("data-nur-point-count", mobile ? "1355" : "2086");
 
   const activeGlyph = frame.locator('.clean-nav-button.active[data-page="systems"] > .clean-nav-glyph');
   if (!mobile) {
@@ -609,7 +718,7 @@ test("Today and Systems controls keep one proportional geometry contract", async
   await expect(frame.locator("#page-today")).toBeVisible();
   await assertEqualControlGroup(frame.locator("#page-today .tiny-link"), 3, "Today panel actions");
   await expect(frame.locator("#page-today #front-nur-star"))
-    .toHaveAttribute("data-nur-point-count", mobile ? "708" : "1060");
+    .toHaveAttribute("data-nur-point-count", mobile ? "1355" : "2086");
   const sendStar = frame.locator("#page-today .thought-send-button[data-send='today'] .nur-v197-sigil-star");
   await expect(sendStar).toBeVisible();
   await expect(sendStar).toHaveCSS("display", "block");

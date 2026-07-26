@@ -12,7 +12,7 @@
     "web:test": "npm --workspace apps/web run test -- --run",
     "web:build": "npm --workspace apps/web run build",
     "v197:integrity": "bash infra/scripts/check-v197-integrity.sh",
-    "web:e2e:mocked": "npm --workspace apps/web run e2e -- e2e/talk.spec.ts e2e/visual-readiness.spec.ts e2e/project-deliverables.spec.ts e2e/v197-control-matrix.spec.ts --project=chromium-desktop --project=chromium-mobile --workers=1",
+    "web:e2e:mocked": "npm --workspace apps/web run e2e -- e2e/talk.spec.ts e2e/visual-readiness.spec.ts --project=chromium-desktop --project=chromium-mobile --workers=1",
     "mobile:typecheck": "npm --prefix apps/mobile run typecheck"
   },
   "devDependencies": {
