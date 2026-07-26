@@ -4,6 +4,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
+if ! command -v rg >/dev/null 2>&1; then
+  printf "Secret scan cannot run: ripgrep (rg) is required.\n" >&2
+  exit 2
+fi
+
 PATTERN='sk-(proj-)?[A-Za-z0-9_-]{20,}|(OPENAI_API_KEY|VITE_OPENAI_API_KEY|NEXT_PUBLIC_OPENAI_API_KEY)[[:space:]]*=[[:space:]]*[^[:space:]#]+|Authorization:[[:space:]]*Bearer[[:space:]]+[^[:space:]]+'
 
 scan_tree() {

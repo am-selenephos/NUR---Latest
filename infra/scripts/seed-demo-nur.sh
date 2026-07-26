@@ -520,14 +520,14 @@ if not insight_rows:
         f"{API}/api/v1/insights/{demo_insight['id']}/add-to-timeline",
         headers=csrf(owner),
     ), "add demo Insight review to Timeline")
-if os.environ.get("NUR_AI_PROVIDER") == "openai":
-    print("Seed skipped live Talk model call; openai-smoke-local.sh validates provider output separately.")
-else:
-    talk = expect_json(owner.post(f"{API}/api/v1/cognition/talk", headers=csrf(owner), json={
-        "message": "What changed after the boot demo outcome?",
-        "locale": "en",
-    }), "create demo Talk turn")
-    award_glow(owner, event_type="talk_meaningful", source_kind="COGNITIVE_EVENT", source_id=talk["turn_event_id"], orbit_id=orbit["id"], idempotency_key=f"seed-talk:{talk['turn_event_id']}:meaningful")
+print(
+    "Seed skipped live Talk model call; "
+    + (
+        "openai-smoke-local.sh validates provider output separately."
+        if os.environ.get("NUR_AI_PROVIDER") == "openai"
+        else "the disabled provider must not fabricate an assistant turn."
+    )
+)
 journal = expect_json(owner.post(f"{API}/api/v1/journal", headers=csrf(owner), json={
     "body": "Boot demo journal: the interface must stay visual, private, and source-bound.",
     "orbit_id": orbit["id"],
