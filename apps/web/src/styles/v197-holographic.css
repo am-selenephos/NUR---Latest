@@ -62,28 +62,48 @@ body.universe-edition .share-sheet::before {
   will-change: transform;
   animation: nurHoloDrift 34s ease-in-out infinite;
   /* Spectral, but held at low alpha: a sheen across dark glass, not a rainbow
-     poster. Warm gold and peach carry the NUR highlights; cyan and violet carry
-     the cool side. */
+     poster. The blue band is deliberately absent — the founder's instruction was
+     to remove the blue tint, and a blue stop at the midpoint is what re-read as
+     navy on a wide panel even at 0.10 alpha. The spectrum runs gold → rose →
+     violet → teal → green → gold, so it still shifts without ever landing on
+     blue. */
   background: linear-gradient(
     104deg,
     rgba(255, 214, 138, 0.00) 0%,
-    rgba(255, 196, 122, 0.10) 12%,
-    rgba(255, 138, 168, 0.09) 24%,
-    rgba(196, 138, 255, 0.10) 37%,
-    rgba(120, 168, 255, 0.10) 50%,
-    rgba(103, 232, 249, 0.09) 63%,
-    rgba(126, 237, 178, 0.08) 75%,
-    rgba(255, 226, 140, 0.10) 88%,
+    rgba(255, 196, 122, 0.11) 12%,
+    rgba(255, 138, 168, 0.10) 26%,
+    rgba(206, 142, 246, 0.09) 40%,
+    rgba(130, 240, 224, 0.09) 56%,
+    rgba(150, 240, 178, 0.08) 72%,
+    rgba(255, 226, 140, 0.11) 88%,
     rgba(255, 214, 138, 0.00) 100%
   );
 }
 
-/* The fog layer carries the same spectrum so the panel and its halo agree. */
+/* The fog layer carries the same spectrum so the panel and its halo agree — and
+   the same rule about blue applies, since this layer is the widest tinted area
+   on the screen and was the strongest remaining source of navy. */
 body.universe-edition .universe-map-fog {
   background:
-    radial-gradient(120% 90% at 50% 40%, rgba(120, 168, 255, 0.12), transparent 62%),
-    radial-gradient(90% 70% at 22% 76%, rgba(255, 176, 132, 0.10), transparent 60%),
-    radial-gradient(80% 70% at 82% 22%, rgba(178, 132, 255, 0.10), transparent 58%) !important;
+    radial-gradient(120% 90% at 50% 40%, rgba(130, 240, 224, 0.10), transparent 62%),
+    radial-gradient(90% 70% at 22% 76%, rgba(255, 176, 132, 0.11), transparent 60%),
+    radial-gradient(80% 70% at 82% 22%, rgba(206, 142, 246, 0.09), transparent 58%) !important;
+}
+
+/* Canonical draws panel glows in `rgba(100,100,255,.14)` — a saturated blue used
+   eight times as an outer shadow. On dark glass it reads as a navy halo around
+   every panel, which is the tint that survived the base-colour replacement
+   above. Neutralised to a colourless lift. */
+body.universe-edition .universe-map-panel,
+body.universe-edition .universe-card,
+body.universe-edition .universe-insight-panel,
+body.universe-edition .context-rail-card,
+body.universe-edition .v172-context-card,
+body.universe-edition .clean-audit-card,
+body.universe-edition .nur-panel {
+  box-shadow:
+    0 1px 0 rgba(255, 248, 232, 0.05) inset,
+    0 18px 44px rgba(0, 0, 0, 0.42) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -112,24 +132,39 @@ body.universe-edition .send-button > svg {
   display: none !important;
 }
 
+/* The word SEND and the star seal shared a button sized for the arrow glyph that
+   used to sit between them, so removing the arrow left the two crowded against
+   each other and against the button edge. The control is widened and given real
+   horizontal padding; the star is the only glyph left, so it centres cleanly. */
+body.universe-edition .thought-send-button.send-holo-pill,
 body.universe-edition .composer-action--send,
 body.universe-edition .send-button.nur-v136-v89-mini-host {
-  display: grid !important;
-  place-items: center !important;
-  place-content: center !important;
-  padding: 0 !important;
-  gap: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  min-width: 132px !important;
+  width: auto !important;
+  padding: 0 26px !important;
+  min-height: 44px !important;
+  aspect-ratio: auto !important;
+  white-space: nowrap !important;
+  letter-spacing: 0.1em !important;
 }
 
-/* The star seal is injected as a child; centre it on both axes. */
+/* The star seal is injected as a child. It used to be absolutely centred, which
+   was right while it was the button's only content; now that it sits beside the
+   word it must be a flex item so the 10px gap above actually separates them
+   instead of stacking them on the same point. */
+body.universe-edition .thought-send-button > .nur-star-seal,
 body.universe-edition .composer-action--send > .nur-star-seal,
 body.universe-edition .composer-action--send > svg.nur-star-seal,
 body.universe-edition .send-button > .nur-star-seal {
-  position: absolute !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
+  position: static !important;
+  transform: none !important;
+  flex: 0 0 auto !important;
   margin: 0 !important;
+  align-self: center !important;
 }
 
 /* ── 3. Sign-out trigger states what it does ────────────────────────────────
@@ -181,77 +216,166 @@ body.universe-edition .nur-field textarea::placeholder {
 }
 
 /* ── 5. Scroll containment ──────────────────────────────────────────────────
-   Canonical already builds these panels correctly:
+   Canonical already builds the transcript correctly:
 
      .talk-chamber { min-height: calc(100dvh - 158px); display:flex; flex-direction:column }
      .talk-stream  { flex:1; min-height:0; overflow:auto }
 
-   The transcript was always meant to scroll inside itself. The bug was never
-   the scroller — it was the chamber's `min-height`. Subtracting only 158px from
-   the viewport ignores the topbar, the page heading and the grid's own top
-   margin, so the chamber came out taller than the space it sits in, overflowed,
-   and pushed the scrollbar onto the page while the composer fell below the fold.
+   The scroller was never the bug. The bug was the height budget above it, and
+   three attempts to fix that by subtracting a constant from `100dvh` all failed
+   for the same measured reason: **the space above the layout is not a
+   constant.** On a 1440×900 desktop the layout starts 135px down the viewport;
+   on a 390×844 phone it starts at 353px, because the page heading block grows
+   to 269px when it wraps. `calc(100dvh - 318px)` is therefore 35px too tall on
+   a phone and the overflow lands on an ancestor — which is exactly the page
+   scrollbar the founder reported, reappearing one level up.
 
-   Measured at a 800px window: viewport 736, heading 135, grid margin 24, so the
-   chamber has roughly 550px to live in — 100dvh minus about 250, not minus 158.
+   So nothing here subtracts a constant any more. `.nur-viewport` is the one box
+   in the chain with a height the browser already knows (784px inside an 844px
+   window, `overflow:hidden`), and every box below it now takes its size from
+   that box by flexing. The heading can be any height it likes; the transcript
+   absorbs whatever is left.
 
-   Earlier attempts here restructured the flex chain and capped `#talk-stream`
-   directly. Both were wrong: the first collapsed the transcript to 38px because
-   `.nur-viewport` sits in a grid row that then sized to min-content, and the
-   second fought a rule canonical had already written correctly. Correcting the
-   one wrong number is enough. */
+   Two earlier failures are guarded against explicitly:
 
-/* The viewport itself must stop scrolling on these two routes, otherwise the
-   context rail — whose cards land in additional grid rows — keeps the page
-   scrollbar alive no matter how the chamber is sized. Only `overflow` is
-   touched: changing the viewport's `display` collapsed it once already, because
-   it sits in a grid row that then sized to min-content. */
+   1. Making `.nur-viewport` a flex column once collapsed the transcript to
+      38px, because it sits in a grid row that then sized to min-content. The
+      `min-height: 0` on `.nur-main`/`.nur-shell` below is what stops that.
+   2. Capping `#talk-stream` directly fought a rule canonical had already
+      written correctly, and produced a 178px field on a 900px window. */
+
 body.universe-edition .nur-viewport:has(#page-talk.active),
 body.universe-edition .nur-viewport:has(#page-journal.active) {
   overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
 }
 
-/* The grid gets the height that is actually available — viewport minus its own
-   padding, the page heading and the grid's top margin — and scrolls internally
-   if the rail is longer than the chamber. */
+/* Without this the grid row above the viewport sizes to min-content and the
+   whole chain collapses — measured at 38px on an earlier attempt. */
+body.universe-edition .nur-shell,
+body.universe-edition .nur-main {
+  min-height: 0 !important;
+}
+
+/* `flex-basis: 0`, not `auto`. With `auto` the item's height stays content-derived
+   as far as percentage resolution is concerned, so `height: 100%` on the chamber
+   below silently fell back to its content height — measured at 1280×640 as a
+   429px chamber inside a 339px layout, putting the composer 90px under the fold.
+   A zero basis gives these two boxes a used height computed from their container,
+   which is what the panels beneath them resolve their percentages against. */
+body.universe-edition #page-talk.active,
+body.universe-edition #page-journal.active {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
 body.universe-edition #page-talk.active > .page-grid,
 body.universe-edition #page-journal.active > .journal-layout {
-  max-height: calc(100dvh - 318px) !important;
-  overflow-y: auto !important;
-  overscroll-behavior: contain;
-}
-
-body.universe-edition .talk-chamber {
+  flex: 1 1 0 !important;
   min-height: 0 !important;
-  height: calc(100dvh - 330px) !important;
-  max-height: calc(100dvh - 330px) !important;
+  max-height: none !important;
+  overflow: hidden !important;
+  /* Canonical leaves the row implicit, so it sized to max-content and the
+     chamber's `height: 100%` resolved against a row taller than the layout —
+     the composer stayed 80px under the fold even after the basis fix.
+     `minmax(0, 1fr)` makes the row exactly the layout's height. */
+  grid-template-rows: minmax(0, 1fr) !important;
+  align-items: stretch !important;
 }
 
+body.universe-edition .talk-chamber,
 body.universe-edition .journal-pad {
   min-height: 0 !important;
-  height: calc(100dvh - 330px) !important;
-  max-height: calc(100dvh - 330px) !important;
+  height: 100% !important;
+  max-height: 100% !important;
   display: flex !important;
   flex-direction: column !important;
 }
 
-/* The journal field is not flex-sized by canonical the way the transcript is. */
+/* The two scrollers. Canonical already flexes `.talk-stream`; the journal field
+   is a bare textarea and is not flex-sized by canonical at all. */
+body.universe-edition .talk-stream,
 body.universe-edition #journal-input {
   flex: 1 1 auto !important;
   min-height: 0 !important;
   overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+
+body.universe-edition #journal-input {
   resize: none !important;
 }
 
+body.universe-edition .talk-composer,
 body.universe-edition .journal-tools {
   flex: 0 0 auto !important;
 }
 
+/* On a phone the layout collapses to one column and the context rail stacks
+   below the pad. Left alone the rail overflows the layout, and the browser then
+   scrolls that ancestor to bring the caret into view — so the page moves while
+   the owner is typing, which is the founder's original complaint reappearing one
+   level up. The rail gets its own bounded scroll region instead, so nothing
+   above the field can scroll.
+
+   The heading is capped for the same measured reason. At 390×844 the block above
+   the layout renders 269px tall — a third of the 784px viewport, sitting in
+   front of a 195px composer. Uncapped it left the transcript 30px. It is
+   selected structurally (`> *:not(.page-grid)`) rather than by class so this
+   does not depend on which heading element canonical happens to emit. */
 @media (max-width: 900px) {
+  body.universe-edition #page-talk.active > *:not(.page-grid),
+  body.universe-edition #page-journal.active > *:not(.journal-layout) {
+    flex: 0 0 auto !important;
+    max-height: 13dvh !important;
+    overflow: hidden !important;
+  }
+
+  body.universe-edition #page-talk.active > .page-grid,
+  body.universe-edition #page-journal.active > .journal-layout {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* The pad takes what is left; it must not be `height: 100%` here, because as a
+     flex-basis that made it lose the shrink race with the rail. */
   body.universe-edition .talk-chamber,
   body.universe-edition .journal-pad {
-    height: calc(100dvh - 260px) !important;
-    max-height: calc(100dvh - 260px) !important;
+    flex: 1 1 0 !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  body.universe-edition #page-talk.active > .page-grid > :not(.talk-chamber),
+  body.universe-edition #page-journal.active > .journal-layout > :not(.journal-pad) {
+    flex: 0 0 auto !important;
+    max-height: 18dvh !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Keyboard open on a phone: the visual viewport halves to about 400px, leaving
+   340px below the topbar. A 195px composer and any heading at all cannot both
+   fit with a usable transcript, so on this one regime the secondary surfaces
+   stand down and the transcript keeps the room. 620px is below the shortest
+   desktop tested (1280×640), so no desktop layout is affected. */
+@media (max-height: 620px) and (max-width: 900px) {
+  body.universe-edition #page-talk.active > *:not(.page-grid),
+  body.universe-edition #page-journal.active > *:not(.journal-layout),
+  body.universe-edition #page-talk.active > .page-grid > :not(.talk-chamber),
+  body.universe-edition #page-journal.active > .journal-layout > :not(.journal-pad) {
+    display: none !important;
+  }
+
+  body.universe-edition #page-talk.active > .page-grid,
+  body.universe-edition #page-journal.active > .journal-layout {
+    margin-top: 0 !important;
   }
 }
 

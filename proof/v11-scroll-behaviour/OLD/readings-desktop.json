@@ -1,0 +1,26 @@
+{
+  "commit": "OLD-d6a9d1b-scroll",
+  "talk": {
+    "viewport": "desktop",
+    "surface": "talk",
+    "gesture": "mouse wheel ×8",
+    "scrollerDelta": 1760,
+    "pageDelta": 0,
+    "ancestorsThatMoved": [],
+    "endReachable": true,
+    "actionHitTestable": true
+  },
+  "journal": {
+    "viewport": "desktop",
+    "surface": "journal",
+    "gesture": "click + Control+End + wheel ×30",
+    "scrollerDelta": 6433,
+    "pageDelta": 0,
+    "ancestorsThatMoved": [
+      "3:.nur-viewport"
+    ],
+    "endReachable": true,
+    "actionHitTestable": true
+  },
+  "errors": []
+}
