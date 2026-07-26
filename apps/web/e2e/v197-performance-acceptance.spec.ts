@@ -17,6 +17,7 @@ type RuntimeSnapshot = {
   canvasCount: number;
   canvasOwners: string[];
   runningAnimations: number;
+  runningAnimationDetails: Array<{ name: string; target: string }>;
   particleCount: number | null;
   miniStarHosts: number;
   compactedMiniStars: number;
@@ -320,12 +321,28 @@ async function snapshot(frame: Frame): Promise<RuntimeSnapshot> {
       nurGalaxy?: { getParticleCount?: () => number };
     };
     const memory = performance as Performance & { memory?: { usedJSHeapSize: number } };
+    const runningAnimationDetails = document.getAnimations()
+      .filter(animation => animation.playState === "running")
+      .map(animation => {
+        const target = animation.effect instanceof KeyframeEffect
+          ? animation.effect.target
+          : null;
+        const element = target instanceof Element ? target : null;
+        const named = animation as Animation & { animationName?: string };
+        return {
+          name: named.animationName ?? getComputedStyle(element ?? document.documentElement).animationName,
+          target: element
+            ? `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ""}${[...element.classList].map(name => `.${name}`).join("")}`
+            : "unknown",
+        };
+      });
     return {
       elementCount: document.querySelectorAll("*").length,
       canvasCount: document.querySelectorAll("canvas").length,
       canvasOwners: [...document.querySelectorAll<HTMLCanvasElement>("canvas")]
         .map(canvas => canvas.id || canvas.className || "anonymous-canvas"),
-      runningAnimations: document.getAnimations().filter(animation => animation.playState === "running").length,
+      runningAnimations: runningAnimationDetails.length,
+      runningAnimationDetails,
       particleCount: global.nurGalaxy?.getParticleCount?.() ?? null,
       miniStarHosts: document.querySelectorAll(".nur-exact-mini-host").length,
       compactedMiniStars: document.querySelectorAll('.nur-exact-mini-host[data-nur-mini-compacted="true"]').length,
@@ -506,7 +523,8 @@ test("G04 warm V197 runtime preserves identity, centring, and natural interactio
   expect(runtime.canvasCount).toBe(2);
   expect(runtime.canvasOwners.sort()).toEqual(["nur-brain-canvas", "space3d"]);
   expect(runtime.runningAnimations).toBeLessThanOrEqual(testInfo.project.name.includes("mobile") ? 16 : 24);
-  expect(runtime.particleCount ?? 0).toBeLessThanOrEqual(1120);
+  expect(runtime.particleCount ?? 0).toBeGreaterThanOrEqual(1_160);
+  expect(runtime.particleCount ?? 0).toBeLessThanOrEqual(1_200);
   expect(runtime.compactedMiniStars).toBe(runtime.miniStarHosts);
   expect(runtime.rayCount).toBe(0);
   // Headed Chromium is the reference timing environment. Headless Firefox and

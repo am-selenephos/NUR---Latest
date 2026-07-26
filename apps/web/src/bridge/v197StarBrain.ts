@@ -4,7 +4,7 @@ import { ensureV197AccessibleViewport } from "./v197Accessibility";
 export const V197_STAR_BRAIN_CANVAS_ID = "nur-brain-canvas";
 export const V197_STAR_BRAIN_HOST_ID = "front-nur-star";
 const V197_STAR_BRAIN_SCRIPT_ID = "nur-v43-exact-star-brain-runtime";
-const V43_STAR_BRAIN_RUNTIME_HASH = "8e249a704734e0d60bedff389883e90460338d14ac806c00ca6e5019b5834192";
+const V43_STAR_BRAIN_RUNTIME_HASH = "aee24e411f59aa02d0d5cdc9f71447d82e995570668ce63764381298d6c4ef28";
 
 type V197StarBrainSurface = "entry" | "today" | "universe" | "map";
 

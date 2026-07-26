@@ -150,6 +150,96 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
   await expect(systemsBody).toHaveClass(/nur-v197-systems-active/);
   await expect(universe.locator(".nur-v178-warmth-film")).toHaveCSS("display", "none");
 
+  const surfaceMaterials = await universe.locator("#page-systems").evaluate(root => {
+    const selectors = [
+      ":scope",
+      ".universe-map-panel",
+      ".universe-insight-panel",
+      ".universe-state-strip",
+      ".universe-composer-shell",
+    ];
+    return selectors.map(selector => {
+      const element = selector === ":scope" ? root : root.querySelector<HTMLElement>(selector);
+      if (!element) return { selector, missing: true, backgroundColor: "", backgroundImage: "" };
+      const style = getComputedStyle(element);
+      return {
+        selector,
+        missing: false,
+        backgroundColor: style.backgroundColor,
+        backgroundImage: style.backgroundImage,
+      };
+    });
+  });
+  for (const surface of surfaceMaterials) {
+    expect(surface.missing, `${surface.selector} must be present`).toBe(false);
+    const channels = surface.backgroundColor.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [];
+    expect(channels, `${surface.selector} must expose an RGB black base`).toHaveLength(3);
+    expect(
+      Math.max(...channels) - Math.min(...channels),
+      `${surface.selector} must remain neutral black, not blue-tinted: ${surface.backgroundColor}`,
+    ).toBeLessThanOrEqual(1);
+  }
+  const systemsPanelImages = surfaceMaterials
+    .filter(surface => surface.selector !== ":scope")
+    .map(surface => surface.backgroundImage)
+    .join(" ");
+  expect(systemsPanelImages).toContain("255, 211, 90");
+  expect(systemsPanelImages).toContain("255, 58, 158");
+  expect(systemsPanelImages).toContain("105, 240, 180");
+  expect(systemsPanelImages).not.toContain("33, 232, 255");
+
+  const allPanelMaterials = await universe.locator("#page-systems").evaluate(root => {
+    const selector = [
+      ".universe-map-panel",
+      ".universe-insight-panel",
+      ".universe-card",
+      ".candidate-insight",
+      ".context-rail-card",
+      ".v172-context-card",
+      ".clean-audit-card",
+      ".nur-panel",
+      ".universe-state-strip",
+      ".universe-composer-shell",
+    ].join(",");
+    return Array.from(root.querySelectorAll<HTMLElement>(selector))
+      .filter(element => {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      })
+      .map((element, index) => {
+        const style = getComputedStyle(element);
+        return {
+          identity: `${element.tagName.toLowerCase()}.${Array.from(element.classList).join(".")}#${index}`,
+          backgroundColor: style.backgroundColor,
+          backgroundImage: style.backgroundImage,
+        };
+      });
+  });
+  expect(allPanelMaterials.length).toBeGreaterThanOrEqual(8);
+  for (const panel of allPanelMaterials) {
+    const channels = panel.backgroundColor.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [];
+    expect(channels, `${panel.identity} must expose an RGB black base`).toHaveLength(3);
+    expect(
+      Math.max(...channels) - Math.min(...channels),
+      `${panel.identity} must remain neutral black, not blue-tinted: ${panel.backgroundColor}`,
+    ).toBeLessThanOrEqual(1);
+    expect(panel.backgroundImage, `${panel.identity} must not restore the cyan band`)
+      .not.toContain("33, 232, 255");
+  }
+
+  const galaxy = universe.locator("#space3d");
+  await expect(galaxy).toBeVisible();
+  const particleCount = await galaxy.evaluate(() => (
+    (window as unknown as { nurGalaxy?: { getParticleCount?: () => number } }).nurGalaxy?.getParticleCount?.() ?? 0
+  ));
+  expect(particleCount).toBeGreaterThanOrEqual(1_160);
+  expect(particleCount).toBeLessThanOrEqual(1_200);
+  const galaxyFirst = await canvasSignal(galaxy);
+  await page.waitForTimeout(420);
+  const galaxySecond = await canvasSignal(galaxy);
+  expect(galaxySecond.lit).toBeGreaterThan(110);
+  expect(galaxySecond.checksum).not.toBe(galaxyFirst.checksum);
+
   const topbarWidths = await universe.locator(".universe-top-tools").evaluate(element => {
     const width = (selector: string) => element.querySelector<HTMLElement>(selector)!.getBoundingClientRect().width;
     return { english: width(".nur-v197-language-open"), privacy: width("#scope-open") };

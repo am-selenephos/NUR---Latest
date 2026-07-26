@@ -11,7 +11,7 @@ const bridge = readFileSync(bridgePath, "utf8");
 describe("V43-derived NUR star-brain source", () => {
   it("keeps the supplied V43 anatomy and adds the approved sparkle/stem extension", () => {
     expect(createHash("sha256").update(runtime).digest("hex"))
-      .toBe("8e249a704734e0d60bedff389883e90460338d14ac806c00ca6e5019b5834192");
+      .toBe("aee24e411f59aa02d0d5cdc9f71447d82e995570668ce63764381298d6c4ef28");
     expect(runtime).toContain("canvas.id = 'nur-brain-canvas';");
     expect(runtime).toContain("const N_CORTEX = MOBILE ? 740 : 1112;");
     expect(runtime).toContain("const N_CEREB  = MOBILE ? 154 : 225;");
@@ -41,22 +41,23 @@ describe("V43-derived NUR star-brain source", () => {
   });
 
   /**
-   * The hash above moved once, deliberately, to add a lifecycle. The anatomy
-   * assertions in the previous test are unchanged and still pass, so the
-   * founder-approved V43 form is byte-identical; only the ability to stop was
-   * added. Before this, the runtime had no way to release a surface and its
-   * loop outlived every route change — which is how the interface accumulated
-   * several engines animating at once.
+   * The anatomy assertions above keep the founder-approved V43 form locked.
+   * The lifecycle below prevents its RAF and ambient interval from continuing
+   * after the canonical host hides that stage.
    */
   it("can release the surface it owns", () => {
     expect(runtime).toContain("cancelAnimationFrame(rafHandle)");
     expect(runtime).toContain("function dispose()");
-    // The loop must refuse to re-arm once disposed.
-    expect(runtime).toContain("if(disposed) return;");
-    expect(runtime).toContain("rafHandle = requestAnimationFrame(frame);");
+    expect(runtime).toContain("function stageIsVisible()");
+    expect(runtime).toContain("function requestBrainFrame()");
+    expect(runtime).toContain("if(disposed || rafHandle!==null || !stageIsVisible()) return;");
+    expect(runtime).toContain("if(document.hidden || !stageIsVisible()) return;");
     // Everything the runtime registers must be undone.
     expect(runtime).toContain("teardown.push(()=>removeEventListener('resize',resize));");
     expect(runtime).toContain("teardown.push(()=>ro.disconnect());");
+    expect(runtime).toContain("teardown.push(()=>io.disconnect());");
+    expect(runtime).toContain("teardown.push(()=>stageObserver.disconnect());");
+    expect(runtime).toContain("teardown.push(()=>clearInterval(ambientPulseTimer));");
     expect(runtime).toContain("canvas.remove();");
     // The bridge must expose the release path to the scene orchestrator.
     expect(bridge).toContain("export function disposeV197StarBrain");

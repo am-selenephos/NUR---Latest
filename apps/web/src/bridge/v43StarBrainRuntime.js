@@ -210,6 +210,21 @@
   let rafHandle=null;
   let disposed=false;
   const teardown=[];
+  const frameStage=window.frameElement;
+  function stageIsVisible(){
+    if(!frameStage) return true;
+    if(frameStage.id==='nur-entry-stage'){
+      return !frameStage.classList.contains('is-exiting') && frameStage.getAttribute('aria-hidden')!=='true';
+    }
+    if(frameStage.id==='nur-universe-stage'){
+      return frameStage.classList.contains('is-visible') && frameStage.getAttribute('aria-hidden')!=='true';
+    }
+    return true;
+  }
+  function requestBrainFrame(){
+    if(disposed || rafHandle!==null || !stageIsVisible()) return;
+    rafHandle=requestAnimationFrame(frame);
+  }
   let energy=0;                  // storm brightness boost
   let breath=0;
 
@@ -238,9 +253,23 @@
     teardown.push(()=>ro.disconnect());
   }
   if(typeof IntersectionObserver!=='undefined'){
-    new IntersectionObserver(entries=>{
+    const io=new IntersectionObserver(entries=>{
       onscreen=entries.some(entry=>entry.isIntersecting&&entry.intersectionRect.width>0&&entry.intersectionRect.height>0);
-    }).observe(host);
+    });
+    io.observe(host);
+    teardown.push(()=>io.disconnect());
+  }
+  if(frameStage && typeof MutationObserver!=='undefined'){
+    const stageObserver=new MutationObserver(()=>{
+      if(stageIsVisible()) requestBrainFrame();
+      else if(rafHandle!==null){
+        cancelAnimationFrame(rafHandle);
+        rafHandle=null;
+        lastFrame=0;
+      }
+    });
+    stageObserver.observe(frameStage,{attributes:true,attributeFilter:['class','aria-hidden']});
+    teardown.push(()=>stageObserver.disconnect());
   }
 
   function project(p,out){
@@ -429,8 +458,12 @@
   canvas.addEventListener('dblclick',e=>{ e.stopPropagation(); storm(1.4); });
 
   /* ---- ambient rhythms ---------------------------------------------------- */
+  let ambientPulseTimer=null;
   if(!REDUCED){
-    setInterval(()=>{ if(mode==='live' && !document.hidden && pulses.length<9) firePulse(); }, 640);
+    ambientPulseTimer=setInterval(()=>{
+      if(mode==='live' && !document.hidden && stageIsVisible() && pulses.length<9) firePulse();
+    }, 640);
+    teardown.push(()=>clearInterval(ambientPulseTimer));
   }
 
   /* ---- render loop -------------------------------------------------------- */
@@ -438,9 +471,10 @@
   const depthOrder=Array.from({length:pts.length},(_,index)=>index);
   let depthSortFrame=0;
   function frame(now){
+    rafHandle=null;
     if(disposed) return;
-    rafHandle = requestAnimationFrame(frame);
-    if(document.hidden) return;
+    if(document.hidden || !stageIsVisible()) return;
+    rafHandle=requestAnimationFrame(frame);
     if(!host.isConnected || !onscreen) return;
     if(lastFrame&&now-lastFrame<MIN_FRAME_GAP) return;
     lastFrame=now;
@@ -592,5 +626,5 @@
       if(q.z>-.2) emitMote(pts[i],q.x,q.y);
     }
   }
-  rafHandle = requestAnimationFrame(frame);
+  requestBrainFrame();
 })();

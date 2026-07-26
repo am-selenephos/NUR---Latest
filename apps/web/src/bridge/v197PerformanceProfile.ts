@@ -3,28 +3,55 @@ export const V197_RUNTIME_PROFILE_SCRIPT_ID = "nur-v197-runtime-performance-prof
 type Replacement = readonly [from: string, to: string];
 
 export const V197_GALAXY_STAR_PAINT = Object.freeze({
-  minimumRadius: .52,
-  radiusScale: .82,
-  maximumBodyAlpha: .92,
-  bodyAlphaScale: 2.35,
-  flareAlphaThreshold: .24,
-  flareRadiusThreshold: .82,
-  maximumFlareAlpha: .2,
-  flareAlphaScale: .42,
-  horizontalFlareScale: 2.2,
-  verticalFlareScale: 1.5,
-  flareThickness: .42,
+  points: 4,
+  minimumRadius: .58,
+  radiusScale: .94,
+  innerRadiusScale: .16,
+  maximumBodyAlpha: .96,
+  bodyAlphaScale: 2.65,
+  flareAlphaThreshold: .2,
+  flareRadiusThreshold: .76,
+  maximumFlareAlpha: .22,
+  flareAlphaScale: .46,
+  horizontalFlareScale: 2.35,
+  verticalFlareScale: 1.7,
+  flareThickness: .36,
 });
 
 const GALAXY_STAR_PAINT_REPLACEMENT: Replacement = [
   'if(p.kind==="dust"){const dr=',
-  'if(!isS&&p.kind==="galaxy"){const simpleCol=p.prism?prismShift(p.col,p.prismPhase+t*p.prismSpeed+phase*.18,twinkle,false):p.col;const simpleR=Math.max(.52,rad*.82);c.fillStyle=`rgba(${simpleCol[0]},${simpleCol[1]},${simpleCol[2]},${Math.min(.92,alpha*2.35)})`;c.fillRect(q.x-simpleR*.5,q.y-simpleR*.5,simpleR,simpleR);if(alpha>.24&&rad>.82){c.fillStyle=`rgba(${simpleCol[0]},${simpleCol[1]},${simpleCol[2]},${Math.min(.2,alpha*.42)})`;c.fillRect(q.x-simpleR*2.2,q.y-.21,simpleR*4.4,.42);c.fillRect(q.x-.21,q.y-simpleR*1.5,.42,simpleR*3)}continue}if(p.kind==="dust"){const dustR=Math.max(.5,rad*.9);c.fillStyle=`rgba(${p.col[0]},${p.col[1]},${p.col[2]},${Math.min(.36,alpha*1.7)})`;c.fillRect(q.x-dustR*.5,q.y-dustR*.5,dustR,dustR);continue}if(false&&p.kind==="dust"){const dr=',
+  'if(!isS&&p.kind==="galaxy"){const starCol=p.prism?prismShift(p.col,p.prismPhase+t*p.prismSpeed+phase*.18,twinkle,false):p.col;const starR=Math.max(.58,rad*.94),starA=Math.min(.96,alpha*2.65);c.fillStyle=`rgba(${starCol[0]},${starCol[1]},${starCol[2]},${starA})`;stellarPath(q.x,q.y,starR,Math.max(.1,starR*.16),4,p.phase+t*2e-4);c.fill();if(alpha>.2&&rad>.76){c.fillStyle=`rgba(${starCol[0]},${starCol[1]},${starCol[2]},${Math.min(.22,alpha*.46)})`;c.fillRect(q.x-starR*2.35,q.y-.18,starR*4.7,.36);c.fillRect(q.x-.18,q.y-starR*1.7,.36,starR*3.4)}continue}if(p.kind==="dust"){const dustR=Math.max(.42,rad*.74);c.fillStyle=`rgba(${p.col[0]},${p.col[1]},${p.col[2]},${Math.min(.42,alpha*1.85)})`;stellarPath(q.x,q.y,dustR,Math.max(.08,dustR*.18),4,p.phase);c.fill();continue}if(false&&p.kind==="dust"){const dr=',
+];
+
+const ENTRY_STAGE_VISIBILITY_REPLACEMENT: Replacement = [
+  'function shouldRenderGalaxy(){const intro=document.getElementById("intro");return !document.hidden&&(!intro||intro.classList.contains("fade")||getComputedStyle(intro).display==="none")}',
+  'function shouldRenderGalaxy(){const intro=document.getElementById("intro"),stage=frameElement,stageVisible=!stage||stage.id==="nur-entry-stage"?!stage.classList.contains("is-exiting")&&stage.getAttribute("aria-hidden")!=="true":stage.id==="nur-universe-stage"?stage.classList.contains("is-visible")&&stage.getAttribute("aria-hidden")!=="true":true;return !document.hidden&&stageVisible&&(!intro||intro.classList.contains("fade")||getComputedStyle(intro).display==="none")}',
+];
+
+const UNIVERSE_STAGE_VISIBILITY_REPLACEMENT: Replacement = [
+  "function shouldRenderGalaxy(){return !document.hidden}",
+  'function shouldRenderGalaxy(){const stage=frameElement;if(document.hidden)return false;if(!stage)return true;if(stage.id==="nur-entry-stage")return !stage.classList.contains("is-exiting")&&stage.getAttribute("aria-hidden")!=="true";if(stage.id==="nur-universe-stage")return stage.classList.contains("is-visible")&&stage.getAttribute("aria-hidden")!=="true";return true}',
+];
+
+const GALAXY_STAGE_OBSERVER_REPLACEMENT: Replacement = [
+  'document.addEventListener("visibilitychange",()=>{if(document.hidden){last=0}else{last=0;wakeGalaxy()}},{passive:true});',
+  'document.addEventListener("visibilitychange",()=>{if(document.hidden){last=0}else{last=0;wakeGalaxy()}},{passive:true});const galaxyStage=frameElement;if(galaxyStage)new MutationObserver(()=>{if(shouldRenderGalaxy()){last=0;wakeGalaxy()}else{if(frameRAF)cancelAnimationFrame(frameRAF);frameRAF=0;last=0}}).observe(galaxyStage,{attributes:true,attributeFilter:["class","aria-hidden"]});',
+];
+
+const GALAXY_PARTICLE_COMPACTION_REPLACEMENT: Replacement = [
+  "particles=particles.filter(p=>p.life===Infinity||p.life>0);for(const p of particles){if(p.life!==Infinity){const s=dt/16.67;p.x+=p.vx*s;p.y+=p.vy*s;p.z+=p.vz*s;p.vx*=.986;p.vy*=.986;p.vz*=.982;p.life-=s}}",
+  "let aliveCount=0;for(let particleIndex=0;particleIndex<particles.length;particleIndex++){const p=particles[particleIndex];if(p.life!==Infinity){const s=dt/16.67;p.x+=p.vx*s;p.y+=p.vy*s;p.z+=p.vz*s;p.vx*=.986;p.vy*=.986;p.vz*=.982;p.life-=s;if(p.life<=0)continue}particles[aliveCount++]=p}particles.length=aliveCount;",
+];
+
+const GALAXY_RUNTIME_DIAGNOSTIC_REPLACEMENT: Replacement = [
+  "getParticleCount:()=>particles.length}",
+  "getParticleCount:()=>particles.length,getTransientParticleCount:()=>particles.reduce((count,p)=>count+(p.life===Infinity?0:1),0),getParticleDiagnostics:()=>{const byKind={},finite=[];let invalid=0;for(const p of particles){byKind[p.kind]=(byKind[p.kind]||0)+1;if(p.life!==Infinity){if(Number.isFinite(p.life))finite.push(p.life);else invalid++}}return{total:particles.length,transient:finite.length+invalid,finite:finite.length,invalid,minLife:finite.length?Math.min(...finite):null,maxLife:finite.length?Math.max(...finite):null,byKind,stageId:frameElement&&frameElement.id||null,stageClass:frameElement&&frameElement.className||null,stageHidden:frameElement&&frameElement.getAttribute('aria-hidden')||null,shouldRender:shouldRenderGalaxy(),frameScheduled:!!frameRAF}}}",
 ];
 
 const GALAXY_PROJECTION_CACHE_REPLACEMENTS: readonly Replacement[] = [
   [
     "let energy=0,particles=[],last=0,frameRAF=0;",
-    "let energy=0,particles=[],last=0,frameRAF=0,projectionCache=[],rotCY=1,rotSY=0,rotCP=1,rotSP=0,rotCR=1,rotSR=0;",
+    "let energy=0,particles=[],last=0,frameRAF=0,projectionCache=[],nodeCache=[],rotCY=1,rotSY=0,rotCP=1,rotSP=0,rotCR=1,rotSR=0;",
   ],
   [
     "function project(p,yA,pA,rA,t=0){",
@@ -46,37 +73,59 @@ const GALAXY_PROJECTION_CACHE_REPLACEMENTS: readonly Replacement[] = [
 
 const ENTRY_REPLACEMENTS: readonly Replacement[] = [
   ["DPR=Math.min(devicePixelRatio||1,1.65)", "DPR=Math.min(devicePixelRatio||1,1.15)"],
-  ["(mobile?680:1140)", "(mobile?440:760)"],
-  ["(mobile?460:720)", "(mobile?250:440)"],
-  ["(mobile?192:320)", "(mobile?72:124)"],
-  ["(mobile?44:76)", "(mobile?20:34)"],
-  [".slice(0,130)", ".slice(0,18)"],
+  [
+    "const mobile=innerWidth<700;",
+    "const mobile=Math.max(innerWidth,parent.innerWidth||0)<700;",
+  ],
+  ["(mobile?680:1140)", "(mobile?500:860)"],
+  ["(mobile?460:720)", "(mobile?290:500)"],
+  ["(mobile?192:320)", "(mobile?84:145)"],
+  ["(mobile?44:76)", "(mobile?24:38)"],
+  [
+    'const nodes=proj.filter(v=>v.p.kind==="galaxy"&&v.q.scale<.36).slice(0,130);',
+    'const nodes=nodeCache;nodes.length=0;for(let nodeIndex=0;nodeIndex<proj.length&&nodes.length<18;nodeIndex++){const candidate=proj[nodeIndex];if(candidate.p.kind==="galaxy"&&candidate.q.scale<.36)nodes.push(candidate)}',
+  ],
   ...GALAXY_PROJECTION_CACHE_REPLACEMENTS,
+  GALAXY_PARTICLE_COMPACTION_REPLACEMENT,
+  GALAXY_RUNTIME_DIAGNOSTIC_REPLACEMENT,
   GALAXY_STAR_PAINT_REPLACEMENT,
+  ENTRY_STAGE_VISIBILITY_REPLACEMENT,
+  GALAXY_STAGE_OBSERVER_REPLACEMENT,
   [
     "function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const rawDt=now-last;",
-    "function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const minFrameGap=innerWidth<700?48:38;if(now-last<minFrameGap){scheduleFrame();return}const rawDt=now-last;",
+    "function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const minFrameGap=innerWidth<700?44:34;if(now-last<minFrameGap){scheduleFrame();return}const rawDt=now-last;",
   ],
 ] as const;
 
 const UNIVERSE_REPLACEMENTS: readonly Replacement[] = [
   ["DPR=Math.min(devicePixelRatio||1,1.5)", "DPR=Math.min(devicePixelRatio||1,1)"],
-  ["const PARTICLE_CAP=1880", "const PARTICLE_CAP=1120"],
+  ["const PARTICLE_CAP=1880", "const PARTICLE_CAP=1200"],
+  [
+    "const mobile=innerWidth<700;",
+    "const mobile=Math.max(innerWidth,parent.innerWidth||0)<700;",
+  ],
   [
     "const density=mobile?{galaxy:620,far:430,dust:118,super:32}:{galaxy:900,far:585,dust:165,super:48}",
-    "const density=mobile?{galaxy:360,far:210,dust:52,super:18}:{galaxy:640,far:330,dust:82,super:30}",
+    "const density=mobile?{galaxy:660,far:370,dust:100,super:30}:{galaxy:660,far:370,dust:100,super:30}",
   ],
-  ["const nodeBudget=innerWidth<700?54:82", "const nodeBudget=innerWidth<700?10:16"],
+  [
+    'const nodeBudget=innerWidth<700?54:82;const nodes=proj.filter(v=>v.p.kind==="galaxy"&&v.q.scale<.36).slice(0,nodeBudget);',
+    'const nodeBudget=innerWidth<700?10:16,nodes=nodeCache;nodes.length=0;for(let nodeIndex=0;nodeIndex<proj.length&&nodes.length<nodeBudget;nodeIndex++){const candidate=proj[nodeIndex];if(candidate.p.kind==="galaxy"&&candidate.q.scale<.36)nodes.push(candidate)}',
+  ],
   ["if(profile.nebula>.48)drawNebula(t);", "if(false)drawNebula(t);"],
   [
     "if(farAlpha>.095&&farR>.7)spike(q.x,q.y,farR*2.4,farCol,Math.min(.12,farAlpha*.24),phase);continue",
     "continue",
   ],
   ...GALAXY_PROJECTION_CACHE_REPLACEMENTS,
+  GALAXY_PARTICLE_COMPACTION_REPLACEMENT,
+  GALAXY_RUNTIME_DIAGNOSTIC_REPLACEMENT,
   GALAXY_STAR_PAINT_REPLACEMENT,
+  UNIVERSE_STAGE_VISIBILITY_REPLACEMENT,
+  GALAXY_STAGE_OBSERVER_REPLACEMENT,
   [
     "function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const rawDt=now-last;",
-    "function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const minFrameGap=innerWidth<700?48:38;if(now-last<minFrameGap){scheduleFrame();return}const rawDt=now-last;",
+    "function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const minFrameGap=innerWidth<700?48:42;if(now-last<minFrameGap){scheduleFrame();return}const rawDt=now-last;",
   ],
 ] as const;
 

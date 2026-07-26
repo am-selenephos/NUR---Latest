@@ -30,6 +30,9 @@ body.universe-edition .context-rail-card,
 body.universe-edition .v172-context-card,
 body.universe-edition .clean-audit-card,
 body.universe-edition .nur-panel,
+body.universe-edition .candidate-insight,
+body.universe-edition .universe-state-strip,
+body.universe-edition .universe-composer-shell,
 body.universe-edition .f4-sheet,
 body.universe-edition .share-sheet {
   position: relative;
@@ -38,9 +41,9 @@ body.universe-edition .share-sheet {
   /* The navy fill is replaced, not covered. Layering a sheen on top of
      rgb(69,99,160) still reads blue; the base has to become neutral dark glass
      so the spectral pass is the only colour in the panel. */
-  background-color: rgba(6, 7, 12, 0.82) !important;
+  background-color: rgba(2, 2, 2, 0.82) !important;
   background-image: none !important;
-  border-color: rgba(214, 226, 250, 0.13) !important;
+  border-color: rgba(248, 217, 138, 0.16) !important;
 }
 
 body.universe-edition .universe-map-panel::before,
@@ -50,6 +53,9 @@ body.universe-edition .context-rail-card::before,
 body.universe-edition .v172-context-card::before,
 body.universe-edition .clean-audit-card::before,
 body.universe-edition .nur-panel::before,
+body.universe-edition .candidate-insight::before,
+body.universe-edition .universe-state-strip::before,
+body.universe-edition .universe-composer-shell::before,
 body.universe-edition .f4-sheet::before,
 body.universe-edition .share-sheet::before {
   content: "";
@@ -58,9 +64,8 @@ body.universe-edition .share-sheet::before {
   width: 180%;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.5;
-  will-change: transform;
-  animation: nurHoloDrift 34s ease-in-out infinite;
+  opacity: 0.46;
+  transform: translate3d(-14%, 0, 0);
   /* Spectral, but held at low alpha: a sheen across dark glass, not a rainbow
      poster. The blue band is deliberately absent — the founder's instruction was
      to remove the blue tint, and a blue stop at the midpoint is what re-read as
@@ -70,14 +75,33 @@ body.universe-edition .share-sheet::before {
   background: linear-gradient(
     104deg,
     rgba(255, 214, 138, 0.00) 0%,
-    rgba(255, 196, 122, 0.11) 12%,
-    rgba(255, 138, 168, 0.10) 26%,
-    rgba(206, 142, 246, 0.09) 40%,
-    rgba(130, 240, 224, 0.09) 56%,
-    rgba(150, 240, 178, 0.08) 72%,
-    rgba(255, 226, 140, 0.11) 88%,
+    rgba(255, 248, 223, 0.12) 8%,
+    rgba(255, 196, 122, 0.12) 18%,
+    rgba(255, 122, 69, 0.10) 30%,
+    rgba(255, 82, 111, 0.10) 42%,
+    rgba(255, 58, 158, 0.09) 54%,
+    rgba(206, 142, 246, 0.08) 66%,
+    rgba(105, 240, 180, 0.08) 78%,
+    rgba(255, 226, 140, 0.12) 91%,
     rgba(255, 214, 138, 0.00) 100%
   );
+}
+
+/* One moving light owner is enough to make the whole field feel alive. Repeated
+   panel animations promoted every card to its own compositor layer and added
+   no useful depth; the central map carries the drift while every other panel
+   keeps the same spectral material at rest. */
+body.universe-edition .universe-map-panel::before {
+  will-change: transform;
+  animation: nurHoloDrift 34s ease-in-out infinite;
+}
+
+@media (max-width: 700px) {
+  body.universe-edition .universe-map-panel::before {
+    animation: none;
+    will-change: auto;
+    transform: translate3d(-14%, 0, 0);
+  }
 }
 
 /* The fog layer carries the same spectrum so the panel and its halo agree — and
@@ -85,9 +109,10 @@ body.universe-edition .share-sheet::before {
    on the screen and was the strongest remaining source of navy. */
 body.universe-edition .universe-map-fog {
   background:
-    radial-gradient(120% 90% at 50% 40%, rgba(130, 240, 224, 0.10), transparent 62%),
-    radial-gradient(90% 70% at 22% 76%, rgba(255, 176, 132, 0.11), transparent 60%),
-    radial-gradient(80% 70% at 82% 22%, rgba(206, 142, 246, 0.09), transparent 58%) !important;
+    radial-gradient(120% 90% at 50% 40%, rgba(255, 211, 90, 0.045), transparent 62%),
+    radial-gradient(90% 70% at 22% 76%, rgba(255, 122, 69, 0.035), transparent 60%),
+    radial-gradient(80% 70% at 82% 22%, rgba(255, 58, 158, 0.03), transparent 58%),
+    radial-gradient(72% 64% at 70% 72%, rgba(105, 240, 180, 0.024), transparent 60%) !important;
 }
 
 /* Canonical draws panel glows in `rgba(100,100,255,.14)` — a saturated blue used
@@ -100,10 +125,14 @@ body.universe-edition .universe-insight-panel,
 body.universe-edition .context-rail-card,
 body.universe-edition .v172-context-card,
 body.universe-edition .clean-audit-card,
-body.universe-edition .nur-panel {
+body.universe-edition .nur-panel,
+body.universe-edition .candidate-insight,
+body.universe-edition .universe-state-strip,
+body.universe-edition .universe-composer-shell {
   box-shadow:
     0 1px 0 rgba(255, 248, 232, 0.05) inset,
-    0 18px 44px rgba(0, 0, 0, 0.42) !important;
+    0 18px 44px rgba(0, 0, 0, 0.42),
+    0 0 24px rgba(255, 211, 90, 0.025) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -114,9 +143,13 @@ body.universe-edition .nur-panel {
   body.universe-edition .v172-context-card::before,
   body.universe-edition .clean-audit-card::before,
   body.universe-edition .nur-panel::before,
+  body.universe-edition .candidate-insight::before,
+  body.universe-edition .universe-state-strip::before,
+  body.universe-edition .universe-composer-shell::before,
   body.universe-edition .f4-sheet::before,
   body.universe-edition .share-sheet::before {
     animation: none;
+    will-change: auto;
     transform: translate3d(-14%, 0, 0);
   }
 }
