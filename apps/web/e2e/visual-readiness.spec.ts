@@ -809,6 +809,21 @@ test("capsule room active chamber is polished and bounded", async ({ page }) => 
 
 test("mobile visual evidence covers Systems, RTL Talk, and Share Orbit capture", async ({ page }, testInfo) => {
   test.skip(!["webkit-mobile", "chromium-mobile"].includes(testInfo.project.name), "mobile evidence lane only.");
+  /*
+   * This case navigates three surfaces and takes several full-page captures of
+   * an interface that animates continuously by design — `page.screenshot` waits
+   * for visual stability, and a live star field never fully stops.
+   *
+   * It ran comfortably under Playwright's default 30s while the galaxy was
+   * degraded: the nebula disabled, the far-plane spikes removed and the frame
+   * rate capped at 20.8 FPS on mobile. Restoring those is a product
+   * requirement, and it costs about 31.5s on the CI runner.
+   *
+   * The budget is raised for this capture case only. No assertion is relaxed
+   * and no other test's timeout changes; what grew is the amount of real work
+   * being photographed.
+   */
+  test.setTimeout(90_000);
   const prefix = testInfo.project.name === "webkit-mobile" ? "webkit" : "chromium";
   await installVisualMocks(page, "ur");
   await page.setViewportSize({ width: 393, height: 852 });
