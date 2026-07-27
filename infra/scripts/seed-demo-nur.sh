@@ -9,10 +9,22 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
+# `source .env` would overwrite anything the caller exported, so a seed aimed at
+# a second instance silently went to the default one instead — it reported
+# success while writing zero rows to the intended database. Caller-supplied
+# values are captured first and restored afterwards, so an explicit
+# API_ORIGIN/DATABASE_URL wins over the file.
+__caller_api_origin="${API_ORIGIN:-}"
+__caller_database_url="${DATABASE_URL:-}"
+
 set -a
 # shellcheck disable=SC1091
 source .env
 set +a
+
+[[ -n "$__caller_api_origin" ]] && export API_ORIGIN="$__caller_api_origin"
+[[ -n "$__caller_database_url" ]] && export DATABASE_URL="$__caller_database_url"
+printf 'seeding against %s\n' "${API_ORIGIN:-http://localhost:8000}" >&2
 
 apps/api/.venv/bin/python - <<'PY'
 import datetime as dt
