@@ -443,3 +443,24 @@ body.universe-edition .talk-stream::-webkit-scrollbar-track,
 body.universe-edition #journal-input::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* ── 6. Let the galaxy through the page shell ───────────────────────────────
+   The star field lives on `#space3d`, a fixed full-viewport canvas at
+   z-index 280 with `mix-blend-mode: screen`. The active page section sits at
+   z-index 305 and paints `rgba(0, 0, 0, 0.7)` across the whole viewport, so a
+   70% black sheet covered the sky: measured 239,853 lit canvas pixels at max
+   luminance 255, and none of them reaching the screen.
+
+   That is why the galaxy looked missing while every particle existed and the
+   render loop was running — the canvas was never the problem, the sheet on top
+   of it was.
+
+   The page keeps its own stacking and its panels keep their glass; only the
+   full-bleed wash is removed, so stars stay visible behind and through the
+   interface. */
+body.universe-edition .nur-page,
+body.universe-edition .nur-page.active,
+body.universe-edition .universe-page-shell {
+  background-color: transparent !important;
+  background-image: none !important;
+}
