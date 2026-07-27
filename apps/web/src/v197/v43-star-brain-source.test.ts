@@ -11,7 +11,7 @@ const bridge = readFileSync(bridgePath, "utf8");
 describe("V43-derived NUR star-brain source", () => {
   it("keeps the supplied V43 anatomy and adds the approved sparkle/stem extension", () => {
     expect(createHash("sha256").update(runtime).digest("hex"))
-      .toBe("38a587346e6e0a960eca248e59802d9360adcd356f875c7d33a5d8a7d3d3b0cd");
+      .toBe("680f15dada3042052d34512e3ce0cf3641ef4326576cb2811a479ae6cdeaacbe");
     expect(runtime).toContain("canvas.id = 'nur-brain-canvas';");
     expect(runtime).toContain("const N_CORTEX = MOBILE ? 740 : 1112;");
     expect(runtime).toContain("const N_CEREB  = MOBILE ? 154 : 225;");

@@ -29,7 +29,13 @@
     {t:'M',w:.3},{t:'K',w:.2},{t:'G',w:.16},{t:'F',w:.12},
     {t:'A',w:.1},{t:'B',w:.08},{t:'O',w:.04}
   ];
-  const PRISM=[[255,108,128],[255,158,74],[255,222,92],[126,237,130],[99,224,255],[121,151,255],[194,138,255],[255,142,211]];
+  /* The three cool entries — cyan [99,224,255], blue [121,151,255] and violet
+     [194,138,255] — are gone. Each star's halo sprite is filled with that star's
+     own colour at .46 alpha, so a blue star painted a blue halo, and enough of
+     them together put a blue cast around the whole brain. Replaced with warm
+     and mint values so the cloud still reads as many-coloured without the cool
+     wash. */
+  const PRISM=[[255,108,128],[255,178,116],[255,222,92],[126,237,130],[142,236,196],[255,206,150],[255,232,196],[255,142,211]];
   const rnd=(a,b)=>a+Math.random()*(b-a);
   const pick=a=>a[(Math.random()*a.length)|0];
   function galaxyColor(){
