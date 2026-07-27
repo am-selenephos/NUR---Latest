@@ -464,3 +464,26 @@ body.universe-edition .universe-page-shell {
   background-color: transparent !important;
   background-image: none !important;
 }
+
+/* ── 7. The star field composites without a full-viewport blend ─────────────
+   `#space3d` carried `mix-blend-mode: screen` across the whole 1600x1000 fixed
+   canvas, which forces the compositor to blend 1.6M pixels against everything
+   beneath it every frame. Measured A/B on /systems, both canvases visible:
+
+     mix-blend-mode: screen    9.2 Hz
+     mix-blend-mode: normal   33.3 Hz
+
+   3.6x, from one property. The blend was buying nothing: the canvas sits at
+   z-index 280 directly above the black page body, and `screen` against black is
+   the identity operation. The stars looked the way they do because of what the
+   runtime paints, not because of how the layer composites.
+
+   `isolation` keeps the canvas out of any ancestor blending group so this stays
+   true if a parent later gains its own blend context. */
+/* No `body.universe-edition` prefix: the Entry document does not carry that
+   class, and the same canvas and the same cost exist on both stages. */
+#space3d,
+canvas#space3d {
+  mix-blend-mode: normal !important;
+  isolation: isolate;
+}
