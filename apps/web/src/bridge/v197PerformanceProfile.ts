@@ -192,6 +192,20 @@ const ENTRY_REPLACEMENTS: readonly Replacement[] = [
  * compaction, and the cached four-point stellar sprite. Density is reduced on
  * phones only, where the panel is physically smaller.
  */
+/*
+ * A frame gap, but only on phone widths and only at 33ms — 30 FPS, which is
+ * smooth for a drifting star field.
+ *
+ * The previous profile capped every viewport at 42ms desktop / 48ms mobile,
+ * which is 23.8 and 20.8 FPS. That was the lag the founder reported, and it is
+ * gone: desktop renders every frame and measures 48.5 Hz on /systems.
+ *
+ * Restoring the nebula, the far-plane spikes and canonical density does cost
+ * real work, and on a small emulated viewport on slow CI hardware that pushed
+ * the mobile capture past its budget. Bounding phones at 30 FPS keeps the sky
+ * complete — nothing is deleted from what is drawn — while capping how often it
+ * is redrawn where the pixels are smallest.
+ */
 const UNIVERSE_REPLACEMENTS: readonly Replacement[] = [
   ["DPR=Math.min(devicePixelRatio||1,1.5)", pixelBudgetDpr(1.5, 3_400_000)],
   [
@@ -212,6 +226,10 @@ const UNIVERSE_REPLACEMENTS: readonly Replacement[] = [
   GALAXY_STAR_PAINT_REPLACEMENT,
   UNIVERSE_STAGE_VISIBILITY_REPLACEMENT,
   GALAXY_STAGE_OBSERVER_REPLACEMENT,
+  [
+    "function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const rawDt=now-last;",
+    "function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;if(innerWidth<700&&now-last<33){scheduleFrame();return}const rawDt=now-last;",
+  ],
 ] as const;
 
 export type V197ProfileResult = {

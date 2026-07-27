@@ -79,7 +79,7 @@ describe("V197 deterministic runtime performance profile", () => {
     const result = applyV197PerformanceProfile(canonical, "universe");
 
     expect(result.applied).toBe(true);
-    expect(result.replacementCount).toBe(14);
+    expect(result.replacementCount).toBe(15);
 
     // The three deletions that removed depth outright.
     expect(result.source).toContain("if(profile.nebula>.48)drawNebula(t);");
@@ -93,8 +93,9 @@ describe("V197 deterministic runtime performance profile", () => {
     expect(result.source).toContain("galaxy:900,far:585,dust:165,super:48");
     expect(result.source).not.toContain("galaxy:660,far:370,dust:100,super:30");
 
-    // No frame cap: 42ms is 23.8 FPS, which is the choppiness itself.
+    // Desktop renders every frame; only phone widths are bounded, at 30 FPS.
     expect(result.source).not.toContain("minFrameGap");
+    expect(result.source).toContain("innerWidth<700&&now-last<33");
     expect(result.source).toContain(
       "function scheduleFrame(){if(reduced||frameRAF)return;frameRAF=requestAnimationFrame(frame)}",
     );
