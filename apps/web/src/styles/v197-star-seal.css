@@ -196,13 +196,13 @@ body.universe-edition #nur-front-v61 :is(
     brightness(1.15)
     saturate(1.12)
     drop-shadow(0 0 3px rgba(255, 239, 191, .78))
-    drop-shadow(0 0 6px rgba(33, 232, 255, .22));
+    drop-shadow(0 0 6px rgba(255, 222, 150, .22));
 }
 
 @keyframes nurStarSealTwinkle {
   0%, 76%, 100% { opacity: .9; filter: brightness(.98) saturate(1); }
   82% { opacity: 1; filter: brightness(1.24) saturate(1.18) drop-shadow(0 0 7px rgba(255, 248, 223, .92)); }
-  88% { opacity: .95; filter: brightness(1.06) saturate(1.08) drop-shadow(0 0 5px rgba(33, 232, 255, .3)); }
+  88% { opacity: .95; filter: brightness(1.06) saturate(1.08) drop-shadow(0 0 5px rgba(255, 222, 150, .3)); }
 }
 
 @media (prefers-reduced-motion: reduce) {

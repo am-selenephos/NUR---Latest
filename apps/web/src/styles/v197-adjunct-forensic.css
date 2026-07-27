@@ -1,3 +1,8 @@
+/* Selected-state and card borders read gold, matching Entry.
+   These gradients carried hot pink (255,58,158), cyan (33,232,255) and
+   violet (193,107,255), which is what made the selected System card and
+   the active nav item glow magenta inside while Entry's equivalents are
+   gold. The gradients still shift; they shift through warm values now. */
 #nur-v197-adjunct-root {
   --adj-black: #000;
   --adj-ink: #030307;
@@ -18,7 +23,7 @@
   color: var(--adj-ivory);
   background:
     radial-gradient(ellipse at 50% 14%, rgba(255, 211, 90, .035), transparent 34%),
-    radial-gradient(ellipse at 82% 52%, rgba(33, 232, 255, .018), transparent 36%),
+    radial-gradient(ellipse at 82% 52%, rgba(255, 222, 150, .018), transparent 36%),
     rgba(0, 0, 0, .965);
   font: 16px/1.45 "Crimson Pro", Georgia, serif;
   scrollbar-color: rgba(248, 217, 138, .34) #000;
@@ -37,7 +42,7 @@
 
 #nur-v197-adjunct-root ::selection {
   color: var(--adj-ivory);
-  background: rgba(255, 58, 158, .3);
+  background: rgba(255, 190, 122, .3);
 }
 
 .nur-adjunct-shell {
@@ -71,7 +76,7 @@
   border-radius: 7px;
   background:
     linear-gradient(145deg, rgba(255, 248, 223, .025), rgba(3, 3, 7, .58) 52%, rgba(6, 6, 43, .18)) padding-box,
-    linear-gradient(110deg, rgba(248, 217, 138, .32), rgba(255, 58, 158, .14), rgba(33, 232, 255, .2)) border-box;
+    linear-gradient(110deg, rgba(248, 217, 138, .32), rgba(255, 190, 122, .14), rgba(255, 222, 150, .2)) border-box;
   color: rgba(255, 248, 223, .82);
   box-shadow: inset 0 1px 0 rgba(255, 248, 223, .055), 0 8px 22px rgba(0, 0, 0, .22);
   font: 600 13px/1 "Crimson Pro", serif;
@@ -93,10 +98,10 @@
 
 .nur-adjunct-button.is-primary {
   background:
-    linear-gradient(135deg, rgba(255, 211, 90, .09), rgba(3, 3, 7, .58) 48%, rgba(255, 58, 158, .045)) padding-box,
-    linear-gradient(105deg, rgba(255, 211, 90, .72), rgba(255, 58, 158, .42), rgba(33, 232, 255, .48), rgba(193, 107, 255, .36)) border-box;
+    linear-gradient(135deg, rgba(255, 211, 90, .09), rgba(3, 3, 7, .58) 48%, rgba(255, 190, 122, .045)) padding-box,
+    linear-gradient(105deg, rgba(255, 211, 90, .72), rgba(255, 190, 122, .42), rgba(255, 222, 150, .48), rgba(248, 214, 140, .36)) border-box;
   color: var(--adj-ivory);
-  box-shadow: inset 0 1px 0 rgba(255, 248, 223, .13), 0 0 24px rgba(255, 211, 90, .09), 0 0 30px rgba(255, 58, 158, .035);
+  box-shadow: inset 0 1px 0 rgba(255, 248, 223, .13), 0 0 24px rgba(255, 211, 90, .09), 0 0 30px rgba(255, 190, 122, .035);
 }
 
 .nur-adjunct-button:disabled {
@@ -108,7 +113,7 @@
 :is(.nur-adjunct-back, .nur-adjunct-button, .nur-adjunct-input, .nur-adjunct-select, .nur-adjunct-textarea):focus-visible {
   outline: 2px solid #ffd35a;
   outline-offset: 3px;
-  box-shadow: 0 0 0 2px #000000, 0 0 0 4px rgba(255, 211, 90, .72), 0 0 24px rgba(33, 232, 255, .13);
+  box-shadow: 0 0 0 2px #000000, 0 0 0 4px rgba(255, 211, 90, .72), 0 0 24px rgba(255, 222, 150, .13);
   scroll-margin: 12px;
 }
 
@@ -200,7 +205,7 @@
   border-radius: 7px;
   background:
     linear-gradient(145deg, rgba(255, 248, 223, .024), rgba(3, 3, 7, .56) 42%, rgba(6, 6, 43, .14)) padding-box,
-    linear-gradient(115deg, rgba(248, 217, 138, .3), rgba(255, 58, 158, .12), rgba(33, 232, 255, .16)) border-box;
+    linear-gradient(115deg, rgba(248, 217, 138, .3), rgba(255, 190, 122, .12), rgba(255, 222, 150, .16)) border-box;
   box-shadow: inset 0 1px 0 rgba(255, 248, 223, .055), 0 18px 50px rgba(0, 0, 0, .25);
 }
 
@@ -356,7 +361,7 @@
 .nur-adjunct-select:focus,
 .nur-adjunct-textarea:focus {
   border-color: rgba(138, 245, 255, .58);
-  box-shadow: 0 0 0 2px rgba(33, 232, 255, .07), 0 0 24px rgba(255, 58, 158, .035);
+  box-shadow: 0 0 0 2px rgba(255, 222, 150, .07), 0 0 24px rgba(255, 190, 122, .035);
 }
 
 .nur-adjunct-select option {
@@ -397,7 +402,7 @@
 }
 
 .nur-adjunct-toggle input:checked {
-  background: linear-gradient(90deg, rgba(255, 211, 90, .24), rgba(255, 58, 158, .2), rgba(33, 232, 255, .18));
+  background: linear-gradient(90deg, rgba(255, 211, 90, .24), rgba(255, 190, 122, .2), rgba(255, 222, 150, .18));
 }
 
 .nur-adjunct-toggle input:checked::after {
