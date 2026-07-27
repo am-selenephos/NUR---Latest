@@ -427,6 +427,7 @@
     if(disposed) return;
     disposed=true;
     if(rafHandle!==null){ cancelAnimationFrame(rafHandle); rafHandle=null; }
+    if(typeof brainWatchdog!=='undefined') clearInterval(brainWatchdog);
     for(const undo of teardown){ try{ undo(); }catch(e){} }
     teardown.length=0;
     try{ canvas.width=0; canvas.height=0; }catch(e){}
@@ -644,4 +645,14 @@
     }
   }
   requestBrainFrame();
+
+  // The visibility test now reads real layout, which is correct but can be
+  // false during mount: a stage that has not been laid out yet reports a
+  // zero-size box. `requestBrainFrame` bails in that case and nothing restarts
+  // it, so a single early false left this canvas permanently blank — which is
+  // exactly how the galaxy used to fail before it gained the same guard.
+  const brainWatchdog=setInterval(()=>{
+    if(disposed){ clearInterval(brainWatchdog); return; }
+    if(rafHandle===null && !document.hidden && stageIsVisible()) requestBrainFrame();
+  },500);
 })();
