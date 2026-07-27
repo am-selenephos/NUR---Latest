@@ -217,6 +217,7 @@
   // had no way to stop. Without a handle its loop outlives every route change,
   // which is how the interface ended up with several engines animating at once.
   let rafHandle=null;
+  let stageVis=true, stageVisAt=0;
   let disposed=false;
   const teardown=[];
   const frameStage=window.frameElement;
@@ -228,13 +229,22 @@
     if(frameStage.id==='nur-universe-stage'){
       // Observable display state rather than a class name. A stage that is on
       // screen but momentarily without `is-visible` used to freeze this canvas.
-      if(frameStage.getAttribute('aria-hidden')==='true') return false;
+      //
+      // Cached for 250ms: `frameStage` belongs to the parent document, so
+      // reading its geometry from inside the iframe forces a synchronous parent
+      // layout. Uncached this runs on every frame and every watchdog tick, which
+      // pushed the mobile readiness capture past its 30s budget on CI. This is
+      // the same cost the galaxy paid before its own check was cached.
+      const now=Date.now();
+      if(now-stageVisAt<250) return stageVis;
+      stageVisAt=now;
+      if(frameStage.getAttribute('aria-hidden')==='true') return (stageVis=false);
       const box=frameStage.getBoundingClientRect();
-      if(box.width<2||box.height<2) return false;
+      if(box.width<2||box.height<2) return (stageVis=false);
       const view=frameStage.ownerDocument&&frameStage.ownerDocument.defaultView;
-      if(!view) return true;
+      if(!view) return (stageVis=true);
       const cs=view.getComputedStyle(frameStage);
-      return cs.display!=='none'&&cs.visibility!=='hidden'&&parseFloat(cs.opacity||'1')>=0.02;
+      return (stageVis=cs.display!=='none'&&cs.visibility!=='hidden'&&parseFloat(cs.opacity||'1')>=0.02);
     }
     return true;
   }
