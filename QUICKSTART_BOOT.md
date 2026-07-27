@@ -1,6 +1,6 @@
 # Quickstart Boot
 
-## Cousin-ready one-click launch
+## One-click launch
 
 On Linux, double-click `START_NUR.desktop` (or run `bash START_NUR.sh`).
 On macOS, double-click `RUN_NUR.command` after configuring OpenAI once.
