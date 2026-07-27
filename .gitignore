@@ -32,3 +32,20 @@ proof/v5/performance/g04-acceptance/
 evidence/*.zip
 evidence/*.tar
 evidence/*.tar.gz
+
+# ── Disposable run evidence ─────────────────────────────────────────────────
+# Browser output regenerates on every run and is worthless once the SHA moves.
+# Publish it as a GitHub Actions artifact instead of committing it; PR #8 had
+# reached 179.8 MB of tracked proof, 139 MB of it PNG.
+# Durable, reviewable summaries (.csv/.md/small .json) stay tracked.
+proof/**/*.webm
+proof/**/*.zip
+proof/**/*.trace
+proof/**/trace/
+proof/**/test-results/
+proof/**/playwright-report/
+proof/**/*-trace.json
+proof/**/videos/
+proof/**/video/
+apps/web/test-results/
+apps/web/playwright-report/
