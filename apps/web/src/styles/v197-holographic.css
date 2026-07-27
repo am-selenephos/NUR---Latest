@@ -530,3 +530,125 @@ canvas#space3d {
   mix-blend-mode: normal !important;
   isolation: isolate;
 }
+
+/* ── 8. Panels are glass, not tinted sheets ─────────────────────────────────
+   The founder's captures show the Talk chamber reading blue-grey and the
+   Systems shell reading warm brown, against an Entry page that is essentially
+   pure black. Both are panel fills, not the page background — the background
+   already matches.
+
+   Panels are transparent now. A translucent panel that carries its own colour
+   is a sheet laid over the sky; the only thing that should separate a panel
+   from the void is its rim and its blur. This is what "stars visible behind and
+   through the panels" actually requires. */
+body.universe-edition .nur-panel,
+body.universe-edition .talk-chamber,
+body.universe-edition .talk-stream,
+body.universe-edition .journal-pad,
+body.universe-edition .universe-card,
+body.universe-edition .universe-map-panel,
+body.universe-edition .universe-insight-panel,
+body.universe-edition .context-rail-card,
+body.universe-edition .v172-context-card,
+body.universe-edition .clean-audit-card,
+body.universe-edition .universe-page-shell,
+body.universe-edition .talk-composer {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  backdrop-filter: blur(3px) saturate(1.02);
+}
+
+/* The rim is what defines the panel now, so it carries the whole read. Gold,
+   the same family Entry uses for its own edges. */
+body.universe-edition .nur-panel,
+body.universe-edition .talk-chamber,
+body.universe-edition .journal-pad,
+body.universe-edition .universe-card,
+body.universe-edition .universe-map-panel,
+body.universe-edition .context-rail-card {
+  border-color: rgba(248, 214, 140, 0.16) !important;
+}
+
+/* ── 9. Send control: the star and the word stop colliding ──────────────────
+   Measured 132x46 with a 10px gap declared, but the star seal is positioned
+   absolutely by an earlier rule, so the gap separated nothing and the glyph sat
+   on top of the S. It is a flex item here, in normal flow, so the gap applies. */
+body.universe-edition .thought-send-button.send-holo-pill,
+body.universe-edition .composer-action--send,
+body.universe-edition .send-button.send-holo-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 12px !important;
+  min-width: 152px !important;
+  width: auto !important;
+  padding: 0 28px !important;
+  min-height: 46px !important;
+  white-space: nowrap !important;
+}
+
+body.universe-edition .thought-send-button .nur-star-seal,
+body.universe-edition .composer-action--send .nur-star-seal,
+body.universe-edition .send-button .nur-star-seal,
+body.universe-edition .thought-send-button > i,
+body.universe-edition .send-holo-pill > i {
+  position: static !important;
+  transform: none !important;
+  inset: auto !important;
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+  order: 0 !important;
+}
+
+body.universe-edition .send-holo-pill__label {
+  order: 1 !important;
+  flex: 0 0 auto !important;
+  letter-spacing: 0.1em !important;
+}
+
+/* The seal stylesheet pins the star with `position:absolute` so it can sit
+   centred inside icon-only controls. Inside the send pill it therefore landed on
+   top of the "S". Within this one control it returns to normal flow, where the
+   flex gap above actually separates it from the word. */
+body.universe-edition .send-holo-pill .nur-star-seal,
+body.universe-edition .send-holo-pill i.nur-star-seal,
+body.universe-edition .thought-send-button .nur-star-seal,
+body.universe-edition .thought-send-button i,
+body.universe-edition .send-holo-pill > i {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  translate: none !important;
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+}
+
+/* ── 10. The orange wash behind everything ─────────────────────────────────
+   This is what actually made the universe read warm brown against Entry's
+   black, and it is why every fix aimed at background-color missed: it is on
+   pseudo-elements, which an inline style cannot reach.
+
+     body::before             radial-gradient(..., rgba(255, 112, 24, .094))
+     #nur-front-v61::before   radial-gradient(..., rgba(255, 146, 45, .035))
+
+   A near-10% orange radial across the whole viewport. Entry has no equivalent
+   layer, so the two stages could never match while these were painting. Both
+   are removed; the star field and the gold rims carry the warmth now, which is
+   how Entry does it. */
+body.universe-edition::before,
+body.universe-edition::after,
+body.universe-edition #nur-front-v61::before,
+body.universe-edition #nur-front-v61::after,
+body.universe-edition .nur-shell::before,
+body.universe-edition .nur-shell::after,
+body.universe-edition .nur-viewport::before,
+body.universe-edition .nur-viewport::after {
+  background: none !important;
+  background-image: none !important;
+  background-color: transparent !important;
+  opacity: 0 !important;
+}
