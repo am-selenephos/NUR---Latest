@@ -1,4 +1,5 @@
 route,surface,tier,viewport,controls,disabledControls,links,headings,h1,textCharacters,cards,canvases,images,smallText,tinyTouchTargets,emptyStates,errorMarkers,loadingMarkers,scrollHeight,consoleErrors,screenshot
+<<<<<<< HEAD
 /today,Today,A,desktop-1920x1080,45,0,0,H1>H2>H3>H2>H2>H2,1,1994,18,2,0,18,29,0,0,0,1080,0,proof/v9-current-ui/today-desktop-1920x1080.png
 /today,Today,A,mobile-390x844,25,0,0,H1>H2>H3>H2>H2,1,980,12,2,0,6,8,0,0,0,844,0,proof/v9-current-ui/today-mobile-390x844.png
 /talk,Talk,B,desktop-1920x1080,41,0,0,H1>H3>H3>H2,1,1688,9,2,0,17,26,0,0,0,1080,0,proof/v9-current-ui/talk-desktop-1920x1080.png
@@ -41,3 +42,47 @@ route,surface,tier,viewport,controls,disabledControls,links,headings,h1,textChar
 /universe/omega,Omega,B,mobile-390x844,79,14,0,H1>H2>H2>H2>H2>H2>H1>H2>H2>H2>H2>H2,2,5598,16,2,1,52,20,0,0,0,844,0,proof/v9-current-ui/omega-mobile-390x844.png
 /universe/omega/review,Omega review,B,desktop-1920x1080,94,14,0,H1>H2>H2>H2>H2>H2>H2>H1>H2,2,5782,18,2,1,55,62,0,0,0,1080,0,proof/v9-current-ui/omega-review-desktop-1920x1080.png
 /universe/omega/review,Omega review,B,mobile-390x844,73,14,0,H1>H2>H2>H2>H2>H2>H1>H2,2,4603,12,2,1,41,20,0,0,0,844,0,proof/v9-current-ui/omega-review-mobile-390x844.png
+=======
+/today,Today,A,desktop-1920x1080,45,0,0,H1>H2>H3>H2>H2>H2,1,2019,18,2,0,18,29,0,0,0,1080,0,proof/v9-current-ui/today-desktop-1920x1080.png
+/today,Today,A,mobile-390x844,24,0,0,H1>H2>H3>H2>H2,1,1001,12,2,1,6,7,0,0,0,844,0,proof/v9-current-ui/today-mobile-390x844.png
+/talk,Talk,B,desktop-1920x1080,41,0,0,H1>H3>H3>H2,1,6783,9,2,0,17,26,0,0,0,1080,0,proof/v9-current-ui/talk-desktop-1920x1080.png
+/talk,Talk,B,mobile-390x844,20,0,0,H1>H3>H3,1,5760,3,2,1,5,5,0,0,0,844,0,proof/v9-current-ui/talk-mobile-390x844.png
+/journal,Journal,B,desktop-1920x1080,41,0,0,H1>H2>H2,1,1456,10,2,0,17,27,0,0,0,1080,0,proof/v9-current-ui/journal-desktop-1920x1080.png
+/journal,Journal,B,mobile-390x844,20,0,0,H1>H2,1,439,4,2,1,5,5,0,0,0,844,0,proof/v9-current-ui/journal-mobile-390x844.png
+/plan,Plan,B,desktop-1920x1080,40,1,0,H1>H2>H3>H2>H3>H2,1,1657,13,2,0,18,25,0,0,0,1080,0,proof/v9-current-ui/plan-desktop-1920x1080.png
+/plan,Plan,B,mobile-390x844,19,1,0,H1>H2>H3>H2>H3,1,645,7,2,1,6,2,0,0,0,844,0,proof/v9-current-ui/plan-mobile-390x844.png
+/systems,Systems,A,desktop-1920x1080,92,14,0,H1>H2>H2>H2>H2>H2>H2,1,5163,17,2,2,54,62,0,0,0,1080,0,proof/v9-current-ui/systems-desktop-1920x1080.png
+/systems,Systems,A,mobile-390x844,70,14,0,H1>H2>H2>H2>H2>H2,1,3980,11,2,3,40,19,0,0,0,844,0,proof/v9-current-ui/systems-mobile-390x844.png
+/universe,Universe,A,desktop-1920x1080,92,14,0,H1>H2>H2>H2>H2>H2>H2,1,5163,17,2,2,54,62,0,0,0,1080,0,proof/v9-current-ui/universe-desktop-1920x1080.png
+/universe,Universe,A,mobile-390x844,70,14,0,H1>H2>H2>H2>H2>H2,1,3980,11,2,3,40,19,0,0,0,844,0,proof/v9-current-ui/universe-mobile-390x844.png
+/universe/map,Map,A,desktop-1920x1080,92,14,0,H1>H2>H2>H2>H2>H2>H2,1,5201,17,2,2,54,62,0,0,0,1080,0,proof/v9-current-ui/map-desktop-1920x1080.png
+/universe/map,Map,A,mobile-390x844,70,14,0,H1>H2>H2>H2>H2>H2,1,4018,11,2,3,40,19,0,0,0,844,0,proof/v9-current-ui/map-mobile-390x844.png
+/universe/orbits,Orbits,A,desktop-1920x1080,92,14,0,H1>H2>H2>H2>H2>H2>H2,1,5206,17,2,2,54,62,0,0,0,1080,0,proof/v9-current-ui/orbits-desktop-1920x1080.png
+/universe/orbits,Orbits,A,mobile-390x844,70,14,0,H1>H2>H2>H2>H2>H2,1,4023,11,2,3,40,19,0,0,0,844,0,proof/v9-current-ui/orbits-mobile-390x844.png
+/universe/timeline,Timeline,B,desktop-1920x1080,92,14,0,H1>H2>H2>H2>H2>H2>H2,1,5210,17,2,2,54,62,0,0,0,1080,0,proof/v9-current-ui/timeline-desktop-1920x1080.png
+/universe/timeline,Timeline,B,mobile-390x844,70,14,0,H1>H2>H2>H2>H2>H2,1,4027,11,2,3,40,19,0,0,0,844,0,proof/v9-current-ui/timeline-mobile-390x844.png
+/universe/insights,Insights,B,desktop-1920x1080,98,14,0,H1>H2>H2>H2>H2>H2>H2,1,5320,17,2,2,54,68,0,0,0,1080,0,proof/v9-current-ui/insights-desktop-1920x1080.png
+/universe/insights,Insights,B,mobile-390x844,76,14,0,H1>H2>H2>H2>H2>H2,1,4137,11,2,3,40,24,0,0,0,844,0,proof/v9-current-ui/insights-mobile-390x844.png
+/universe/research,Research,A,desktop-1920x1080,92,14,0,H1>H2>H2>H2>H2>H2>H2,1,5241,17,2,2,54,62,0,0,0,1080,0,proof/v9-current-ui/research-desktop-1920x1080.png
+/universe/research,Research,A,mobile-390x844,70,14,0,H1>H2>H2>H2>H2>H2,1,4058,11,2,3,40,19,0,0,0,844,0,proof/v9-current-ui/research-mobile-390x844.png
+/universe/web-signals,Web Signals,B,desktop-1920x1080,92,14,0,H1>H2>H2>H2>H2>H2>H2,1,5205,17,2,2,54,62,0,0,0,1080,0,proof/v9-current-ui/web-signals-desktop-1920x1080.png
+/universe/web-signals,Web Signals,B,mobile-390x844,70,14,0,H1>H2>H2>H2>H2>H2,1,4022,11,2,3,40,19,0,0,0,844,0,proof/v9-current-ui/web-signals-mobile-390x844.png
+/universe/community,Community lens,B,desktop-1920x1080,92,14,0,H1>H2>H2>H2>H2>H2>H2,1,5254,17,2,2,54,62,0,0,0,1080,0,proof/v9-current-ui/community-lens-desktop-1920x1080.png
+/universe/community,Community lens,B,mobile-390x844,70,14,0,H1>H2>H2>H2>H2>H2,1,4071,11,2,3,40,19,0,0,0,844,0,proof/v9-current-ui/community-lens-mobile-390x844.png
+/community,Community,B,desktop-1920x1080,97,14,0,H1>H2>H2>H2>H2>H2>H2>H1>H2>H2,2,5933,19,2,2,56,62,0,0,0,1080,0,proof/v9-current-ui/community-desktop-1920x1080.png
+/community,Community,B,mobile-390x844,75,14,0,H1>H2>H2>H2>H2>H2>H1>H2>H2,2,4750,13,2,3,42,19,0,0,0,844,0,proof/v9-current-ui/community-mobile-390x844.png
+/consultations,Consultations,B,desktop-1920x1080,101,14,0,H1>H2>H2>H2>H2>H2>H2>H1>H2>H2,2,5924,19,2,2,55,62,0,0,0,1080,0,proof/v9-current-ui/consultations-desktop-1920x1080.png
+/consultations,Consultations,B,mobile-390x844,79,14,0,H1>H2>H2>H2>H2>H2>H1>H2>H2,2,4741,13,2,3,41,19,0,0,0,844,0,proof/v9-current-ui/consultations-mobile-390x844.png
+/projects,Projects,A,desktop-1920x1080,99,14,0,H1>H2>H2>H2>H2>H2>H2>H1>H2>H2,2,5949,19,2,2,56,62,0,0,0,1080,0,proof/v9-current-ui/projects-desktop-1920x1080.png
+/projects,Projects,A,mobile-390x844,77,14,0,H1>H2>H2>H2>H2>H2>H1>H2>H2,2,4766,13,2,3,42,19,0,0,0,844,0,proof/v9-current-ui/projects-mobile-390x844.png
+/glow,Glow,B,desktop-1920x1080,93,14,0,H1>H2>H2>H2>H2>H2>H2>H1>H2>H2>H2>H2,2,7682,21,2,2,64,62,0,0,0,1080,0,proof/v9-current-ui/glow-desktop-1920x1080.png
+/glow,Glow,B,mobile-390x844,71,14,0,H1>H2>H2>H2>H2>H2>H1>H2>H2>H2>H2,2,6499,15,2,3,50,19,0,0,0,844,0,proof/v9-current-ui/glow-mobile-390x844.png
+/notifications,Notifications,C,desktop-1920x1080,103,14,0,H1>H2>H2>H2>H2>H2>H2>H1>H2>H2>H2,2,5895,20,2,2,55,62,0,0,0,1080,0,proof/v9-current-ui/notifications-desktop-1920x1080.png
+/notifications,Notifications,C,mobile-390x844,81,14,0,H1>H2>H2>H2>H2>H2>H1>H2>H2>H2,2,4712,14,2,3,41,19,0,0,0,844,0,proof/v9-current-ui/notifications-mobile-390x844.png
+/settings,Settings,C,desktop-1920x1080,101,16,0,H1>H2>H2>H2>H2>H2>H2>H1>H2>H2>H2>H2>H2,2,6962,22,2,2,57,65,0,1,0,1080,0,proof/v9-current-ui/settings-desktop-1920x1080.png
+/settings,Settings,C,mobile-390x844,79,16,0,H1>H2>H2>H2>H2>H2>H1>H2>H2>H2>H2>H2,2,5779,16,2,3,43,22,0,1,0,844,0,proof/v9-current-ui/settings-mobile-390x844.png
+/universe/omega,Omega,B,desktop-1920x1080,104,14,0,H1>H2>H2>H2>H2>H2>H2>H1>H2>H2>H2>H2>H2,2,7894,22,2,2,74,62,0,0,0,1080,0,proof/v9-current-ui/omega-desktop-1920x1080.png
+/universe/omega,Omega,B,mobile-390x844,82,14,0,H1>H2>H2>H2>H2>H2>H1>H2>H2>H2>H2>H2,2,6711,16,2,3,60,19,0,0,0,844,0,proof/v9-current-ui/omega-mobile-390x844.png
+/universe/omega/review,Omega review,B,desktop-1920x1080,135,14,0,H1>H2>H2>H2>H2>H2>H2>H1>H2,2,11614,18,2,2,75,62,0,0,0,1080,0,proof/v9-current-ui/omega-review-desktop-1920x1080.png
+/universe/omega/review,Omega review,B,mobile-390x844,113,14,0,H1>H2>H2>H2>H2>H2>H1>H2,2,10431,12,2,3,61,19,0,0,0,844,0,proof/v9-current-ui/omega-review-mobile-390x844.png
+>>>>>>> origin/integration/nur-ui-reconcile-20260726

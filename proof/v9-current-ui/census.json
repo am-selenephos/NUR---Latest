@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
   "capturedAt": "2026-07-26T15:58:16.272Z",
+=======
+  "capturedAt": "2026-07-25T21:28:05.439Z",
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
   "records": [
     {
       "route": "/today",
@@ -11,7 +15,11 @@
       "links": 0,
       "headings": "H1>H2>H3>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 1994,
+=======
+      "textCharacters": 2019,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "cards": 18,
       "canvases": 2,
       "images": 0,
@@ -29,17 +37,30 @@
       "surface": "Today",
       "tier": "A",
       "viewport": "mobile-390x844",
+<<<<<<< HEAD
       "controls": 25,
+=======
+      "controls": 24,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 0,
       "links": 0,
       "headings": "H1>H2>H3>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 980,
       "cards": 12,
       "canvases": 2,
       "images": 0,
       "smallText": 6,
       "tinyTouchTargets": 8,
+=======
+      "textCharacters": 1001,
+      "cards": 12,
+      "canvases": 2,
+      "images": 1,
+      "smallText": 6,
+      "tinyTouchTargets": 7,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -57,7 +78,11 @@
       "links": 0,
       "headings": "H1>H3>H3>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 1688,
+=======
+      "textCharacters": 6783,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "cards": 9,
       "canvases": 2,
       "images": 0,
@@ -75,17 +100,30 @@
       "surface": "Talk",
       "tier": "B",
       "viewport": "mobile-390x844",
+<<<<<<< HEAD
       "controls": 21,
+=======
+      "controls": 20,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 0,
       "links": 0,
       "headings": "H1>H3>H3",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 669,
       "cards": 3,
       "canvases": 2,
       "images": 0,
       "smallText": 5,
       "tinyTouchTargets": 6,
+=======
+      "textCharacters": 5760,
+      "cards": 3,
+      "canvases": 2,
+      "images": 1,
+      "smallText": 5,
+      "tinyTouchTargets": 5,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -103,7 +141,11 @@
       "links": 0,
       "headings": "H1>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 1461,
+=======
+      "textCharacters": 1456,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "cards": 10,
       "canvases": 2,
       "images": 0,
@@ -121,17 +163,30 @@
       "surface": "Journal",
       "tier": "B",
       "viewport": "mobile-390x844",
+<<<<<<< HEAD
       "controls": 21,
+=======
+      "controls": 20,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 0,
       "links": 0,
       "headings": "H1>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 448,
       "cards": 4,
       "canvases": 2,
       "images": 0,
       "smallText": 5,
       "tinyTouchTargets": 6,
+=======
+      "textCharacters": 439,
+      "cards": 4,
+      "canvases": 2,
+      "images": 1,
+      "smallText": 5,
+      "tinyTouchTargets": 5,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -149,7 +204,11 @@
       "links": 0,
       "headings": "H1>H2>H3>H2>H3>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 1664,
+=======
+      "textCharacters": 1657,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "cards": 13,
       "canvases": 2,
       "images": 0,
@@ -167,17 +226,30 @@
       "surface": "Plan",
       "tier": "B",
       "viewport": "mobile-390x844",
+<<<<<<< HEAD
       "controls": 20,
+=======
+      "controls": 19,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 1,
       "links": 0,
       "headings": "H1>H2>H3>H2>H3",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 656,
       "cards": 7,
       "canvases": 2,
       "images": 0,
       "smallText": 6,
       "tinyTouchTargets": 3,
+=======
+      "textCharacters": 645,
+      "cards": 7,
+      "canvases": 2,
+      "images": 1,
+      "smallText": 6,
+      "tinyTouchTargets": 2,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -190,15 +262,26 @@
       "surface": "Systems",
       "tier": "A",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 91,
+=======
+      "controls": 92,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 5233,
       "cards": 17,
       "canvases": 2,
       "images": 1,
+=======
+      "textCharacters": 5163,
+      "cards": 17,
+      "canvases": 2,
+      "images": 2,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "smallText": 54,
       "tinyTouchTargets": 62,
       "emptyStates": 0,
@@ -218,12 +301,21 @@
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 4054,
       "cards": 11,
       "canvases": 2,
       "images": 1,
       "smallText": 40,
       "tinyTouchTargets": 20,
+=======
+      "textCharacters": 3980,
+      "cards": 11,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 40,
+      "tinyTouchTargets": 19,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -236,15 +328,26 @@
       "surface": "Universe",
       "tier": "A",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 91,
+=======
+      "controls": 92,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 5233,
       "cards": 17,
       "canvases": 2,
       "images": 1,
+=======
+      "textCharacters": 5163,
+      "cards": 17,
+      "canvases": 2,
+      "images": 2,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "smallText": 54,
       "tinyTouchTargets": 62,
       "emptyStates": 0,
@@ -264,12 +367,21 @@
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 4054,
       "cards": 11,
       "canvases": 2,
       "images": 1,
       "smallText": 40,
       "tinyTouchTargets": 20,
+=======
+      "textCharacters": 3980,
+      "cards": 11,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 40,
+      "tinyTouchTargets": 19,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -282,15 +394,26 @@
       "surface": "Map",
       "tier": "A",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 91,
+=======
+      "controls": 92,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 5271,
       "cards": 17,
       "canvases": 2,
       "images": 1,
+=======
+      "textCharacters": 5201,
+      "cards": 17,
+      "canvases": 2,
+      "images": 2,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "smallText": 54,
       "tinyTouchTargets": 62,
       "emptyStates": 0,
@@ -310,12 +433,21 @@
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 4092,
       "cards": 11,
       "canvases": 2,
       "images": 1,
       "smallText": 40,
       "tinyTouchTargets": 20,
+=======
+      "textCharacters": 4018,
+      "cards": 11,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 40,
+      "tinyTouchTargets": 19,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -328,15 +460,26 @@
       "surface": "Orbits",
       "tier": "A",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 91,
+=======
+      "controls": 92,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 5276,
       "cards": 17,
       "canvases": 2,
       "images": 1,
+=======
+      "textCharacters": 5206,
+      "cards": 17,
+      "canvases": 2,
+      "images": 2,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "smallText": 54,
       "tinyTouchTargets": 62,
       "emptyStates": 0,
@@ -356,12 +499,21 @@
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 4097,
       "cards": 11,
       "canvases": 2,
       "images": 1,
       "smallText": 40,
       "tinyTouchTargets": 20,
+=======
+      "textCharacters": 4023,
+      "cards": 11,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 40,
+      "tinyTouchTargets": 19,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -374,15 +526,26 @@
       "surface": "Timeline",
       "tier": "B",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 91,
+=======
+      "controls": 92,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 5280,
       "cards": 17,
       "canvases": 2,
       "images": 1,
+=======
+      "textCharacters": 5210,
+      "cards": 17,
+      "canvases": 2,
+      "images": 2,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "smallText": 54,
       "tinyTouchTargets": 62,
       "emptyStates": 0,
@@ -402,12 +565,21 @@
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 4101,
       "cards": 11,
       "canvases": 2,
       "images": 1,
       "smallText": 40,
       "tinyTouchTargets": 20,
+=======
+      "textCharacters": 4027,
+      "cards": 11,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 40,
+      "tinyTouchTargets": 19,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -420,15 +592,26 @@
       "surface": "Insights",
       "tier": "B",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 97,
+=======
+      "controls": 98,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 5390,
       "cards": 17,
       "canvases": 2,
       "images": 1,
+=======
+      "textCharacters": 5320,
+      "cards": 17,
+      "canvases": 2,
+      "images": 2,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "smallText": 54,
       "tinyTouchTargets": 68,
       "emptyStates": 0,
@@ -448,12 +631,21 @@
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 4211,
       "cards": 11,
       "canvases": 2,
       "images": 1,
       "smallText": 40,
       "tinyTouchTargets": 25,
+=======
+      "textCharacters": 4137,
+      "cards": 11,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 40,
+      "tinyTouchTargets": 24,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -466,15 +658,26 @@
       "surface": "Research",
       "tier": "A",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 91,
+=======
+      "controls": 92,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 5311,
       "cards": 17,
       "canvases": 2,
       "images": 1,
+=======
+      "textCharacters": 5241,
+      "cards": 17,
+      "canvases": 2,
+      "images": 2,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "smallText": 54,
       "tinyTouchTargets": 62,
       "emptyStates": 0,
@@ -494,12 +697,21 @@
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 4132,
       "cards": 11,
       "canvases": 2,
       "images": 1,
       "smallText": 40,
       "tinyTouchTargets": 20,
+=======
+      "textCharacters": 4058,
+      "cards": 11,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 40,
+      "tinyTouchTargets": 19,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -512,15 +724,26 @@
       "surface": "Web Signals",
       "tier": "B",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 91,
+=======
+      "controls": 92,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 5275,
       "cards": 17,
       "canvases": 2,
       "images": 1,
+=======
+      "textCharacters": 5205,
+      "cards": 17,
+      "canvases": 2,
+      "images": 2,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "smallText": 54,
       "tinyTouchTargets": 62,
       "emptyStates": 0,
@@ -540,12 +763,21 @@
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 4096,
       "cards": 11,
       "canvases": 2,
       "images": 1,
       "smallText": 40,
       "tinyTouchTargets": 20,
+=======
+      "textCharacters": 4022,
+      "cards": 11,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 40,
+      "tinyTouchTargets": 19,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -558,15 +790,26 @@
       "surface": "Community lens",
       "tier": "B",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 91,
+=======
+      "controls": 92,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 5324,
       "cards": 17,
       "canvases": 2,
       "images": 1,
+=======
+      "textCharacters": 5254,
+      "cards": 17,
+      "canvases": 2,
+      "images": 2,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "smallText": 54,
       "tinyTouchTargets": 62,
       "emptyStates": 0,
@@ -586,12 +829,21 @@
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2",
       "h1": 1,
+<<<<<<< HEAD
       "textCharacters": 4145,
       "cards": 11,
       "canvases": 2,
       "images": 1,
       "smallText": 40,
       "tinyTouchTargets": 20,
+=======
+      "textCharacters": 4071,
+      "cards": 11,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 40,
+      "tinyTouchTargets": 19,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -604,16 +856,28 @@
       "surface": "Community",
       "tier": "B",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 98,
+=======
+      "controls": 97,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2>H1>H2>H2",
       "h1": 2,
+<<<<<<< HEAD
       "textCharacters": 6280,
       "cards": 19,
       "canvases": 2,
       "images": 1,
       "smallText": 58,
+=======
+      "textCharacters": 5933,
+      "cards": 19,
+      "canvases": 2,
+      "images": 2,
+      "smallText": 56,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "tinyTouchTargets": 62,
       "emptyStates": 0,
       "errorMarkers": 0,
@@ -627,17 +891,30 @@
       "surface": "Community",
       "tier": "B",
       "viewport": "mobile-390x844",
+<<<<<<< HEAD
       "controls": 77,
+=======
+      "controls": 75,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H1>H2>H2",
       "h1": 2,
+<<<<<<< HEAD
       "textCharacters": 5101,
       "cards": 13,
       "canvases": 2,
       "images": 1,
       "smallText": 44,
       "tinyTouchTargets": 20,
+=======
+      "textCharacters": 4750,
+      "cards": 13,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 42,
+      "tinyTouchTargets": 19,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -650,15 +927,26 @@
       "surface": "Consultations",
       "tier": "B",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 100,
+=======
+      "controls": 101,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2>H1>H2>H2",
       "h1": 2,
+<<<<<<< HEAD
       "textCharacters": 6075,
       "cards": 19,
       "canvases": 2,
       "images": 1,
+=======
+      "textCharacters": 5924,
+      "cards": 19,
+      "canvases": 2,
+      "images": 2,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "smallText": 55,
       "tinyTouchTargets": 62,
       "emptyStates": 0,
@@ -678,12 +966,21 @@
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H1>H2>H2",
       "h1": 2,
+<<<<<<< HEAD
       "textCharacters": 4896,
       "cards": 13,
       "canvases": 2,
       "images": 1,
       "smallText": 41,
       "tinyTouchTargets": 20,
+=======
+      "textCharacters": 4741,
+      "cards": 13,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 41,
+      "tinyTouchTargets": 19,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -696,16 +993,28 @@
       "surface": "Projects",
       "tier": "A",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 97,
+=======
+      "controls": 99,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2>H1>H2>H2",
       "h1": 2,
+<<<<<<< HEAD
       "textCharacters": 5894,
       "cards": 19,
       "canvases": 2,
       "images": 1,
       "smallText": 55,
+=======
+      "textCharacters": 5949,
+      "cards": 19,
+      "canvases": 2,
+      "images": 2,
+      "smallText": 56,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "tinyTouchTargets": 62,
       "emptyStates": 0,
       "errorMarkers": 0,
@@ -719,17 +1028,30 @@
       "surface": "Projects",
       "tier": "A",
       "viewport": "mobile-390x844",
+<<<<<<< HEAD
       "controls": 76,
+=======
+      "controls": 77,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H1>H2>H2",
       "h1": 2,
+<<<<<<< HEAD
       "textCharacters": 4715,
       "cards": 13,
       "canvases": 2,
       "images": 1,
       "smallText": 41,
       "tinyTouchTargets": 20,
+=======
+      "textCharacters": 4766,
+      "cards": 13,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 42,
+      "tinyTouchTargets": 19,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -742,16 +1064,28 @@
       "surface": "Glow",
       "tier": "B",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 92,
+=======
+      "controls": 93,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2>H1>H2>H2>H2>H2",
       "h1": 2,
+<<<<<<< HEAD
       "textCharacters": 7389,
       "cards": 21,
       "canvases": 2,
       "images": 1,
       "smallText": 63,
+=======
+      "textCharacters": 7682,
+      "cards": 21,
+      "canvases": 2,
+      "images": 2,
+      "smallText": 64,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "tinyTouchTargets": 62,
       "emptyStates": 0,
       "errorMarkers": 0,
@@ -770,12 +1104,21 @@
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H1>H2>H2>H2>H2",
       "h1": 2,
+<<<<<<< HEAD
       "textCharacters": 6210,
       "cards": 15,
       "canvases": 2,
       "images": 1,
       "smallText": 49,
       "tinyTouchTargets": 20,
+=======
+      "textCharacters": 6499,
+      "cards": 15,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 50,
+      "tinyTouchTargets": 19,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -788,15 +1131,26 @@
       "surface": "Notifications",
       "tier": "C",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 102,
+=======
+      "controls": 103,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2>H1>H2>H2>H2",
       "h1": 2,
+<<<<<<< HEAD
       "textCharacters": 5965,
       "cards": 20,
       "canvases": 2,
       "images": 1,
+=======
+      "textCharacters": 5895,
+      "cards": 20,
+      "canvases": 2,
+      "images": 2,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "smallText": 55,
       "tinyTouchTargets": 62,
       "emptyStates": 0,
@@ -816,12 +1170,21 @@
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H1>H2>H2>H2",
       "h1": 2,
+<<<<<<< HEAD
       "textCharacters": 4786,
       "cards": 14,
       "canvases": 2,
       "images": 1,
       "smallText": 41,
       "tinyTouchTargets": 20,
+=======
+      "textCharacters": 4712,
+      "cards": 14,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 41,
+      "tinyTouchTargets": 19,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -834,15 +1197,26 @@
       "surface": "Settings",
       "tier": "C",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 100,
+=======
+      "controls": 101,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 16,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2>H1>H2>H2>H2>H2>H2",
       "h1": 2,
+<<<<<<< HEAD
       "textCharacters": 7037,
       "cards": 22,
       "canvases": 2,
       "images": 1,
+=======
+      "textCharacters": 6962,
+      "cards": 22,
+      "canvases": 2,
+      "images": 2,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "smallText": 57,
       "tinyTouchTargets": 65,
       "emptyStates": 0,
@@ -862,12 +1236,21 @@
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H1>H2>H2>H2>H2>H2",
       "h1": 2,
+<<<<<<< HEAD
       "textCharacters": 5858,
       "cards": 16,
       "canvases": 2,
       "images": 1,
       "smallText": 43,
       "tinyTouchTargets": 23,
+=======
+      "textCharacters": 5779,
+      "cards": 16,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 43,
+      "tinyTouchTargets": 22,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 1,
       "loadingMarkers": 0,
@@ -880,16 +1263,28 @@
       "surface": "Omega",
       "tier": "B",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 100,
+=======
+      "controls": 104,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2>H1>H2>H2>H2>H2>H2",
       "h1": 2,
+<<<<<<< HEAD
       "textCharacters": 6777,
       "cards": 22,
       "canvases": 2,
       "images": 1,
       "smallText": 66,
+=======
+      "textCharacters": 7894,
+      "cards": 22,
+      "canvases": 2,
+      "images": 2,
+      "smallText": 74,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "tinyTouchTargets": 62,
       "emptyStates": 0,
       "errorMarkers": 0,
@@ -903,17 +1298,30 @@
       "surface": "Omega",
       "tier": "B",
       "viewport": "mobile-390x844",
+<<<<<<< HEAD
       "controls": 79,
+=======
+      "controls": 82,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H1>H2>H2>H2>H2>H2",
       "h1": 2,
+<<<<<<< HEAD
       "textCharacters": 5598,
       "cards": 16,
       "canvases": 2,
       "images": 1,
       "smallText": 52,
       "tinyTouchTargets": 20,
+=======
+      "textCharacters": 6711,
+      "cards": 16,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 60,
+      "tinyTouchTargets": 19,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
@@ -926,16 +1334,28 @@
       "surface": "Omega review",
       "tier": "B",
       "viewport": "desktop-1920x1080",
+<<<<<<< HEAD
       "controls": 94,
+=======
+      "controls": 135,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H2>H1>H2",
       "h1": 2,
+<<<<<<< HEAD
       "textCharacters": 5782,
       "cards": 18,
       "canvases": 2,
       "images": 1,
       "smallText": 55,
+=======
+      "textCharacters": 11614,
+      "cards": 18,
+      "canvases": 2,
+      "images": 2,
+      "smallText": 75,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "tinyTouchTargets": 62,
       "emptyStates": 0,
       "errorMarkers": 0,
@@ -949,17 +1369,30 @@
       "surface": "Omega review",
       "tier": "B",
       "viewport": "mobile-390x844",
+<<<<<<< HEAD
       "controls": 73,
+=======
+      "controls": 113,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "disabledControls": 14,
       "links": 0,
       "headings": "H1>H2>H2>H2>H2>H2>H1>H2",
       "h1": 2,
+<<<<<<< HEAD
       "textCharacters": 4603,
       "cards": 12,
       "canvases": 2,
       "images": 1,
       "smallText": 41,
       "tinyTouchTargets": 20,
+=======
+      "textCharacters": 10431,
+      "cards": 12,
+      "canvases": 2,
+      "images": 3,
+      "smallText": 61,
+      "tinyTouchTargets": 19,
+>>>>>>> origin/integration/nur-ui-reconcile-20260726
       "emptyStates": 0,
       "errorMarkers": 0,
       "loadingMarkers": 0,
