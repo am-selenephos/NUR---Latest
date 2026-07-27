@@ -458,10 +458,42 @@ body.universe-edition #journal-input::-webkit-scrollbar-track {
    The page keeps its own stacking and its panels keep their glass; only the
    full-bleed wash is removed, so stars stay visible behind and through the
    interface. */
+/* ID-level specificity: canonical styles these by id, so a class-only selector
+   lost the cascade and the wash stayed. Measured before this rule:
+   `#page-systems` still computed `rgba(0, 0, 0, 0.7)`.
+
+   Entry and the universe must read as one room. Measured, they did not:
+
+     Entry     rgb(0, 0, 0)          no background image
+     Systems   rgba(0, 0, 0, 0.7)    plus a warm gold radial wash, and a second
+                                     radial on .nur-shell
+
+   The universe now matches Entry exactly — pure black, no wash — so the same
+   star field shows through both at the same value. The gold stays where it
+   belongs, on the panel rims and accents, rather than as a full-bleed tint that
+   only one of the two stages had. */
+/* Canonical declares `body.universe-edition #page-systems` itself, so a matching
+   selector ties on specificity and the outcome depends on injection order. These
+   add `.nur-viewport` to outrank it outright rather than rely on that. */
+body.universe-edition .nur-viewport #page-today,
+body.universe-edition .nur-viewport #page-talk,
+body.universe-edition .nur-viewport #page-journal,
+body.universe-edition .nur-viewport #page-plan,
+body.universe-edition .nur-viewport #page-systems,
+body.universe-edition .nur-viewport .nur-page,
 body.universe-edition .nur-page,
 body.universe-edition .nur-page.active,
-body.universe-edition .universe-page-shell {
+body.universe-edition .universe-page-shell,
+body.universe-edition .nur-shell,
+body.universe-edition .nur-main,
+body.universe-edition .nur-viewport {
   background-color: transparent !important;
+  background-image: none !important;
+}
+
+/* The stage itself carries the black, exactly as Entry's body does. */
+body.universe-edition {
+  background-color: rgb(0, 0, 0) !important;
   background-image: none !important;
 }
 

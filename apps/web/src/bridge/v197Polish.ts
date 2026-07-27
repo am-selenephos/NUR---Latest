@@ -177,6 +177,36 @@ export function ensureV197EntryPolish(document: Document): HTMLStyleElement {
   return style;
 }
 
+
+/**
+ * Match the universe background to Entry exactly.
+ *
+ * Measured: Entry's body is `rgb(0, 0, 0)` with no background image, while
+ * `#page-systems` computed `rgba(0, 0, 0, 0.7)` plus a warm gold radial wash,
+ * and `.nur-shell` carried a second radial. The two stages did not read as one
+ * room, and that black sheet also dimmed the star field behind the panels.
+ *
+ * Canonical declares these by id under the same `body.universe-edition` prefix,
+ * so a stylesheet rule ties on specificity and the winner depends on injection
+ * order; raising specificity further still lost. Inline `important` is the
+ * pattern already used here for the sign-out control, for the same reason, and
+ * it cannot be outranked.
+ */
+function matchUniverseBackgroundToEntry(document: Document): void {
+  const surfaces = document.querySelectorAll<HTMLElement>(
+    ".nur-page, .universe-page-shell, .nur-shell, .nur-main, .nur-viewport",
+  );
+  for (const surface of surfaces) {
+    surface.style.setProperty("background-color", "transparent", "important");
+    surface.style.setProperty("background-image", "none", "important");
+  }
+  const body = document.body;
+  if (body) {
+    body.style.setProperty("background-color", "rgb(0, 0, 0)", "important");
+    body.style.setProperty("background-image", "none", "important");
+  }
+}
+
 export function ensureV197PremiumPolish(document: Document): HTMLStyleElement {
   const style = installPresentationStyle(
     document,
@@ -190,6 +220,7 @@ export function ensureV197PremiumPolish(document: Document): HTMLStyleElement {
   relocateSystemsMantra(document);
   labelCompactTopbarControls(document);
   labelOwnerSignOutControl(document);
+  matchUniverseBackgroundToEntry(document);
   ensureV197BlackGalaxy(document);
   ensureV197StarBrain(document);
   return style;
