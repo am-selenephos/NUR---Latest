@@ -663,6 +663,7 @@
   // exactly how the galaxy used to fail before it gained the same guard.
   const brainWatchdog=setInterval(()=>{
     if(disposed){ clearInterval(brainWatchdog); return; }
-    if(rafHandle===null && !document.hidden && stageIsVisible()) requestBrainFrame();
-  },500);
+    if(rafHandle!==null || document.hidden) return;
+    if(stageIsVisible()) requestBrainFrame();
+  },1000);
 })();

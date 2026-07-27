@@ -111,7 +111,7 @@ const ENTRY_STAGE_VISIBILITY_REPLACEMENT: Replacement = [
  */
 const GALAXY_STAGE_OBSERVER_REPLACEMENT: Replacement = [
   'document.addEventListener("visibilitychange",()=>{if(document.hidden){last=0}else{last=0;wakeGalaxy()}},{passive:true});',
-  'document.addEventListener("visibilitychange",()=>{if(document.hidden){last=0}else{last=0;__nurStageVisAt=0;wakeGalaxy()}},{passive:true});const galaxyStage=frameElement;if(galaxyStage)new MutationObserver(()=>{__nurStageVisAt=0;if(shouldRenderGalaxy()){last=0;wakeGalaxy()}else{if(frameRAF)cancelAnimationFrame(frameRAF);frameRAF=0;last=0}}).observe(galaxyStage,{attributes:true,attributeFilter:["class","aria-hidden"]});setInterval(()=>{__nurStageVisAt=0;if(shouldRenderGalaxy()&&!frameRAF){last=0;wakeGalaxy()}},500);',
+  'document.addEventListener("visibilitychange",()=>{if(document.hidden){last=0}else{last=0;__nurStageVisAt=0;wakeGalaxy()}},{passive:true});const galaxyStage=frameElement;if(galaxyStage)new MutationObserver(()=>{__nurStageVisAt=0;if(shouldRenderGalaxy()){last=0;wakeGalaxy()}else{if(frameRAF)cancelAnimationFrame(frameRAF);frameRAF=0;last=0}}).observe(galaxyStage,{attributes:true,attributeFilter:["class","aria-hidden"]});setInterval(()=>{if(!frameRAF&&shouldRenderGalaxy()){last=0;wakeGalaxy()}},1000);',
 ];
 
 const GALAXY_PARTICLE_COMPACTION_REPLACEMENT: Replacement = [
