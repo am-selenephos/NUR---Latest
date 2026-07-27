@@ -98,9 +98,20 @@ const ENTRY_STAGE_VISIBILITY_REPLACEMENT: Replacement = [
   ),
 ];
 
+/*
+ * The MutationObserver alone was not enough. Measured on /today, /talk and
+ * /systems at 56a1963: `shouldRenderGalaxy()` returned true while
+ * `frameScheduled` was false on every route — the loop had stopped during the
+ * stage transition and nothing re-woke it, so the sky was a frozen black
+ * rectangle behind the panels while every particle still existed.
+ *
+ * The observer only fires on class/aria mutations of the stage, so any path
+ * that stops the loop without one leaves the canvas dead with no event to
+ * revive it. A 500ms watchdog closes that hole.
+ */
 const GALAXY_STAGE_OBSERVER_REPLACEMENT: Replacement = [
   'document.addEventListener("visibilitychange",()=>{if(document.hidden){last=0}else{last=0;wakeGalaxy()}},{passive:true});',
-  'document.addEventListener("visibilitychange",()=>{if(document.hidden){last=0}else{last=0;__nurStageVisAt=0;wakeGalaxy()}},{passive:true});const galaxyStage=frameElement;if(galaxyStage)new MutationObserver(()=>{__nurStageVisAt=0;if(shouldRenderGalaxy()){last=0;wakeGalaxy()}else{if(frameRAF)cancelAnimationFrame(frameRAF);frameRAF=0;last=0}}).observe(galaxyStage,{attributes:true,attributeFilter:["class","aria-hidden"]});',
+  'document.addEventListener("visibilitychange",()=>{if(document.hidden){last=0}else{last=0;__nurStageVisAt=0;wakeGalaxy()}},{passive:true});const galaxyStage=frameElement;if(galaxyStage)new MutationObserver(()=>{__nurStageVisAt=0;if(shouldRenderGalaxy()){last=0;wakeGalaxy()}else{if(frameRAF)cancelAnimationFrame(frameRAF);frameRAF=0;last=0}}).observe(galaxyStage,{attributes:true,attributeFilter:["class","aria-hidden"]});setInterval(()=>{__nurStageVisAt=0;if(shouldRenderGalaxy()&&!frameRAF){last=0;wakeGalaxy()}},500);',
 ];
 
 const GALAXY_PARTICLE_COMPACTION_REPLACEMENT: Replacement = [

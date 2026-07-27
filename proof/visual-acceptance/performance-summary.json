@@ -1,0 +1,466 @@
+{
+  "sha": "watchdog",
+  "capturedAt": "2026-07-27T18:11:24.460Z",
+  "headed": true,
+  "routes": {
+    "entry": {
+      "full": {
+        "mean": 12.53,
+        "stdDev": 33.11,
+        "brightRatio": 0.05052,
+        "veryBrightRatio": 0.0264,
+        "max": 248,
+        "px": 1600000
+      },
+      "perf": {
+        "avgFps": 8.7,
+        "frames": 52,
+        "p50FrameMs": 113,
+        "p95FrameMs": 131,
+        "p99FrameMs": 195,
+        "heapMB": 15.23,
+        "layouts": 0
+      },
+      "ownership": [
+        {
+          "frame": "nur-entry-stage",
+          "canvases": [
+            {
+              "id": "icv",
+              "w": 300,
+              "h": 150,
+              "cssW": 0,
+              "cssH": 0,
+              "opacity": "1",
+              "visibility": "visible",
+              "dpr": null
+            },
+            {
+              "id": "space3d",
+              "w": 1600,
+              "h": 1000,
+              "cssW": 1600,
+              "cssH": 1000,
+              "opacity": "0.96",
+              "visibility": "visible",
+              "dpr": 1
+            },
+            {
+              "id": "nur-brain-canvas",
+              "w": 452,
+              "h": 452,
+              "cssW": 452,
+              "cssH": 452,
+              "opacity": "1",
+              "visibility": "visible",
+              "dpr": 1
+            }
+          ],
+          "diagnostics": {
+            "total": 1698,
+            "transient": 0,
+            "finite": 0,
+            "invalid": 0,
+            "minLife": null,
+            "maxLife": null,
+            "byKind": {
+              "galaxy": 900,
+              "far": 585,
+              "dust": 165,
+              "super": 48
+            },
+            "stageId": "nur-entry-stage",
+            "stageClass": "nur-stage",
+            "stageHidden": null,
+            "shouldRender": true,
+            "frameScheduled": true
+          },
+          "particles": 1698,
+          "transient": 0
+        }
+      ]
+    },
+    "today": {
+      "full": {
+        "mean": 13.86,
+        "stdDev": 33.27,
+        "brightRatio": 0.07006,
+        "veryBrightRatio": 0.03262,
+        "max": 252,
+        "px": 1600000
+      },
+      "throughPanel": {
+        "mean": 17.2,
+        "stdDev": 31.23,
+        "brightRatio": 0.05903,
+        "veryBrightRatio": 0.03071,
+        "max": 248,
+        "px": 240672
+      },
+      "perf": {
+        "avgFps": 11,
+        "frames": 66,
+        "p50FrameMs": 92,
+        "p95FrameMs": 144,
+        "p99FrameMs": 173,
+        "heapMB": 15.35,
+        "layouts": 0
+      },
+      "ownership": [
+        {
+          "frame": "nur-entry-stage",
+          "canvases": [
+            {
+              "id": "icv",
+              "w": 300,
+              "h": 150,
+              "cssW": 0,
+              "cssH": 0,
+              "opacity": "1",
+              "visibility": "visible",
+              "dpr": null
+            },
+            {
+              "id": "space3d",
+              "w": 1600,
+              "h": 1000,
+              "cssW": 1600,
+              "cssH": 1000,
+              "opacity": "0.96",
+              "visibility": "visible",
+              "dpr": 1
+            },
+            {
+              "id": "nur-brain-canvas",
+              "w": 452,
+              "h": 452,
+              "cssW": 452,
+              "cssH": 452,
+              "opacity": "1",
+              "visibility": "visible",
+              "dpr": 1
+            }
+          ],
+          "diagnostics": {
+            "total": 1698,
+            "transient": 0,
+            "finite": 0,
+            "invalid": 0,
+            "minLife": null,
+            "maxLife": null,
+            "byKind": {
+              "galaxy": 900,
+              "far": 585,
+              "dust": 165,
+              "super": 48
+            },
+            "stageId": "nur-entry-stage",
+            "stageClass": "nur-stage is-exiting",
+            "stageHidden": "true",
+            "shouldRender": false,
+            "frameScheduled": false
+          },
+          "particles": 1698,
+          "transient": 0
+        },
+        {
+          "frame": "nur-universe-stage",
+          "canvases": [
+            {
+              "id": "space3d",
+              "w": 1600,
+              "h": 1000,
+              "cssW": 1600,
+              "cssH": 1000,
+              "opacity": "1",
+              "visibility": "visible",
+              "dpr": 1
+            },
+            {
+              "id": "nur-brain-canvas",
+              "w": 461,
+              "h": 394,
+              "cssW": 461,
+              "cssH": 394,
+              "opacity": "1",
+              "visibility": "visible",
+              "dpr": 1
+            }
+          ],
+          "diagnostics": {
+            "total": 1721,
+            "transient": 23,
+            "finite": 23,
+            "invalid": 0,
+            "minLife": 171.61566696583333,
+            "maxLife": 271.45344325716593,
+            "byKind": {
+              "galaxy": 900,
+              "far": 585,
+              "dust": 165,
+              "super": 48,
+              "burst": 23
+            },
+            "stageId": "nur-universe-stage",
+            "stageClass": "nur-stage is-visible",
+            "stageHidden": null,
+            "shouldRender": true,
+            "frameScheduled": false
+          },
+          "particles": 1721,
+          "transient": 23
+        }
+      ]
+    },
+    "talk": {
+      "full": {
+        "mean": 11.99,
+        "stdDev": 32.22,
+        "brightRatio": 0.06097,
+        "veryBrightRatio": 0.02981,
+        "max": 252,
+        "px": 1600000
+      },
+      "perf": {
+        "avgFps": 25.8,
+        "frames": 155,
+        "p50FrameMs": 35,
+        "p95FrameMs": 63,
+        "p99FrameMs": 72,
+        "heapMB": 7.1,
+        "layouts": 0
+      },
+      "ownership": [
+        {
+          "frame": "nur-entry-stage",
+          "canvases": [
+            {
+              "id": "icv",
+              "w": 300,
+              "h": 150,
+              "cssW": 0,
+              "cssH": 0,
+              "opacity": "1",
+              "visibility": "visible",
+              "dpr": null
+            },
+            {
+              "id": "space3d",
+              "w": 1600,
+              "h": 1000,
+              "cssW": 1600,
+              "cssH": 1000,
+              "opacity": "0.96",
+              "visibility": "visible",
+              "dpr": 1
+            },
+            {
+              "id": "nur-brain-canvas",
+              "w": 452,
+              "h": 452,
+              "cssW": 452,
+              "cssH": 452,
+              "opacity": "1",
+              "visibility": "visible",
+              "dpr": 1
+            }
+          ],
+          "diagnostics": {
+            "total": 1698,
+            "transient": 0,
+            "finite": 0,
+            "invalid": 0,
+            "minLife": null,
+            "maxLife": null,
+            "byKind": {
+              "galaxy": 900,
+              "far": 585,
+              "dust": 165,
+              "super": 48
+            },
+            "stageId": "nur-entry-stage",
+            "stageClass": "nur-stage is-exiting",
+            "stageHidden": "true",
+            "shouldRender": false,
+            "frameScheduled": false
+          },
+          "particles": 1698,
+          "transient": 0
+        },
+        {
+          "frame": "nur-universe-stage",
+          "canvases": [
+            {
+              "id": "space3d",
+              "w": 1600,
+              "h": 1000,
+              "cssW": 1600,
+              "cssH": 1000,
+              "opacity": "1",
+              "visibility": "visible",
+              "dpr": 1
+            },
+            {
+              "id": "nur-brain-canvas",
+              "w": 2,
+              "h": 2,
+              "cssW": 0,
+              "cssH": 0,
+              "opacity": "1",
+              "visibility": "visible",
+              "dpr": null
+            }
+          ],
+          "diagnostics": {
+            "total": 1721,
+            "transient": 23,
+            "finite": 23,
+            "invalid": 0,
+            "minLife": 163.06574819716744,
+            "maxLife": 274.92043823017497,
+            "byKind": {
+              "galaxy": 900,
+              "far": 585,
+              "dust": 165,
+              "super": 48,
+              "burst": 23
+            },
+            "stageId": "nur-universe-stage",
+            "stageClass": "nur-stage is-visible",
+            "stageHidden": null,
+            "shouldRender": true,
+            "frameScheduled": false
+          },
+          "particles": 1721,
+          "transient": 23
+        }
+      ]
+    },
+    "systems": {
+      "full": {
+        "mean": 13.81,
+        "stdDev": 32.71,
+        "brightRatio": 0.07694,
+        "veryBrightRatio": 0.03242,
+        "max": 252,
+        "px": 1600000
+      },
+      "perf": {
+        "avgFps": 10,
+        "frames": 60,
+        "p50FrameMs": 98,
+        "p95FrameMs": 119,
+        "p99FrameMs": 145,
+        "heapMB": 14.43,
+        "layouts": 0
+      },
+      "ownership": [
+        {
+          "frame": "nur-entry-stage",
+          "canvases": [
+            {
+              "id": "icv",
+              "w": 300,
+              "h": 150,
+              "cssW": 0,
+              "cssH": 0,
+              "opacity": "1",
+              "visibility": "visible",
+              "dpr": null
+            },
+            {
+              "id": "space3d",
+              "w": 1600,
+              "h": 1000,
+              "cssW": 1600,
+              "cssH": 1000,
+              "opacity": "0.96",
+              "visibility": "visible",
+              "dpr": 1
+            },
+            {
+              "id": "nur-brain-canvas",
+              "w": 452,
+              "h": 452,
+              "cssW": 452,
+              "cssH": 452,
+              "opacity": "1",
+              "visibility": "visible",
+              "dpr": 1
+            }
+          ],
+          "diagnostics": {
+            "total": 1698,
+            "transient": 0,
+            "finite": 0,
+            "invalid": 0,
+            "minLife": null,
+            "maxLife": null,
+            "byKind": {
+              "galaxy": 900,
+              "far": 585,
+              "dust": 165,
+              "super": 48
+            },
+            "stageId": "nur-entry-stage",
+            "stageClass": "nur-stage is-exiting",
+            "stageHidden": "true",
+            "shouldRender": false,
+            "frameScheduled": false
+          },
+          "particles": 1698,
+          "transient": 0
+        },
+        {
+          "frame": "nur-universe-stage",
+          "canvases": [
+            {
+              "id": "space3d",
+              "w": 1600,
+              "h": 1000,
+              "cssW": 1600,
+              "cssH": 1000,
+              "opacity": "0.98",
+              "visibility": "visible",
+              "dpr": 1
+            },
+            {
+              "id": "nur-brain-canvas",
+              "w": 458,
+              "h": 376,
+              "cssW": 458,
+              "cssH": 376,
+              "opacity": "1",
+              "visibility": "visible",
+              "dpr": 1
+            }
+          ],
+          "diagnostics": {
+            "total": 1721,
+            "transient": 23,
+            "finite": 23,
+            "invalid": 0,
+            "minLife": 150.90090235419035,
+            "maxLife": 275.441540980013,
+            "byKind": {
+              "galaxy": 900,
+              "far": 585,
+              "dust": 165,
+              "super": 48,
+              "burst": 23
+            },
+            "stageId": "nur-universe-stage",
+            "stageClass": "nur-stage is-visible",
+            "stageHidden": null,
+            "shouldRender": true,
+            "frameScheduled": false
+          },
+          "particles": 1721,
+          "transient": 23
+        }
+      ]
+    }
+  },
+  "soak": null,
+  "motionAfterRouteChange": 0.01844
+}
