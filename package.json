@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "secret-scan": "bash infra/scripts/secret-scan.sh",
+    "release:naming-scan": "bash infra/scripts/release-naming-scan.sh",
     "web:typecheck": "npm --workspace apps/web run typecheck",
     "web:test": "npm --workspace apps/web run test -- --run",
     "web:build": "npm --workspace apps/web run build",
