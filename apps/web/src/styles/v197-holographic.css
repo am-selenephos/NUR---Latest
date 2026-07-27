@@ -117,12 +117,13 @@ body.universe-edition .universe-map-panel::before {
 /* The fog layer carries the same spectrum so the panel and its halo agree — and
    the same rule about blue applies, since this layer is the widest tinted area
    on the screen and was the strongest remaining source of navy. */
+/* Entry has no fog layer at all. This one washed the whole map area in a warm
+   haze that Entry's identical region does not have, which is the difference
+   that reads as "outside is black, inside is not". Removed rather than tuned:
+   the star field is what should fill that space. */
 body.universe-edition .universe-map-fog {
-  background:
-    radial-gradient(120% 90% at 50% 40%, rgba(255, 211, 90, 0.045), transparent 62%),
-    radial-gradient(90% 70% at 22% 76%, rgba(255, 122, 69, 0.035), transparent 60%),
-    radial-gradient(80% 70% at 82% 22%, rgba(255, 214, 150, 0.028), transparent 58%),
-    radial-gradient(72% 64% at 70% 72%, rgba(105, 240, 180, 0.024), transparent 60%) !important;
+  background: none !important;
+  opacity: 0 !important;
 }
 
 /* Canonical draws panel glows in `rgba(100,100,255,.14)` — a saturated blue used

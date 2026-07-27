@@ -52,8 +52,8 @@ describe("V197 deterministic runtime performance profile", () => {
     // Entry paints with the *same* star code as the Universe rig — the founder
     // asked for an exact match, not a tuned variant. If these ever diverge the
     // two skies stop looking like one product.
-    expect(result.source).toContain("Math.max(.58,rad*.94)");
-    expect(result.source).toContain("Math.min(.96,alpha*2.65)");
+    expect(result.source).toContain("Math.max(.86,rad*1.34)");
+    expect(result.source).toContain("Math.min(1,alpha*4.2)");
     expect(result.source).not.toContain("alpha*3.55");
     // Same star counts as the Universe rig: galaxy 900, far 585, dust 165, super 48.
     expect(result.source).toContain("(mobile?520:900)");
