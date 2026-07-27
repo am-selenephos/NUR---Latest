@@ -18,24 +18,89 @@ export const V197_GALAXY_STAR_PAINT = Object.freeze({
   flareThickness: .36,
 });
 
+/*
+ * Fill-rate is bounded by total backing-store pixels, not by a fixed DPR.
+ *
+ * A flat `min(devicePixelRatio, 1.65)` means the canvas grows without limit as
+ * the window grows: at 1600x1000 that is 4.3M pixels, but on a 2560x1440
+ * display it is 11.2M — 2.6x the per-frame paint cost for the same scene, which
+ * is why the interface got choppier the larger the display. Capping the ratio
+ * instead (the previous profile's answer) flattens small windows to buy headroom
+ * for large ones.
+ *
+ * The budget caps the product instead. Below the budget the canvas runs at full
+ * device resolution up to the canonical ceiling; above it, the ratio falls only
+ * as far as the extra area demands, and never below 1.
+ */
+const pixelBudgetDpr = (ceiling: number, budget: number) =>
+  `DPR=Math.max(1,Math.min(devicePixelRatio||1,${ceiling},Math.sqrt(${budget}/Math.max(1,innerWidth*innerHeight))))`;
+
 const GALAXY_STAR_PAINT_REPLACEMENT: Replacement = [
   'if(p.kind==="dust"){const dr=',
   'if(!isS&&p.kind==="galaxy"){const starCol=p.prism?prismShift(p.col,p.prismPhase+t*p.prismSpeed+phase*.18,twinkle,false):p.col;const starR=Math.max(.58,rad*.94),starA=Math.min(.96,alpha*2.65);c.fillStyle=`rgba(${starCol[0]},${starCol[1]},${starCol[2]},${starA})`;stellarPath(q.x,q.y,starR,Math.max(.1,starR*.16),4,p.phase+t*2e-4);c.fill();if(alpha>.2&&rad>.76){c.fillStyle=`rgba(${starCol[0]},${starCol[1]},${starCol[2]},${Math.min(.22,alpha*.46)})`;c.fillRect(q.x-starR*2.35,q.y-.18,starR*4.7,.36);c.fillRect(q.x-.18,q.y-starR*1.7,.36,starR*3.4)}continue}if(p.kind==="dust"){const dustR=Math.max(.42,rad*.74);c.fillStyle=`rgba(${p.col[0]},${p.col[1]},${p.col[2]},${Math.min(.42,alpha*1.85)})`;stellarPath(q.x,q.y,dustR,Math.max(.08,dustR*.18),4,p.phase);c.fill();continue}if(false&&p.kind==="dust"){const dr=',
 ];
 
-const ENTRY_STAGE_VISIBILITY_REPLACEMENT: Replacement = [
-  'function shouldRenderGalaxy(){const intro=document.getElementById("intro");return !document.hidden&&(!intro||intro.classList.contains("fade")||getComputedStyle(intro).display==="none")}',
-  'function shouldRenderGalaxy(){const intro=document.getElementById("intro"),stage=frameElement,stageVisible=!stage||stage.id==="nur-entry-stage"?!stage.classList.contains("is-exiting")&&stage.getAttribute("aria-hidden")!=="true":stage.id==="nur-universe-stage"?stage.classList.contains("is-visible")&&stage.getAttribute("aria-hidden")!=="true":true;return !document.hidden&&stageVisible&&(!intro||intro.classList.contains("fade")||getComputedStyle(intro).display==="none")}',
-];
+/*
+ * Rendering used to be gated on the exact class `is-visible`. Any lifecycle
+ * hiccup that left the class off — a transition interrupted, a route restored
+ * from history, a stage attached before the class is applied — froze the canvas
+ * on a stage the user was actually looking at, which is one of the ways the
+ * galaxy went missing.
+ *
+ * The stage is now asked whether it is *actually being displayed*: real layout
+ * box, not `display:none`, not `visibility:hidden`, not transparent, and not
+ * `aria-hidden`. That is observable truth rather than a naming convention, so it
+ * cannot drift when the class names do. `is-exiting` is still honoured, because
+ * during a transition the stage is genuinely on its way out.
+ */
+/*
+ * The result is cached for 250ms. `frameElement` belongs to the *parent*
+ * document, so `getBoundingClientRect` and `getComputedStyle` on it force a
+ * synchronous layout of the parent from inside the iframe. Measured
+ * uncached-per-frame on /systems: p50 104ms, roughly 9.6 FPS, with a
+ * characteristic stall-then-burst pattern that did not scale with canvas area —
+ * the tell that this was a layout stall rather than fill-rate cost.
+ *
+ * 250ms is far below any transition the check needs to notice, and the
+ * MutationObserver below invalidates it immediately on a class or aria change,
+ * so nothing waits a quarter second to start or stop rendering.
+ */
+const STAGE_VISIBILITY_FN =
+  "var __nurStageVis=true,__nurStageVisAt=0;" +
+  "function __nurStageVisible(){const stage=frameElement;if(!stage)return true;" +
+  'if(stage.getAttribute("aria-hidden")==="true")return false;' +
+  'if(stage.classList.contains("is-exiting"))return false;' +
+  "const box=stage.getBoundingClientRect();if(box.width<2||box.height<2)return false;" +
+  "const view=stage.ownerDocument&&stage.ownerDocument.defaultView;if(!view)return true;" +
+  "const cs=view.getComputedStyle(stage);" +
+  'if(cs.display==="none"||cs.visibility==="hidden"||parseFloat(cs.opacity||"1")<.02)return false;' +
+  "return true}" +
+  "function shouldRenderGalaxy(){if(document.hidden)return false;" +
+  "const now=Date.now();if(now-__nurStageVisAt<250)return __nurStageVis;" +
+  "__nurStageVisAt=now;__nurStageVis=__nurStageVisible();return __nurStageVis}";
 
 const UNIVERSE_STAGE_VISIBILITY_REPLACEMENT: Replacement = [
   "function shouldRenderGalaxy(){return !document.hidden}",
-  'function shouldRenderGalaxy(){const stage=frameElement;if(document.hidden)return false;if(!stage)return true;if(stage.id==="nur-entry-stage")return !stage.classList.contains("is-exiting")&&stage.getAttribute("aria-hidden")!=="true";if(stage.id==="nur-universe-stage")return stage.classList.contains("is-visible")&&stage.getAttribute("aria-hidden")!=="true";return true}',
+  STAGE_VISIBILITY_FN,
+];
+
+/*
+ * Entry keeps its extra condition — the intro overlay must have faded — but the
+ * stage half of the test is the same observable-visibility check the universe
+ * uses, rather than a second copy of the class-name guesswork.
+ */
+const ENTRY_STAGE_VISIBILITY_REPLACEMENT: Replacement = [
+  'function shouldRenderGalaxy(){const intro=document.getElementById("intro");return !document.hidden&&(!intro||intro.classList.contains("fade")||getComputedStyle(intro).display==="none")}',
+  STAGE_VISIBILITY_FN.replace(
+    "return true}",
+    'const intro=document.getElementById("intro");' +
+      'return !intro||intro.classList.contains("fade")||getComputedStyle(intro).display==="none"}',
+  ),
 ];
 
 const GALAXY_STAGE_OBSERVER_REPLACEMENT: Replacement = [
   'document.addEventListener("visibilitychange",()=>{if(document.hidden){last=0}else{last=0;wakeGalaxy()}},{passive:true});',
-  'document.addEventListener("visibilitychange",()=>{if(document.hidden){last=0}else{last=0;wakeGalaxy()}},{passive:true});const galaxyStage=frameElement;if(galaxyStage)new MutationObserver(()=>{if(shouldRenderGalaxy()){last=0;wakeGalaxy()}else{if(frameRAF)cancelAnimationFrame(frameRAF);frameRAF=0;last=0}}).observe(galaxyStage,{attributes:true,attributeFilter:["class","aria-hidden"]});',
+  'document.addEventListener("visibilitychange",()=>{if(document.hidden){last=0}else{last=0;__nurStageVisAt=0;wakeGalaxy()}},{passive:true});const galaxyStage=frameElement;if(galaxyStage)new MutationObserver(()=>{__nurStageVisAt=0;if(shouldRenderGalaxy()){last=0;wakeGalaxy()}else{if(frameRAF)cancelAnimationFrame(frameRAF);frameRAF=0;last=0}}).observe(galaxyStage,{attributes:true,attributeFilter:["class","aria-hidden"]});',
 ];
 
 const GALAXY_PARTICLE_COMPACTION_REPLACEMENT: Replacement = [
@@ -71,19 +136,24 @@ const GALAXY_PROJECTION_CACHE_REPLACEMENTS: readonly Replacement[] = [
   ],
 ] as const;
 
+/*
+ * Entry is the first thing anyone sees, so its galaxy is restored to canonical
+ * density on desktop and thinned only on phones. The 34ms frame gap is deleted
+ * for the same reason as the universe one: it capped Entry at 29 FPS.
+ */
 const ENTRY_REPLACEMENTS: readonly Replacement[] = [
-  ["DPR=Math.min(devicePixelRatio||1,1.65)", "DPR=Math.min(devicePixelRatio||1,1.15)"],
+  ["DPR=Math.min(devicePixelRatio||1,1.65)", pixelBudgetDpr(1.5, 3_400_000)],
   [
     "const mobile=innerWidth<700;",
     "const mobile=Math.max(innerWidth,parent.innerWidth||0)<700;",
   ],
-  ["(mobile?680:1140)", "(mobile?500:860)"],
-  ["(mobile?460:720)", "(mobile?290:500)"],
-  ["(mobile?192:320)", "(mobile?84:145)"],
-  ["(mobile?44:76)", "(mobile?24:38)"],
+  ["(mobile?680:1140)", "(mobile?520:900)"],
+  ["(mobile?460:720)", "(mobile?340:585)"],
+  ["(mobile?192:320)", "(mobile?96:165)"],
+  ["(mobile?44:76)", "(mobile?26:48)"],
   [
     'const nodes=proj.filter(v=>v.p.kind==="galaxy"&&v.q.scale<.36).slice(0,130);',
-    'const nodes=nodeCache;nodes.length=0;for(let nodeIndex=0;nodeIndex<proj.length&&nodes.length<18;nodeIndex++){const candidate=proj[nodeIndex];if(candidate.p.kind==="galaxy"&&candidate.q.scale<.36)nodes.push(candidate)}',
+    'const nodes=nodeCache;nodes.length=0;const entryNodeBudget=innerWidth<700?28:64;for(let nodeIndex=0;nodeIndex<proj.length&&nodes.length<entryNodeBudget;nodeIndex++){const candidate=proj[nodeIndex];if(candidate.p.kind==="galaxy"&&candidate.q.scale<.36)nodes.push(candidate)}',
   ],
   ...GALAXY_PROJECTION_CACHE_REPLACEMENTS,
   GALAXY_PARTICLE_COMPACTION_REPLACEMENT,
@@ -91,31 +161,39 @@ const ENTRY_REPLACEMENTS: readonly Replacement[] = [
   GALAXY_STAR_PAINT_REPLACEMENT,
   ENTRY_STAGE_VISIBILITY_REPLACEMENT,
   GALAXY_STAGE_OBSERVER_REPLACEMENT,
-  [
-    "function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const rawDt=now-last;",
-    "function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const minFrameGap=innerWidth<700?44:34;if(now-last<minFrameGap){scheduleFrame();return}const rawDt=now-last;",
-  ],
 ] as const;
 
+/*
+ * The universe profile previously traded away the product to buy frame budget,
+ * and then capped the frame rate anyway. Four of its replacements are deleted
+ * rather than retuned, because each one removed something the founder listed as
+ * a release requirement:
+ *
+ *   DPR 1.5 -> 1              flattened every star on a HiDPI display
+ *   drawNebula -> if(false)   removed deep-space structure outright
+ *   far spike -> continue     removed the far stellar plane's diffraction, so
+ *                             near/mid/far collapsed into one flat layer
+ *   minFrameGap 42ms          hard-capped desktop motion at 23.8 FPS, which is
+ *                             the choppiness itself, not a fix for it
+ *
+ * What survives is the optimisation that costs nothing visible: reusable
+ * projection buffers instead of per-frame array allocation, in-place particle
+ * compaction, and the cached four-point stellar sprite. Density is reduced on
+ * phones only, where the panel is physically smaller.
+ */
 const UNIVERSE_REPLACEMENTS: readonly Replacement[] = [
-  ["DPR=Math.min(devicePixelRatio||1,1.5)", "DPR=Math.min(devicePixelRatio||1,1)"],
-  ["const PARTICLE_CAP=1880", "const PARTICLE_CAP=1200"],
+  ["DPR=Math.min(devicePixelRatio||1,1.5)", pixelBudgetDpr(1.5, 3_400_000)],
   [
     "const mobile=innerWidth<700;",
     "const mobile=Math.max(innerWidth,parent.innerWidth||0)<700;",
   ],
   [
     "const density=mobile?{galaxy:620,far:430,dust:118,super:32}:{galaxy:900,far:585,dust:165,super:48}",
-    "const density=mobile?{galaxy:660,far:370,dust:100,super:30}:{galaxy:660,far:370,dust:100,super:30}",
+    "const density=mobile?{galaxy:520,far:340,dust:96,super:26}:{galaxy:900,far:585,dust:165,super:48}",
   ],
   [
     'const nodeBudget=innerWidth<700?54:82;const nodes=proj.filter(v=>v.p.kind==="galaxy"&&v.q.scale<.36).slice(0,nodeBudget);',
-    'const nodeBudget=innerWidth<700?10:16,nodes=nodeCache;nodes.length=0;for(let nodeIndex=0;nodeIndex<proj.length&&nodes.length<nodeBudget;nodeIndex++){const candidate=proj[nodeIndex];if(candidate.p.kind==="galaxy"&&candidate.q.scale<.36)nodes.push(candidate)}',
-  ],
-  ["if(profile.nebula>.48)drawNebula(t);", "if(false)drawNebula(t);"],
-  [
-    "if(farAlpha>.095&&farR>.7)spike(q.x,q.y,farR*2.4,farCol,Math.min(.12,farAlpha*.24),phase);continue",
-    "continue",
+    'const nodeBudget=innerWidth<700?28:64,nodes=nodeCache;nodes.length=0;for(let nodeIndex=0;nodeIndex<proj.length&&nodes.length<nodeBudget;nodeIndex++){const candidate=proj[nodeIndex];if(candidate.p.kind==="galaxy"&&candidate.q.scale<.36)nodes.push(candidate)}',
   ],
   ...GALAXY_PROJECTION_CACHE_REPLACEMENTS,
   GALAXY_PARTICLE_COMPACTION_REPLACEMENT,
@@ -123,10 +201,6 @@ const UNIVERSE_REPLACEMENTS: readonly Replacement[] = [
   GALAXY_STAR_PAINT_REPLACEMENT,
   UNIVERSE_STAGE_VISIBILITY_REPLACEMENT,
   GALAXY_STAGE_OBSERVER_REPLACEMENT,
-  [
-    "function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const rawDt=now-last;",
-    "function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const minFrameGap=innerWidth<700?48:42;if(now-last<minFrameGap){scheduleFrame();return}const rawDt=now-last;",
-  ],
 ] as const;
 
 export type V197ProfileResult = {

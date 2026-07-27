@@ -85,15 +85,45 @@ owner_me = ensure_user(owner, OWNER_EMAIL, OWNER_PASSWORD, "Selene")
 ensure_user(recipient, RECIPIENT_EMAIL, RECIPIENT_PASSWORD, "Recipient")
 
 orbits = owner.get(f"{API}/api/v1/orbits").json()
+# The System set comes from the API's own catalog module, not from a copy.
+#
+# It used to be a hard-coded list of the original seven — Ambition, Rebuild,
+# Study, Money, Body, Connection, Creation. When the product moved to six
+# (Study, Money and Body retired; Growth and Introspection added) this list was
+# never updated, so the seed created three orbits for Systems that no longer
+# exist and none for the two that do. `owned_system_orbit` resolves a System by
+# *title*, so the first request touching a new System failed with
+# "Introspection System not found."
+#
+# The catalog cannot be read over HTTP here: `GET /api/v1/systems` builds a
+# snapshot per System, and each snapshot calls `owned_system_orbit`, so that
+# endpoint is the very thing that 404s before the orbits exist. Importing the
+# module is therefore both the correct source and the only one available at this
+# point in the seed. This script already runs under `apps/api/.venv`.
+sys.path.insert(0, str(pathlib.Path("apps/api").resolve()))
+from app.living.catalog import SYSTEMS as CATALOG_SYSTEMS  # noqa: E402
+
+# Orbit kinds are a presentation detail of the demo owner, not part of the
+# catalog contract; anything unlisted seeds as CREATIVE.
+SYSTEM_ORBIT_KINDS = {
+    "ambition": "CREATIVE",
+    "rebuild": "CARE",
+    "creation": "CREATIVE",
+    "growth": "RESEARCH",
+    "introspection": "CARE",
+    "connection": "CARE",
+}
 core_systems = [
-    ("Ambition", "CREATIVE", "Build meaningful work without abandoning quiet."),
-    ("Rebuild", "CARE", "Recover capacity and rebuild from what is real."),
-    ("Study", "RESEARCH", "Turn questions into grounded understanding."),
-    ("Money", "PROJECT", "Build material freedom with evidence and intent."),
-    ("Body", "CARE", "Keep embodied capacity inside every decision."),
-    ("Connection", "CARE", "Hold relationships without losing the self."),
-    ("Creation", "CREATIVE", "Move imagination into finished form."),
+    (
+        system.title,
+        SYSTEM_ORBIT_KINDS.get(system.slug, "CREATIVE"),
+        system.definition.split(".")[0].strip() + ".",
+    )
+    for system in CATALOG_SYSTEMS
 ]
+if not core_systems:
+    raise SystemExit("seed aborted: the System catalog is empty")
+
 by_title = {row["title"]: row for row in orbits if row.get("kind") != "PERSONAL_BRIDGE"}
 for title, kind, description in core_systems:
     if title in by_title:
@@ -103,6 +133,11 @@ for title, kind, description in core_systems:
         "kind": kind,
         "description": description,
     }), f"create demo System {title}")
+
+# Fail loudly here rather than three steps later inside an unrelated request.
+missing = [title for title, _, _ in core_systems if title not in by_title]
+if missing:
+    raise SystemExit(f"seed aborted: Systems missing after seeding: {', '.join(missing)}")
 orbit = by_title["Ambition"]
 owner.patch(f"{API}/api/v1/profile/preferences", headers=csrf(owner), json={
     "active_orbit_id": orbit["id"],
