@@ -197,7 +197,16 @@
   /* ---- camera / interaction state --------------------------------------- */
   let W=0,H=0,cx=0,cy=0,scale=1,DPR=1;
   let onscreen=true,lastFrame=0;
-  const MIN_FRAME_GAP=MOBILE?40:30;
+  // Two canvases share this document: the full-viewport star field and this
+  // brain. Measured on /systems, hiding the brain roughly doubled the galaxy's
+  // rate (9.2 -> 18.9 Hz), so the two were competing for the same frame budget.
+  //
+  // The brain yields when the galaxy is present. It is a slowly drifting cloud —
+  // at 20Hz it is indistinguishable from 33Hz — while the star field carries the
+  // parallax the eye actually tracks. When the brain is the only canvas in the
+  // document it keeps the original cadence.
+  const GALAXY_PRESENT=!!document.querySelector('#space3d');
+  const MIN_FRAME_GAP=MOBILE?(GALAXY_PRESENT?66:40):(GALAXY_PRESENT?50:30);
   let cosYaw=1,sinYaw=0,cosPitch=1,sinPitch=0;
   let yaw=.85, pitch=-.14, vyaw=REDUCED?0:.0022, vpitch=0;
   let zoom=1, targetZoom=1;
@@ -217,7 +226,15 @@
       return !frameStage.classList.contains('is-exiting') && frameStage.getAttribute('aria-hidden')!=='true';
     }
     if(frameStage.id==='nur-universe-stage'){
-      return frameStage.classList.contains('is-visible') && frameStage.getAttribute('aria-hidden')!=='true';
+      // Observable display state rather than a class name. A stage that is on
+      // screen but momentarily without `is-visible` used to freeze this canvas.
+      if(frameStage.getAttribute('aria-hidden')==='true') return false;
+      const box=frameStage.getBoundingClientRect();
+      if(box.width<2||box.height<2) return false;
+      const view=frameStage.ownerDocument&&frameStage.ownerDocument.defaultView;
+      if(!view) return true;
+      const cs=view.getComputedStyle(frameStage);
+      return cs.display!=='none'&&cs.visibility!=='hidden'&&parseFloat(cs.opacity||'1')>=0.02;
     }
     return true;
   }
