@@ -699,7 +699,7 @@ function renderVisibleLens(
   snapshot: V197BridgeSnapshot,
   focus: string,
 ): void {
-  if (!["map", "orbits", "timeline", "insights", "community"].includes(focus)) return;
+  if (!["map", "orbits", "timeline", "insights", "community", "research", "web"].includes(focus)) return;
   const panel = document.querySelector<HTMLElement>(".universe-insight-panel");
   if (!panel) return;
   panel.dataset.nurLens = focus;
@@ -787,6 +787,32 @@ function renderVisibleLens(
       : "Create one bounded room to open Group NUR; no public feed is faked.";
     uncertainty = "Private Talk, Journal, Timeline, and Omega never enter a room automatically.";
     signals.push(...rooms.slice(0, 3).map(room => `${room.title} · ${room.current_user_role.toLowerCase()}${room.is_demo ? " · DEMO" : ""}`));
+  }
+
+  if (focus === "research") {
+    const briefs = snapshot.researchBriefs;
+    const latest = briefs[0];
+    count = briefs.length;
+    title = latest?.question ?? "No persisted research question yet";
+    copy = latest
+      ? `${briefs.length} owner-staged ${briefs.length === 1 ? "brief" : "briefs"} · latest status ${latest.status.toLowerCase()}.`
+      : "Stage one question; NUR will hold it without inventing a source.";
+    uncertainty = latest
+      ? `Provider status: ${latest.provider_status.toLowerCase()} · summaries remain empty until evidence is returned.`
+      : "No external research provider has returned evidence.";
+    signals.push(...briefs.slice(0, 3).map(row => `${row.question} · ${row.provider_status.toLowerCase()}`));
+  }
+
+  if (focus === "web") {
+    const briefs = snapshot.researchBriefs;
+    const connected = briefs.filter(row => row.provider_status === "CONNECTED");
+    count = connected.length;
+    title = connected.length ? `${connected.length} provider-returned web signals` : "No fetched web signal yet";
+    copy = connected.length
+      ? `${briefs.length} staged questions · ${connected.length} connected provider results.`
+      : `${briefs.length} owner-staged ${briefs.length === 1 ? "question" : "questions"} · no external result is presented as fetched.`;
+    uncertainty = "Web Signals remains provider-neutral and labels disconnected evidence honestly.";
+    signals.push(...briefs.slice(0, 3).map(row => `${row.question} · ${row.provider_status.toLowerCase()}`));
   }
 
   if (focus === "insights") {
@@ -918,6 +944,26 @@ export function renderWorldLens(
       );
     });
     lane.setAttribute("aria-label", "Persisted community rooms");
+    return;
+  }
+
+  if (focus === "research" || focus === "web") {
+    const briefs = snapshot.researchBriefs.slice(0, 3);
+    cards.forEach((card, index) => {
+      const row = briefs[index];
+      setLaneCard(
+        card,
+        focus === "research" ? row?.status ?? "owner research" : row?.provider_status ?? "web provider",
+        row?.question ?? (focus === "research" ? "No staged question" : "No fetched signal"),
+        row
+          ? (row.summary || (focus === "research" ? "Held without invented sources." : "No external result is presented as fetched."))
+          : "No persisted record in this slot.",
+      );
+    });
+    lane.setAttribute(
+      "aria-label",
+      focus === "research" ? "Owner research summary" : "Owner web-signal staging summary",
+    );
     return;
   }
 

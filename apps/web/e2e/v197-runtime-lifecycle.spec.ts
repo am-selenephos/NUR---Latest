@@ -20,16 +20,16 @@ test("V43 brain owns one extended runtime with circular dispersal", async ({ pag
   await expect(host).toHaveAttribute("data-nur-dispersal", "radial-circle");
   await expect(host).toHaveAttribute(
     "data-nur-point-count",
-    testInfo.project.name.includes("mobile") ? "708" : "1060",
+    testInfo.project.name.includes("mobile") ? "1355" : "2086",
   );
   await expect(host).toHaveAttribute(
     "data-nur-stem-point-count",
-    testInfo.project.name.includes("mobile") ? "69" : "105",
+    testInfo.project.name.includes("mobile") ? "97" : "147",
   );
   await expect(host).toHaveAttribute("data-nur-sparkle-profile", "exact-galaxy-rig-star");
   await expect(host).toHaveAttribute("data-nur-galaxy-paint", "v197-simple-galaxy-particle-v1");
   await expect(universe.locator("#nur-v43-exact-star-brain-runtime"))
-    .toHaveAttribute("data-nur-runtime-hash", "ee34405b119b8f2d7b6a5b4b7fdedff2e6875f9bd7d472aff6ab5b8473b8d347");
+    .toHaveAttribute("data-nur-runtime-hash", "8e249a704734e0d60bedff389883e90460338d14ac806c00ca6e5019b5834192");
   await expect(universe.locator("#v197-sparkfield")).toHaveCount(0);
 
   const v43Contract = await canvas.evaluate(element => {

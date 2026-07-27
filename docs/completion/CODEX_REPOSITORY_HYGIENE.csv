@@ -1,0 +1,664 @@
+path,bytes,classification,reason,action
+.dockerignore,257,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+.env.example,2749,KEEP_PRODUCT,small repository-owned source or configuration,retain
+.github/workflows/readiness.yml,2276,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+.gitignore,405,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+BUILD_WEEK_SUBMISSION.md,6608,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+COUSIN_RELEASE_STATUS.md,2211,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+COUSIN_START_HERE.md,793,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+DEMO_SCRIPT.md,1653,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+Makefile,649,KEEP_PRODUCT,small repository-owned source or configuration,retain
+NUR_RECENTLY_CHANGED_FILES.txt,92488,KEEP_PRODUCT,small repository-owned source or configuration,retain
+NUR_WIP_FILE_LIST.txt,975230,KEEP_PRODUCT,small repository-owned source or configuration,retain
+QUICKSTART_BOOT.md,1861,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+README.md,5410,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+RUNBOOK.md,1039,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+RUN_NUR.command,119,KEEP_PRODUCT,small repository-owned source or configuration,retain
+RUN_NUR.sh,12400,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+SECURITY_NOTES.md,1636,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+START_NUR.desktop,293,KEEP_PRODUCT,small repository-owned source or configuration,retain
+START_NUR.sh,2820,KEEP_PRODUCT,small repository-owned source or configuration,retain
+apps/api/Dockerfile,877,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic.ini,587,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/env.py,1134,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/script.py.mako,468,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0001_initial_schema.py,5345,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0002_rls_policies.py,7483,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0003_cognitive_substrate.py,15149,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0004_shared_orbit.py,21788,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0005_ai_readiness.py,5750,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0006_quiet_sound_default.py,511,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0007_nur_omega_research_layer.py,11116,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0008_omega_v1_review_queue.py,3218,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0009_feature_lock_profile_preferences.py,1241,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0010_product_surfaces_i18n.py,7702,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0011_track_a_glow_translation.py,7129,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0012_sol_living_system.py,11542,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0013_map_feasibility.py,3440,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0014_am_projects.py,9069,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0015_live_intelligence.py,8884,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0016_group_nur.py,9818,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0017_community_glow.py,2471,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0018_council_demo_markers.py,899,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0019_consultations.py,8153,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0020_notifications.py,2741,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0021_talk_stream_idempotency.py,807,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0022_password_recovery.py,2975,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0023_personal_memory_spine.py,12121,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0024_teach_nur_pipeline.py,12991,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0025_billing_revenue_spine.py,14250,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0026_glow_progression_spine.py,34182,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0027_translation_contract.py,4033,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0028_community_moderation.py,28815,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0029_group_research.py,26986,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0030_project_execution_storage.py,8146,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/alembic/versions/0031_six_star_systems.py,9825,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/__init__.py,0,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/ai/__init__.py,0,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/ai/audit.py,973,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/ai/budget.py,1236,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/ai/errors.py,2663,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/ai/openai_provider.py,12715,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/ai/prompts.py,2555,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/ai/provider.py,1808,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/ai/redaction.py,777,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/ai/schemas.py,1965,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/ai/structured_outputs.py,1077,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/__init__.py,0,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/deps.py,2858,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/health.py,2884,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/__init__.py,0,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/auth.py,3938,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/capsules.py,12723,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/cognition.py,26830,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/community.py,29257,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/community_moderation.py,20548,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/community_social.py,24589,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/consultations.py,14583,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/feasibility.py,12931,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/glow.py,21431,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/group_research.py,59667,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/hypotheses.py,8977,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/insights.py,15788,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/living.py,40499,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/map.py,29507,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/memory.py,10178,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/notifications.py,7525,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/ops.py,4202,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/orbits.py,20864,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/password_recovery.py,3853,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/product_surfaces.py,18712,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/profile.py,3795,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/projects.py,47603,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/timeline.py,15147,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/translations.py,17888,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/api/v1/universe.py,23360,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/billing/__init__.py,61,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/billing/entitlements.py,1707,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/billing/providers.py,6921,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/billing/routes.py,7612,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/billing/schemas.py,2458,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/billing/service.py,40624,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/__init__.py,0,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/correction_service.py,1012,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/cycle.py,2882,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/evaluation_service.py,550,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/evidence_packet.py,288,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/hybrid_retrieval.py,816,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/intelligence_kernel.py,16516,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/memory_candidate_service.py,1930,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/memory_service.py,5822,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/model_gateway.py,1791,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/personal_memory_service.py,18276,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/prediction_service.py,808,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/provenance.py,2770,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/response_composer.py,466,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/retrieval_policy.py,517,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/schemas.py,1009,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/streaming.py,8502,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/task_router.py,634,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/cognition/verifier.py,4017,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/community/__init__.py,41,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/community/access.py,4427,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/core/__init__.py,0,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/core/config.py,16411,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/core/logging.py,1675,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/core/security.py,3541,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/db/__init__.py,0,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/db/base.py,83,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/db/rls.py,1054,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/db/seed.py,1121,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/db/session.py,1093,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/i18n/__init__.py,56,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/i18n/catalog.py,3879,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/i18n/provider.py,6327,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/intelligence/__init__.py,87,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/intelligence/evaluation.py,11568,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/intelligence/routes.py,2113,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/intelligence/schemas.py,2134,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/intelligence/service.py,3408,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/learning/__init__.py,61,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/learning/routes.py,4479,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/learning/safety.py,5629,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/learning/schemas.py,5248,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/learning/service.py,30042,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/living/__init__.py,62,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/living/catalog.py,7618,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/living/service.py,22019,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/main.py,7598,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/__init__.py,4278,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/_mixins.py,997,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/audit.py,1086,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/billing.py,8695,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/cognition.py,16031,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/community.py,11963,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/community_social.py,7543,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/consent.py,1001,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/engagement.py,26181,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/events.py,1339,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/group_research.py,14274,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/intelligence.py,8023,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/learning.py,9588,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/living.py,9877,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/memory.py,4534,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/omega.py,14254,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/orbit.py,2108,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/password_recovery.py,1792,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/product.py,5038,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/profile.py,1755,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/projects.py,11947,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/session.py,948,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/sharing.py,7192,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/models/user.py,966,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/observability/__init__.py,63,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/observability/metrics.py,725,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/__init__.py,249,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/claim_service.py,3737,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/confirmation_policy.py,1600,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/consolidation_service.py,7984,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/contradiction_service.py,4264,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/due_owner_service.py,788,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/evaluation_cases_runner.py,1988,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/evaluators.py,538,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/evidence_graph.py,1772,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/experience_service.py,2832,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/export_service.py,2379,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/learning_proposal_service.py,2556,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/prediction_ledger.py,2463,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/prompts.py,434,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/replay_service.py,812,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/review_queue_service.py,4453,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/routes.py,15504,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/safety_law.py,2362,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/schemas.py,7565,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/semantic_extraction_service.py,4200,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/why_changed_service.py,2215,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/omega/workspace_service.py,3910,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/schemas/__init__.py,0,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/schemas/auth.py,1549,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/schemas/memory.py,4449,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/services/__init__.py,0,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/services/audit_service.py,554,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/services/auth_service.py,8050,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/services/domain_event_service.py,1618,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/services/dr.py,7188,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/services/engagement_policy.py,11879,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/services/glow_service.py,54005,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/services/object_storage.py,10215,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/services/password_delivery.py,4759,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/services/password_recovery_service.py,11036,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/services/project_execution.py,27097,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/services/rate_limit.py,3599,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/services/storage_hygiene.py,5675,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/sharing/__init__.py,0,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/sharing/capsule_service.py,10841,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/tests/__init__.py,0,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/conftest.py,7280,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/fixtures/omega_cases.jsonl,882,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/fixtures/omega_v1_messy_project_cases.jsonl,8199,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/fixtures/verifier_cases.jsonl,1827,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_ai_provider_failures.py,3793,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_ai_structured_outputs.py,394,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_am_project_execution.py,19206,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_am_project_quota.py,3584,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_am_project_recovery.py,5509,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_am_project_storage.py,9550,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_am_projects.py,9825,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_auth.py,5444,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_billing.py,27335,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_bounded_load.py,2596,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_capsules.py,13300,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_cognition.py,8615,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_cognition_streaming.py,9626,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_community_completion.py,19368,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_consultations.py,6827,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_demo_seed_consultation.py,5519,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_dr.py,5659,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_feature_lock_endpoints.py,4234,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_group_nur.py,9401,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_group_research_completion.py,24237,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_health.py,3086,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_intelligence_contracts.py,7341,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_live_intelligence.py,7657,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_live_universe.py,3916,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_notifications.py,2987,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_nur_spelling_guard.py,2750,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_omega.py,17697,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_ops_diagnostics.py,2415,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_password_recovery.py,15024,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_personal_memory.py,14702,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_product_surfaces.py,4850,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_rls.py,7606,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_run_isolation.py,4976,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_sol_contract_routes.py,5776,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_sol_living_system.py,25942,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_storage_hygiene.py,5096,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_teach_nur.py,14874,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_track_a_vertical_slice.py,6294,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_translations.py,11081,KEEP_TEST,executable product or release proof,retain
+apps/api/app/tests/test_verifier_grounding.py,866,KEEP_TEST,executable product or release proof,retain
+apps/api/app/universe/__init__.py,46,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/universe/live_service.py,23306,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/workers/__init__.py,0,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/workers/celery_app.py,802,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/app/workers/tasks.py,4222,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/pyproject.toml,679,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/requirements-dev.lock,120,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/api/requirements.lock,991,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/mobile/App.tsx,1280,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/mobile/README.md,300,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/mobile/app.json,284,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/mobile/native-stubs.d.ts,610,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/mobile/package.json,439,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/mobile/tsconfig.json,279,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/Dockerfile,344,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/e2e/auth.spec.ts,1469,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/button-registry.spec.ts,8837,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/capsule.spec.ts,7279,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/community-group-nur.spec.ts,6666,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/final-webkit-mobile.spec.ts,14809,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/fresh-signup.spec.ts,11766,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/full-interface.spec.ts,3343,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/global-setup.ts,1026,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/helpers/nurMocks.ts,32866,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/helpers/v197Geometry.ts,5295,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/landing-auth.spec.ts,5178,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/omega-research.spec.ts,14352,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/presentation-auth-recovery.spec.ts,5074,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/project-deliverables.spec.ts,10226,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/sol-live-new-surfaces.spec.ts,4210,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/sol-living-v197.spec.ts,12630,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/talk-persistence.spec.ts,1693,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/talk.spec.ts,16241,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/track-a-mobile-webkit.spec.ts,6378,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/track-a-sellable.spec.ts,26904,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/universe-lenses.spec.ts,5795,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v197-adjunct-forensic-style.spec.ts,4323,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v197-adjuncts.spec.ts,24390,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v197-control-matrix.spec.ts,12258,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v197-cool-black-galaxy-mandate.spec.ts,9423,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v197-core-routes-forensic.spec.ts,7374,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v197-forensic-shell.spec.ts,10242,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v197-host-parity.spec.ts,12678,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v197-language-wordmark.spec.ts,4069,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v197-performance-acceptance.spec.ts,29862,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v197-performance.spec.ts,16335,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v197-responsive-accessibility.spec.ts,5820,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v197-runtime-lifecycle.spec.ts,2858,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v197-star-brain.spec.ts,24590,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v197-universe-lenses-forensic.spec.ts,9430,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v8-chatbox-scroll.spec.ts,5259,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v8-cpu-budget.spec.ts,2924,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v8-star-brain-perf.spec.ts,3386,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v9-state-census.spec.ts,11127,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/v9-ui-census.spec.ts,8890,KEEP_TEST,executable product or release proof,retain
+apps/web/e2e/visual-readiness.spec.ts,37904,KEEP_TEST,executable product or release proof,retain
+apps/web/index.html,361,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/package.json,643,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/playwright.config.ts,1292,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/playwright.g04.config.ts,1370,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/playwright.sandbox.config.ts,428,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/public/manifest.webmanifest,714,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/public/nur-icon.svg,738,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/public/offline.html,670,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/public/robots.txt,3,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/public/service-worker.js,802,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/public/v197/NUR_V197_CHECKBOX_TICK_RESTORED.html,718041,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/scripts/rebuild-v197-canonical.mjs,4840,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/scripts/rebuild-v197-control-matrix.mjs,5505,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/__tests__/pwa-readiness.test.ts,1490,KEEP_TEST,executable product or release proof,retain
+apps/web/src/assets/fonts/bodoni-moda-v28-latin-italic.woff2,29644,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/assets/fonts/bodoni-moda-v28-latin-normal.woff2,46260,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/assets/fonts/crimson-pro-v28-latin-italic.woff2,51432,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/assets/fonts/crimson-pro-v28-latin-normal.woff2,48200,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197-api-auth-recovery.test.ts,3169,KEEP_TEST,executable product or release proof,retain
+apps/web/src/bridge/v197Accessibility.ts,1077,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197Adjuncts.ts,91007,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197ApiClient.ts,40075,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197Bindings.ts,41530,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197Brand.ts,1814,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197Bridge.ts,15617,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197Events.ts,3122,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197Fonts.ts,1814,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197Hydration.ts,58700,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197I18n.ts,11745,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197Mutations.ts,2296,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197PerformanceProfile.ts,9242,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197Polish.ts,7378,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197Rewards.ts,6116,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197Selectors.ts,881,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197StarBrain.ts,10167,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197StarSeal.ts,9917,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v197StreamClient.ts,7525,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/bridge/v43StarBrainRuntime.js,25145,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/lib/i18n.test.ts,2388,KEEP_TEST,executable product or release proof,retain
+apps/web/src/lib/i18n.ts,18470,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/main.ts,643,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/styles/v197-adjunct-forensic.css,15270,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/styles/v197-cosmic-skin.css,96022,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/styles/v197-functional.css,7889,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/styles/v197-holographic.css,11283,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/styles/v197-star-seal.css,6403,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/v197/accessibility.test.ts,1002,KEEP_TEST,executable product or release proof,retain
+apps/web/src/v197/adjunct-style.test.ts,1303,KEEP_TEST,executable product or release proof,retain
+apps/web/src/v197/contract.test.ts,2350,KEEP_TEST,executable product or release proof,retain
+apps/web/src/v197/contract.ts,3455,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/src/v197/performance-profile.test.ts,3653,KEEP_TEST,executable product or release proof,retain
+apps/web/src/v197/phase1-host.test.ts,2806,KEEP_TEST,executable product or release proof,retain
+apps/web/src/v197/responsive-accessibility.test.ts,1925,KEEP_TEST,executable product or release proof,retain
+apps/web/src/v197/star-brain-placement.test.ts,1056,KEEP_TEST,executable product or release proof,retain
+apps/web/src/v197/star-seal.test.ts,8279,KEEP_TEST,executable product or release proof,retain
+apps/web/src/v197/stream-client.test.ts,3498,KEEP_TEST,executable product or release proof,retain
+apps/web/src/v197/track-a-actions.test.ts,13043,KEEP_TEST,executable product or release proof,retain
+apps/web/src/v197/track-a-bridge.test.ts,11921,KEEP_TEST,executable product or release proof,retain
+apps/web/src/v197/track-a-hydration.test.ts,18519,KEEP_TEST,executable product or release proof,retain
+apps/web/src/v197/v43-star-brain-source.test.ts,5403,KEEP_TEST,executable product or release proof,retain
+apps/web/src/vite-env.d.ts,211,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/tsconfig.json,492,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+apps/web/vite.config.ts,5099,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+audit-output/00_CURRENT_GIT_STATE.md,4794,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/01_ARCHIVE_INTEGRITY.md,2590,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/ALL_PATHS.txt,252660,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/ALL_SHA256.txt,522212,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/CURRENT_GIT_FILE_VERDICT.csv,29040,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/CURRENT_GIT_GAP_REPORT.md,2798,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/CURRENT_GIT_TEST_EVIDENCE.md,3465,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/CURRENT_TRACKED_MANIFEST.txt,40547,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/FEATURE_REACHABILITY_MATRIX.csv,3101,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/FILE_LEDGER.csv,1034447,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/FINAL_FORENSIC_AUDIT.md,4275,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/GIT_HISTORY_REPORT.md,3300,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/GIT_LANE_RECONCILIATION.csv,1733,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/LIVE_TALK_PORT_COMPARISON.md,2861,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/PATH_VERSION_MATRIX.csv,111379,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/PRIORITIZED_EXECUTION_PLAN.md,4038,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/PRODUCT_COMPLETION_REPORT.md,2694,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/READ_COVERAGE.md,3187,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/RELEASE_VERDICT.md,2371,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/SECURITY_PRIVACY_REPORT.md,5247,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/SNAPSHOT_COMPARISON.md,3563,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/STRANDED_IMPLEMENTATIONS.md,3782,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/UNIQUE_TEXT_CANONICAL.txt,50893,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/current-index.patch,202,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+audit-output/current-working-tree.patch,391,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+docker-compose.dev.yml,171,KEEP_PRODUCT,small repository-owned source or configuration,retain
+docker-compose.yml,3000,KEEP_PRODUCT,small repository-owned source or configuration,retain
+docs/00-foundational-audit.md,4113,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/01-founder-intent-recovery.md,2634,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/02-full-ui-surface-inventory.md,2109,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/03-feature-to-ui-to-backend-map.md,1899,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/04-am-technology-integration-map.md,1839,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/05-nur-total-system-architecture.md,1698,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/06-v197-preservation-and-extension-plan.md,1323,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/07-track-a-vs-track-b-truth-table.md,2731,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/08-glow-economy-spec.md,1467,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/09-star-systems-spec.md,1681,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/10-today-body-mind-life-spec.md,1344,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/11-map-timeline-prediction-spec.md,1595,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/35-language-translation-engine.md,2456,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/37-frontend-forensic-rebuild-audit.md,9347,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/38-frontend-forensic-rebuild-final-report.md,20061,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/FABLE_EXECUTION_LEDGER.md,28122,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/FABLE_RECOVERY_STATUS.md,5154,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/am-projects-product-spec.md,2231,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/analytics-experiment-plan.md,1848,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/backend-reuse-inventory.md,2717,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/billing-entitlement-spec.md,4503,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/community-ssr-architecture.md,2171,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/conflict-and-supersession-report.md,2310,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/consultation-system.md,1626,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/context-capsule-spec.md,1728,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/data-flow-map.md,2496,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/engagement-loop-spec.md,2391,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/founder-intent-recovery.md,3122,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/glow-points-economy.md,1852,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/group-nur-architecture.md,2005,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/integration/ALL_NUR_WORK_INVENTORY.csv,13995,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/integration/FINAL_GITHUB_PUBLICATION_REPORT.md,3261,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/integration/NUR_WORK_RECONCILIATION_MATRIX.csv,4015,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/integration/tribe-g17/BLOCKERS.md,8884,REMOVE_STALE,construction-session state is superseded by final completion artifacts,remove after recorded review
+docs/integration/tribe-g17/ENV_INTEGRITY_INCIDENT.md,7044,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/integration/tribe-g17/EVIDENCE_INDEX.md,2932,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/integration/tribe-g17/G17_REQUIREMENT_MATRIX.csv,4997,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/integration/tribe-g17/MODEL_PROVENANCE.json,2456,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/integration/tribe-g17/NEXT_ACTION.md,1902,REMOVE_STALE,construction-session state is superseded by final completion artifacts,remove after recorded review
+docs/integration/tribe-g17/RESOURCE_PROFILE.json,3367,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/integration/tribe-g17/SESSION_LOG.jsonl,2620,REMOVE_STALE,construction-session state is superseded by final completion artifacts,remove after recorded review
+docs/integration/tribe-g17/STATE.json,2748,REMOVE_STALE,construction-session state is superseded by final completion artifacts,remove after recorded review
+docs/integration/tribe-g17/text_inference_probe.py,4432,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/integration/v5-completion/BLOCKERS.md,8386,REMOVE_STALE,construction-session state is superseded by final completion artifacts,remove after recorded review
+docs/integration/v5-completion/DECISION_LOG.md,11734,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/integration/v5-completion/EVIDENCE_INDEX.md,2716,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/integration/v5-completion/GATE_MATRIX.csv,1821,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/integration/v5-completion/NEXT_ACTION.md,2518,REMOVE_STALE,construction-session state is superseded by final completion artifacts,remove after recorded review
+docs/integration/v5-completion/PRE_EDIT_GIT_STATE.md,1624,REMOVE_STALE,construction-session state is superseded by final completion artifacts,remove after recorded review
+docs/integration/v5-completion/REQUIREMENT_MATRIX.csv,115901,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/integration/v5-completion/SESSION_LOG.jsonl,1448,REMOVE_STALE,construction-session state is superseded by final completion artifacts,remove after recorded review
+docs/integration/v5-completion/STATE.json,4101,REMOVE_STALE,construction-session state is superseded by final completion artifacts,remove after recorded review
+docs/intelligence-kernel.md,2060,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/interaction-registry.json,9081,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/interaction-registry.md,8110,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/missing-backend-build-map.md,2115,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/mobile-pwa-plan.md,1624,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/notification-reengagement-spec.md,1769,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/omega-spec.md,1902,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/presentation-auth-recovery.md,1365,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/reference/entry_decoded_v197.html,129089,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/reference/universe_decoded_v197.html,401468,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/release/v197-control-matrix.json,50710,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/release/v197-control-matrix.md,14550,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/remaining-gaps.md,3557,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/research-informed-product-decisions.md,4238,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/research-web-expert-tender-spec.md,1876,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/route-map.md,3263,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/security-boundary-map.md,2520,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/source-authority-report.md,1724,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/streaks-quests-levels.md,1840,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/test-plan.md,1872,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v197-adjuncts/capsule-contract.md,1914,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v197-adjuncts/omega-contract.md,1786,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v197-adjuncts/settings-contract.md,1756,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v197-before-after.md,1617,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v197-control-backend-map.md,5483,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v197-parity-inventory.md,5383,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v197-performance-report.md,5776,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v197-phase1-scope.md,1055,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v197-premium-polish-plan.md,2293,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v5/CODEX_NUR_COMPLETION_ORCHESTRATOR_V5_20260713.md,26966,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v5/NUR_EXACT_STATUS_LEDGER_V5_20260713.md,31708,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v5/NUR_LIVING_INTELLIGENCE_MASTERPLAN_V5_20260713.md,151215,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v5/NUR_V5_MASTERPACK_MANIFEST_20260713.json,2168,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v6/audit-claim-verification.csv,3009,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v6/conflict-and-supersession-report.md,5359,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v6/credential-exposure-inventory.csv,3274,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v6/current-capability-gap-map.md,29268,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v6/founder-decisions.md,9556,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v6/git-lineage-reconciliation.md,2375,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v6/source-authority-report.md,5233,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v8/AVAILABLE_CONNECTORS_AND_TOOLS.md,3296,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v8/CINEMATIC_QUALITY_RUBRIC.csv,3056,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v8/CONNECTOR_USAGE_LEDGER.csv,3358,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v8/CURRENT_VISUAL_ARCHITECTURE.md,4608,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v8/SLICE1_RESULT.md,5397,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v8/SYSTEMS_CANDIDATE_FREEZE.md,4025,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v9/BEST_UI_RESEARCH_LEDGER.csv,3930,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v9/CURRENT_UI_SCREEN_CENSUS.csv,6689,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v9/NUR_COMPLETE_UI_AUDIT.md,7310,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+docs/v9/NUR_COMPLETE_UI_FLAW_LEDGER.csv,9921,KEEP_DURABLE_DOC,bounded product architecture security or release documentation,retain
+evidence/20260724T225447Z/G00_EVIDENCE/git_status.log,238,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G00_EVIDENCE/report.md,546,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G00_EVIDENCE/result.json,1219,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G00_EVIDENCE/secret_scan.log,135,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G00_EVIDENCE/v197_integrity.log,1001,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G01_STATIC/alembic_single_head.log,97,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G01_STATIC/backend_tests.log,317,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G01_STATIC/diff_check.log,20,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G01_STATIC/mobile_typecheck.log,37,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G01_STATIC/release_naming.log,115,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G01_STATIC/report.md,1294,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G01_STATIC/result.json,3499,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G01_STATIC/ruff.log,61,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G01_STATIC/secret_scan.log,135,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G01_STATIC/v197_integrity.log,1001,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G01_STATIC/web_build.log,753,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G01_STATIC/web_typecheck.log,34,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G01_STATIC/web_unit_tests.log,263,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G02_AUTH/auth_backend_tests.log,214,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G02_AUTH/report.md,706,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G02_AUTH/result.json,1473,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G03_V197/control_matrix_fresh.log,161,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G03_V197/control_matrix_regen.log,740,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G03_V197/no_broken_controls.log,222,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G03_V197/report.md,908,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G03_V197/result.json,2351,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G03_V197/v197_integrity.log,1001,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G04_PERFORMANCE/report.md,667,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G04_PERFORMANCE/result.json,1227,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G05_LIVE_AI/provider_contract_tests.log,309,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G05_LIVE_AI/report.md,758,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G05_LIVE_AI/result.json,1660,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G05_LIVE_AI/secret_scan.log,135,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G06_RECOVERY/recovery_tests.log,191,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G06_RECOVERY/report.md,652,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G06_RECOVERY/result.json,1312,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G07_INTELLIGENCE/intelligence_tests.log,341,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G07_INTELLIGENCE/report.md,698,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G07_INTELLIGENCE/result.json,1602,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G08_REVENUE/billing_tests.log,222,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G08_REVENUE/report.md,587,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G08_REVENUE/result.json,1275,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G09_GLOW/glow_tests.log,222,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G09_GLOW/report.md,642,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G09_GLOW/result.json,1513,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G10_SYSTEMS/report.md,628,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G10_SYSTEMS/result.json,1355,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G10_SYSTEMS/systems_tests.log,258,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G11_LANGUAGE/report.md,725,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G11_LANGUAGE/result.json,1464,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G11_LANGUAGE/translation_tests.log,185,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G12_COMMUNITY/community_tests.log,243,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G12_COMMUNITY/report.md,730,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G12_COMMUNITY/result.json,1611,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G13_GROUP_RESEARCH/group_research_tests.log,258,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G13_GROUP_RESEARCH/report.md,617,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G13_GROUP_RESEARCH/result.json,1342,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G14_PROJECTS/project_tests.log,396,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G14_PROJECTS/report.md,628,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G14_PROJECTS/result.json,1492,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G15_SCALE_OPS/ops_tests.log,266,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G15_SCALE_OPS/report.md,695,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G15_SCALE_OPS/result.json,1514,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G16_FULL_RELEASE/report.md,849,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T225447Z/G16_FULL_RELEASE/result.json,1577,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T234034Z/G02_AUTH/auth_backend_tests.log,214,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T234034Z/G02_AUTH/browser_suite.log,1787,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T234034Z/G02_AUTH/report.md,593,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T234034Z/G02_AUTH/result.json,1587,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T234034Z/G03_V197/browser_suite.log,25778,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T234034Z/G03_V197/control_matrix_fresh.log,161,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T234034Z/G03_V197/control_matrix_regen.log,740,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T234034Z/G03_V197/no_broken_controls.log,222,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T234034Z/G03_V197/report.md,790,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T234034Z/G03_V197/result.json,2547,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T234034Z/G03_V197/v197_integrity.log,1001,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T234034Z/G05_LIVE_AI/live_two_turn_proof.log,630,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T234034Z/G05_LIVE_AI/provider_contract_tests.log,309,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T234034Z/G05_LIVE_AI/report.md,567,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T234034Z/G05_LIVE_AI/result.json,1580,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T234034Z/G05_LIVE_AI/secret_scan.log,135,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T235150Z/G05_LIVE_AI/live_two_turn_proof.log,938,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T235150Z/G05_LIVE_AI/provider_contract_tests.log,309,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T235150Z/G05_LIVE_AI/report.md,573,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T235150Z/G05_LIVE_AI/result.json,1627,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+evidence/20260724T235150Z/G05_LIVE_AI/secret_scan.log,135,ARCHIVE_EXTERNAL,historical run evidence is useful but should not inflate the release tree,archive then remove from release branch
+infra/scripts/auth-runtime-browser-proof.mjs,5026,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/boot-smoke.sh,2375,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/bootstrap-dev.sh,8573,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/check-v197-integrity.sh,370,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/configure-openai-local.sh,2060,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/dev-backup.sh,574,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/dev-doctor.sh,2480,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/dev-restore.sh,889,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/dr-backup.sh,1959,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/dr-drill.sh,3752,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/dr-restore.sh,2388,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/live-talk-two-turn-proof.mjs,4597,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/logs-nur.sh,461,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/nur-gate.sh,18351,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/open-nur.sh,275,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/openai-smoke-local.sh,5435,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/openai-ui-smoke.mjs,8912,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/package-bootable.sh,4304,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/presentation-recovery.sh,2992,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/release-gate.sh,3100,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/release-naming-scan.sh,1802,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/run-webkit-proof.sh,2586,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/secret-scan.sh,1711,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/seed-commercial-beta-demo.sh,1315,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/seed-demo-nur.sh,29807,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/start-nur.sh,2724,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/status-nur.sh,1944,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/stop-nur.sh,2185,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/scripts/validate-openai-local.sh,1409,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+infra/tests/boot-openai-contract.test.sh,807,KEEP_TEST,executable product or release proof,retain
+infra/tests/configure-openai-local.test.sh,1808,KEEP_TEST,executable product or release proof,retain
+infra/tests/validate-openai-local.test.sh,2097,KEEP_TEST,executable product or release proof,retain
+package-lock.json,66620,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+package.json,898,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+packages/shared-types/package.json,128,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+packages/shared-types/src/index.ts,794,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+packages/shared-types/tsconfig.json,156,KEEP_PRODUCT,runtime source migration configuration or operations code,retain
+proof/sol-living-v197/00g-v197-bodoni-holographic-rainbow-wordmark.png,1145004,ARCHIVE_EXTERNAL,large visual proof belongs outside the durable source tree,archive then remove from release branch
+proof/v10-six-systems/entry.png,449288,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v10-six-systems/journal-scroll.png,1006746,ARCHIVE_EXTERNAL,large visual proof belongs outside the durable source tree,archive then remove from release branch
+proof/v10-six-systems/journal.png,1636017,ARCHIVE_EXTERNAL,large visual proof belongs outside the durable source tree,archive then remove from release branch
+proof/v10-six-systems/systems.png,1624417,ARCHIVE_EXTERNAL,large visual proof belongs outside the durable source tree,archive then remove from release branch
+proof/v10-six-systems/talk-scroll.png,1010670,ARCHIVE_EXTERNAL,large visual proof belongs outside the durable source tree,archive then remove from release branch
+proof/v10-six-systems/talk.png,1719087,ARCHIVE_EXTERNAL,large visual proof belongs outside the durable source tree,archive then remove from release branch
+proof/v8-baseline/baseline-metrics.json,152,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-baseline/systems-1920x1080.png,1537866,ARCHIVE_EXTERNAL,large visual proof belongs outside the durable source tree,archive then remove from release branch
+proof/v8-baseline/systems-390x844.png,358503,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/binding-diagnostic.json,1319,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/frozen-visual-runtime/v197-cinematic-stage.css,4374,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/frozen-visual-runtime/v8-baseline-fps.spec.ts,3625,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/frozen-visual-runtime/v8-cinematic-systems.spec.ts,7722,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/frozen-visual-runtime/visual/DataBinding.ts,3780,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/frozen-visual-runtime/visual/MotionController.ts,5097,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/frozen-visual-runtime/visual/NURVisualRuntime.ts,14945,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/frozen-visual-runtime/visual/QualityTier.ts,4058,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/frozen-visual-runtime/visual/SceneOrchestrator.ts,14905,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/frozen-visual-runtime/visual/materials/SpriteAtlas.ts,5145,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/frozen-visual-runtime/visual/objects/DepthField.ts,4716,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/frozen-visual-runtime/visual/objects/NeuralCloud.ts,15642,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/frozen-visual-runtime/visual/scenes/SystemsScene.ts,14363,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/frozen-visual-runtime/visual/tests/visualRuntime.test.ts,19190,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/slice1-metrics.json,406,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/systems-1024x768.png,808147,ARCHIVE_EXTERNAL,large visual proof belongs outside the durable source tree,archive then remove from release branch
+proof/v8-candidate/systems-1366x768.png,1029488,ARCHIVE_EXTERNAL,large visual proof belongs outside the durable source tree,archive then remove from release branch
+proof/v8-candidate/systems-1440x900.png,1246694,ARCHIVE_EXTERNAL,large visual proof belongs outside the durable source tree,archive then remove from release branch
+proof/v8-candidate/systems-1920x1080.png,1720192,ARCHIVE_EXTERNAL,large visual proof belongs outside the durable source tree,archive then remove from release branch
+proof/v8-candidate/systems-360x800.png,347416,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/systems-390x844.png,382287,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/systems-430x932.png,450340,KEEP_SMALL_PROOF,curated bounded visual proof,retain
+proof/v8-candidate/systems-768x1024.png,755735,ARCHIVE_EXTERNAL,large visual proof belongs outside the durable source tree,archive then remove from release branch
+scripts/check-v197-integrity.ts,1816,KEEP_PRODUCT,runtime source migration configuration or operations code,retain

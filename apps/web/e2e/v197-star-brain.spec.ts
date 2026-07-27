@@ -155,11 +155,11 @@ test("Entry replaces the center MasterStar with the exact interactive V43 brain"
   await expect(brain).toHaveAttribute("data-nur-dispersal", "radial-circle");
   await expect(brain).toHaveAttribute("title", /drag to spin the mind.+double-click: neural storm.+scroll to zoom/);
   await expect(entry.locator("#nur-v43-exact-star-brain-runtime"))
-    .toHaveAttribute("data-nur-runtime-hash", "ee34405b119b8f2d7b6a5b4b7fdedff2e6875f9bd7d472aff6ab5b8473b8d347");
+    .toHaveAttribute("data-nur-runtime-hash", "8e249a704734e0d60bedff389883e90460338d14ac806c00ca6e5019b5834192");
   await expect(brain.locator("#nur-brain-canvas")).toBeVisible();
 
-  const expectedPoints = testInfo.project.name.includes("mobile") ? "708" : "1060";
-  const expectedStemPoints = testInfo.project.name.includes("mobile") ? "69" : "105";
+  const expectedPoints = testInfo.project.name.includes("mobile") ? "1355" : "2086";
+  const expectedStemPoints = testInfo.project.name.includes("mobile") ? "97" : "147";
   await expect(brain).toHaveAttribute("data-nur-point-count", expectedPoints);
   await expect(brain).toHaveAttribute("data-nur-stem-point-count", expectedStemPoints);
   await expect(brain).toHaveAttribute("data-nur-sparkle-profile", "exact-galaxy-rig-star");
@@ -355,10 +355,10 @@ test("Systems map mounts only the exact brain and keeps the NUR lockup on one ax
   await expect(brain).toHaveAttribute("data-nur-dispersal", "radial-circle");
   await expect(brain.locator("#nur-brain-canvas")).toBeVisible();
   await expect(universe.locator("#nur-v43-exact-star-brain-runtime"))
-    .toHaveAttribute("data-nur-runtime-hash", "ee34405b119b8f2d7b6a5b4b7fdedff2e6875f9bd7d472aff6ab5b8473b8d347");
+    .toHaveAttribute("data-nur-runtime-hash", "8e249a704734e0d60bedff389883e90460338d14ac806c00ca6e5019b5834192");
 
-  const expectedPoints = testInfo.project.name.includes("mobile") ? "708" : "1060";
-  const expectedStemPoints = testInfo.project.name.includes("mobile") ? "69" : "105";
+  const expectedPoints = testInfo.project.name.includes("mobile") ? "1355" : "2086";
+  const expectedStemPoints = testInfo.project.name.includes("mobile") ? "97" : "147";
   await expect(brain).toHaveAttribute("data-nur-point-count", expectedPoints);
   await expect(brain).toHaveAttribute("data-nur-stem-point-count", expectedStemPoints);
   await expect(brain).toHaveAttribute("data-nur-sparkle-profile", "exact-galaxy-rig-star");
@@ -389,7 +389,8 @@ test("Systems map mounts only the exact brain and keeps the NUR lockup on one ax
         && rect.width > 0
         && rect.height > 0;
     };
-    const nodes = Array.from(panel.querySelectorAll<HTMLElement>(".universe-system-node"));
+    const nodes = Array.from(panel.querySelectorAll<HTMLElement>(".universe-system-node"))
+      .filter(visible);
     const mantra = panel.ownerDocument.querySelector<HTMLElement>(".universe-map-mantra")!;
     const selected = panel.querySelector<HTMLElement>(".universe-system-node.active")!;
     const title = panel.querySelector<HTMLElement>(".universe-map-title")!;
@@ -459,8 +460,8 @@ test("Systems map mounts only the exact brain and keeps the NUR lockup on one ax
     };
   });
   expect(mapContract.visibleRings).toBe(0);
-  expect(mapContract.nodeCount).toBe(7);
-  expect(mapContract.nativeGlyphs).toBe(7);
+  expect(mapContract.nodeCount).toBe(6);
+  expect(mapContract.nativeGlyphs).toBe(6);
   expect(mapContract.generatedNodeArt).toBe(0);
   expect(Math.max(...mapContract.widths) - Math.min(...mapContract.widths)).toBeLessThanOrEqual(1);
   expect(Math.max(...mapContract.heights) - Math.min(...mapContract.heights)).toBeLessThanOrEqual(1);

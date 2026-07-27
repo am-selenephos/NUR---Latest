@@ -126,7 +126,7 @@ test("reduced motion leaves the exact brain intact and collapses decorative timi
       sparkfield: document.querySelectorAll("#v197-sparkfield").length,
     };
   });
-  expect([708, 1060]).toContain(result.points);
+  expect([1355, 2086]).toContain(result.points);
   expect(Number.parseFloat(result.animationDuration ?? "1")).toBeLessThanOrEqual(.00001);
   expect(Number.parseFloat(result.transitionDuration ?? "1")).toBeLessThanOrEqual(.00001);
   expect(result.sparkfield).toBe(0);

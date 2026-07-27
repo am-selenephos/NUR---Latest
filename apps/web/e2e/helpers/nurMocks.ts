@@ -44,6 +44,116 @@ export const mockClaim = {
   updated_at: now,
 };
 
+const systemTitles = [
+  "Ambition",
+  "Rebuild",
+  "Creation",
+  "Growth",
+  "Introspection",
+  "Connection",
+] as const;
+
+const mockSystems = systemTitles.map((title, index) => {
+  const slug = title.toLowerCase();
+  return {
+    slug,
+    title,
+    definition: `${title} is held in the persisted owner ledger.`,
+    orbit_id: index === 0 ? mockOrbit.id : `system-${slug}`,
+    questions: [`What matters inside ${title}?`],
+    checklist: [],
+    progress_percent: 0,
+    progress_sources: {
+      completed_actions: 0,
+      total_actions: 0,
+      action_completion_percent: 0,
+      goal_progress_percent: 0,
+      latest_diagnostic_score: 0,
+      glow_points: 0,
+      formula: "Persisted owner evidence only.",
+    },
+    active_goal_count: 0,
+    goals: [],
+    actions: [],
+    blockers: [],
+    next_move: { kind: "NONE", id: null, title: `Choose one honest ${title} move.` },
+    prediction: {
+      if_ignored: "No outcome has been persisted.",
+      if_followed: "A returned outcome can update this System.",
+      basis: {},
+      provenance_label: "OWNER_LEDGER",
+    },
+  };
+});
+
+const mockToday = {
+  date: now.slice(0, 10),
+  day_label: "Today",
+  local_time: "12:00",
+  timezone: "UTC",
+  daypart: "day",
+  body: { score: 0, sources: {}, calculation: "No persisted reading." },
+  mind: { score: 0, sources: {}, calculation: "No persisted reading." },
+  life: { score: 0, sources: {}, calculation: "No persisted reading." },
+  glow_today: 0,
+  active_systems: mockSystems,
+  active_goals: [],
+  active_plans: [],
+  scheduled_today: [],
+  completed_today: [],
+  missed_today: [],
+  daily_quest: {},
+  next_move: null,
+  latest_insight: null,
+  latest_timeline_event: null,
+  return_check: null,
+  provenance_label: "OWNER_LEDGER",
+};
+
+const mockLiveUniverse = {
+  generated_at: now,
+  provenance_label: "OWNER_LEDGER_AGGREGATE",
+  owner: {
+    id: mockUser.id,
+    email: mockUser.email,
+    chosen_name: mockUser.profile.chosen_name,
+    timezone: "UTC",
+    locale: "en",
+    writing_preference: "default",
+    default_boundary: "PRIVATE_ORBIT",
+  },
+  state: {
+    summary: "Six founder-locked Systems are active.",
+    source_count: 0,
+    confidence: 0,
+    confidence_kind: "source_coverage_not_truth_probability",
+    last_updated: now,
+    today: mockToday,
+    provenance_label: "DETERMINISTIC_OWNER_LEDGER_SYNTHESIS",
+  },
+  active_systems: mockSystems,
+  active_goals: [],
+  active_objectives: [],
+  active_plans: [],
+  people_orbits: [],
+  group_orbits: [],
+  projects: [],
+  latest_insights: [],
+  timeline_highlights: [],
+  open_loops: [],
+  next_moves: [],
+  glow: { today_points: 0 },
+  signals: [],
+  community: {
+    live_connected: false,
+    status: "LOCAL_NOTES_ONLY",
+    note_count: 0,
+    latest_note: null,
+    honest_state: "No live community activity is invented.",
+  },
+  what_changed: [],
+};
+
 type MockState = {
   events: Array<Record<string, unknown>>;
   decisions: Array<Record<string, unknown>>;
@@ -207,7 +317,7 @@ export async function installNurMocks(page: Page) {
 
     if (path === "/api/v1/auth/me") return json(route, mockUser);
     if (path === "/api/v1/auth/logout") return json(route, undefined, 204);
-    if (path === "/api/v1/universe/live") return json(route, null);
+    if (path === "/api/v1/universe/live") return json(route, mockLiveUniverse);
     if (path === "/api/v1/map") return json(route, null);
     if (path === "/api/v1/glow/scoreboard") return json(route, null);
     if (path === "/api/v1/glow/summary") return json(route, {
@@ -227,7 +337,7 @@ export async function installNurMocks(page: Page) {
     if (path === "/api/v1/projects/summary") return json(route, null);
     if (path === "/api/v1/community/rooms" && method === "GET") return json(route, []);
     if (path === "/api/v1/orbits/current-state") return json(route, {
-      active_systems: 1,
+      active_systems: mockSystems.length,
       outcomes_returned: state.outcomePosts,
       insights_evolving: 2,
       open_questions: 1,
@@ -241,7 +351,14 @@ export async function installNurMocks(page: Page) {
         { key: "orbits", label: "owner-owned orbits", count: 1 },
         { key: "outcomes", label: "returned outcomes", count: state.outcomePosts },
       ],
-      nodes: state.orbits.map(row => ({ id: row.id, title: row.title, kind: row.kind, orbit_id: row.id, active: true, counts: { decisions: 1, references: 1, sources: 1, capsules: 1 } })),
+      nodes: mockSystems.map(row => ({
+        id: row.orbit_id,
+        title: row.title,
+        kind: "SYSTEM",
+        orbit_id: row.orbit_id,
+        active: true,
+        counts: { progress: row.progress_percent, glow: row.progress_sources.glow_points },
+      })),
     });
     if (path === "/api/v1/universe/orbits-summary") return json(route, {
       provenance_label: "owner_ledger",

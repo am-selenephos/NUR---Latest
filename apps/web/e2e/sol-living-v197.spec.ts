@@ -22,18 +22,28 @@ async function shot(page: Page, name: string): Promise<void> {
 async function expectSystemsInsideMap(page: Page): Promise<void> {
   const geometry = await page.frameLocator("#nur-universe-stage").locator(".universe-map-panel").evaluate(panel => {
     const map = panel.getBoundingClientRect();
-    return [...panel.querySelectorAll<HTMLElement>(".universe-system-node")].map(node => {
-      const rect = node.getBoundingClientRect();
-      return {
-        name: node.dataset.system ?? node.textContent?.trim() ?? "unknown",
-        inside: rect.left >= map.left - 1
-          && rect.right <= map.right + 1
-          && rect.top >= map.top - 1
-          && rect.bottom <= map.bottom + 1,
-      };
-    });
+    return [...panel.querySelectorAll<HTMLElement>(".universe-system-node")]
+      .filter(node => {
+        const style = getComputedStyle(node);
+        const rect = node.getBoundingClientRect();
+        return style.display !== "none"
+          && style.visibility !== "hidden"
+          && Number(style.opacity) > 0
+          && rect.width > 0
+          && rect.height > 0;
+      })
+      .map(node => {
+        const rect = node.getBoundingClientRect();
+        return {
+          name: node.dataset.system ?? node.textContent?.trim() ?? "unknown",
+          inside: rect.left >= map.left - 1
+            && rect.right <= map.right + 1
+            && rect.top >= map.top - 1
+            && rect.bottom <= map.bottom + 1,
+        };
+      });
   });
-  expect(geometry).toHaveLength(7);
+  expect(geometry).toHaveLength(6);
   expect(geometry.filter(node => !node.inside), JSON.stringify(geometry, null, 2)).toEqual([]);
 }
 
@@ -63,7 +73,7 @@ test("SOL living backend hydrates and moves the exact V197 presentation", async 
   if (!today.next_move) {
     await page.evaluate(async () => {
       const csrf = document.cookie.split("; ").find(row => row.startsWith("nur_csrf="))?.split("=")[1];
-      const response = await fetch("/api/v1/systems/quiet-ambition/actions", {
+      const response = await fetch("/api/v1/systems/ambition/actions", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": decodeURIComponent(csrf ?? "") },
         body: JSON.stringify({
@@ -91,13 +101,13 @@ test("SOL living backend hydrates and moves the exact V197 presentation", async 
   await expect(universe.locator("#page-today")).toBeVisible({ timeout: 20_000 });
   await universe.locator('[data-page="systems"]:visible').first().click();
   await expect(universe.locator("#page-systems")).toBeVisible();
-  await expect(universe.locator(".universe-system-node:visible")).toHaveCount(7);
-  await expect(universe.locator(".universe-system-node b")).toHaveText([
-    "Quiet Ambition", "Rebuild", "Study", "Money", "Body", "Connection", "Creation",
+  await expect(universe.locator(".universe-system-node:visible")).toHaveCount(6);
+  await expect(universe.locator(".universe-system-node:visible b")).toHaveText([
+    "Ambition", "Rebuild", "Creation", "Growth", "Introspection", "Connection",
   ]);
-  await universe.locator('.universe-system-node[data-system="Quiet Ambition"]').click();
+  await universe.locator('.universe-system-node[data-system="Ambition"]').click();
   await expect(universe.locator(".universe-system-node").first().locator("small")).toContainText(/% · \d+ Glow/);
-  await expect(universe.locator(".universe-insight-title h2")).toHaveText("Quiet Ambition");
+  await expect(universe.locator(".universe-insight-title h2")).toHaveText("Ambition");
   await expect(universe.locator(".universe-insight-copy")).toContainText("Private hunger");
   await expect(universe.locator(".universe-state-strip")).toContainText("calculated from owner evidence");
   await expect(universe.locator(".universe-system-lane")).toContainText("persisted Glow");
@@ -205,7 +215,7 @@ test("SOL living backend hydrates and moves the exact V197 presentation", async 
     const response = await fetch("/api/v1/map");
     return response.json() as Promise<{ counts: { systems: number; goals: number; open_predictions: number }; nodes: Array<{ kind: string }> }>;
   });
-  expect(graph.counts.systems).toBe(7);
+  expect(graph.counts.systems).toBe(6);
   expect(graph.counts.goals).toBeGreaterThan(0);
   expect(graph.counts.open_predictions).toBeGreaterThan(0);
   expect(graph.nodes.some(node => node.kind === "GLOW_MILESTONE")).toBe(true);

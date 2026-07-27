@@ -67,7 +67,8 @@ async function masterStarClearance(page: Page): Promise<{
   return page.frameLocator("#nur-universe-stage").locator(".universe-map-panel").evaluate(panel => {
     const panelRect = panel.getBoundingClientRect();
     const star = panel.querySelector<HTMLElement>(".universe-master-star")?.getBoundingClientRect();
-    const creation = panel.querySelector<HTMLElement>(".universe-system-node.neural")?.getBoundingClientRect();
+    const creationSelector = '.universe-system-node[data-system="Creation"]';
+    const creation = panel.querySelector<HTMLElement>(creationSelector)?.getBoundingClientRect();
     const title = panel.querySelector<HTMLElement>(".universe-map-title")?.getBoundingClientRect();
     // The lockup word and subtitle carry deliberate ink-compensation
     // translateX nudges (see v197-star-brain.spec.ts); center laws compare
@@ -94,7 +95,7 @@ async function masterStarClearance(page: Page): Promise<{
     // view for the hit-test. scrollIntoView may scroll ANY scrollable
     // ancestor (the map panel itself, not just .nur-viewport), and later
     // probes reuse pre-scroll coordinates — so every ancestor is restored.
-    const creationLabelElement = panel.querySelector<HTMLElement>(".universe-system-node.neural b");
+    const creationLabelElement = panel.querySelector<HTMLElement>(`${creationSelector} b`);
     let creationLabelOwned = false;
     if (creationLabelElement) {
       const scrolled: Array<{ element: HTMLElement | Element; top: number; left: number }> = [];
@@ -112,7 +113,7 @@ async function masterStarClearance(page: Page): Promise<{
         creationLabel.left + creationLabel.width / 2,
         creationLabel.top + creationLabel.height / 2,
       );
-      creationLabelOwned = Boolean(creationOwner?.closest(".universe-system-node.neural"));
+      creationLabelOwned = Boolean(creationOwner?.closest(creationSelector));
       for (const entry of scrolled) {
         entry.element.scrollTop = entry.top;
         entry.element.scrollLeft = entry.left;
@@ -120,6 +121,17 @@ async function masterStarClearance(page: Page): Promise<{
     }
     const clippedLabels = [...panel.querySelectorAll<HTMLElement>(".universe-system-node b")]
       .filter(label => {
+        const node = label.closest<HTMLElement>(".universe-system-node");
+        if (!node) return false;
+        const nodeStyle = getComputedStyle(node);
+        const nodeRect = node.getBoundingClientRect();
+        if (
+          nodeStyle.display === "none"
+          || nodeStyle.visibility === "hidden"
+          || Number(nodeStyle.opacity) === 0
+          || nodeRect.width === 0
+          || nodeRect.height === 0
+        ) return false;
         const rect = label.getBoundingClientRect();
         return rect.left < panelRect.left - 1 || rect.right > panelRect.right + 1;
       })
@@ -169,13 +181,13 @@ test("Track A owner mutation loop uses exact V197 controls", async ({ page }, te
   await expect(universe.locator("#page-today")).toBeVisible({ timeout: 20_000 });
   await universe.locator('[data-page="systems"]:visible').first().click();
   await expect(universe.locator("#page-systems")).toBeVisible({ timeout: 20_000 });
-  await expect(universe.locator(".universe-system-node:visible")).toHaveCount(7);
-  await expect(universe.locator(".universe-system-node b")).toHaveText([
-    "Quiet Ambition", "Rebuild", "Study", "Money", "Body", "Connection", "Creation",
+  await expect(universe.locator(".universe-system-node:visible")).toHaveCount(6);
+  await expect(universe.locator(".universe-system-node:visible b")).toHaveText([
+    "Ambition", "Rebuild", "Creation", "Growth", "Introspection", "Connection",
   ]);
   // Rows lead with the canonical native ✦ glyph; the title lives in the span.
   await expect(universe.locator(".clean-system-row:visible > span")).toHaveText([
-    "Quiet Ambition", "Rebuild", "Study", "Money", "Body", "Connection", "Creation",
+    "Ambition", "Rebuild", "Creation", "Growth", "Introspection", "Connection",
   ]);
   // World tabs lead with their canonical native glyph (e.g. "◌ Map").
   await expect(universe.locator('[data-world-tab="map"]')).toHaveText(/Map$/);
@@ -219,7 +231,7 @@ test("Track A owner mutation loop uses exact V197 controls", async ({ page }, te
   });
   expect(topbar).toEqual({ allTabsInside: true, navScrollable: false });
   await expect(universe.locator("#toast")).not.toHaveClass(/show/, { timeout: 7_000 });
-  await shot(page, "03-v197-seven-persisted-systems");
+  await shot(page, "03-v197-six-persisted-systems");
   await universe.locator(".universe-map-panel").scrollIntoViewIfNeeded();
   await shot(page, "03b-v197-overlap-free-map-1280");
 
@@ -257,16 +269,21 @@ test("Track A owner mutation loop uses exact V197 controls", async ({ page }, te
   await universe.locator('[data-send="today"]').click();
   await expect(universe.locator("#page-talk")).toHaveClass(/active/, { timeout: 20_000 });
   await expect(universe.locator("#talk-stream")).toContainText(todayLine);
-  const firstNurResponse = universe.locator("#talk-stream .talk-message.nur[data-event-id]").last();
-  await expect(firstNurResponse.locator(".talk-meta")).toContainText("model-generated", { timeout: 20_000 });
-  const firstNurResponseText = (await firstNurResponse.textContent())
-    ?.replace(/NUR\s*·\s*model-generated/i, "")
-    .trim() ?? "";
-  expect(firstNurResponseText.length).toBeGreaterThan(0);
   if (aiProvider === "openai") {
+    const firstNurResponse = universe.locator("#talk-stream .talk-message.nur[data-event-id]").last();
+    await expect(firstNurResponse.locator(".talk-meta")).toContainText("model-generated", { timeout: 20_000 });
+    const firstNurResponseText = (await firstNurResponse.textContent())
+      ?.replace(/NUR\s*·\s*model-generated/i, "")
+      .trim() ?? "";
+    expect(firstNurResponseText.length).toBeGreaterThan(0);
     await expect(firstNurResponse).not.toContainText(/AI is not connected|provider disabled/i);
   } else {
-    await expect(firstNurResponse).toContainText(/not connected|not enabled|disabled/i);
+    const honestDisabledResponse = universe.locator("#talk-stream .talk-message.nur[data-nur-talk-error='true']").last();
+    await expect(honestDisabledResponse.locator(".talk-meta"))
+      .toHaveText("NUR · could not answer", { timeout: 20_000 });
+    await expect(honestDisabledResponse)
+      .toContainText("Live AI is not connected on this server, so NUR did not answer this turn.");
+    await expect(universe.locator("#talk-stream .talk-message.nur[data-event-id]")).toHaveCount(0);
   }
   await universe.locator("#talk-input").fill(talkLine);
   await universe.locator('[data-send="talk"]').click();
@@ -300,10 +317,15 @@ test("Track A owner mutation loop uses exact V197 controls", async ({ page }, te
   await expect(universe.locator("#nur-outcome-composer")).toBeVisible();
   await universe.locator("#nur-outcome-input").fill(outcomeLine);
   await universe.locator('[data-action="return-outcome"]').click();
+  // Fresh-owner deterministic ledger:
+  // check-in 2 + journal 4 + plan 4 + completed step 8 + returned outcome 15.
+  // A connected model adds the separate 2-point meaningful-Talk award; the
+  // honestly disabled provider does not fabricate that completion.
+  const expectedGlow = aiProvider === "openai" ? 35 : 33;
   await expect.poll(async () => page.evaluate(async () => {
     const response = await fetch("/api/v1/glow/summary");
     return (await response.json()).balance as number;
-  }), { timeout: 20_000 }).toBeGreaterThanOrEqual(35);
+  }), { timeout: 20_000 }).toBe(expectedGlow);
   await expect(universe.locator("#page-today .today-grid > aside .panel-title")).toContainText("Glow Points");
 
   await universe.locator('[data-page="systems"]:visible').first().click();
@@ -314,7 +336,7 @@ test("Track A owner mutation loop uses exact V197 controls", async ({ page }, te
   await expect(universe.locator(".universe-insight-panel")).toContainText("Systems");
   await universe.locator('[data-world-tab="orbits"]').click();
   await expect(page).toHaveURL(/\/universe\/orbits$/);
-  await expect(universe.locator(".universe-insight-panel")).toContainText("Quiet Ambition");
+  await expect(universe.locator(".universe-insight-panel")).toContainText("Ambition");
   await universe.locator('[data-world-tab="timeline"]').click();
   await expect(page).toHaveURL(/\/universe\/timeline$/);
   await expect(universe.locator(".universe-insight-panel")).toContainText(outcomeLine);
@@ -395,7 +417,7 @@ test("Track A persists across a fresh session and keeps the premium V197 map cle
   expect(persisted.glow.balance).toBeGreaterThanOrEqual(31);
   expect(persisted.plans[0].title).toBe(planTitle);
   expect(persisted.journal[0].body).toBe(journalLine);
-  expect(persisted.state.active_systems).toBe(7);
+  expect(persisted.state.active_systems).toBe(6);
   expect(persisted.state.outcomes_returned).toBe(1);
 
   await page.setViewportSize({ width: 1600, height: 900 });
@@ -417,7 +439,7 @@ test("Track A persists across a fresh session and keeps the premium V197 map cle
     const orbits = await response.json() as Array<{ title: string }>;
     return orbits.some(orbit => orbit.title === title);
   }, extraSystem)).toBe(true);
-  await expect(refreshed.locator(".universe-system-node:visible")).toHaveCount(7);
+  await expect(refreshed.locator(".universe-system-node:visible")).toHaveCount(6);
 
   await refreshed.locator('[data-page="talk"]:visible').first().click();
   const balanceBeforeReplay = await page.evaluate(async () => {
@@ -446,7 +468,7 @@ test("Track A persists across a fresh session and keeps the premium V197 map cle
   await page.setViewportSize({ width: 1440, height: 900 });
   await refreshed.locator('[data-page="systems"]:visible').first().click();
   await expect(refreshed.locator("#page-systems")).toBeVisible({ timeout: 20_000 });
-  await expect(refreshed.locator(".universe-system-node:visible")).toHaveCount(7);
+  await expect(refreshed.locator(".universe-system-node:visible")).toHaveCount(6);
   expect(await criticalMapOverlaps(page)).toEqual([]);
   const starGeometry = await masterStarClearance(page);
   expect(starGeometry.creationLabelOwned).toBe(true);

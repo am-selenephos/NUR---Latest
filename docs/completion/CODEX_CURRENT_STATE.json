@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-26T15:32:08Z",
+  "phase": "implementation_in_progress",
+  "repository": "am-selenephos/NUR",
+  "remote": "https://github.com/am-selenephos/NUR.git",
+  "base_branch": "integration/nur-ui-reconcile-20260726",
+  "base_sha": "2a4860aec319383c21844292821496532b48b0b5",
+  "completion_branch": "codex/nur-full-completion-20260726",
+  "evidence_sha": "5f14ef55014e5dde7775773bf824a2e35e7a0497",
+  "draft_pr": {
+    "number": 8,
+    "url": "https://github.com/am-selenephos/NUR/pull/8",
+    "api": "PASS",
+    "web_and_security": "PASS"
+  },
+  "canonical_v197": {
+    "path": "apps/web/public/v197/NUR_V197_CHECKBOX_TICK_RESTORED.html",
+    "sha256": "d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6",
+    "changed_by_completion_branch": false
+  },
+  "repository_census": {
+    "tracked_files": 663,
+    "api_migrations": 31,
+    "api_test_modules": 40,
+    "web_e2e_specs": 38,
+    "migration_head": "0031_six_star_systems"
+  },
+  "readiness_evidence": {
+    "npm_ci": "PASS: 95 packages, 0 vulnerabilities",
+    "secret_scan": "PASS",
+    "release_naming_scan": "PASS",
+    "web_typecheck": "PASS",
+    "web_unit": "PASS: 16 files, 65 tests",
+    "web_build": "PASS",
+    "web_e2e_mocked": "PASS: 19 passed, 1 intentional skipped, 0 failed",
+    "mobile_typecheck": "PASS",
+    "npm_audit_high": "PASS: 0 vulnerabilities",
+    "api_ruff": "PASS",
+    "api_pytest": "PASS: 187 passed",
+    "github_actions": "PASS on evidence_sha"
+  },
+  "runtime": {
+    "provider_mode": "disabled",
+    "local_stack_boot": "PASS",
+    "healthz": "PASS",
+    "readyz": "PASS",
+    "web": "PASS",
+    "worker": "PASS",
+    "omega_scheduler": "PASS",
+    "demo_seed": "PASS without fabricated assistant turn",
+    "full_browser_corpus": {
+      "chromium_desktop": {
+        "passed": 55,
+        "skipped": 12,
+        "failed": 27,
+        "did_not_run": 1,
+        "duration": "32.8m",
+        "status": "FAIL"
+      },
+      "chromium_mobile": "NOT YET RUN AS FULL CORPUS",
+      "webkit_mobile": "NOT YET RUN AS FULL CORPUS"
+    }
+  },
+  "known_unresolved": [
+    "Authoritative completion and hygiene matrices are not final.",
+    "The complete browser corpus has not passed on all required engines.",
+    "Several browser specs still encode obsolete seven-System labels or old star counts.",
+    "The V197 control matrix is stale and still classifies seven honest-disabled controls as NOT_IMPLEMENTED_VISIBLE.",
+    "Account export/deletion and privacy lifecycle are not implemented in the current canonical tree.",
+    "Live OpenAI, production email/push, paid-provider, research-provider, and TRIBE evidence remain external or unproven.",
+    "Fresh release package, realistic-data migration, full accessibility, RTL, soak, DR, and bounded-load final evidence is not complete on one SHA."
+  ],
+  "completion_percentage": {
+    "strict_fully_proven_domains": 34,
+    "strict_fraction": "16/47",
+    "conservative_weighted_maturity": 66,
+    "weighted_formula": "PASS=1.0; PARTIAL=0.5; EXTERNAL_BLOCKED=0.5; MISSING=0.0"
+  },
+  "completion_percentage_reason": "The strict 34% is the completion claim. The 66% weighted value describes implemented maturity only and must not be presented as done.",
+  "allowed_final_verdicts": [
+    "NUR_FULL_PASS",
+    "NUR_INTERNAL_COMPLETE_EXTERNAL_BLOCKED",
+    "NUR_PARTIAL"
+  ],
+  "current_verdict": "NUR_PARTIAL"
+}

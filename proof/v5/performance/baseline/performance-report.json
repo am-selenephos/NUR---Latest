@@ -1,0 +1,2392 @@
+{
+  "label": "baseline",
+  "generatedAt": "2026-07-26T15:38:00.253Z",
+  "browser": "chromium-desktop",
+  "canonicalV197Sha256": "d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6",
+  "requestedSoakMs": 60000,
+  "actualSoakMs": 60153.946099999994,
+  "routeTimingsMs": {
+    "loginToUniverseMs": 1647.127451999997,
+    "systemsNavigationMs": 943.0381680000028,
+    "mapNavigationMs": 615.8145260000019
+  },
+  "entry": {
+    "cadence": {
+      "durationMs": 5049.8,
+      "frames": 121,
+      "fps": 23.76,
+      "p50DeltaMs": 33.4,
+      "p95DeltaMs": 66.7,
+      "maxDeltaMs": 116.6,
+      "droppedFrameIntervals": 119
+    },
+    "counters": {
+      "longTasks": [
+        {
+          "startTime": 1635,
+          "duration": 53
+        }
+      ],
+      "longAnimationFrames": [],
+      "eventTimings": [],
+      "layoutShift": 0.004056979709201389,
+      "rafRequested": 376,
+      "rafCompleted": 374,
+      "rafCancelled": 0,
+      "activeRaf": 2,
+      "listenerAdds": 56,
+      "listenerRemoves": 0,
+      "mutationObservers": 6,
+      "resizeObservers": 1,
+      "canvasContexts": 10962,
+      "canvasElements": 3,
+      "canvasOwners": [
+        "icv",
+        "space3d",
+        "nur-brain-canvas"
+      ],
+      "runningAnimations": 22,
+      "animationTargets": [
+        {
+          "name": "div.ob.ob1",
+          "count": 4
+        },
+        {
+          "name": "div.ob.ob2",
+          "count": 4
+        },
+        {
+          "name": "div.ob.ob3",
+          "count": 4
+        },
+        {
+          "name": "button#f4-begin.f4-primary.nur-has-control-star-seal",
+          "count": 3
+        },
+        {
+          "name": "button.f4-primary.f4-submit.nur-has-control-star-seal",
+          "count": 3
+        },
+        {
+          "name": "span.f4-brand-word.nur-v197-wordmark",
+          "count": 1
+        },
+        {
+          "name": "button#f4-signin.f4-signin",
+          "count": 1
+        },
+        {
+          "name": "em",
+          "count": 1
+        },
+        {
+          "name": "button#f4-what.f4-link",
+          "count": 1
+        }
+      ],
+      "topClasses": [
+        {
+          "name": "ray",
+          "count": 108
+        },
+        {
+          "name": "ray-glow",
+          "count": 108
+        },
+        {
+          "name": "ray-core",
+          "count": 108
+        },
+        {
+          "name": "g",
+          "count": 54
+        },
+        {
+          "name": "h",
+          "count": 27
+        },
+        {
+          "name": "p",
+          "count": 27
+        },
+        {
+          "name": "ob",
+          "count": 27
+        },
+        {
+          "name": "spark",
+          "count": 9
+        },
+        {
+          "name": "spark-glow",
+          "count": 9
+        },
+        {
+          "name": "spark-halo",
+          "count": 9
+        },
+        {
+          "name": "spark-h2",
+          "count": 9
+        },
+        {
+          "name": "spark-core",
+          "count": 9
+        },
+        {
+          "name": "rayset",
+          "count": 9
+        },
+        {
+          "name": "r1",
+          "count": 9
+        },
+        {
+          "name": "r2",
+          "count": 9
+        },
+        {
+          "name": "r3",
+          "count": 9
+        },
+        {
+          "name": "r4",
+          "count": 9
+        },
+        {
+          "name": "r5",
+          "count": 9
+        },
+        {
+          "name": "r6",
+          "count": 9
+        },
+        {
+          "name": "r7",
+          "count": 9
+        },
+        {
+          "name": "r8",
+          "count": 9
+        },
+        {
+          "name": "r9",
+          "count": 9
+        },
+        {
+          "name": "r10",
+          "count": 9
+        },
+        {
+          "name": "r11",
+          "count": 9
+        },
+        {
+          "name": "r12",
+          "count": 9
+        },
+        {
+          "name": "ob1",
+          "count": 9
+        },
+        {
+          "name": "ob2",
+          "count": 9
+        },
+        {
+          "name": "ob3",
+          "count": 9
+        },
+        {
+          "name": "f4-master-star",
+          "count": 8
+        },
+        {
+          "name": "f4-primary",
+          "count": 6
+        }
+      ],
+      "elementCount": 576,
+      "miniStarHosts": 0,
+      "miniStarModules": 0,
+      "starRays": 0,
+      "adjunctRoots": 0,
+      "bridgeStyleNodes": 1,
+      "particleCount": 1358,
+      "usedJSHeapSize": 17100000,
+      "totalJSHeapSize": 37300000,
+      "visibilityState": "visible"
+    }
+  },
+  "universe": {
+    "cadence": {
+      "durationMs": 5033.1,
+      "frames": 144,
+      "fps": 28.41,
+      "p50DeltaMs": 33.3,
+      "p95DeltaMs": 50,
+      "maxDeltaMs": 83.3,
+      "droppedFrameIntervals": 140
+    },
+    "start": {
+      "longTasks": [
+        {
+          "startTime": 126.39999999990687,
+          "duration": 79
+        },
+        {
+          "startTime": 292.89999999990687,
+          "duration": 73
+        },
+        {
+          "startTime": 367,
+          "duration": 70
+        },
+        {
+          "startTime": 467.19999999995343,
+          "duration": 59
+        },
+        {
+          "startTime": 539.6999999999534,
+          "duration": 51
+        },
+        {
+          "startTime": 624.3000000000466,
+          "duration": 55
+        },
+        {
+          "startTime": 5370.09999999986,
+          "duration": 55
+        }
+      ],
+      "longAnimationFrames": [],
+      "eventTimings": [
+        {
+          "name": "pointerover",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseover",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerout",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerover",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseout",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseover",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerout",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerover",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseout",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseover",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerout",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerover",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseout",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseover",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        }
+      ],
+      "layoutShift": 0,
+      "rafRequested": 467,
+      "rafCompleted": 465,
+      "rafCancelled": 0,
+      "activeRaf": 2,
+      "listenerAdds": 157,
+      "listenerRemoves": 0,
+      "mutationObservers": 3,
+      "resizeObservers": 1,
+      "canvasContexts": 13312,
+      "canvasElements": 2,
+      "canvasOwners": [
+        "space3d",
+        "nur-brain-canvas"
+      ],
+      "runningAnimations": 23,
+      "animationTargets": [
+        {
+          "name": "div.ob.ob1",
+          "count": 6
+        },
+        {
+          "name": "div.ob.ob2",
+          "count": 6
+        },
+        {
+          "name": "div.ob.ob3",
+          "count": 6
+        },
+        {
+          "name": "i.nur-star-seal.nur-star-seal--20.nur-star-seal--state",
+          "count": 1
+        },
+        {
+          "name": "article.nur-panel.panel-pad",
+          "count": 1
+        },
+        {
+          "name": "button.f4-primary.compact.nur-has-control-star-seal",
+          "count": 1
+        },
+        {
+          "name": "aside.nur-panel.panel-pad",
+          "count": 1
+        },
+        {
+          "name": "article.nur-panel.panel-pad.talk-mini",
+          "count": 1
+        }
+      ],
+      "topClasses": [
+        {
+          "name": "ray",
+          "count": 144
+        },
+        {
+          "name": "ray-glow",
+          "count": 144
+        },
+        {
+          "name": "ray-core",
+          "count": 144
+        },
+        {
+          "name": "g",
+          "count": 72
+        },
+        {
+          "name": "h",
+          "count": 36
+        },
+        {
+          "name": "p",
+          "count": 36
+        },
+        {
+          "name": "ob",
+          "count": 36
+        },
+        {
+          "name": "active",
+          "count": 13
+        },
+        {
+          "name": "spark",
+          "count": 12
+        },
+        {
+          "name": "f4-master-star",
+          "count": 12
+        },
+        {
+          "name": "spark-glow",
+          "count": 12
+        },
+        {
+          "name": "spark-halo",
+          "count": 12
+        },
+        {
+          "name": "spark-h2",
+          "count": 12
+        },
+        {
+          "name": "spark-core",
+          "count": 12
+        },
+        {
+          "name": "rayset",
+          "count": 12
+        },
+        {
+          "name": "r1",
+          "count": 12
+        },
+        {
+          "name": "r2",
+          "count": 12
+        },
+        {
+          "name": "r3",
+          "count": 12
+        },
+        {
+          "name": "r4",
+          "count": 12
+        },
+        {
+          "name": "r5",
+          "count": 12
+        },
+        {
+          "name": "r6",
+          "count": 12
+        },
+        {
+          "name": "r7",
+          "count": 12
+        },
+        {
+          "name": "r8",
+          "count": 12
+        },
+        {
+          "name": "r9",
+          "count": 12
+        },
+        {
+          "name": "r10",
+          "count": 12
+        },
+        {
+          "name": "r11",
+          "count": 12
+        },
+        {
+          "name": "r12",
+          "count": 12
+        },
+        {
+          "name": "ob1",
+          "count": 12
+        },
+        {
+          "name": "ob2",
+          "count": 12
+        },
+        {
+          "name": "ob3",
+          "count": 12
+        }
+      ],
+      "elementCount": 1466,
+      "miniStarHosts": 0,
+      "miniStarModules": 0,
+      "starRays": 0,
+      "adjunctRoots": 0,
+      "bridgeStyleNodes": 1,
+      "particleCount": 653,
+      "usedJSHeapSize": 17100000,
+      "totalJSHeapSize": 37300000,
+      "visibilityState": "visible"
+    },
+    "afterMap": {
+      "longTasks": [
+        {
+          "startTime": 126.39999999990687,
+          "duration": 79
+        },
+        {
+          "startTime": 292.89999999990687,
+          "duration": 73
+        },
+        {
+          "startTime": 367,
+          "duration": 70
+        },
+        {
+          "startTime": 467.19999999995343,
+          "duration": 59
+        },
+        {
+          "startTime": 539.6999999999534,
+          "duration": 51
+        },
+        {
+          "startTime": 624.3000000000466,
+          "duration": 55
+        },
+        {
+          "startTime": 5370.09999999986,
+          "duration": 55
+        }
+      ],
+      "longAnimationFrames": [],
+      "eventTimings": [
+        {
+          "name": "pointerover",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseover",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerout",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerover",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseout",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseover",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerout",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerover",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseout",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseover",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerout",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerover",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseout",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseover",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerout",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerover",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseout",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseover",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerdown",
+          "startTime": 6799.199999999953,
+          "duration": 112,
+          "interactionId": 6986
+        },
+        {
+          "name": "mousedown",
+          "startTime": 6799.199999999953,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerup",
+          "startTime": 6799.300000000047,
+          "duration": 112,
+          "interactionId": 6986
+        },
+        {
+          "name": "mouseup",
+          "startTime": 6799.300000000047,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "click",
+          "startTime": 6799.300000000047,
+          "duration": 112,
+          "interactionId": 6986
+        },
+        {
+          "name": "pointerout",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerover",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseout",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseover",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerdown",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 6993
+        },
+        {
+          "name": "mousedown",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerup",
+          "startTime": 7522.199999999953,
+          "duration": 152,
+          "interactionId": 6993
+        },
+        {
+          "name": "mouseup",
+          "startTime": 7522.199999999953,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "click",
+          "startTime": 7522.199999999953,
+          "duration": 152,
+          "interactionId": 6993
+        }
+      ],
+      "layoutShift": 0,
+      "rafRequested": 564,
+      "rafCompleted": 562,
+      "rafCancelled": 0,
+      "activeRaf": 2,
+      "listenerAdds": 157,
+      "listenerRemoves": 0,
+      "mutationObservers": 3,
+      "resizeObservers": 1,
+      "canvasContexts": 16433,
+      "canvasElements": 2,
+      "canvasOwners": [
+        "space3d",
+        "nur-brain-canvas"
+      ],
+      "runningAnimations": 29,
+      "animationTargets": [
+        {
+          "name": "div.ob.ob1",
+          "count": 4
+        },
+        {
+          "name": "div.ob.ob2",
+          "count": 4
+        },
+        {
+          "name": "div.ob.ob3",
+          "count": 4
+        },
+        {
+          "name": "b.nur-holo-word.nur-v197-stable-wordmark.nur-v197-wordmark",
+          "count": 2
+        },
+        {
+          "name": "span.composer-action__glint",
+          "count": 2
+        },
+        {
+          "name": "i.nur-star-seal.nur-star-seal--20.nur-star-seal--state",
+          "count": 1
+        },
+        {
+          "name": "section.universe-map-panel.nur-panel",
+          "count": 1
+        },
+        {
+          "name": "div.universe-map-fog",
+          "count": 1
+        },
+        {
+          "name": "i.legend-private",
+          "count": 1
+        },
+        {
+          "name": "i.legend-shared",
+          "count": 1
+        },
+        {
+          "name": "i.legend-learning",
+          "count": 1
+        },
+        {
+          "name": "aside.universe-insight-panel.nur-panel",
+          "count": 1
+        },
+        {
+          "name": "section#universe-consult.universe-card.consultation-card",
+          "count": 1
+        },
+        {
+          "name": "section#universe-research.universe-card.research-card",
+          "count": 1
+        },
+        {
+          "name": "section#universe-community.universe-card.community-card",
+          "count": 1
+        },
+        {
+          "name": "section.universe-card.expert-card",
+          "count": 1
+        },
+        {
+          "name": "section.universe-composer-shell.universe-composer-shell--v173",
+          "count": 1
+        },
+        {
+          "name": "button.send-button.send-holo-pill.universe-send.composer-action.composer-action--send.nur-has-control-star-seal",
+          "count": 1
+        }
+      ],
+      "topClasses": [
+        {
+          "name": "ray",
+          "count": 144
+        },
+        {
+          "name": "ray-glow",
+          "count": 144
+        },
+        {
+          "name": "ray-core",
+          "count": 144
+        },
+        {
+          "name": "g",
+          "count": 72
+        },
+        {
+          "name": "h",
+          "count": 36
+        },
+        {
+          "name": "p",
+          "count": 36
+        },
+        {
+          "name": "ob",
+          "count": 36
+        },
+        {
+          "name": "active",
+          "count": 13
+        },
+        {
+          "name": "spark",
+          "count": 12
+        },
+        {
+          "name": "f4-master-star",
+          "count": 12
+        },
+        {
+          "name": "spark-glow",
+          "count": 12
+        },
+        {
+          "name": "spark-halo",
+          "count": 12
+        },
+        {
+          "name": "spark-h2",
+          "count": 12
+        },
+        {
+          "name": "spark-core",
+          "count": 12
+        },
+        {
+          "name": "rayset",
+          "count": 12
+        },
+        {
+          "name": "r1",
+          "count": 12
+        },
+        {
+          "name": "r2",
+          "count": 12
+        },
+        {
+          "name": "r3",
+          "count": 12
+        },
+        {
+          "name": "r4",
+          "count": 12
+        },
+        {
+          "name": "r5",
+          "count": 12
+        },
+        {
+          "name": "r6",
+          "count": 12
+        },
+        {
+          "name": "r7",
+          "count": 12
+        },
+        {
+          "name": "r8",
+          "count": 12
+        },
+        {
+          "name": "r9",
+          "count": 12
+        },
+        {
+          "name": "r10",
+          "count": 12
+        },
+        {
+          "name": "r11",
+          "count": 12
+        },
+        {
+          "name": "r12",
+          "count": 12
+        },
+        {
+          "name": "ob1",
+          "count": 12
+        },
+        {
+          "name": "ob2",
+          "count": 12
+        },
+        {
+          "name": "ob3",
+          "count": 12
+        }
+      ],
+      "elementCount": 1466,
+      "miniStarHosts": 0,
+      "miniStarModules": 0,
+      "starRays": 0,
+      "adjunctRoots": 0,
+      "bridgeStyleNodes": 1,
+      "particleCount": 685,
+      "usedJSHeapSize": 17100000,
+      "totalJSHeapSize": 37300000,
+      "visibilityState": "visible"
+    },
+    "end": {
+      "longTasks": [
+        {
+          "startTime": 126.39999999990687,
+          "duration": 79
+        },
+        {
+          "startTime": 292.89999999990687,
+          "duration": 73
+        },
+        {
+          "startTime": 367,
+          "duration": 70
+        },
+        {
+          "startTime": 467.19999999995343,
+          "duration": 59
+        },
+        {
+          "startTime": 539.6999999999534,
+          "duration": 51
+        },
+        {
+          "startTime": 624.3000000000466,
+          "duration": 55
+        },
+        {
+          "startTime": 5370.09999999986,
+          "duration": 55
+        },
+        {
+          "startTime": 14657.09999999986,
+          "duration": 101
+        },
+        {
+          "startTime": 55347,
+          "duration": 70
+        },
+        {
+          "startTime": 58851.5,
+          "duration": 79
+        },
+        {
+          "startTime": 62639.30000000005,
+          "duration": 83
+        }
+      ],
+      "longAnimationFrames": [],
+      "eventTimings": [
+        {
+          "name": "pointerover",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseover",
+          "startTime": 227.5,
+          "duration": 168,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerout",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerover",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseout",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseover",
+          "startTime": 367.19999999995343,
+          "duration": 240,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerout",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerover",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseout",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseover",
+          "startTime": 468.80000000004657,
+          "duration": 256,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerout",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerover",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseout",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseover",
+          "startTime": 725.8000000000466,
+          "duration": 104,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerout",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerover",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseout",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseover",
+          "startTime": 6799.09999999986,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerdown",
+          "startTime": 6799.199999999953,
+          "duration": 112,
+          "interactionId": 6986
+        },
+        {
+          "name": "mousedown",
+          "startTime": 6799.199999999953,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerup",
+          "startTime": 6799.300000000047,
+          "duration": 112,
+          "interactionId": 6986
+        },
+        {
+          "name": "mouseup",
+          "startTime": 6799.300000000047,
+          "duration": 112,
+          "interactionId": 0
+        },
+        {
+          "name": "click",
+          "startTime": 6799.300000000047,
+          "duration": 112,
+          "interactionId": 6986
+        },
+        {
+          "name": "pointerout",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerleave",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerover",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerenter",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseout",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "mouseover",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerdown",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 6993
+        },
+        {
+          "name": "mousedown",
+          "startTime": 7522.09999999986,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "pointerup",
+          "startTime": 7522.199999999953,
+          "duration": 152,
+          "interactionId": 6993
+        },
+        {
+          "name": "mouseup",
+          "startTime": 7522.199999999953,
+          "duration": 152,
+          "interactionId": 0
+        },
+        {
+          "name": "click",
+          "startTime": 7522.199999999953,
+          "duration": 152,
+          "interactionId": 6993
+        }
+      ],
+      "layoutShift": 0,
+      "rafRequested": 4893,
+      "rafCompleted": 4891,
+      "rafCancelled": 0,
+      "activeRaf": 2,
+      "listenerAdds": 157,
+      "listenerRemoves": 0,
+      "mutationObservers": 3,
+      "resizeObservers": 1,
+      "canvasContexts": 57631,
+      "canvasElements": 2,
+      "canvasOwners": [
+        "space3d",
+        "nur-brain-canvas"
+      ],
+      "runningAnimations": 29,
+      "animationTargets": [
+        {
+          "name": "div.ob.ob1",
+          "count": 4
+        },
+        {
+          "name": "div.ob.ob2",
+          "count": 4
+        },
+        {
+          "name": "div.ob.ob3",
+          "count": 4
+        },
+        {
+          "name": "b.nur-holo-word.nur-v197-stable-wordmark.nur-v197-wordmark",
+          "count": 2
+        },
+        {
+          "name": "span.composer-action__glint",
+          "count": 2
+        },
+        {
+          "name": "i.nur-star-seal.nur-star-seal--20.nur-star-seal--state",
+          "count": 1
+        },
+        {
+          "name": "section.universe-map-panel.nur-panel",
+          "count": 1
+        },
+        {
+          "name": "div.universe-map-fog",
+          "count": 1
+        },
+        {
+          "name": "i.legend-private",
+          "count": 1
+        },
+        {
+          "name": "i.legend-shared",
+          "count": 1
+        },
+        {
+          "name": "i.legend-learning",
+          "count": 1
+        },
+        {
+          "name": "aside.universe-insight-panel.nur-panel",
+          "count": 1
+        },
+        {
+          "name": "section#universe-consult.universe-card.consultation-card",
+          "count": 1
+        },
+        {
+          "name": "section#universe-research.universe-card.research-card",
+          "count": 1
+        },
+        {
+          "name": "section#universe-community.universe-card.community-card",
+          "count": 1
+        },
+        {
+          "name": "section.universe-card.expert-card",
+          "count": 1
+        },
+        {
+          "name": "section.universe-composer-shell.universe-composer-shell--v173",
+          "count": 1
+        },
+        {
+          "name": "button.send-button.send-holo-pill.universe-send.composer-action.composer-action--send.nur-has-control-star-seal",
+          "count": 1
+        }
+      ],
+      "topClasses": [
+        {
+          "name": "ray",
+          "count": 144
+        },
+        {
+          "name": "ray-glow",
+          "count": 144
+        },
+        {
+          "name": "ray-core",
+          "count": 144
+        },
+        {
+          "name": "g",
+          "count": 72
+        },
+        {
+          "name": "h",
+          "count": 36
+        },
+        {
+          "name": "p",
+          "count": 36
+        },
+        {
+          "name": "ob",
+          "count": 36
+        },
+        {
+          "name": "active",
+          "count": 13
+        },
+        {
+          "name": "spark",
+          "count": 12
+        },
+        {
+          "name": "f4-master-star",
+          "count": 12
+        },
+        {
+          "name": "spark-glow",
+          "count": 12
+        },
+        {
+          "name": "spark-halo",
+          "count": 12
+        },
+        {
+          "name": "spark-h2",
+          "count": 12
+        },
+        {
+          "name": "spark-core",
+          "count": 12
+        },
+        {
+          "name": "rayset",
+          "count": 12
+        },
+        {
+          "name": "r1",
+          "count": 12
+        },
+        {
+          "name": "r2",
+          "count": 12
+        },
+        {
+          "name": "r3",
+          "count": 12
+        },
+        {
+          "name": "r4",
+          "count": 12
+        },
+        {
+          "name": "r5",
+          "count": 12
+        },
+        {
+          "name": "r6",
+          "count": 12
+        },
+        {
+          "name": "r7",
+          "count": 12
+        },
+        {
+          "name": "r8",
+          "count": 12
+        },
+        {
+          "name": "r9",
+          "count": 12
+        },
+        {
+          "name": "r10",
+          "count": 12
+        },
+        {
+          "name": "r11",
+          "count": 12
+        },
+        {
+          "name": "r12",
+          "count": 12
+        },
+        {
+          "name": "ob1",
+          "count": 12
+        },
+        {
+          "name": "ob2",
+          "count": 12
+        },
+        {
+          "name": "ob3",
+          "count": 12
+        }
+      ],
+      "elementCount": 1466,
+      "miniStarHosts": 0,
+      "miniStarModules": 0,
+      "starRays": 0,
+      "adjunctRoots": 0,
+      "bridgeStyleNodes": 1,
+      "particleCount": 640,
+      "usedJSHeapSize": 17100000,
+      "totalJSHeapSize": 37300000,
+      "visibilityState": "visible"
+    },
+    "centres": {
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "wordmark": null,
+      "masterStar": {
+        "selector": ".universe-master-star, .master-star, .f4-master-star--hero",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "deltaFromViewportCenter": {
+          "x": -640,
+          "y": -360
+        }
+      },
+      "systemField": null
+    }
+  },
+  "cdp": {
+    "navigation": {
+      "Timestamp": 1419.139698,
+      "AudioHandlers": 0,
+      "AudioWorkletProcessors": 0,
+      "Documents": 4,
+      "Frames": 4,
+      "JSEventListeners": 105,
+      "LayoutObjects": 306,
+      "MediaKeySessions": 0,
+      "MediaKeys": 0,
+      "Nodes": 12565,
+      "Resources": 28,
+      "ContextLifecycleStateObservers": 31,
+      "V8PerContextDatas": 6,
+      "WorkerGlobalScopes": 0,
+      "UACSSResources": 0,
+      "RTCPeerConnections": 0,
+      "ResourceFetchers": 4,
+      "AdSubframes": 0,
+      "DetachedScriptStates": 0,
+      "ArrayBufferContents": 0,
+      "LayoutCount": 43,
+      "RecalcStyleCount": 179,
+      "LayoutDuration": 0.031037,
+      "RecalcStyleDuration": 0.096319,
+      "DevToolsCommandDuration": 0.120014,
+      "ScriptDuration": 1.079069,
+      "V8CompileDuration": 0.00323,
+      "TaskDuration": 3.311523,
+      "TaskOtherDuration": 1.981854,
+      "ThreadTime": 3.226376,
+      "ProcessTime": 8.71,
+      "JSHeapUsedSize": 13555580,
+      "JSHeapTotalSize": 32788480,
+      "FirstMeaningfulPaint": 0,
+      "DomContentLoaded": 1412.47288,
+      "NavigationStart": 1412.414898
+    },
+    "heapAtStart": {
+      "Timestamp": 1426.646833,
+      "AudioHandlers": 0,
+      "AudioWorkletProcessors": 0,
+      "Documents": 4,
+      "Frames": 4,
+      "JSEventListeners": 272,
+      "LayoutObjects": 773,
+      "MediaKeySessions": 0,
+      "MediaKeys": 0,
+      "Nodes": 41819,
+      "Resources": 33,
+      "ContextLifecycleStateObservers": 35,
+      "V8PerContextDatas": 7,
+      "WorkerGlobalScopes": 0,
+      "UACSSResources": 0,
+      "RTCPeerConnections": 0,
+      "ResourceFetchers": 4,
+      "AdSubframes": 0,
+      "DetachedScriptStates": 0,
+      "ArrayBufferContents": 0,
+      "LayoutCount": 70,
+      "RecalcStyleCount": 572,
+      "LayoutDuration": 0.07459,
+      "RecalcStyleDuration": 0.317421,
+      "DevToolsCommandDuration": 0.301208,
+      "ScriptDuration": 3.613497,
+      "V8CompileDuration": 0.004162,
+      "TaskDuration": 8.367498,
+      "TaskOtherDuration": 4.05662,
+      "ThreadTime": 9.944613,
+      "ProcessTime": 18.75,
+      "JSHeapUsedSize": 33065964,
+      "JSHeapTotalSize": 80437248,
+      "FirstMeaningfulPaint": 0,
+      "DomContentLoaded": 1412.47288,
+      "NavigationStart": 1412.414898
+    },
+    "heapAfterMap": {
+      "Timestamp": 1428.330393,
+      "AudioHandlers": 0,
+      "AudioWorkletProcessors": 0,
+      "Documents": 4,
+      "Frames": 4,
+      "JSEventListeners": 272,
+      "LayoutObjects": 1561,
+      "MediaKeySessions": 0,
+      "MediaKeys": 0,
+      "Nodes": 47449,
+      "Resources": 33,
+      "ContextLifecycleStateObservers": 35,
+      "V8PerContextDatas": 7,
+      "WorkerGlobalScopes": 0,
+      "UACSSResources": 0,
+      "RTCPeerConnections": 0,
+      "ResourceFetchers": 4,
+      "AdSubframes": 0,
+      "DetachedScriptStates": 0,
+      "ArrayBufferContents": 0,
+      "LayoutCount": 79,
+      "RecalcStyleCount": 670,
+      "LayoutDuration": 0.086991,
+      "RecalcStyleDuration": 0.375742,
+      "DevToolsCommandDuration": 0.480495,
+      "ScriptDuration": 4.162639,
+      "V8CompileDuration": 0.004162,
+      "TaskDuration": 9.500276,
+      "TaskOtherDuration": 4.390247,
+      "ThreadTime": 11.558797,
+      "ProcessTime": 21.41,
+      "JSHeapUsedSize": 44179512,
+      "JSHeapTotalSize": 81244160,
+      "FirstMeaningfulPaint": 0,
+      "DomContentLoaded": 1412.47288,
+      "NavigationStart": 1412.414898
+    },
+    "heapAtEnd": {
+      "Timestamp": 1488.517215,
+      "AudioHandlers": 0,
+      "AudioWorkletProcessors": 0,
+      "Documents": 4,
+      "Frames": 4,
+      "JSEventListeners": 272,
+      "LayoutObjects": 1230,
+      "MediaKeySessions": 0,
+      "MediaKeys": 0,
+      "Nodes": 120844,
+      "Resources": 33,
+      "ContextLifecycleStateObservers": 35,
+      "V8PerContextDatas": 7,
+      "WorkerGlobalScopes": 0,
+      "UACSSResources": 0,
+      "RTCPeerConnections": 0,
+      "ResourceFetchers": 4,
+      "AdSubframes": 0,
+      "DetachedScriptStates": 0,
+      "ArrayBufferContents": 0,
+      "LayoutCount": 79,
+      "RecalcStyleCount": 3556,
+      "LayoutDuration": 0.086991,
+      "RecalcStyleDuration": 2.188692,
+      "DevToolsCommandDuration": 0.500461,
+      "ScriptDuration": 20.218374,
+      "V8CompileDuration": 0.004162,
+      "TaskDuration": 39.203367,
+      "TaskOtherDuration": 16.204687,
+      "ThreadTime": 58.218891,
+      "ProcessTime": 104.17,
+      "JSHeapUsedSize": 37167028,
+      "JSHeapTotalSize": 104644608,
+      "FirstMeaningfulPaint": 0,
+      "DomContentLoaded": 1412.47288,
+      "NavigationStart": 1412.414898
+    },
+    "final": {
+      "Timestamp": 1488.51811,
+      "AudioHandlers": 0,
+      "AudioWorkletProcessors": 0,
+      "Documents": 4,
+      "Frames": 4,
+      "JSEventListeners": 272,
+      "LayoutObjects": 1230,
+      "MediaKeySessions": 0,
+      "MediaKeys": 0,
+      "Nodes": 120844,
+      "Resources": 33,
+      "ContextLifecycleStateObservers": 35,
+      "V8PerContextDatas": 7,
+      "WorkerGlobalScopes": 0,
+      "UACSSResources": 0,
+      "RTCPeerConnections": 0,
+      "ResourceFetchers": 4,
+      "AdSubframes": 0,
+      "DetachedScriptStates": 0,
+      "ArrayBufferContents": 0,
+      "LayoutCount": 79,
+      "RecalcStyleCount": 3556,
+      "LayoutDuration": 0.086991,
+      "RecalcStyleDuration": 2.188692,
+      "DevToolsCommandDuration": 0.500532,
+      "ScriptDuration": 20.218374,
+      "V8CompileDuration": 0.004162,
+      "TaskDuration": 39.20344,
+      "TaskOtherDuration": 16.204689,
+      "ThreadTime": 58.218974,
+      "ProcessTime": 104.17,
+      "JSHeapUsedSize": 37167028,
+      "JSHeapTotalSize": 104644608,
+      "FirstMeaningfulPaint": 0,
+      "DomContentLoaded": 1412.47288,
+      "NavigationStart": 1412.414898
+    }
+  }
+}

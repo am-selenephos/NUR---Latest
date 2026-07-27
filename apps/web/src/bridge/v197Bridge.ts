@@ -203,6 +203,10 @@ export class V197Bridge {
       const world = worldByRoute[canonicalRoute];
       if (world && world !== "universe") this.click(V197_SELECTORS.worldFocus(world));
       if (world && this.snapshot) {
+        // Canonical V197 handles the native click first. Its handler can
+        // repaint the selected System, so yield one task before applying the
+        // owner-ledger lens as the final route state.
+        if (world !== "universe") await pause(0);
         renderWorldLens(this.universeDocument, this.snapshot, world);
         this.compactRenderedMiniStars(this.universeDocument);
       }
@@ -237,8 +241,11 @@ export class V197Bridge {
       window.history.replaceState({}, "", "/today");
     }
     this.bindNativeNavigation(universeDocument);
-    await this.applyCurrentRoute();
     hydrateTrackAV197(universeDocument, this.snapshot);
+    // Hydration paints the default live-System summary. Apply the requested
+    // route afterwards so direct /universe/* loads retain their distinct lens
+    // instead of being overwritten by the default System view.
+    await this.applyCurrentRoute();
     this.compactRenderedMiniStars(universeDocument);
 
     this.actionCleanup?.();

@@ -94,15 +94,18 @@ test("shared shell stays inside every required viewport", async ({ page }) => {
         toast: rect(".toast, #toast.toast"),
         bodyBackground: getComputedStyle(document.body).backgroundColor,
         mapBackground: getComputedStyle(document.querySelector<HTMLElement>(".universe-map-panel")!).background,
-        nodeLabels: Array.from(document.querySelectorAll<HTMLElement>(".universe-system-node > span")).map(element => {
-          const style = getComputedStyle(element);
-          return {
-            width: element.getBoundingClientRect().width,
-            display: style.display,
-            overflowWrap: style.overflowWrap,
-            wordBreak: style.wordBreak,
-          };
-        }),
+        nodeLabels: Array.from(document.querySelectorAll<HTMLElement>(".universe-system-node"))
+          .filter(visible)
+          .map(node => {
+            const element = node.querySelector<HTMLElement>(":scope > span")!;
+            const style = getComputedStyle(element);
+            return {
+              width: element.getBoundingClientRect().width,
+              display: style.display,
+              overflowWrap: style.overflowWrap,
+              wordBreak: style.wordBreak,
+            };
+          }),
         commands: Array.from(document.querySelectorAll<HTMLElement>(".universe-command-row .world-command")).map(element => ({
           clientWidth: element.clientWidth,
           scrollWidth: element.scrollWidth,
@@ -134,7 +137,7 @@ test("shared shell stays inside every required viewport", async ({ page }) => {
     expect(geometry.bodyBackground).toBe("rgb(0, 0, 0)");
     expect(geometry.mapBackground).not.toContain("31, 16, 58");
     expect(geometry.mapBackground).not.toContain("5, 3, 13");
-    expect(geometry.nodeLabels).toHaveLength(7);
+    expect(geometry.nodeLabels).toHaveLength(6);
     geometry.nodeLabels.forEach(label => {
       expect(label.width).toBeGreaterThan(0);
       expect(label.display).not.toBe("none");
@@ -216,7 +219,7 @@ test("Today owns one visible exact V43 brain renderer", async ({ page }) => {
     await expect.poll(async () => (await readBrain()).paintedSamples, { timeout: 5_000 }).toBeGreaterThan(100);
     const brain = await readBrain();
 
-    const expectedPoints = viewport.width < 700 ? "708" : "1060";
+    const expectedPoints = viewport.width < 700 ? "1355" : "2086";
     expect(brain.hosts).toBe(1);
     expect(brain.canvases).toBe(1);
     expect(brain.surface).toBe("today");

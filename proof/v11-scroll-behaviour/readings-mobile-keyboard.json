@@ -1,0 +1,24 @@
+{
+  "commit": null,
+  "talk": {
+    "viewport": "mobile-keyboard",
+    "surface": "talk",
+    "gesture": "mouse wheel ×8 + touch drag",
+    "scrollerDelta": 1760,
+    "pageDelta": 0,
+    "ancestorsThatMoved": [],
+    "endReachable": true,
+    "actionHitTestable": true
+  },
+  "journal": {
+    "viewport": "mobile-keyboard",
+    "surface": "journal",
+    "gesture": "click + Control+End + wheel ×30",
+    "scrollerDelta": 8424,
+    "pageDelta": 0,
+    "ancestorsThatMoved": [],
+    "endReachable": true,
+    "actionHitTestable": true
+  },
+  "errors": []
+}

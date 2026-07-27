@@ -7,9 +7,9 @@ const lenses = [
   { route: "/universe/orbits", focus: "orbits", laneLabel: "Owner Orbits summary" },
   { route: "/universe/timeline", focus: "timeline", laneLabel: "Owner timeline summary" },
   { route: "/universe/insights", focus: "insights", laneLabel: "Owner insight summary" },
-  { route: "/universe/research", focus: "research", laneLabel: "Owner map summary" },
+  { route: "/universe/research", focus: "research", laneLabel: "Owner research summary" },
   { route: "/universe/community", focus: "community", laneLabel: "Persisted community rooms" },
-  { route: "/universe/web-signals", focus: "web", laneLabel: "Owner map summary" },
+  { route: "/universe/web-signals", focus: "web", laneLabel: "Owner web-signal staging summary" },
 ] as const;
 
 async function authenticate(page: Page): Promise<void> {
@@ -126,7 +126,7 @@ test("all seven Universe routes retain one bounded canonical V197 surface", asyn
   }
 });
 
-test("Map owns the exact V43 brain and seven clean native system symbols", async ({ page }) => {
+test("Map owns the exact V43 brain and six founder-locked native system symbols", async ({ page }) => {
   test.setTimeout(60_000);
   await authenticate(page);
 
@@ -145,15 +145,16 @@ test("Map owns the exact V43 brain and seven clean native system symbols", async
     await expect(panel.locator(".universe-master-star > .f4-core, .universe-master-star > .f4-master-star"))
       .toHaveCount(0);
     await expect(panel.locator(".universe-rings:visible")).toHaveCount(0);
-    await expect(panel.locator(".universe-system-node")).toHaveCount(7);
-    await expect(panel.locator(".universe-system-node > i[data-nur-native-glyph='true']")).toHaveCount(7);
+    const visibleNodes = panel.locator(".universe-system-node:not([hidden])");
+    await expect(visibleNodes).toHaveCount(6);
+    await expect(visibleNodes.locator(":scope > i[data-nur-native-glyph='true']")).toHaveCount(6);
     await expect(panel.locator(
       ".universe-system-node svg, .universe-system-node [data-nur-star-seal='authentic']",
     )).toHaveCount(0);
 
     const geometry = await panel.evaluate(element => {
       const panelRect = element.getBoundingClientRect();
-      return Array.from(element.querySelectorAll<HTMLElement>(".universe-system-node")).map(node => {
+      return Array.from(element.querySelectorAll<HTMLElement>(".universe-system-node:not([hidden])")).map(node => {
         const rect = node.getBoundingClientRect();
         const copy = node.querySelector<HTMLElement>(":scope > span")!.getBoundingClientRect();
         const style = getComputedStyle(node);

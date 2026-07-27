@@ -1,29 +1,58 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-// Full V197 flow: landing -> Begin your Orbit -> register (real API) ->
-// onboarding direction -> authenticated interface -> logout -> guard bounce.
-test("register creates an orbit and reaches Today, then logout protects routes", async ({ page }) => {
-  const email = `e2e-${Date.now()}@nurapp.dev`;
-  await page.goto("/");
-  await page.getByTestId("tab-register").click();
-  await page.locator("#f4-name").fill("Selene");
-  await page.locator("#f4-email").fill(email);
-  await page.locator("#f4-password").fill("orbit-pass-2025");
-  await page.getByTestId("consent").check();
-  await page.getByTestId("auth-submit").first().click();
-  await expect(page.getByRole("heading", { name: "One honest direction." })).toBeVisible();
-  await page.getByTestId("direction-my-mind").click();
-  await page.getByTestId("auth-sketch-orbit").click();
-  await page.getByTestId("auth-return-sky").click();
+async function revealEntry(page: Page) {
+  await page.goto("/", { waitUntil: "load" });
+  const entry = page.frameLocator("#nur-entry-stage");
+  await expect.poll(() => entry.locator("body").evaluate(() => (
+    typeof (window as unknown as { nurShowFront?: unknown }).nurShowFront
+  ))).toBe("function");
+  await entry.locator("body").evaluate(() => {
+    (window as unknown as { nurShowFront: () => void }).nurShowFront();
+  });
+  return entry;
+}
 
-  await expect(page.getByTestId("pw-rail-today")).toBeVisible();
-  await expect(page.locator("#page-today")).toBeVisible();
-  await expect(page.getByText(/You are here, Selene/)).toBeVisible();
+test("registration creates a secure owner session and logout guards canonical routes", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium-desktop", "The live auth mutation runs once on desktop.");
+  test.setTimeout(90_000);
+  const email = `auth-${Date.now()}-${Math.floor(Math.random() * 1e6)}@nurapp.dev`;
+  const entry = await revealEntry(page);
 
-  await page.getByTestId("user-star").click();
-  await page.getByTestId("logout").click();
-  await expect(page.getByTestId("tab-register")).toBeVisible(); // back on landing
+  await entry.locator("#f4-begin").click();
+  await entry.locator("#f4-name").fill("Selene");
+  await entry.locator("#f4-email").fill(email);
+  await entry.locator("#f4-password").fill("orbit-pass-2026");
+  await entry.locator("#f4-consent-check").check();
+  const registered = page.waitForResponse(response =>
+    response.url().includes("/api/v1/auth/register") && response.request().method() === "POST");
+  await entry.locator("#f4-signup-form button[type='submit']").click();
+  expect((await registered).status()).toBe(201);
 
-  await page.goto("/today");
-  await expect(page.locator('[data-mode="signin"] [data-testid="auth-submit"]')).toBeVisible(); // bounced to sign-in sheet
+  await expect(page.locator("#nur-universe-stage")).toHaveClass(/is-visible/, { timeout: 30_000 });
+  await expect(page).toHaveURL(/\/today$/);
+  const universe = page.frameLocator("#nur-universe-stage");
+  await expect(universe.locator("#page-today")).toBeVisible({ timeout: 20_000 });
+  const me = await page.evaluate(async () => {
+    const response = await fetch("/api/v1/auth/me", { credentials: "include" });
+    const body = response.ok ? await response.json() as { email: string } : null;
+    return { status: response.status, email: body?.email ?? null };
+  });
+  expect(me).toEqual({ status: 200, email });
+
+  await universe.locator(".nur-user").click();
+  await expect(universe.locator("#nur-v197-owner-auth-menu")).toBeVisible();
+  const loggedOut = page.waitForResponse(response =>
+    response.url().includes("/api/v1/auth/logout") && response.request().method() === "POST");
+  await universe.locator('[data-action="auth-logout"]').click();
+  expect((await loggedOut).status()).toBe(204);
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator("#nur-universe-stage")).toBeHidden();
+  await expect(page.frameLocator("#nur-entry-stage").locator("#f4-signin")).toBeVisible();
+
+  await page.goto("/today", { waitUntil: "load" });
+  await expect(page.locator("#nur-universe-stage")).not.toHaveClass(/is-visible/);
+  await expect(page.frameLocator("#nur-entry-stage").locator("#f4-signin")).toBeVisible();
+  const guarded = await page.evaluate(async () =>
+    (await fetch("/api/v1/auth/me", { credentials: "include" })).status);
+  expect(guarded).toBe(401);
 });
