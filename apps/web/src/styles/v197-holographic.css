@@ -687,27 +687,41 @@ body .go-ob::before {
   will-change: transform, opacity;
 }
 
-body .ray-glow {
-  /* Static blur, own layer, rasterised once. `contain: paint` tells the browser
-     nothing inside can affect anything outside, so it never has to re-check. */
-  will-change: transform;
+/* Promote the star, not every ray inside it.
+   Measured: 108 promoted compositor layers on Entry and 157 on Systems, with
+   the main thread only 27-32% busy. An idle CPU presenting 8 FPS means the
+   cost is compositing, not script — every promoted element is a separate GPU
+   texture allocated and composited each frame.
+
+   Putting `will-change` on all 108 `.ray-glow` elements made that worse, which
+   is why the previous attempt changed nothing. The rays are un-promoted here
+   and the ~12 star hosts are promoted instead, so each star is one layer
+   holding its own rays rather than nine. `contain: paint` lets the browser
+   rasterise the whole star once and reuse it. The blur inside is unchanged and
+   the picture is identical. */
+body .nur-star-seal,
+body .nur-mini-star,
+body [class*="star-seal"],
+body [class*="mini-star"] {
   contain: paint;
-  backface-visibility: hidden;
+  will-change: transform;
 }
 
+body .ray-glow,
 body .spark-halo,
 body .spark-h2 {
-  will-change: opacity;
-  contain: paint;
+  will-change: auto;
+  contain: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
   body .ob::before,
   body .h-ob::before,
   body .go-ob::before,
-  body .ray-glow,
-  body .spark-halo,
-  body .spark-h2 {
+  body .nur-star-seal,
+  body .nur-mini-star,
+  body [class*="star-seal"],
+  body [class*="mini-star"] {
     will-change: auto;
   }
 }
