@@ -104,10 +104,10 @@ def test_unknown_tool_raises_rather_than_returning_a_default():
 def test_declared_but_unbound_tool_cannot_be_executed():
     """A contract without a handler must fail loudly, not return an empty result
     a planner would treat as success."""
-    # A draft tool: `handlers.py` binds read-only tools only, so this stays
-    # unbound as more R0 readers are implemented.
+    # A durable R2 tool: it mutates owner truth and is bound in no phase so far,
+    # so this stays meaningful as read and draft handlers land.
     with pytest.raises(registry.UnboundToolError):
-        registry.handler("create_draft_plan")
+        registry.handler("activate_plan")
 
 
 def test_binding_an_undeclared_tool_is_rejected():

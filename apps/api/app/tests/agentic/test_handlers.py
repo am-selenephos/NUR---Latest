@@ -6,6 +6,7 @@ write.
 """
 
 import inspect
+import re
 
 import pytest
 
@@ -35,12 +36,16 @@ def test_bound_tools_resolve_to_a_handler():
         assert registry.is_bound(key)
 
 
-def test_only_read_only_tools_are_bound():
-    """A write tool bound in the read-only module would be an escalation that no
-    other test would catch."""
+def test_the_read_only_binding_function_binds_only_read_only_tools():
+    """A write tool bound inside `bind_read_only_handlers` would be an escalation
+    no other test would catch. Asserted against that function's source rather
+    than the global registry, which other modules also bind into."""
     read_only_keys = {spec.contract.key for spec in READ_ONLY}
-    for key in registry.bound_keys():
-        assert key in read_only_keys, f"{key} is bound but is not read-only"
+    source = inspect.getsource(handlers.bind_read_only_handlers)
+    bound_here = re.findall(r'registry\.bind\("([a-z_]+)"', source)
+    assert bound_here
+    for key in bound_here:
+        assert key in read_only_keys, f"{key} is bound as read-only but is not"
         assert registry.contract(key).risk_class is RiskClass.R0_READ_ONLY
 
 
@@ -49,10 +54,12 @@ def test_unbound_tools_still_fail_loudly():
     treat as a completed step."""
     # Still genuinely unbound: the one read-only tool without a handler, and
     # every draft tool. Both must fail rather than return an empty result.
+    # Anchored on R2 durable tools: those mutate owner truth and are not bound
+    # in any phase so far, so this stays meaningful as drafts land.
     with pytest.raises(registry.UnboundToolError):
         registry.handler("get_omega_workspace_frame")
     with pytest.raises(registry.UnboundToolError):
-        registry.handler("create_draft_plan")
+        registry.handler("activate_plan")
 
 
 def test_no_bound_handler_accepts_a_write_shaped_argument():

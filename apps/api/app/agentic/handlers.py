@@ -397,3 +397,236 @@ def bind_read_only_handlers() -> tuple[str, ...]:
     registry.bind("get_project_evidence", get_project_evidence)
     registry.bind("get_insight", get_insight)
     return registry.bound_keys()
+
+
+# ── R1: private drafts ───────────────────────────────────────────────────────
+#
+# The first writes in this spine. Three rules hold for every one of them and are
+# asserted by the tests rather than trusted here:
+#
+#   Nothing created by a tool is OWNER_WRITTEN. Provenance is MODEL_GENERATED,
+#   always, because the owner did not write it — NUR proposed it. That label is
+#   what lets every later surface show the difference, and a draft that lied
+#   about its origin would poison the record permanently.
+#
+#   Nothing is created in an accepted or active state. A draft Plan is DRAFT, a
+#   candidate Insight is CANDIDATE, a memory candidate is PENDING. Promotion is
+#   an owner action and there is no tool for it.
+#
+#   Everything is reversible. These are R1 precisely because the owner can throw
+#   them away without consequence.
+
+MODEL_PROVENANCE = "MODEL_GENERATED"
+
+
+async def create_draft_plan(
+    db: AsyncSession,
+    owner_user_id: uuid.UUID,
+    *,
+    title: str,
+    orbit_id: str | None = None,
+    steps: list[str] | None = None,
+) -> dict[str, Any]:
+    """Draft a Plan in DRAFT status. Activation is a separate, approval-gated tool."""
+    from app.models.cognition import Plan, PlanStep
+
+    plan = Plan(owner_user_id=owner_user_id, title=title.strip(), status="DRAFT")
+    if orbit_id:
+        plan.orbit_id = uuid.UUID(orbit_id)
+    db.add(plan)
+    await db.flush()
+
+    created = []
+    for position, step_title in enumerate(steps or [], start=1):
+        step = PlanStep(
+            owner_user_id=owner_user_id,
+            plan_id=plan.id,
+            title=step_title.strip(),
+            position=position,
+            done=False,
+        )
+        db.add(step)
+        created.append(step_title.strip())
+
+    await db.flush()
+    return {
+        "created": True,
+        "plan_id": str(plan.id),
+        "status": "DRAFT",
+        "steps": created,
+        "provenance_label": MODEL_PROVENANCE,
+        "reversible": True,
+        "note": "A draft Plan does nothing until the owner activates it.",
+    }
+
+
+async def create_memory_candidate(
+    db: AsyncSession,
+    owner_user_id: uuid.UUID,
+    *,
+    candidate_text: str,
+    orbit_id: str | None = None,
+    memory_type: str = "SEMANTIC",
+) -> dict[str, Any]:
+    """Propose a memory. Never approve one.
+
+    `status` is PENDING and `approved_memory_id` stays null. There is no tool
+    that promotes a candidate, so model output cannot become owner truth by any
+    path the runtime can reach on its own.
+    """
+    from app.models.cognition import MemoryCandidate
+
+    candidate = MemoryCandidate(
+        owner_user_id=owner_user_id,
+        candidate_text=candidate_text.strip(),
+        memory_type=memory_type,
+        provenance_label=MODEL_PROVENANCE,
+        created_by="AGENT",
+        status="PENDING",
+    )
+    if orbit_id:
+        candidate.orbit_id = uuid.UUID(orbit_id)
+    db.add(candidate)
+    await db.flush()
+    return {
+        "created": True,
+        "candidate_id": str(candidate.id),
+        "status": "PENDING",
+        "provenance_label": MODEL_PROVENANCE,
+        "reversible": True,
+        "note": "A candidate is a proposal. Only the owner can make it memory.",
+    }
+
+
+async def create_research_brief(
+    db: AsyncSession,
+    owner_user_id: uuid.UUID,
+    *,
+    question: str,
+    notes: str = "",
+    orbit_id: str | None = None,
+) -> dict[str, Any]:
+    from app.models.cognition import ResearchDraft
+
+    draft = ResearchDraft(
+        owner_user_id=owner_user_id,
+        question=question.strip(),
+        notes=notes.strip(),
+        status="DRAFT",
+    )
+    if orbit_id:
+        draft.orbit_id = uuid.UUID(orbit_id)
+    db.add(draft)
+    await db.flush()
+    return {
+        "created": True,
+        "brief_id": str(draft.id),
+        "status": "DRAFT",
+        "provenance_label": MODEL_PROVENANCE,
+        "reversible": True,
+    }
+
+
+async def create_insight_candidate(
+    db: AsyncSession,
+    owner_user_id: uuid.UUID,
+    *,
+    title: str,
+    claim: str,
+    what_nur_may_be_wrong_about: str,
+    evidence: list | None = None,
+    counter_evidence: list | None = None,
+    confidence: float = 0.5,
+    affected_system_slug: str | None = None,
+) -> dict[str, Any]:
+    """Propose an Insight. Doubt is a required argument, not an option.
+
+    `what_nur_may_be_wrong_about` is NOT NULL in the schema, and it is a required
+    keyword here for the same reason: an Insight that cannot say where it might
+    be wrong should not be creatable at all. A default value would let a caller
+    skip the hardest sentence in the product.
+    """
+    from app.models.intelligence import Insight
+
+    doubt = (what_nur_may_be_wrong_about or "").strip()
+    if not doubt:
+        raise ValueError(
+            "an Insight must state where NUR may be wrong; an empty doubt is not acceptable"
+        )
+
+    insight = Insight(
+        owner_user_id=owner_user_id,
+        insight_type="PATTERN",
+        title=title.strip(),
+        claim=claim.strip(),
+        confidence=max(0.0, min(float(confidence), 1.0)),
+        evidence=list(evidence or []),
+        counter_evidence=list(counter_evidence or []),
+        what_nur_may_be_wrong_about=doubt,
+        affected_system_slug=affected_system_slug,
+        status="CANDIDATE",
+        provenance_label=MODEL_PROVENANCE,
+    )
+    db.add(insight)
+    await db.flush()
+    return {
+        "created": True,
+        "insight_id": str(insight.id),
+        "status": "CANDIDATE",
+        "confidence_meaning": "Source coverage and evidence strength, not guaranteed truth",
+        "provenance_label": MODEL_PROVENANCE,
+        "reversible": True,
+        "note": "A candidate Insight is challengeable until the owner accepts or corrects it.",
+    }
+
+
+async def create_timeline_draft(
+    db: AsyncSession,
+    owner_user_id: uuid.UUID,
+    *,
+    title: str,
+    description: str = "",
+    system_slug: str | None = None,
+    importance: int = 50,
+) -> dict[str, Any]:
+    """Draft a Timeline event with no schedule.
+
+    `scheduled_for` is deliberately left null: scheduling is the durable,
+    approval-gated action. A draft that quietly carried a date would be a
+    reminder the owner never agreed to.
+    """
+    from app.models.intelligence import TimelineEvent
+
+    event = TimelineEvent(
+        owner_user_id=owner_user_id,
+        event_type="AGENT_DRAFT",
+        title=title.strip(),
+        description=description.strip(),
+        time_kind="FUTURE",
+        source_type="AGENT",
+        status="PLANNED",
+        importance=max(0, min(int(importance), 100)),
+        system_slug=system_slug,
+    )
+    db.add(event)
+    await db.flush()
+    return {
+        "created": True,
+        "event_id": str(event.id),
+        "status": "PLANNED",
+        "scheduled_for": None,
+        "provenance_label": MODEL_PROVENANCE,
+        "reversible": True,
+        "note": "Unscheduled. Scheduling requires owner approval.",
+    }
+
+
+def bind_draft_handlers() -> tuple[str, ...]:
+    """Attach the R1 handlers. Separate from the read-only binding so a caller —
+    or a test — can enable reads without enabling any write at all."""
+    registry.bind("create_draft_plan", create_draft_plan)
+    registry.bind("create_memory_candidate", create_memory_candidate)
+    registry.bind("create_research_brief", create_research_brief)
+    registry.bind("create_insight_candidate", create_insight_candidate)
+    registry.bind("create_timeline_draft", create_timeline_draft)
+    return registry.bound_keys()
