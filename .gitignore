@@ -52,3 +52,13 @@ apps/web/playwright-report/
 
 # Local audit dumps: machine-specific paths, never part of the product.
 audit-output/
+
+# Run evidence regenerates on demand and is meaningless once the SHA moves.
+# Publish it as a CI artifact; keep only the compact summaries a human reads.
+proof/**/*.png
+proof/**/*.jpg
+proof/**/*.jpeg
+proof/**/*.webm
+proof/**/*.mp4
+proof/**/*.gif
+proof/**/*.trace
