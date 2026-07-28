@@ -55,15 +55,18 @@ describe("V197 deterministic runtime performance profile", () => {
     // Depth is the spread between near and far, not overall exposure. A high
     // floor clamps distant stars to the size of near ones and the field reads as
     // flat confetti — which is exactly what "I don't see the galaxy rig" meant.
-    expect(result.source).toContain("Math.max(.34,rad*1.62)");
+    // The floor is expressed in device pixels: below one, a distant star simply
+    // does not render, which is how a large display lost the whole field.
+    expect(result.source).toContain("Math.max(.34*Math.max(1,DPR),rad*1.62)");
     expect(result.source).not.toContain("Math.max(.86");
     expect(result.source).toContain("Math.min(1,alpha*3.1)");
     expect(result.source).not.toContain("alpha*3.55");
     // Same star counts as the Universe rig: galaxy 900, far 585, dust 165, super 48.
-    expect(result.source).toContain("(mobile?520:900)");
-    expect(result.source).toContain("(mobile?340:585)");
-    expect(result.source).toContain("(mobile?96:165)");
-    expect(result.source).toContain("(mobile?26:48)");
+    // Entry has its own density knobs, separate from the Universe stage.
+    expect(result.source).toContain("(mobile?520:Math.round(900*Math.min(2.2");
+    expect(result.source).toContain("(mobile?340:Math.round(585*Math.min(2.2");
+    expect(result.source).toContain("(mobile?96:Math.round(165*Math.min(2.2");
+    expect(result.source).toContain("(mobile?26:Math.round(48*Math.min(2.2");
 
     // Desktop density stays canonical; only phones are thinned.
     expect(result.source).not.toContain("(mobile?500:860)");
@@ -94,7 +97,10 @@ describe("V197 deterministic runtime performance profile", () => {
 
     // Particle budget and desktop density stay canonical.
     expect(result.source).toContain("const PARTICLE_CAP=1880");
-    expect(result.source).toContain("galaxy:900,far:585,dust:165,super:48");
+    // Density scales with viewport area — a fixed count spread over a 2552x1412
+    // screen is less than half the density it has at 1600x1000.
+    expect(result.source).toContain("areaScale");
+    expect(result.source).toContain("Math.round(900*areaScale)");
     expect(result.source).not.toContain("galaxy:660,far:370,dust:100,super:30");
 
     // Desktop renders every frame; only phone widths are bounded, at 30 FPS.

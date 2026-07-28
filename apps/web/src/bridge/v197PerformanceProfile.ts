@@ -37,7 +37,7 @@ const pixelBudgetDpr = (ceiling: number, budget: number) =>
 
 const GALAXY_STAR_PAINT_REPLACEMENT: Replacement = [
   'if(p.kind==="dust"){const dr=',
-  'if(!isS&&p.kind==="galaxy"){const starCol=p.prism?prismShift(p.col,p.prismPhase+t*p.prismSpeed+phase*.18,twinkle,false):p.col;const starR=Math.max(.34,rad*1.62),starA=Math.min(1,alpha*3.1);c.fillStyle=`rgba(${starCol[0]},${starCol[1]},${starCol[2]},${starA})`;stellarPath(q.x,q.y,starR,Math.max(.1,starR*.16),4,p.phase+t*2e-4);c.fill();if(alpha>.34&&rad>1.05){c.fillStyle=`rgba(${starCol[0]},${starCol[1]},${starCol[2]},${Math.min(.46,alpha*.72)})`;c.fillRect(q.x-starR*2.35,q.y-.18,starR*4.7,.36);c.fillRect(q.x-.18,q.y-starR*1.7,.36,starR*3.4)}continue}if(p.kind==="dust"){const dustR=Math.max(.22,rad*.86);c.fillStyle=`rgba(${p.col[0]},${p.col[1]},${p.col[2]},${Math.min(.5,alpha*2.1)})`;stellarPath(q.x,q.y,dustR,Math.max(.08,dustR*.18),4,p.phase);c.fill();continue}if(false&&p.kind==="dust"){const dr=',
+  'if(!isS&&p.kind==="galaxy"){const starCol=p.prism?prismShift(p.col,p.prismPhase+t*p.prismSpeed+phase*.18,twinkle,false):p.col;const starR=Math.max(.34*Math.max(1,DPR),rad*1.62),starA=Math.min(1,alpha*3.1);c.fillStyle=`rgba(${starCol[0]},${starCol[1]},${starCol[2]},${starA})`;stellarPath(q.x,q.y,starR,Math.max(.1,starR*.16),4,p.phase+t*2e-4);c.fill();if(alpha>.34&&rad>1.05){c.fillStyle=`rgba(${starCol[0]},${starCol[1]},${starCol[2]},${Math.min(.46,alpha*.72)})`;c.fillRect(q.x-starR*2.35,q.y-.18,starR*4.7,.36);c.fillRect(q.x-.18,q.y-starR*1.7,.36,starR*3.4)}continue}if(p.kind==="dust"){const dustR=Math.max(.22*Math.max(1,DPR),rad*.86);c.fillStyle=`rgba(${p.col[0]},${p.col[1]},${p.col[2]},${Math.min(.5,alpha*2.1)})`;stellarPath(q.x,q.y,dustR,Math.max(.08,dustR*.18),4,p.phase);c.fill();continue}if(false&&p.kind==="dust"){const dr=',
 ];
 
 /*
@@ -158,10 +158,10 @@ const ENTRY_REPLACEMENTS: readonly Replacement[] = [
     "const mobile=innerWidth<700;",
     "const mobile=Math.max(innerWidth,parent.innerWidth||0)<700;",
   ],
-  ["(mobile?680:1140)", "(mobile?520:900)"],
-  ["(mobile?460:720)", "(mobile?340:585)"],
-  ["(mobile?192:320)", "(mobile?96:165)"],
-  ["(mobile?44:76)", "(mobile?26:48)"],
+  ["(mobile?680:1140)", "(mobile?520:Math.round(900*Math.min(2.2,Math.max(1,(innerWidth*innerHeight)/1600000))))"],
+  ["(mobile?460:720)", "(mobile?340:Math.round(585*Math.min(2.2,Math.max(1,(innerWidth*innerHeight)/1600000))))"],
+  ["(mobile?192:320)", "(mobile?96:Math.round(165*Math.min(2.2,Math.max(1,(innerWidth*innerHeight)/1600000))))"],
+  ["(mobile?44:76)", "(mobile?26:Math.round(48*Math.min(2.2,Math.max(1,(innerWidth*innerHeight)/1600000))))"],
   [
     'const nodes=proj.filter(v=>v.p.kind==="galaxy"&&v.q.scale<.36).slice(0,130);',
     'const nodes=nodeCache;nodes.length=0;const entryNodeBudget=innerWidth<700?28:64;for(let nodeIndex=0;nodeIndex<proj.length&&nodes.length<entryNodeBudget;nodeIndex++){const candidate=proj[nodeIndex];if(candidate.p.kind==="galaxy"&&candidate.q.scale<.36)nodes.push(candidate)}',
@@ -214,7 +214,7 @@ const UNIVERSE_REPLACEMENTS: readonly Replacement[] = [
   ],
   [
     "const density=mobile?{galaxy:620,far:430,dust:118,super:32}:{galaxy:900,far:585,dust:165,super:48}",
-    "const density=mobile?{galaxy:520,far:340,dust:96,super:26}:{galaxy:900,far:585,dust:165,super:48}",
+    "const areaScale=Math.min(2.2,Math.max(1,(innerWidth*innerHeight)/1600000));const density=mobile?{galaxy:520,far:340,dust:96,super:26}:{galaxy:Math.round(900*areaScale),far:Math.round(585*areaScale),dust:Math.round(165*areaScale),super:Math.round(48*areaScale)}",
   ],
   [
     'const nodeBudget=innerWidth<700?54:82;const nodes=proj.filter(v=>v.p.kind==="galaxy"&&v.q.scale<.36).slice(0,nodeBudget);',
