@@ -72,6 +72,16 @@ from app.models.living import (  # noqa: F401
     FeasibilityAssessment, GlowAchievement, Goal, Objective, ScheduledAction,
     SystemAction, SystemDiagnostic, TodayCheckIn,
 )
+from app.models.agentic import (  # noqa: F401
+    AgentApproval,
+    AgentCheckpoint,
+    AgentEvaluation,
+    AgentPolicy,
+    AgentRunEvent,
+    AgentStep,
+    AgentToolCall,
+    AgentWorkflow,
+)
 from app.models.projects import (  # noqa: F401
     AMProject, AMProjectAgent, AMProjectArtifact, AMProjectEvidence, AMProjectFile,
     AMProjectReview, AMProjectRun, AMProjectTask,
