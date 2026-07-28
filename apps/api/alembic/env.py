@@ -11,11 +11,26 @@ target_metadata = Base.metadata
 
 
 def _url() -> str:
-    return (
-        os.environ.get("ALEMBIC_DATABASE_URL")
-        or os.environ.get("DATABASE_URL")
-        or "postgresql+asyncpg://nur_admin:change_me@localhost:5432/nur"
-    )
+    """Resolve the migration target, or refuse to run.
+
+    This used to fall back to a hardcoded `localhost:5432`. That default is not
+    the database this project runs on — the container publishes 15432 — so
+    invoking alembic from a shell that had not exported either variable
+    migrated a *different* database and reported success while doing it. The
+    application stayed on an old revision and nothing said so.
+
+    A migration tool that silently picks its own target is worse than one that
+    stops, so an unset environment is now a hard error naming both variables.
+    """
+    url = os.environ.get("ALEMBIC_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if not url:
+        raise RuntimeError(
+            "No migration target: set ALEMBIC_DATABASE_URL (preferred, schema-owner "
+            "role) or DATABASE_URL. Refusing to guess — the previous default "
+            "pointed at localhost:5432, which is not the database this project "
+            "runs on, and migrating it silently left the app on an old revision."
+        )
+    return url
 
 
 def run_migrations_offline() -> None:
