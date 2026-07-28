@@ -163,6 +163,223 @@ async def search_approved_memory(
     }
 
 
+def _owned(statement, model, owner_user_id):
+    """Add an explicit owner filter when the model carries one.
+
+    RLS already confines the session, so this is defence in depth rather than
+    the primary control. It costs nothing and means a handler run against a
+    session whose context was never set returns nothing instead of everything.
+    """
+    column = getattr(model, "owner_user_id", None)
+    return statement.where(column == owner_user_id) if column is not None else statement
+
+
+async def get_today_state(db: AsyncSession, owner_user_id: uuid.UUID) -> dict[str, Any]:
+    """The owner's current day. Delegates to the same snapshot the Today route
+    serves, so the tool and the screen cannot disagree."""
+    from app.api.v1.living import today_snapshot
+
+    return await today_snapshot(db, owner_user_id=owner_user_id)
+
+
+async def get_plan(
+    db: AsyncSession, owner_user_id: uuid.UUID, *, plan_id: str | None = None
+) -> dict[str, Any]:
+    from app.models.cognition import Plan, PlanStep
+
+    statement = _owned(select(Plan), Plan, owner_user_id)
+    if plan_id:
+        statement = statement.where(Plan.id == uuid.UUID(plan_id))
+    plans = (await db.execute(statement.limit(20))).scalars().all()
+    if plan_id and not plans:
+        return {"found": False, "plan_id": plan_id}
+
+    out = []
+    for plan in plans:
+        steps = (
+            await db.execute(
+                select(PlanStep).where(PlanStep.plan_id == plan.id).order_by(PlanStep.position)
+            )
+        ).scalars().all()
+        out.append(
+            {
+                "id": str(plan.id),
+                "title": plan.title,
+                "status": plan.status,
+                "steps": [
+                    {"id": str(s.id), "title": s.title, "position": s.position, "done": s.done}
+                    for s in steps
+                ],
+            }
+        )
+    return {"found": True, "count": len(out), "plans": out}
+
+
+async def get_system_snapshot(
+    db: AsyncSession, owner_user_id: uuid.UUID, *, system_slug: str
+) -> dict[str, Any]:
+    """One Star System's standing: its founder-locked definition plus the
+    owner's goals inside it. The definition comes from the catalog rather than
+    the database because it is not owner data and must not drift per owner."""
+    from app.living.catalog import SYSTEMS
+    from app.models.living import Goal
+
+    definition = next((s for s in SYSTEMS if s.slug == system_slug), None)
+    if definition is None:
+        return {"found": False, "system_slug": system_slug}
+
+    goals = (
+        await db.execute(
+            _owned(select(Goal), Goal, owner_user_id).where(Goal.system_slug == system_slug)
+        )
+    ).scalars().all()
+    return {
+        "found": True,
+        "system_slug": system_slug,
+        "title": definition.title,
+        "definition": definition.definition,
+        "goals": [
+            {
+                "id": str(g.id),
+                "title": g.title,
+                "status": g.status,
+                "progress_percent": g.progress_percent,
+            }
+            for g in goals
+        ],
+    }
+
+
+async def get_orbit(
+    db: AsyncSession, owner_user_id: uuid.UUID, *, orbit_id: str | None = None
+) -> dict[str, Any]:
+    from app.models.orbit import Orbit
+
+    statement = _owned(select(Orbit), Orbit, owner_user_id)
+    if orbit_id:
+        statement = statement.where(Orbit.id == uuid.UUID(orbit_id))
+    rows = (await db.execute(statement.limit(50))).scalars().all()
+    if orbit_id and not rows:
+        return {"found": False, "orbit_id": orbit_id}
+    return {
+        "found": True,
+        "count": len(rows),
+        "orbits": [
+            {
+                "id": str(r.id),
+                "title": r.title,
+                "kind": str(r.kind),
+                "status": str(r.status),
+                "system_slug": r.system_slug,
+                # privacy_scope is included because a tool result that omits it
+                # would let a later step treat a shared Orbit as private.
+                "privacy_scope": str(r.privacy_scope),
+            }
+            for r in rows
+        ],
+    }
+
+
+async def get_project(
+    db: AsyncSession, owner_user_id: uuid.UUID, *, project_id: str | None = None
+) -> dict[str, Any]:
+    from app.models.projects import AMProject
+
+    statement = _owned(select(AMProject), AMProject, owner_user_id)
+    if project_id:
+        statement = statement.where(AMProject.id == uuid.UUID(project_id))
+    rows = (await db.execute(statement.limit(50))).scalars().all()
+    if project_id and not rows:
+        return {"found": False, "project_id": project_id}
+    return {
+        "found": True,
+        "count": len(rows),
+        "projects": [
+            {
+                "id": str(r.id),
+                "title": r.title,
+                "objective": r.objective,
+                "status": str(r.status),
+                "system_slug": r.system_slug,
+            }
+            for r in rows
+        ],
+    }
+
+
+async def get_project_evidence(
+    db: AsyncSession, owner_user_id: uuid.UUID, *, project_id: str
+) -> dict[str, Any]:
+    """Evidence attached to a Project, with its verification status.
+
+    `verification_status` is returned on every row and never filtered away: an
+    unverified piece of evidence is still evidence, and hiding the distinction
+    would let a later step cite it as though it had been checked.
+    """
+    from app.models.projects import AMProjectEvidence
+
+    rows = (
+        await db.execute(
+            _owned(select(AMProjectEvidence), AMProjectEvidence, owner_user_id)
+            .where(AMProjectEvidence.project_id == uuid.UUID(project_id))
+            .limit(100)
+        )
+    ).scalars().all()
+    return {
+        "project_id": project_id,
+        "count": len(rows),
+        "evidence": [
+            {
+                "id": str(r.id),
+                "kind": r.evidence_kind,
+                "summary": r.summary,
+                "verification_status": r.verification_status,
+                "verifier": r.verifier,
+            }
+            for r in rows
+        ],
+    }
+
+
+async def get_insight(
+    db: AsyncSession, owner_user_id: uuid.UUID, *, insight_id: str | None = None
+) -> dict[str, Any]:
+    """An Insight with its doubt attached.
+
+    `what_nur_may_be_wrong_about` and `counter_evidence` are returned alongside
+    the claim, never separately. An Insight quoted without its own account of
+    where it might be wrong is exactly the unlabelled certainty this product is
+    built to refuse.
+    """
+    from app.models.intelligence import Insight
+
+    statement = _owned(select(Insight), Insight, owner_user_id)
+    if insight_id:
+        statement = statement.where(Insight.id == uuid.UUID(insight_id))
+    rows = (await db.execute(statement.limit(25))).scalars().all()
+    if insight_id and not rows:
+        return {"found": False, "insight_id": insight_id}
+    return {
+        "found": True,
+        "count": len(rows),
+        "insights": [
+            {
+                "id": str(r.id),
+                "title": r.title,
+                "claim": r.claim,
+                "status": r.status,
+                "confidence": r.confidence,
+                "confidence_meaning": "Source coverage and evidence strength, not guaranteed truth",
+                "evidence": r.evidence,
+                "counter_evidence": r.counter_evidence,
+                "what_nur_may_be_wrong_about": r.what_nur_may_be_wrong_about,
+                "provenance_label": r.provenance_label,
+            }
+            for r in rows
+        ],
+    }
+
+
 def bind_read_only_handlers() -> tuple[str, ...]:
     """Attach the handlers above. Returns the keys that are now callable.
 
@@ -172,4 +389,11 @@ def bind_read_only_handlers() -> tuple[str, ...]:
     registry.bind("get_map_neighbourhood", get_map_neighbourhood)
     registry.bind("get_timeline", get_timeline)
     registry.bind("search_approved_memory", search_approved_memory)
+    registry.bind("get_today_state", get_today_state)
+    registry.bind("get_plan", get_plan)
+    registry.bind("get_system_snapshot", get_system_snapshot)
+    registry.bind("get_orbit", get_orbit)
+    registry.bind("get_project", get_project)
+    registry.bind("get_project_evidence", get_project_evidence)
+    registry.bind("get_insight", get_insight)
     return registry.bound_keys()
