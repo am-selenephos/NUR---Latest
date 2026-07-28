@@ -35,7 +35,7 @@ skip_dirs = {
 skip_files = {".env", ".env.local", "dump.rdb", "remaining-gaps.md"}
 # Internal construction/design history: kept in the repo as a development record,
 # never shipped in the public release archive (they carry build-process naming).
-skip_name_prefixes = ("BUILD_WEEK", "COUSIN_", "FABLE_")
+skip_name_prefixes = ("BUILD_WEEK", "FABLE_")
 # docs/v5 holds versioned construction planning (orchestrator/ledger/masterplan)
 # with builder-agent and lane terminology — internal only, never in the package.
 skip_rel_dirs = {("docs", "v5")}

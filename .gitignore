@@ -49,3 +49,6 @@ proof/**/videos/
 proof/**/video/
 apps/web/test-results/
 apps/web/playwright-report/
+
+# Local audit dumps: machine-specific paths, never part of the product.
+audit-output/
