@@ -725,3 +725,64 @@ body .spark-h2 {
     will-change: auto;
   }
 }
+
+/* ── 12. Stop the per-frame repaints inside the star ────────────────────────
+   The trace put Systems at 130 raster tasks a second against Entry's 49 while
+   showing fewer frames — content inside the promoted layers was being redrawn
+   rather than reused. Two animation families are responsible, and both animate
+   properties that cannot be composited:
+
+     nurV105GoldFlow / CoolFlow / RoseFlow   12 elements, background-position
+     orbitTw                                  3 elements, filter
+
+   `background-position` and `filter` both force a repaint on every frame. Only
+   `transform` and `opacity` are free.
+
+   Neither is removed. `contain: paint` bounds each repaint to the element
+   instead of letting it invalidate its ancestors, so the work stops
+   propagating. The gradient still flows; it simply stops dirtying the layer
+   above it. */
+body #nur-front-v61 .ray-core::after,
+body .universe-master-star .ray-core::after,
+body .f4-master-star--hero .ray-core::after {
+  contain: paint;
+}
+
+/* `orbitTw` animates opacity together with filter. The opacity half is free and
+   carries the twinkle; the filter half re-rasterises for a change nobody can
+   separate from it. Pinned to a constant so only opacity animates, exactly as
+   `coreEmission` was handled above. */
+body .ob1,
+body .ob2 {
+  filter: blur(.5px) brightness(1.12) !important;
+  contain: paint;
+}
+
+/* ── 13. Buttons: full-spectrum sheen needs a real element, not a pseudo ────
+   The controls do read as roughly three colours and that is worth fixing, but
+   it cannot be done from CSS alone. Canonical already occupies both pseudo
+   elements on every one of these buttons:
+
+     .f4-primary::before   nurHeroSheen
+     .f4-primary::after    nurHeroSparkle
+
+   Two attempts here took `::after` and then `::before`, and each silently
+   replaced a canonical effect with mine — the button gained a spectrum and lost
+   its sheen or its sparkle, which is a trade nobody asked for.
+
+   The correct route is the one this codebase already uses for the star seal and
+   the sign-out label: have the bridge append a real child element and paint the
+   spectrum on that, leaving both canonical pseudo elements untouched. That is a
+   bridge change rather than a stylesheet change, so it is left for a deliberate
+   pass instead of being forced through the cascade here. */
+  body .f4-primary::before,
+  body .f4-signin::before,
+  body .f4-link::before,
+  body .soft-button::before,
+  body .send-holo-pill::before,
+  body .thought-send-button::before,
+  body .universe-nav-tabs button::before,
+  body .nur-user::before,
+  body .composer-action::before,
+  body .universe-lens-tab::before,
+  body .nur-chip::before {
