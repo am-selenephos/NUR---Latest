@@ -163,6 +163,42 @@ function installEntrySheetState(document: Document): void {
   }
 }
 
+
+/**
+ * Give every control a real holographic film.
+ *
+ * The controls read as two or three tones because canonical already owns both
+ * pseudo elements on them — `nurHeroSheen` on ::before and `nurHeroSparkle` on
+ * ::after. Two earlier attempts painted a spectrum on one of those and silently
+ * destroyed the canonical effect underneath, which is a trade nobody asked for.
+ *
+ * So the film gets its own element, the same pattern the star seal and the
+ * sign-out label already use here. Both canonical pseudo elements survive
+ * untouched and the spectrum sits between them.
+ */
+const HOLO_FILM_CLASS = "nur-holo-film";
+const HOLO_TARGETS = [
+  ".f4-primary", ".f4-signin", ".f4-link", ".soft-button",
+  ".send-holo-pill", ".thought-send-button", ".composer-action",
+  ".universe-nav-tabs button", ".nur-user", ".universe-lens-tab",
+  ".universe-system-node", ".scope-chip", ".nur-chip",
+].join(",");
+
+function installHolographicFilm(document: Document): number {
+  const controls = document.querySelectorAll<HTMLElement>(HOLO_TARGETS);
+  let added = 0;
+  for (const control of controls) {
+    if (control.querySelector(`:scope > .${HOLO_FILM_CLASS}`)) continue;
+    const film = document.createElement("i");
+    film.className = HOLO_FILM_CLASS;
+    film.setAttribute("aria-hidden", "true");
+    // Prepended so it sits under the label and above the control's own fill.
+    control.prepend(film);
+    added += 1;
+  }
+  return added;
+}
+
 export function ensureV197EntryPolish(document: Document): HTMLStyleElement {
   const style = installPresentationStyle(
     document,
@@ -172,6 +208,7 @@ export function ensureV197EntryPolish(document: Document): HTMLStyleElement {
   installEntrySheetState(document);
   lockV197BrandIdentity(document);
   installV197StarSeals(document);
+  installHolographicFilm(document);
   ensureV197BlackGalaxy(document);
   ensureV197StarBrain(document);
   return style;
@@ -220,6 +257,7 @@ export function ensureV197PremiumPolish(document: Document): HTMLStyleElement {
   relocateSystemsMantra(document);
   labelCompactTopbarControls(document);
   labelOwnerSignOutControl(document);
+  installHolographicFilm(document);
   matchUniverseBackgroundToEntry(document);
   ensureV197BlackGalaxy(document);
   ensureV197StarBrain(document);

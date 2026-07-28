@@ -652,3 +652,114 @@ body.universe-edition .nur-viewport::after {
   background-color: transparent !important;
   opacity: 0 !important;
 }
+
+/* ── 13. Holographic film on the controls ──────────────────────────────────
+   Painted on `.nur-holo-film`, a real element the bridge prepends, because
+   canonical already uses both pseudo elements on these controls — `f4spin` on
+   `.f4-primary::before` among them. Two earlier attempts took one of those and
+   silently replaced a canonical effect. This sits between them, and the
+   canonical animations are asserted intact in the bridge test.
+
+   The first version of this section spread one spectrum across an element three
+   times the button's width, so only about a third of the wheel was over the
+   button at any moment and it read as two or three tones — which is exactly the
+   complaint. The wheel is compressed to a third of the surface and repeated
+   instead, so a *full* spectrum spans the control at every instant and the
+   drift changes which part of the wheel sits where. Full rainbow and continuous
+   colour shift at the same time.
+
+   The drift runs on `transform`, so it composites and does not re-rasterise. */
+@keyframes nurHoloFilmDrift {
+  0%   { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-33.333%, 0, 0); }
+}
+
+.nur-holo-film {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* One full wheel per third of the surface — eleven stops, wrapping cleanly from
+   the last back to the first so the repeat has no seam. */
+.nur-holo-film::before,
+.nur-holo-film::after {
+  content: "";
+  position: absolute;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    104deg,
+    rgba(255, 236, 150, .34)  0%,
+    rgba(255, 190, 116, .34)  3.03%,
+    rgba(255, 140, 128, .34)  6.06%,
+    rgba(255, 122, 196, .34)  9.09%,
+    rgba(214, 132, 255, .34) 12.12%,
+    rgba(150, 162, 255, .34) 15.15%,
+    rgba(110, 214, 255, .34) 18.18%,
+    rgba(112, 246, 214, .34) 21.21%,
+    rgba(168, 250, 152, .34) 24.24%,
+    rgba(226, 246, 140, .34) 27.27%,
+    rgba(255, 236, 150, .34) 33.33%
+  );
+}
+
+.nur-holo-film::before {
+  top: -50%;
+  bottom: -50%;
+  left: 0;
+  width: 300%;
+  will-change: transform;
+  animation: nurHoloFilmDrift 6s linear infinite;
+  mix-blend-mode: screen;
+  opacity: .82;
+}
+
+/* The rim. These controls read as a two-tone gold-to-magenta edge because that
+   is what the canonical border gradient is; this lays the same wheel over it,
+   masked to a hairline ring so the spectrum reaches the edge too. */
+.nur-holo-film::after {
+  top: -50%;
+  bottom: -50%;
+  left: 0;
+  width: 300%;
+  will-change: transform;
+  animation: nurHoloFilmDrift 6s linear infinite;
+  opacity: .95;
+  padding: 1.5px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+/* The controls have to clip the film and stack their own content above it. */
+.f4-primary, .f4-signin, .f4-link, .soft-button,
+.send-holo-pill, .thought-send-button, .composer-action,
+.universe-nav-tabs button, .nur-user, .universe-lens-tab,
+.universe-system-node, .scope-chip, .nur-chip {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Tilting a real film changes what you see. Hover shifts it faster and hotter. */
+.f4-primary:hover > .nur-holo-film::before,
+.f4-signin:hover > .nur-holo-film::before,
+.f4-link:hover > .nur-holo-film::before,
+.soft-button:hover > .nur-holo-film::before,
+.send-holo-pill:hover > .nur-holo-film::before,
+.thought-send-button:hover > .nur-holo-film::before,
+.universe-nav-tabs button:hover > .nur-holo-film::before,
+.nur-user:hover > .nur-holo-film::before,
+.universe-lens-tab:hover > .nur-holo-film::before,
+.universe-system-node:hover > .nur-holo-film::before {
+  opacity: 1;
+  animation-duration: 2.6s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nur-holo-film::before,
+  .nur-holo-film::after { animation: none; }
+}

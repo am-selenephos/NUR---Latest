@@ -1,4 +1,7 @@
 import { bootstrapV197Bridge } from "./bridge/v197Bridge";
+import { installV197Diagnostics } from "./bridge/v197Diagnose";
+
+installV197Diagnostics();
 
 void bootstrapV197Bridge().catch(error => {
   // The bridge is intentionally nonvisual. Leave the canonical V197 entry intact
