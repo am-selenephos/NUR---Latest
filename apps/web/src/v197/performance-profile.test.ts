@@ -47,7 +47,7 @@ describe("V197 deterministic runtime performance profile", () => {
     // Bounded by a pixel budget, not a flat ratio: full resolution on ordinary
     // windows, and only as much reduction as a very large window demands.
     expect(result.source).toContain("Math.sqrt(3400000/Math.max(1,innerWidth*innerHeight))");
-    
+    expect(result.source).toContain("Math.max(1,Math.min(devicePixelRatio||1,1.5");
     expect(result.source).not.toContain("devicePixelRatio||1,1.15");
     // Entry paints with the *same* star code as the Universe rig — the founder
     // asked for an exact match, not a tuned variant. If these ever diverge the
@@ -92,7 +92,7 @@ describe("V197 deterministic runtime performance profile", () => {
     expect(result.source).toContain("if(profile.nebula>.48)drawNebula(t);");
     expect(result.source).not.toContain("if(false)drawNebula(t);");
     expect(result.source).toContain("if(farAlpha>.095&&farR>.7)spike(");
-    
+    expect(result.source).toContain("Math.max(1,Math.min(devicePixelRatio||1,1.5");
     expect(result.source).not.toContain("DPR=Math.min(devicePixelRatio||1,1)");
 
     // Particle budget and desktop density stay canonical.
