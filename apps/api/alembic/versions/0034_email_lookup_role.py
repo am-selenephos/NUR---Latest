@@ -18,8 +18,9 @@ cannot enumerate, cannot return any other column, and cannot be called by anyone
 who is not already authenticated — every caller still enforces its own
 authorisation afterwards. The role has NOLOGIN, so nothing can connect as it.
 
-Creating a role needs a superuser, which the migration role is not. Provision it
-once per database before migrating:
+The migration creates the role itself where it is permitted to — CI, and any
+deployment that migrates as a superuser. Where the migration role may not create
+roles, provision it once per database beforehand:
 
     CREATE ROLE nur_email_lookup NOLOGIN BYPASSRLS;
     GRANT nur_email_lookup TO <migration_role>;
@@ -48,6 +49,26 @@ def upgrade() -> None:
     exists = bind.execute(
         sa.text("SELECT 1 FROM pg_roles WHERE rolname = :r"), {"r": LOOKUP_ROLE}
     ).scalar()
+
+    if not exists:
+        # Where the migration role may create roles — CI, and any deployment
+        # that migrates as a superuser — provision it here so the chain is
+        # self-contained. Where it may not, fall through to the instruction
+        # below rather than guessing.
+        try:
+            with bind.begin_nested():
+                bind.execute(sa.text(
+                    f"CREATE ROLE {LOOKUP_ROLE} NOLOGIN BYPASSRLS"
+                ))
+                bind.execute(sa.text(f"GRANT {LOOKUP_ROLE} TO CURRENT_USER"))
+                bind.execute(sa.text(
+                    f"GRANT USAGE, CREATE ON SCHEMA public TO {LOOKUP_ROLE}"
+                ))
+                bind.execute(sa.text(f"GRANT SELECT ON users TO {LOOKUP_ROLE}"))
+            exists = True
+        except Exception:
+            exists = False
+
     if not exists:
         raise RuntimeError(
             f"role {LOOKUP_ROLE} does not exist. Provision it as a superuser first:\n"
