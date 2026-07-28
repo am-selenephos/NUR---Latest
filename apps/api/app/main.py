@@ -122,6 +122,7 @@ def create_app() -> FastAPI:
     from app.api.v1.translations import router as translations_router
     from app.learning.routes import router as teach_nur_router
     from app.intelligence.routes import router as intelligence_router
+    from app.api.v1.agentic import router as agentic_router
     from app.api.v1.timeline import router as timeline_router
     from app.api.v1.universe import router as universe_router
     from app.omega.routes import router as omega_router
@@ -152,6 +153,7 @@ def create_app() -> FastAPI:
     app.include_router(ops_router, prefix="/api/v1")
     app.include_router(translations_router, prefix="/api/v1")
     app.include_router(timeline_router, prefix="/api/v1")
+    app.include_router(agentic_router, prefix="/api/v1")
     app.include_router(universe_router, prefix="/api/v1")
     app.include_router(omega_router, prefix="/api/v1")
     app.include_router(billing_router, prefix="/api/v1")
