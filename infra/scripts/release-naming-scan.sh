@@ -1,16 +1,47 @@
 #!/usr/bin/env bash
-# Release-facing naming regression guard.
+# Naming regression guard.
 #
-# The public product identity is NUR (Neural Upgrade Rewiring). The front-door
-# release surface — the docs and scripts a user sees first and that ship in the
-# distributable archive — must not carry build-process, donor, rescue-branch,
-# competition, or builder-agent terminology. Internal construction/design
-# history under docs/ is intentionally NOT scanned; it is a development record.
+# This file resolves an add/add conflict between two guards that were written
+# independently and do different jobs. Keeping only one would silently disable a
+# real check, so both run and the script fails if either fails.
+#
+#   1. Repo-wide token scan (from main). One forbidden token, checked across
+#      every tracked path and every tracked text file. Broad file scope, narrow
+#      vocabulary.
+#
+#   2. Release-surface naming scan. A wider vocabulary — build-process, donor,
+#      rescue-branch, competition and builder-agent terminology — checked only
+#      against the front-door files a user sees and that ship in the
+#      distributable. Narrow file scope, broad vocabulary.
+#
+# The scopes differ deliberately. Internal construction history under docs/ is a
+# development record and is intentionally not scanned by (2), but the single
+# token in (1) is not permitted anywhere at all.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
+status=0
+
+# ── 1. Repo-wide forbidden token ────────────────────────────────────────────
+# Built at runtime so this scanner does not itself contain the literal string it
+# is responsible for rejecting.
+forbidden_token="$(printf '%s%s' 'cou' 'sin')"
+
+path_hits="$(git ls-files | grep -i -- "$forbidden_token" || true)"
+if [[ -n "$path_hits" ]]; then
+  printf 'FORBIDDEN TOKEN IN TRACKED PATHS:\n%s\n\n' "$path_hits" >&2
+  status=1
+fi
+
+content_hits="$(git grep -nIi -- "$forbidden_token" -- . || true)"
+if [[ -n "$content_hits" ]]; then
+  printf 'FORBIDDEN TOKEN IN TRACKED FILE CONTENT:\n%s\n\n' "$content_hits" >&2
+  status=1
+fi
+
+# ── 2. Release-surface naming ───────────────────────────────────────────────
 # Explicit release surface. Add new public-facing docs/scripts here as they land.
 RELEASE_SURFACE=(
   README.md
@@ -23,7 +54,7 @@ RELEASE_SURFACE=(
   RUN_NUR.sh
 )
 # Boot/operations scripts are release-facing too (they ship and are user-run),
-# except this scanner and the historical execution ledger.
+# except this scanner itself — it necessarily names what it rejects.
 while IFS= read -r script; do
   case "$script" in
     infra/scripts/release-naming-scan.sh) continue ;;
@@ -31,20 +62,18 @@ while IFS= read -r script; do
   RELEASE_SURFACE+=("$script")
 done < <(find infra/scripts -maxdepth 1 -name '*.sh' | sort)
 
-# Forbidden public tokens (case-insensitive, word/token boundaries where useful).
-FORBIDDEN='build[ -]?week|lane[ -]?[ab]\b|rescue/lane|\bcodex\b|\bcousin\b|\bfable\b|\bopus\b|\bclaude\b|donor repo|am-selenephos|am-statementforge'
+FORBIDDEN='build[ -]?week|lane[ -]?[ab]\b|rescue/lane|\bcodex\b|\bfable\b|\bopus\b|\bclaude\b|donor repo|am-selenephos|am-statementforge'
 
-status=0
 for path in "${RELEASE_SURFACE[@]}"; do
   [[ -f "$path" ]] || continue
   if hits="$(grep -niE "$FORBIDDEN" "$path" 2>/dev/null)"; then
-    printf 'NAMING VIOLATION in %s:\n%s\n\n' "$path" "$hits"
+    printf 'NAMING VIOLATION in %s:\n%s\n\n' "$path" "$hits" >&2
     status=1
   fi
 done
 
 if [[ "$status" -ne 0 ]]; then
-  printf 'release-naming-scan: FAIL — release-facing files carry non-public naming.\n' >&2
+  printf 'naming scan: FAIL — see violations above.\n' >&2
   exit 1
 fi
-printf 'release-naming-scan: PASS — release surface uses only public NUR naming.\n'
+printf 'naming scan: PASS — no forbidden token, and the release surface uses only public NUR naming.\n'
