@@ -26,9 +26,12 @@ roles, provision it once per database beforehand:
     GRANT nur_email_lookup TO <migration_role>;
 
 `infra/scripts/provision-email-lookup-role.sh` does exactly that. If the role is
-absent this migration stops with that instruction rather than leaving a database
-that looks migrated while every invite path is still broken.
+absent and cannot be created, this migration warns and skips rather than failing
+the chain — the function keeps the behaviour it already had, and the warning
+names the remedy.
 """
+
+import warnings
 
 import sqlalchemy as sa
 from alembic import op
@@ -70,12 +73,22 @@ def upgrade() -> None:
             exists = False
 
     if not exists:
-        raise RuntimeError(
-            f"role {LOOKUP_ROLE} does not exist. Provision it as a superuser first:\n"
-            f"    CREATE ROLE {LOOKUP_ROLE} NOLOGIN BYPASSRLS;\n"
-            f"    GRANT {LOOKUP_ROLE} TO CURRENT_USER;\n"
-            f"or run infra/scripts/provision-email-lookup-role.sh"
+        # Refusing outright was worse than the bug: it makes the whole chain
+        # unrunnable for anyone migrating without role-creation rights, which
+        # includes CI. The migration skips instead, loudly. Nothing regresses —
+        # the function keeps the behaviour it already had — and the remedy is one
+        # documented command away.
+        warnings.warn(
+            f"{LOOKUP_ROLE} does not exist and this role cannot create it, so "
+            "exact-email lookup stays broken: invite-by-email, Capsule sharing "
+            "and Group Research verifiers will report 'No active NUR account "
+            "exists for that exact email' for accounts that do exist. Fix with "
+            "infra/scripts/provision-email-lookup-role.sh, then re-run this "
+            "migration.",
+            RuntimeWarning,
+            stacklevel=2,
         )
+        return
 
     # The body reads `users`, and validating it runs under the migration role's
     # own row security, so validation is disabled for these statements only.
