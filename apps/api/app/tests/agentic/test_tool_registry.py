@@ -104,10 +104,11 @@ def test_unknown_tool_raises_rather_than_returning_a_default():
 def test_declared_but_unbound_tool_cannot_be_executed():
     """A contract without a handler must fail loudly, not return an empty result
     a planner would treat as success."""
-    # A durable R2 tool: it mutates owner truth and is bound in no phase so far,
-    # so this stays meaningful as read and draft handlers land.
+    # `create_capsule` crosses the owner's private boundary and is deliberately
+    # left unbound until it has an end-to-end owner-reviewed flow, so this stays
+    # meaningful as read, draft and durable handlers land.
     with pytest.raises(registry.UnboundToolError):
-        registry.handler("activate_plan")
+        registry.handler("create_capsule")
 
 
 def test_binding_an_undeclared_tool_is_rejected():

@@ -59,7 +59,7 @@ def test_unbound_tools_still_fail_loudly():
     with pytest.raises(registry.UnboundToolError):
         registry.handler("get_omega_workspace_frame")
     with pytest.raises(registry.UnboundToolError):
-        registry.handler("activate_plan")
+        registry.handler("create_capsule")
 
 
 def test_no_bound_handler_accepts_a_write_shaped_argument():

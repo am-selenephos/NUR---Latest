@@ -630,3 +630,179 @@ def bind_draft_handlers() -> tuple[str, ...]:
     registry.bind("create_insight_candidate", create_insight_candidate)
     registry.bind("create_timeline_draft", create_timeline_draft)
     return registry.bound_keys()
+
+
+# ── R2: durable owner mutations ──────────────────────────────────────────────
+#
+# These change what is true for the owner, so each one refuses to execute
+# without proof that this exact call was approved.
+#
+# The policy engine already requires approval for R2, and the orchestrator
+# already checks it. Re-checking inside the handler is deliberate duplication:
+# a guard that lives only in the caller is one refactor away from being skipped,
+# and the thing it protects is a mutation of someone's record. Defence in depth
+# is cheap here and the failure it prevents is not recoverable by an apology.
+
+
+class ApprovalMissing(PermissionError):
+    """Raised when a durable tool is called without a matching approval."""
+
+
+def _require_approval(tool_key: str, tool_version: str, arguments: dict, proof) -> None:
+    """Verify the caller holds an approval bound to exactly this call.
+
+    `proof` is the StoredApproval the owner decided on. The digest is recomputed
+    from the arguments about to execute, so an approval obtained for one payload
+    cannot be replayed against another.
+    """
+    from app.agentic.approvals import evaluate_resume
+    import datetime as _dt
+
+    if proof is None:
+        raise ApprovalMissing(
+            f"{tool_key} changes owner records and cannot run without an owner approval"
+        )
+    verdict = evaluate_resume(
+        proof,
+        tool_key=tool_key,
+        tool_version=tool_version,
+        arguments=arguments,
+        now=_dt.datetime.now(_dt.timezone.utc),
+    )
+    if not verdict.allowed:
+        raise ApprovalMissing(f"{tool_key} refused: {verdict.refusal} — {verdict.message}")
+
+
+async def activate_plan(
+    db: AsyncSession,
+    owner_user_id: uuid.UUID,
+    *,
+    plan_id: str,
+    approval=None,
+) -> dict[str, Any]:
+    """Move a drafted Plan to ACTIVE. Requires an approval for this exact plan."""
+    from app.models.cognition import Plan
+
+    _require_approval("activate_plan", "1", {"plan_id": plan_id}, approval)
+
+    plan = (
+        await db.execute(
+            _owned(select(Plan), Plan, owner_user_id).where(Plan.id == uuid.UUID(plan_id))
+        )
+    ).scalar_one_or_none()
+    if plan is None:
+        return {"found": False, "plan_id": plan_id}
+    # Only a draft may be activated. Re-activating an active Plan would be a
+    # silent no-op that reports success, which is how a duplicate delivery looks
+    # like it worked.
+    if plan.status != "DRAFT":
+        return {"changed": False, "plan_id": plan_id, "status": plan.status,
+                "reason": "only a DRAFT plan can be activated"}
+    plan.status = "ACTIVE"
+    await db.flush()
+    return {"changed": True, "plan_id": plan_id, "status": "ACTIVE", "reversible": True}
+
+
+async def schedule_timeline_event(
+    db: AsyncSession,
+    owner_user_id: uuid.UUID,
+    *,
+    event_id: str,
+    scheduled_for: str,
+    approval=None,
+) -> dict[str, Any]:
+    """Attach a real date to a drafted Timeline event."""
+    import datetime as _dt
+
+    from app.models.intelligence import TimelineEvent
+
+    _require_approval(
+        "schedule_timeline_event", "1",
+        {"event_id": event_id, "scheduled_for": scheduled_for}, approval,
+    )
+
+    event = (
+        await db.execute(
+            _owned(select(TimelineEvent), TimelineEvent, owner_user_id)
+            .where(TimelineEvent.id == uuid.UUID(event_id))
+        )
+    ).scalar_one_or_none()
+    if event is None:
+        return {"found": False, "event_id": event_id}
+
+    event.scheduled_for = _dt.datetime.fromisoformat(scheduled_for)
+    event.time_kind = "FUTURE"
+    await db.flush()
+    return {
+        "changed": True,
+        "event_id": event_id,
+        "scheduled_for": event.scheduled_for.isoformat(),
+        "reversible": True,
+    }
+
+
+async def accept_or_correct_insight(
+    db: AsyncSession,
+    owner_user_id: uuid.UUID,
+    *,
+    insight_id: str,
+    decision: str,
+    correction: str | None = None,
+    approval=None,
+) -> dict[str, Any]:
+    """Record the owner's verdict on a candidate Insight.
+
+    A correction is stored rather than overwriting the claim. The original stays
+    on the record because an Insight NUR got wrong, and the owner's correction of
+    it, are both evidence — replacing the claim would erase what NUR believed and
+    make its mistakes unauditable.
+    """
+    from app.models.intelligence import Insight
+
+    _require_approval(
+        "accept_or_correct_insight", "1",
+        {"insight_id": insight_id, "decision": decision, "correction": correction}, approval,
+    )
+
+    verdict = decision.upper()
+    if verdict not in {"ACCEPTED", "REJECTED", "CORRECTED"}:
+        raise ValueError("decision must be ACCEPTED, REJECTED or CORRECTED")
+
+    insight = (
+        await db.execute(
+            _owned(select(Insight), Insight, owner_user_id)
+            .where(Insight.id == uuid.UUID(insight_id))
+        )
+    ).scalar_one_or_none()
+    if insight is None:
+        return {"found": False, "insight_id": insight_id}
+
+    insight.status = verdict
+    if verdict == "CORRECTED":
+        if not (correction or "").strip():
+            raise ValueError("a correction must say what is actually true")
+        insight.correction = correction.strip()
+    await db.flush()
+    return {
+        "changed": True,
+        "insight_id": insight_id,
+        "status": verdict,
+        "original_claim_preserved": True,
+        "note": "Owner correction outranks model inference and is kept as the record.",
+    }
+
+
+def bind_durable_handlers() -> tuple[str, ...]:
+    """Attach the R2 handlers.
+
+    Kept separate from reads and drafts so a deployment can run this spine with
+    mutations disabled entirely. `create_capsule` and `queue_project_run` are
+    deliberately not bound: a Capsule crosses the owner's private boundary and a
+    project run spends budget, and neither has an end-to-end owner-reviewed flow
+    yet. Declaring them while leaving them unbound is the honest state — they
+    raise rather than half-working.
+    """
+    registry.bind("activate_plan", activate_plan)
+    registry.bind("schedule_timeline_event", schedule_timeline_event)
+    registry.bind("accept_or_correct_insight", accept_or_correct_insight)
+    return registry.bound_keys()
