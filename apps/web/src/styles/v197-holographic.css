@@ -652,3 +652,62 @@ body.universe-edition .nur-viewport::after {
   background-color: transparent !important;
   opacity: 0 !important;
 }
+
+/* ── 11. Same picture, cached instead of recomputed ─────────────────────────
+   Entry presented 8–10 FPS on desktop against 39 on a phone. Hiding either
+   canvas changed nothing — 8.7 baseline, 7.7 without the brain, 8.2 without the
+   galaxy — so the cost was never the galaxy or the particle count.
+
+   It is `filter`. Two different problems wearing the same word:
+
+   1. `coreEmission` *animates* the filter — blur(.36px) at 0%, blur(.28px) at
+      18%, and so on. An animated filter cannot be composited; the element is
+      re-rasterised every single frame. The blur travels 0.08px across the whole
+      cycle, which is invisible, so the animation is paying full price for
+      nothing anyone can see. The filter is pinned to the midpoint here. The
+      opacity and transform keyframes still run untouched, so the pulse looks
+      exactly the same.
+
+   2. `.ray-glow` carries a *static* blur(4.5px), 108 of them. A static blur can
+      be rasterised once and then simply composited — but only if the element
+      owns a layer. Promoting them costs a little memory and removes the repeat
+      work entirely.
+
+   Nothing here changes a colour, a size, a position, or an opacity. It is the
+   same picture, produced once instead of every frame. */
+
+body .ob::before,
+body .h-ob::before,
+body .go-ob::before {
+  /* Midpoint of the animated range. `!important` beats the keyframe, which is
+     the only way to stop an animation re-rasterising without editing canonical. */
+  filter: blur(.32px) brightness(1.14)
+          drop-shadow(0 0 2.6px rgba(var(--spark-rgb), .88))
+          drop-shadow(0 0 5.8px rgba(var(--spark-rgb), .48)) !important;
+  will-change: transform, opacity;
+}
+
+body .ray-glow {
+  /* Static blur, own layer, rasterised once. `contain: paint` tells the browser
+     nothing inside can affect anything outside, so it never has to re-check. */
+  will-change: transform;
+  contain: paint;
+  backface-visibility: hidden;
+}
+
+body .spark-halo,
+body .spark-h2 {
+  will-change: opacity;
+  contain: paint;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body .ob::before,
+  body .h-ob::before,
+  body .go-ob::before,
+  body .ray-glow,
+  body .spark-halo,
+  body .spark-h2 {
+    will-change: auto;
+  }
+}
