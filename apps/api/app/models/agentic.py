@@ -253,6 +253,11 @@ class AgentApproval(Base):
     decided_note: Mapped[str | None] = mapped_column(Text)
     edited_arguments: Mapped[dict | None] = mapped_column(JSONB)
     expires_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    # What this row was before an invalidation pass revoked it. NULL for a row
+    # that has never been invalidated.
+    invalidated_from: Mapped[str | None] = mapped_column(String(20))
+    invalidated_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    invalidation_reason: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[dt.datetime] = _created()
 
     __table_args__ = (

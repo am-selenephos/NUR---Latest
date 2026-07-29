@@ -212,6 +212,12 @@ BEGIN
 END $$;
 ALTER ROLE nur_admin PASSWORD 'nur_admin_pw';
 ALTER ROLE nur_app PASSWORD 'nur_app_pw';
+-- Every FORCE-RLS agentic table applies its owner-scoping policy to nur_admin
+-- too, and Alembic never sets app.current_user_id. Without BYPASSRLS, every
+-- migration-time data statement (legacy-consent invalidation, backfills,
+-- reconciliation) silently affects zero rows. Only superuser can grant this,
+-- which is why it runs here and not inside a migration.
+ALTER ROLE nur_admin BYPASSRLS;
 SELECT 'CREATE DATABASE nur OWNER nur_admin'
 WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname='nur')\gexec
 SQL

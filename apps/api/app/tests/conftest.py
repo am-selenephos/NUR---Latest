@@ -97,7 +97,15 @@ def database():
       EXCEPTION WHEN duplicate_object THEN NULL; END;
     END $$;
     ALTER ROLE nur_admin PASSWORD '{ADMIN_PW}';
-    ALTER ROLE nur_app PASSWORD '{APP_PW}';""")
+    ALTER ROLE nur_app PASSWORD '{APP_PW}';
+    -- nur_admin is the migration role: every FORCE-RLS agentic table applies its
+    -- policy to the table owner too, and Alembic never sets app.current_user_id.
+    -- Without BYPASSRLS, every migration-time bulk UPDATE (legacy-consent
+    -- invalidation, backfills, reconciliation) silently touches zero rows —
+    -- confirmed by direct probe against this exact schema. `ALTER ROLE ...
+    -- BYPASSRLS` requires actual superuser, unlike CREATEROLE, which is why this
+    -- lives in role provisioning and not in a migration.
+    ALTER ROLE nur_admin BYPASSRLS;""")
     _psql(f"CREATE DATABASE {TEST_DB} OWNER nur_admin")
     # Embeddings are nullable REAL[] infrastructure in this beta; lexical
     # retrieval is the live path, so tests do not require a pgvector extension.
@@ -155,6 +163,20 @@ async def app_engine():
     """Engine as the constrained runtime role, for direct RLS boundary tests."""
     from sqlalchemy.ext.asyncio import create_async_engine
     eng = create_async_engine(APP_URL)
+    yield eng
+    await eng.dispose()
+
+
+@pytest_asyncio.fixture()
+async def admin_engine():
+    """Engine as nur_admin — the role every Alembic migration runs as.
+
+    Distinct from `super_engine`: this proves what a migration can actually see
+    and mutate, under the same BYPASSRLS grant migrations get, with no
+    `app.current_user_id` ever set.
+    """
+    from sqlalchemy.ext.asyncio import create_async_engine
+    eng = create_async_engine(ADMIN_URL)
     yield eng
     await eng.dispose()
 
