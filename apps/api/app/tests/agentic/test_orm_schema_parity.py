@@ -12,6 +12,7 @@ PostgreSQL, or a NOT NULL column the ORM never maps, fails with a per-table diff
 
 import asyncio
 import os
+import re
 
 import pytest
 from sqlalchemy import inspect, text
@@ -94,18 +95,61 @@ def test_no_mapped_column_is_missing_from_postgresql(engine, table):
     assert not phantom, f"{table}: ORM maps columns absent from PostgreSQL: {sorted(phantom)}"
 
 
+# Columns that exist in PostgreSQL and are deliberately not mapped. Every entry
+# needs a reason and a removal plan; a heuristic here would defeat the test.
+#
+# `allowed_tools` is the legacy policy column superseded by permitted_tools and
+# auto_run_tools. It stays in the database until a removal migration and is not
+# mapped, so no caller can set something that governs nothing.
+COMPATIBILITY_UNMAPPED: dict[str, set[str]] = {
+    "agent_policies": {"allowed_tools"},
+}
+
+
+def orm_columns(table: str) -> set[str]:
+    return {c.name for c in Base.metadata.tables[table].columns}
+
+
 @pytest.mark.parametrize("table", AGENTIC_TABLES)
-def test_no_required_database_column_is_unmapped(engine, table):
-    """A NOT NULL column without a default that the ORM does not map makes every
-    ORM insert fail."""
-    mapped = {c.name for c in Base.metadata.tables[table].columns}
-    required = {
-        name
-        for name, col in db_columns(engine, table).items()
-        if not col["nullable"] and col.get("default") is None
-    }
-    unmapped = required - mapped
-    assert not unmapped, f"{table}: required PostgreSQL columns unmapped: {sorted(unmapped)}"
+def test_every_database_column_is_mapped_or_explicitly_excluded(engine, table):
+    """Full DB -> ORM parity with no nullable/default heuristic.
+
+    The previous version only flagged NOT NULL columns without a default, which
+    excluded permitted_tools and auto_run_tools — both NOT NULL *with* defaults.
+    Removing either mapping would have passed, which is the exact defect that
+    killed policy loading. Every column is compared now.
+    """
+    mapped = orm_columns(table)
+    actual = set(db_columns(engine, table))
+    allowed = COMPATIBILITY_UNMAPPED.get(table, set())
+    unmapped = actual - mapped - allowed
+    assert not unmapped, f"{table}: PostgreSQL columns not mapped by the ORM: {sorted(unmapped)}"
+
+
+@pytest.mark.parametrize("table", AGENTIC_TABLES)
+def test_the_compatibility_allowlist_is_exact(engine, table):
+    """An allowlist entry that no longer exists in the database means the
+    removal migration landed and the entry must go; keeping it would silently
+    permit a future unmapped column of the same name."""
+    actual = set(db_columns(engine, table))
+    for column in COMPATIBILITY_UNMAPPED.get(table, set()):
+        assert column in actual, (
+            f"{table}: '{column}' is allowlisted as unmapped but no longer exists"
+        )
+        assert column not in orm_columns(table), (
+            f"{table}: '{column}' is allowlisted as unmapped but the ORM maps it"
+        )
+
+
+@pytest.mark.parametrize("column", ["permitted_tools", "auto_run_tools"])
+def test_the_comparator_detects_an_unmapped_policy_column(engine, column):
+    """Falsification: hide the column from the comparator's ORM view and prove
+    it is reported. Without this, the test above could be vacuous."""
+    mapped = orm_columns("agent_policies") - {column}
+    actual = set(db_columns(engine, "agent_policies"))
+    allowed = COMPATIBILITY_UNMAPPED.get("agent_policies", set())
+    unmapped = actual - mapped - allowed
+    assert column in unmapped, f"comparator failed to report unmapped {column}"
 
 
 @pytest.mark.parametrize("table", AGENTIC_TABLES)
@@ -135,7 +179,118 @@ def test_forced_rls_on_every_agentic_table(engine):
     assert not missing, f"tables without forced RLS: {missing}"
 
 
-def test_required_indexes_exist(engine):
+def test_index_definitions_match_their_intent(engine):
+    """Index *definitions*, not names. A name proves nothing — an index could be
+    non-unique, on the wrong columns, or missing its partial predicate and still
+    be present."""
+    expected = {
+        "uq_agent_approval_one_pending": {
+            "table": "agent_approvals", "unique": True,
+            "columns": ["owner_user_id", "step_id"],
+            "predicate": "decision = 'PENDING'",
+        },
+        "uq_agent_dispatch_key": {
+            "table": "agent_dispatch_outbox", "unique": True,
+            "columns": ["dispatch_key"], "predicate": None,
+        },
+        "uq_agent_policy_account": {
+            "table": "agent_policies", "unique": True,
+            "columns": ["owner_user_id"],
+            "predicate": "orbit_id IS NULL AND project_id IS NULL",
+        },
+        "uq_agent_policy_orbit": {
+            "table": "agent_policies", "unique": True,
+            "columns": ["owner_user_id", "orbit_id"],
+            "predicate": "orbit_id IS NOT NULL AND project_id IS NULL",
+        },
+        "uq_agent_policy_project": {
+            "table": "agent_policies", "unique": True,
+            "columns": ["owner_user_id", "project_id"],
+            "predicate": "project_id IS NOT NULL",
+        },
+        "uq_agent_steps_idempotency": {
+            "table": "agent_steps", "unique": True,
+            "columns": ["owner_user_id", "idempotency_key"],
+            "predicate": "idempotency_key IS NOT NULL",
+        },
+        "ix_agent_run_events_workflow_seq": {
+            "table": "agent_run_events", "unique": True,
+            "columns": ["workflow_id", "sequence"], "predicate": None,
+        },
+    }
+    rows = _fetch(
+        engine,
+        "SELECT indexname, tablename, indexdef FROM pg_indexes WHERE indexname = ANY(:names)",
+        {"names": sorted(expected)},
+    )
+    found = {name: (table, definition) for name, table, definition in rows}
+
+    missing = sorted(set(expected) - set(found))
+    assert not missing, f"missing indexes: {missing}"
+
+    problems = []
+    for name, want in expected.items():
+        table, definition = found[name]
+        if table != want["table"]:
+            problems.append(f"{name}: on {table}, expected {want['table']}")
+        if want["unique"] and "CREATE UNIQUE INDEX" not in definition:
+            problems.append(f"{name}: not UNIQUE — {definition}")
+        # Columns must appear in order inside the parenthesised list.
+        head = definition.split("USING btree (", 1)[-1].split(")", 1)[0]
+        actual_cols = [c.strip() for c in head.split(",")]
+        if actual_cols != want["columns"]:
+            problems.append(f"{name}: columns {actual_cols}, expected {want['columns']}")
+        predicate = definition.split(" WHERE ", 1)[1] if " WHERE " in definition else None
+        if want["predicate"] is None:
+            if predicate is not None:
+                problems.append(f"{name}: unexpected partial predicate {predicate}")
+        else:
+            # Postgres renders predicates with explicit casts and parens, e.g.
+            # ((decision)::text = 'PENDING'::text). Compare on the semantic core.
+            def _norm(text_: str) -> str:
+                out = re.sub(r"::[a-z_]+", "", text_ or "")
+                out = out.replace("(", "").replace(")", "")
+                return re.sub(r"\s+", " ", out).strip()
+
+            normalised, wanted = _norm(predicate), _norm(want["predicate"])
+            if normalised != wanted:
+                problems.append(f"{name}: predicate {predicate!r}, expected {wanted!r}")
+    assert not problems, problems
+
+
+def test_outbox_state_check_allows_exactly_three_values(engine):
+    rows = _fetch(
+        engine,
+        "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+        "WHERE conname = 'ck_agent_dispatch_state'",
+    )
+    assert rows, "ck_agent_dispatch_state is missing"
+    definition = rows[0][0]
+    for value in ("RETRYABLE", "CLAIMED", "SENT"):
+        assert value in definition, definition
+    assert "BOGUS" not in definition
+
+
+def test_foreign_keys_and_primary_keys_exist(engine):
+    rows = _fetch(
+        engine,
+        # contype is Postgres "char"; asyncpg returns it as bytes, so a
+        # Python comparison against 'p'/'f' silently never matches. Cast in SQL.
+        "SELECT c.relname, con.contype::text, count(*) "
+        "FROM pg_constraint con JOIN pg_class c ON c.oid = con.conrelid "
+        "WHERE c.relname = ANY(:names) AND con.contype IN ('p','f') "
+        "GROUP BY 1,2",
+        {"names": AGENTIC_TABLES},
+    )
+    by_table: dict[str, dict[str, int]] = {}
+    for table, kind, count in rows:
+        by_table.setdefault(table, {})[kind] = count
+    for table in AGENTIC_TABLES:
+        assert by_table.get(table, {}).get("p"), f"{table}: no primary key"
+        assert by_table.get(table, {}).get("f"), f"{table}: no foreign key to users/workflow"
+
+
+def _unused_required_indexes(engine):
     expected = {
         "uq_agent_steps_idempotency",
         "uq_agent_approval_one_pending",
