@@ -148,7 +148,14 @@ def evaluate(
     # 2. Permission. A tool the owner never permitted is refused here, before
     #    any approval row can be created. This ordering is the whole reason the
     #    inbox cannot be used to acquire a capability.
-    if policy.permitted_tools and tool.key not in policy.permitted_tools:
+    # Unconditional membership. The previous form was
+    #   `if policy.permitted_tools and tool.key not in policy.permitted_tools`
+    # which short-circuits when the set is empty, skipping the permission gate
+    # entirely. Every registered tool happened to be caught downstream by the
+    # capability check, so the hole was invisible — but a contract with no
+    # required capabilities walked straight through an empty permission set.
+    # Tool permission must not depend on a different gate to be enforced.
+    if tool.key not in policy.permitted_tools:
         return PolicyVerdict(
             Decision.DENY,
             f"{tool.key} is not permitted in this scope.",

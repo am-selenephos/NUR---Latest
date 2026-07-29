@@ -132,6 +132,7 @@ def test_every_contract_is_evaluable_by_the_policy_engine():
     policy = OwnerPolicy(
         initiative_level=InitiativeLevel.INTERNAL,
         max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
+        permitted_tools=frozenset(s.contract.key for s in ALL_TOOLS),
         granted_capabilities=KNOWN_CAPABILITIES,
     )
     for spec in ALL_TOOLS:
@@ -145,6 +146,7 @@ def test_read_only_tools_auto_run_at_suggest_but_drafts_do_not():
     policy = OwnerPolicy(
         initiative_level=InitiativeLevel.SUGGEST,
         max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
+        permitted_tools=frozenset({"get_plan", "create_draft_plan", "create_capsule"}),
         auto_run_tools=frozenset({"get_plan"}),
         granted_capabilities=KNOWN_CAPABILITIES,
     )

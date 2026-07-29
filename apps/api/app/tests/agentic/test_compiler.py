@@ -21,6 +21,10 @@ from app.agentic.tools import KNOWN_CAPABILITIES
 PERMISSIVE = OwnerPolicy(
     initiative_level=InitiativeLevel.INTERNAL,
     max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
+    permitted_tools=frozenset(
+        {"get_plan", "get_timeline", "create_draft_plan", "activate_plan",
+         "schedule_timeline_event", "create_insight_candidate", "shell_exec"}
+    ),
     auto_run_tools=frozenset(
         {"get_plan", "get_timeline", "create_draft_plan", "activate_plan",
          "schedule_timeline_event", "create_insight_candidate"}
@@ -79,6 +83,7 @@ def test_policy_denial_fails_compilation_and_carries_the_reason():
     restricted = OwnerPolicy(
         initiative_level=InitiativeLevel.SUGGEST,
         max_risk_class=RiskClass.R0_READ_ONLY,
+        permitted_tools=frozenset({"schedule_timeline_event", "get_plan"}),
         granted_capabilities=KNOWN_CAPABILITIES,
     )
     result = compile_plan((step("a", tool="schedule_timeline_event"),), restricted)
@@ -148,6 +153,7 @@ def test_approval_keys_are_surfaced_up_front():
     suggest = OwnerPolicy(
         initiative_level=InitiativeLevel.SUGGEST,
         max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
+        permitted_tools=frozenset({"get_plan", "create_draft_plan"}),
         auto_run_tools=frozenset({"get_plan"}),
         granted_capabilities=KNOWN_CAPABILITIES,
     )

@@ -27,6 +27,7 @@ from app.agentic.policy import (
 PERMISSIVE = OwnerPolicy(
     initiative_level=InitiativeLevel.DELEGATED,
     max_risk_class=RiskClass.R4_IRREVERSIBLE,
+    permitted_tools=frozenset({"t", "other"}),
     auto_run_tools=frozenset({"t"}),
     daily_budget_cents=1_000_000,
 )
@@ -42,6 +43,7 @@ def test_external_never_auto_runs_at_any_initiative_level():
         policy = OwnerPolicy(
             initiative_level=level,
             max_risk_class=RiskClass.R4_IRREVERSIBLE,
+            permitted_tools=frozenset({"t"}),
             auto_run_tools=frozenset({"t"}),
             daily_budget_cents=1_000_000,
         )
@@ -74,6 +76,7 @@ def test_full_risk_by_initiative_matrix():
         policy = OwnerPolicy(
             initiative_level=level,
             max_risk_class=RiskClass.R4_IRREVERSIBLE,
+            permitted_tools=frozenset({"t"}),
             auto_run_tools=frozenset({"t"}),
             daily_budget_cents=1_000_000,
         )
@@ -129,6 +132,7 @@ def test_missing_capability_denies_rather_than_prompting():
     policy = OwnerPolicy(
         initiative_level=InitiativeLevel.INTERNAL,
         max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
+        permitted_tools=frozenset({"t", "other"}),
         auto_run_tools=frozenset({"t"}),
         granted_capabilities=frozenset({"read_plan"}),
     )
@@ -159,6 +163,7 @@ def test_budget_denies_only_after_permission_passes():
     policy = OwnerPolicy(
         initiative_level=InitiativeLevel.INTERNAL,
         max_risk_class=RiskClass.R1_PRIVATE_DRAFT,
+        permitted_tools=frozenset({"t", "other"}),
         daily_budget_cents=10,
         spent_today_cents=9,
     )
@@ -175,6 +180,7 @@ def test_zero_budget_means_unlimited_not_blocked():
     policy = OwnerPolicy(
         initiative_level=InitiativeLevel.INTERNAL,
         max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
+        permitted_tools=frozenset({"t", "other"}),
         auto_run_tools=frozenset({"t"}),
         daily_budget_cents=0,
     )
@@ -190,6 +196,7 @@ def test_quiet_hours_wrap_around_midnight(window, hour, inside):
     policy = OwnerPolicy(
         initiative_level=InitiativeLevel.INTERNAL,
         max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
+        permitted_tools=frozenset({"t", "other"}),
         auto_run_tools=frozenset({"t"}),
         quiet_hours=window,
     )
@@ -203,6 +210,7 @@ def test_quiet_hours_never_loosen_a_decision():
     policy = OwnerPolicy(
         initiative_level=InitiativeLevel.CONNECTED,
         max_risk_class=RiskClass.R4_IRREVERSIBLE,
+        permitted_tools=frozenset({"t", "other"}),
         quiet_hours=(0, 23),
     )
     now = dt.datetime(2026, 7, 28, 5, tzinfo=dt.timezone.utc)

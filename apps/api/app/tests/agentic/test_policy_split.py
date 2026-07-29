@@ -21,6 +21,7 @@ def policy(**kw):
     base = dict(
         initiative_level=InitiativeLevel.INTERNAL,
         max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
+        permitted_tools=frozenset({READ, DRAFT, "x"}),
         granted_capabilities=KNOWN_CAPABILITIES,
     )
     base.update(kw)
@@ -124,11 +125,13 @@ def test_missing_capability_still_denies_even_when_permitted_and_auto_run():
     assert verdict.denied_capabilities == frozenset({"read_timeline"})
 
 
-def test_no_permitted_set_configured_does_not_silently_permit_everything():
-    """An unconfigured permitted set falls through to the capability gate, which
-    is empty by default, so nothing capability-bearing runs."""
-    verdict = evaluate(contract(READ), policy(granted_capabilities=frozenset()))
+def test_an_unconfigured_permitted_set_denies_on_permission_alone():
+    """Not via the capability gate — permission must stand by itself."""
+    verdict = evaluate(
+        contract(READ), policy(permitted_tools=frozenset(), granted_capabilities=frozenset())
+    )
     assert verdict.decision is Decision.DENY
+    assert "not permitted" in verdict.reason
 
 
 def test_owner_policy_no_longer_exposes_allowed_tools():
