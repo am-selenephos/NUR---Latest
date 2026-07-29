@@ -67,23 +67,25 @@ def test_missing_workflow_returns_404_not_403():
 
 
 def test_deciding_twice_conflicts_rather_than_overwriting():
+    """Now enforced in the decision transaction rather than the route, and
+    proven behaviourally in
+    test_approval_http_e2e::test_a_second_decision_is_409_and_creates_no_extra_intent."""
     import inspect
-    from app.api.v1 import agentic
+    from app.agentic import decisions
 
-    source = inspect.getsource(agentic.decide_approval)
-    assert "status_code=409" in source
+    source = inspect.getsource(decisions._check_binding)
     assert "cannot be replaced" in source
 
 
 def test_a_changed_request_cannot_be_decided_on_stale_arguments():
-    """The same guarantee evaluate_resume gives at execution time, enforced one
-    step earlier so the owner is told immediately."""
-    import inspect
-    from app.api.v1 import agentic
+    """seen_digest, seen_plan_version and seen_call_version are all mandatory —
+    an optional binding field is one a client can omit to skip the check."""
+    from app.api.v1.agentic import ApprovalDecisionIn
 
-    source = inspect.getsource(agentic.decide_approval)
-    assert "seen_digest" in source
-    assert "did not read" in source
+    required = {
+        name for name, field in ApprovalDecisionIn.model_fields.items() if field.is_required()
+    }
+    assert {"seen_digest", "seen_plan_version", "seen_call_version"} <= required
 
 
 def test_workflow_detail_returns_the_context_manifest():

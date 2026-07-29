@@ -48,11 +48,20 @@ class WorkflowOut(BaseModel):
 
 
 class ApprovalDecisionIn(BaseModel):
-    decision: str = Field(pattern="^(APPROVED|REJECTED)$")
+    """Every `seen_*` field is required.
+
+    Digest equality alone cannot detect an identical call regenerated under a
+    successor plan — that is precisely what call_version exists to catch. An
+    optional binding field is one a client can omit and thereby skip the check.
+    """
+
+    decision: str = Field(pattern="^(APPROVE|EDIT|REJECT)$")
+    seen_digest: str = Field(min_length=8)
+    seen_plan_version: int = Field(ge=1)
+    seen_call_version: str = Field(min_length=8)
     note: str | None = Field(default=None, max_length=2000)
-    # The digest the client rendered its card from. Guards against deciding on
-    # a call that changed after the card was drawn.
-    seen_digest: str | None = None
+    # `{}` is a meaningful edit; None means "not an edit".
+    edited_arguments: dict | None = None
 
 
 @router.get("/tools")
@@ -228,8 +237,13 @@ async def list_approvals(db: Scoped, identity: Identity) -> dict:
                 "scope_summary": r.scope_summary,
                 "cost_ceiling_cents": r.cost_ceiling_cents,
                 "expires_at": r.expires_at.isoformat() if r.expires_at else None,
-                # Returned so a client can prove it decided on what it displayed.
+                # The whole binding, so a client can prove it decided on exactly
+                # what it displayed — including the plan revision.
+                "approval_id": str(r.id),
+                "step_id": str(r.step_id) if r.step_id else None,
                 "argument_digest": r.argument_digest,
+                "plan_version": r.plan_version,
+                "call_version": r.call_version,
             }
             for r in rows
         ],
@@ -244,39 +258,35 @@ async def decide_approval(
     db: Scoped,
     identity: Identity,
 ) -> dict:
+    """Apply the owner's decision atomically.
+
+    The decision, the step transition, the ledger event and the dispatch intent
+    commit together. No broker call happens here — the intent row is the handoff.
+    """
+    from app.agentic.decisions import DecisionRefused, decide
+
     owner_user_id, _ = identity
-    approval = (
-        await db.execute(
-            select(AgentApproval).where(
-                AgentApproval.id == approval_id,
-                AgentApproval.owner_user_id == owner_user_id,
-            )
+    try:
+        result = await decide(
+            db,
+            owner_user_id=owner_user_id,
+            approval_id=approval_id,
+            decision=payload.decision,
+            seen_digest=payload.seen_digest,
+            seen_plan_version=payload.seen_plan_version,
+            seen_call_version=payload.seen_call_version,
+            note=payload.note,
+            edited_arguments=payload.edited_arguments,
         )
-    ).scalar_one_or_none()
-    if approval is None:
-        raise HTTPException(status_code=404, detail="approval not found")
+    except DecisionRefused as refusal:
+        await db.rollback()
+        raise HTTPException(status_code=refusal.status_code, detail=str(refusal)) from refusal
 
-    if approval.decision != ApprovalDecision.PENDING.value:
-        # Deciding twice is not an error worth 500-ing over, but it must not
-        # silently overwrite the first decision either.
-        raise HTTPException(
-            status_code=409,
-            detail=f"already {approval.decision.lower()}; a decision cannot be replaced",
-        )
-
-    if payload.seen_digest and payload.seen_digest != approval.argument_digest:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "this request changed after it was shown to you; "
-                "review it again rather than deciding on arguments you did not read"
-            ),
-        )
-
-    approval.decision = payload.decision
-    approval.decided_note = payload.note
-    from app.models._mixins import now_utc
-
-    approval.decided_at = now_utc()
     await db.commit()
-    return {"id": str(approval.id), "decision": approval.decision}
+    return {
+        "approval_id": str(result.approval_id),
+        "decision": result.decision,
+        "step_state": result.step_state,
+        "workflow_state": result.workflow_state,
+        "outbox_intent_id": str(result.outbox_intent_id) if result.outbox_intent_id else None,
+    }

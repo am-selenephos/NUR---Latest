@@ -29,6 +29,7 @@ being unsafe.
 from __future__ import annotations
 
 import datetime as dt
+import inspect
 import time
 import uuid
 from dataclasses import dataclass
@@ -390,7 +391,10 @@ async def execute_step(
     started = time.monotonic()
     try:
         kwargs = dict(arguments)
-        if approval is not None:
+        # Only durable handlers re-check consent; read and draft handlers do not
+        # accept an `approval` keyword and passing it blindly is a TypeError that
+        # surfaces as a step failure rather than as the wiring bug it is.
+        if approval is not None and "approval" in inspect.signature(handler).parameters:
             kwargs["approval"] = approval
         result = await handler(db, owner_user_id, **kwargs)
         duration_ms = int((time.monotonic() - started) * 1000)

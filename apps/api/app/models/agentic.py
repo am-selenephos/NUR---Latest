@@ -490,6 +490,10 @@ class AgentDispatchOutbox(Base):
     next_attempt_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), default=now_utc, nullable=False
     )
+    # Fencing token, reissued on every claim. `claimed_by` is an identity, not a
+    # token: a stalled dispatcher whose lease was reclaimed would still match by
+    # name and could acknowledge work it no longer owns.
+    claim_token: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     last_error: Mapped[str | None] = mapped_column(String(200))
     traceparent: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[dt.datetime] = _created()
