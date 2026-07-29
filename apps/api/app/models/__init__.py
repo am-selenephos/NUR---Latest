@@ -75,6 +75,7 @@ from app.models.living import (  # noqa: F401
 from app.models.agentic import (  # noqa: F401
     AgentApproval,
     AgentCheckpoint,
+    AgentDispatchOutbox,
     AgentEvaluation,
     AgentPolicy,
     AgentRunEvent,

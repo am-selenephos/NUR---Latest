@@ -224,6 +224,12 @@ class AgentApproval(Base):
     tool_key: Mapped[str] = mapped_column(String(120), nullable=False)
     tool_version: Mapped[str] = mapped_column(String(32), nullable=False)
     argument_digest: Mapped[str] = mapped_column(String(71), nullable=False)
+    # Binds the approval to the plan revision that produced it, so a re-plan
+    # invalidates consent even when it regenerates an identical call.
+    plan_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default=text("1")
+    )
+    call_version: Mapped[str | None] = mapped_column(Text)
     redacted_arguments: Mapped[dict] = mapped_column(
         JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
     )
@@ -344,6 +350,12 @@ class AgentToolCall(Base):
     tool_version: Mapped[str] = mapped_column(String(32), nullable=False)
     risk_class: Mapped[str] = mapped_column(String(24), nullable=False)
     argument_digest: Mapped[str] = mapped_column(String(71), nullable=False)
+    # Binds the approval to the plan revision that produced it, so a re-plan
+    # invalidates consent even when it regenerates an identical call.
+    plan_version: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default=text("1")
+    )
+    call_version: Mapped[str | None] = mapped_column(Text)
     redacted_arguments: Mapped[dict] = mapped_column(
         JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
     )
@@ -384,7 +396,14 @@ class AgentPolicy(Base):
     max_risk_class: Mapped[str] = mapped_column(
         String(24), nullable=False, default="R1_PRIVATE_DRAFT", server_default="R1_PRIVATE_DRAFT"
     )
-    allowed_tools: Mapped[list] = mapped_column(
+    # Two independent questions, two columns. `allowed_tools` still exists in the
+    # database and is deliberately left unmapped: an ORM attribute that no longer
+    # governs anything is a trap for the next reader, and removing the column
+    # needs its own migration once nothing reads it.
+    permitted_tools: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    auto_run_tools: Mapped[list] = mapped_column(
         JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
     )
     denied_tools: Mapped[list] = mapped_column(
@@ -437,3 +456,47 @@ class AgentEvaluation(Base):
     __table_args__ = (
         Index("ix_agent_evaluations_workflow_dim", "workflow_id", "dimension"),
     )
+
+
+class AgentDispatchOutbox(Base):
+    """Dispatch intent, written in the same transaction as the decision.
+
+    Publishing to a broker inside a transaction is a bug waiting for a rollback;
+    publishing after commit with no record strands the step if the process dies
+    in between. The row is the durable middle: committed with the decision,
+    published afterwards by a dispatcher that can be restarted.
+
+    The guarantee is at-least-once publication plus runtime claim idempotency,
+    which together give exactly-once durable effect. `dispatch_key` prevents
+    duplicate intent rows; it does not prevent duplicate publication.
+    """
+
+    __tablename__ = "agent_dispatch_outbox"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    owner_user_id: Mapped[uuid.UUID] = _owner()
+    workflow_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("agent_workflows.id", ondelete="CASCADE"), nullable=False
+    )
+    step_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("agent_steps.id", ondelete="CASCADE"), nullable=False
+    )
+
+    dispatch_key: Mapped[str] = mapped_column(String(220), nullable=False)
+    state: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="RETRYABLE", server_default="RETRYABLE"
+    )
+    attempts: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+    # Lease ownership: who holds it and until when. A dead lease is how recovery
+    # tells a crashed dispatcher from a slow one.
+    claimed_by: Mapped[str | None] = mapped_column(String(120))
+    lease_expires_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    next_attempt_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), default=now_utc, nullable=False
+    )
+    last_error: Mapped[str | None] = mapped_column(String(200))
+    traceparent: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[dt.datetime] = _created()
+    sent_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))

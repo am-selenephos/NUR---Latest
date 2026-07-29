@@ -62,11 +62,17 @@ async def load_policy(
             granted_capabilities=frozenset(),
         )
 
-    permitted = frozenset(getattr(chosen, "permitted_tools", None) or ())
+    # Direct attribute access, not getattr with a default. A getattr fallback
+    # on a required schema field silently produced an empty permission set for
+    # every policy when the ORM did not map the column — which, with an
+    # unconditional permission gate, denied every tool in the product. Failing
+    # loudly at import or attribute time is the correct behaviour for a field
+    # the schema guarantees.
+    permitted = frozenset(chosen.permitted_tools or ())
     # auto_run is a strict subset of permitted: naming a tool for unattended use
     # cannot also permit it, or auto_run would quietly become a second
     # permission grant.
-    auto_run = frozenset(getattr(chosen, "auto_run_tools", None) or ()) & permitted
+    auto_run = frozenset(chosen.auto_run_tools or ()) & permitted
     return OwnerPolicy(
         initiative_level=InitiativeLevel(chosen.initiative_level),
         max_risk_class=RiskClass(chosen.max_risk_class),
