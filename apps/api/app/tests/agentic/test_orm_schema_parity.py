@@ -417,51 +417,76 @@ def test_security_relevant_server_defaults(engine):
 
 # ── exact foreign keys ───────────────────────────────────────────────────────
 
-EXPECTED_FKS = [
-    ("agent_workflows", ["owner_user_id"], "users", ["id"], "CASCADE"),
-    ("agent_steps", ["owner_user_id"], "users", ["id"], "CASCADE"),
-    ("agent_steps", ["workflow_id"], "agent_workflows", ["id"], "CASCADE"),
-    ("agent_approvals", ["owner_user_id"], "users", ["id"], "CASCADE"),
-    ("agent_approvals", ["workflow_id"], "agent_workflows", ["id"], "CASCADE"),
-    ("agent_approvals", ["step_id"], "agent_steps", ["id"], "CASCADE"),
-    ("agent_run_events", ["owner_user_id"], "users", ["id"], "CASCADE"),
-    ("agent_run_events", ["workflow_id"], "agent_workflows", ["id"], "CASCADE"),
-    ("agent_checkpoints", ["owner_user_id"], "users", ["id"], "CASCADE"),
-    ("agent_tool_calls", ["owner_user_id"], "users", ["id"], "CASCADE"),
-    ("agent_tool_calls", ["approval_id"], "agent_approvals", ["id"], "SET NULL"),
-    ("agent_policies", ["owner_user_id"], "users", ["id"], "CASCADE"),
-    ("agent_evaluations", ["owner_user_id"], "users", ["id"], "CASCADE"),
-    ("agent_dispatch_outbox", ["owner_user_id"], "users", ["id"], "CASCADE"),
-    ("agent_dispatch_outbox", ["workflow_id"], "agent_workflows", ["id"], "CASCADE"),
-    ("agent_dispatch_outbox", ["step_id"], "agent_steps", ["id"], "CASCADE"),
-]
-
-
-def test_foreign_key_definitions_are_exact(engine):
-    """Counting one FK per table proves nothing about where it points or what
-    happens on delete. A SET NULL where CASCADE was intended leaves orphans; a
-    CASCADE where SET NULL was intended destroys audit history."""
+def test_the_foreign_key_set_is_exactly_as_expected(engine):
+    """Equality, not presence. A handpicked list cannot detect an FK that was
+    added by accident or dropped by a migration — both happened on this branch:
+    0040 replaced the single-column approval step FK with a composite one, and a
+    presence-only test kept passing against the stale expectation."""
     rows = _fetch(
         engine,
-        "SELECT c.relname, con.conname, pg_get_constraintdef(con.oid) "
+        "SELECT c.relname, pg_get_constraintdef(con.oid) "
         "FROM pg_constraint con JOIN pg_class c ON c.oid = con.conrelid "
         "WHERE c.relname = ANY(:names) AND con.contype::text = 'f'",
         {"names": AGENTIC_TABLES},
     )
-    defs = [(table, definition) for table, _name, definition in rows]
+    actual = {
+        (table, definition.replace("FOREIGN KEY ", "").strip())
+        for table, definition in rows
+    }
 
-    missing = []
-    for table, cols, ref_table, ref_cols, on_delete in EXPECTED_FKS:
-        want_local = "(" + ", ".join(cols) + ")"
-        want_ref = f"{ref_table}({', '.join(ref_cols)})"
-        match = [
-            d for t, d in defs
-            if t == table and want_local in d and want_ref in d
-            and f"ON DELETE {on_delete}" in d
-        ]
-        if not match:
-            present = [d for t, d in defs if t == table]
-            missing.append(
-                f"{table}{want_local} -> {want_ref} ON DELETE {on_delete}; present: {present}"
-            )
-    assert not missing, missing
+    expected = {
+        # owner -> users, on every table
+        *[(t, "(owner_user_id) REFERENCES users(id) ON DELETE CASCADE")
+          for t in AGENTIC_TABLES],
+        # workflow parentage, single and composite
+        *[(t, "(workflow_id) REFERENCES agent_workflows(id) ON DELETE CASCADE")
+          for t in ["agent_steps", "agent_approvals", "agent_run_events",
+                    "agent_checkpoints", "agent_tool_calls", "agent_policies",
+                    "agent_evaluations", "agent_dispatch_outbox"]
+          if t != "agent_policies"],
+        *[(t, "(workflow_id, owner_user_id) REFERENCES agent_workflows(id, owner_user_id) "
+              "ON DELETE CASCADE")
+          for t in ["agent_steps", "agent_approvals", "agent_run_events",
+                    "agent_checkpoints", "agent_tool_calls", "agent_evaluations",
+                    "agent_dispatch_outbox"]],
+        # step parentage, composite — the binding that makes cross-workflow rows
+        # impossible. CASCADE where the child is meaningless without the step;
+        # SET NULL where the child is audit history that must survive.
+        ("agent_approvals",
+         "(step_id, workflow_id, owner_user_id) REFERENCES agent_steps(id, workflow_id, "
+         "owner_user_id) ON DELETE CASCADE"),
+        ("agent_dispatch_outbox",
+         "(step_id, workflow_id, owner_user_id) REFERENCES agent_steps(id, workflow_id, "
+         "owner_user_id) ON DELETE CASCADE"),
+        ("agent_checkpoints",
+         "(step_id, workflow_id, owner_user_id) REFERENCES agent_steps(id, workflow_id, "
+         "owner_user_id) ON DELETE CASCADE"),
+        ("agent_run_events",
+         "(step_id, workflow_id, owner_user_id) REFERENCES agent_steps(id, workflow_id, "
+         "owner_user_id) ON DELETE SET NULL"),
+        ("agent_tool_calls",
+         "(step_id, workflow_id, owner_user_id) REFERENCES agent_steps(id, workflow_id, "
+         "owner_user_id) ON DELETE SET NULL"),
+        # legacy single-column step FKs still present alongside the composites
+        ("agent_checkpoints", "(step_id) REFERENCES agent_steps(id) ON DELETE CASCADE"),
+        ("agent_dispatch_outbox", "(step_id) REFERENCES agent_steps(id) ON DELETE CASCADE"),
+        ("agent_run_events", "(step_id) REFERENCES agent_steps(id) ON DELETE SET NULL"),
+        ("agent_tool_calls", "(step_id) REFERENCES agent_steps(id) ON DELETE SET NULL"),
+        # audit history survives a deleted approval
+        ("agent_tool_calls", "(approval_id) REFERENCES agent_approvals(id) ON DELETE SET NULL"),
+        # policy scope
+        ("agent_policies", "(orbit_id) REFERENCES orbits(id) ON DELETE CASCADE"),
+        ("agent_policies", "(project_id) REFERENCES am_projects(id) ON DELETE CASCADE"),
+        # workflow scope
+        ("agent_workflows", "(orbit_id) REFERENCES orbits(id) ON DELETE SET NULL"),
+        ("agent_workflows", "(project_id) REFERENCES am_projects(id) ON DELETE SET NULL"),
+    }
+
+    unexpected = sorted(actual - expected)
+    missing = sorted(expected - actual)
+    assert not unexpected, f"foreign keys present but not expected: {unexpected}"
+    assert not missing, f"foreign keys expected but absent: {missing}"
+
+
+
+

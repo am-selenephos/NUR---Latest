@@ -10,6 +10,7 @@ forced RLS is in effect. A skip here is a failure — the database is an autouse
 requirement of this suite.
 """
 
+import datetime as dt
 from uuid import UUID, uuid4
 
 import pytest
@@ -177,10 +178,15 @@ async def test_outbox_roundtrip_with_lease_state(scoped, owner):
     scoped.add(step)
     await scoped.flush()
 
+    # A CLAIMED row must carry both a holder and a lease. The earlier version of
+    # this test inserted CLAIMED with lease_expires_at NULL and passed, which is
+    # a row no lease-expiry query can ever reclaim.
     row = AgentDispatchOutbox(
         owner_user_id=owner, workflow_id=workflow.id, step_id=step.id,
         dispatch_key=f"{step.id}:1", state="CLAIMED", attempts=1,
-        claimed_by="worker-a", traceparent="00-" + "a" * 32 + "-" + "b" * 16 + "-01",
+        claimed_by="worker-a",
+        lease_expires_at=dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=5),
+        traceparent="00-" + "a" * 32 + "-" + "b" * 16 + "-01",
     )
     scoped.add(row)
     await scoped.commit()
@@ -196,6 +202,7 @@ async def test_outbox_roundtrip_with_lease_state(scoped, owner):
     assert back.state == "CLAIMED"
     assert back.claimed_by == "worker-a"
     assert back.attempts == 1
+    assert back.lease_expires_at is not None
     assert back.next_attempt_at is not None
 
 
@@ -235,14 +242,24 @@ async def test_outbox_state_check_accepts_exactly_three_values(scoped, owner):
     scoped.add(step)
     await scoped.flush()
 
-    for index, state in enumerate(("RETRYABLE", "CLAIMED", "SENT")):
+    # Each legal state is inserted in a shape the row-integrity CHECK also
+    # accepts, so this test isolates the state *set* rather than the shape.
+    future = dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=5)
+    now = dt.datetime.now(dt.timezone.utc)
+    shapes = [
+        ("RETRYABLE", {}),
+        ("CLAIMED", {"claimed_by": "worker-a", "lease_expires_at": future}),
+        ("SENT", {"sent_at": now}),
+    ]
+    for index, (state, extra) in enumerate(shapes):
+        columns = ["owner_user_id", "workflow_id", "step_id", "dispatch_key", "state", *extra]
+        placeholders = [":o", ":w", ":s", ":k", ":st", *[f":{c}" for c in extra]]
         await scoped.execute(
             text(
-                "INSERT INTO agent_dispatch_outbox "
-                "(owner_user_id, workflow_id, step_id, dispatch_key, state) "
-                "VALUES (:o, :w, :s, :k, :st)"
+                f"INSERT INTO agent_dispatch_outbox ({', '.join(columns)}) "
+                f"VALUES ({', '.join(placeholders)})"
             ),
-            {"o": owner, "w": workflow.id, "s": step.id, "k": f"ok-{index}", "st": state},
+            {"o": owner, "w": workflow.id, "s": step.id, "k": f"ok-{index}", "st": state, **extra},
         )
 
     for bad in ("PENDING", "retryable", "SENT ", "", "DONE"):
@@ -392,3 +409,135 @@ async def test_a_correctly_bound_approval_is_accepted(scoped, owner):
         )
     ).scalar()
     assert count == 1
+
+
+@pytest.mark.asyncio
+async def test_outbox_state_shape_invariants(scoped, owner):
+    """State and the columns that give it meaning are constrained together.
+    A CLAIMED row with no lease is unreclaimable; a SENT row with no sent_at is
+    a published message with no record of when."""
+    workflow = await _workflow(scoped, owner)
+    step = AgentStep(
+        owner_user_id=owner, workflow_id=workflow.id, ordinal=1, key="s1",
+        state="QUEUED", role="operator",
+    )
+    scoped.add(step)
+    await scoped.flush()
+
+    future = dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=5)
+    now = dt.datetime.now(dt.timezone.utc)
+
+    async def insert(key, **cols):
+        columns = ["owner_user_id", "workflow_id", "step_id", "dispatch_key", *cols]
+        values = {"o": owner, "w": workflow.id, "s": step.id, "k": key, **cols}
+        placeholders = [":o", ":w", ":s", ":k", *[f":{c}" for c in cols]]
+        await scoped.execute(
+            text(
+                f"INSERT INTO agent_dispatch_outbox ({', '.join(columns)}) "
+                f"VALUES ({', '.join(placeholders)})"
+            ),
+            values,
+        )
+
+    async def rejected(key, **cols):
+        with pytest.raises(Exception) as caught:
+            await insert(key, **cols)
+        assert "ck_agent_dispatch_state_shape" in str(caught.value), (key, cols)
+        await scoped.rollback()
+        await scoped.execute(
+            text("SELECT set_config('app.current_user_id', :o, false)"), {"o": str(owner)}
+        )
+
+    # Invalid shapes.
+    await rejected("bad-claimed-no-holder", state="CLAIMED", lease_expires_at=future)
+    await rejected("bad-claimed-no-lease", state="CLAIMED", claimed_by="w")
+    await rejected("bad-sent-no-sent-at", state="SENT")
+    await rejected("bad-retryable-sent-at", state="RETRYABLE", sent_at=now)
+    await rejected("bad-retryable-leased", state="RETRYABLE", claimed_by="w",
+                   lease_expires_at=future)
+    await rejected("bad-claimed-and-sent", state="CLAIMED", claimed_by="w",
+                   lease_expires_at=future, sent_at=now)
+
+    # Valid shapes commit and reload.
+    workflow2 = await _workflow(scoped, owner)
+    step2 = AgentStep(
+        owner_user_id=owner, workflow_id=workflow2.id, ordinal=1, key="s2",
+        state="QUEUED", role="operator",
+    )
+    scoped.add(step2)
+    await scoped.flush()
+
+    await scoped.execute(
+        text(
+            "INSERT INTO agent_dispatch_outbox "
+            "(owner_user_id, workflow_id, step_id, dispatch_key, state) "
+            "VALUES (:o, :w, :s, 'ok-retryable', 'RETRYABLE')"
+        ),
+        {"o": owner, "w": workflow2.id, "s": step2.id},
+    )
+    await scoped.execute(
+        text(
+            "INSERT INTO agent_dispatch_outbox "
+            "(owner_user_id, workflow_id, step_id, dispatch_key, state, claimed_by, "
+            " lease_expires_at) "
+            "VALUES (:o, :w, :s, 'ok-claimed', 'CLAIMED', 'worker-a', :lease)"
+        ),
+        {"o": owner, "w": workflow2.id, "s": step2.id, "lease": future},
+    )
+    await scoped.execute(
+        text(
+            "INSERT INTO agent_dispatch_outbox "
+            "(owner_user_id, workflow_id, step_id, dispatch_key, state, sent_at) "
+            "VALUES (:o, :w, :s, 'ok-sent', 'SENT', :sent)"
+        ),
+        {"o": owner, "w": workflow2.id, "s": step2.id, "sent": now},
+    )
+    kept = (
+        await scoped.execute(
+            text("SELECT count(*) FROM agent_dispatch_outbox WHERE workflow_id = :w"),
+            {"w": workflow2.id},
+        )
+    ).scalar()
+    assert kept == 3
+
+
+@pytest.mark.asyncio
+async def test_every_claimed_row_can_be_found_by_lease_expiry(scoped, owner):
+    """The point of the constraint: a reclaim query must be able to see every
+    CLAIMED row."""
+    workflow = await _workflow(scoped, owner)
+    step = AgentStep(
+        owner_user_id=owner, workflow_id=workflow.id, ordinal=1, key="s1",
+        state="QUEUED", role="operator",
+    )
+    scoped.add(step)
+    await scoped.flush()
+    await scoped.execute(
+        text(
+            "INSERT INTO agent_dispatch_outbox "
+            "(owner_user_id, workflow_id, step_id, dispatch_key, state, claimed_by, "
+            " lease_expires_at) "
+            "VALUES (:o, :w, :s, 'expired', 'CLAIMED', 'dead-worker', now() - interval '1 min')"
+        ),
+        {"o": owner, "w": workflow.id, "s": step.id},
+    )
+    reclaimable = (
+        await scoped.execute(
+            text(
+                "SELECT count(*) FROM agent_dispatch_outbox "
+                "WHERE state = 'CLAIMED' AND lease_expires_at < now() AND workflow_id = :w"
+            ),
+            {"w": workflow.id},
+        )
+    ).scalar()
+    assert reclaimable == 1
+
+    unreclaimable = (
+        await scoped.execute(
+            text(
+                "SELECT count(*) FROM agent_dispatch_outbox "
+                "WHERE state = 'CLAIMED' AND lease_expires_at IS NULL"
+            )
+        )
+    ).scalar()
+    assert unreclaimable == 0, "a CLAIMED row with no lease is stranded forever"
