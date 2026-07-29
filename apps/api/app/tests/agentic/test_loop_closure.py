@@ -42,12 +42,19 @@ def test_the_loop_unlocks_dependants_and_aggregates_the_workflow():
     assert "_aggregate_workflow(" in source
 
 
-def test_dependants_are_queued_by_the_worker():
-    """Queued in the worker, not the runtime, so the runtime stays testable
-    without a broker."""
-    source = inspect.getsource(agentic_tasks._execute_step)
-    assert 'outcome.get("unlocked"' in source
-    assert "execute_agentic_step_task.delay(" in source
+def test_the_worker_never_publishes_ready_work_directly():
+    """A READY step cannot be claimed, and publishing work the database has not
+    committed is how a rollback leaves a message nothing will honour. The
+    runtime queues dependants and writes a dispatch intent in the same
+    transaction; transport consumes that."""
+    source = inspect.getsource(agentic_tasks)
+    assert "execute_agentic_step_task.delay(" not in source
+
+    runtime_source = inspect.getsource(runtime.run_step)
+    assert "queue_ready_dependants(" in runtime_source
+    unlock = runtime_source.index("unlock_dependants(")
+    queue = runtime_source.index("queue_ready_dependants(")
+    assert unlock < queue, "dependants must be promoted to READY before being queued"
 
 
 def test_a_verifier_crash_preserves_execution_evidence():
@@ -281,9 +288,12 @@ def test_waiting_approval_always_creates_an_actionable_row():
 
 def test_repeated_delivery_does_not_stack_duplicate_cards():
     source = inspect.getsource(runtime._ensure_approval_row)
-    assert "WHERE NOT EXISTS" in source
-    assert "decision = 'PENDING'" in source
-    assert "argument_digest = :digest" in source
+    # Explicit lock-invalidate-replace rather than relying on a unique violation:
+    # the same call returns the existing row idempotently, a different call
+    # invalidates the old one first so its history survives.
+    assert "FOR UPDATE" in source
+    assert "return existing[\"id\"]" in source
+    assert "INVALIDATED" in source
 
 
 def test_a_refused_resume_is_recorded():

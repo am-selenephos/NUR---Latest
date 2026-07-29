@@ -20,6 +20,8 @@ than through a fixture.
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
+import uuid
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -30,6 +32,7 @@ from app.agentic.redaction import contains_secret, redact_arguments
 
 class ResumeRefusal(StrEnum):
     NOT_APPROVED = "NOT_APPROVED"
+    PLAN_REVISED = "PLAN_REVISED"
     ARGUMENTS_CHANGED = "ARGUMENTS_CHANGED"
     EXPIRED = "EXPIRED"
     TOOL_CHANGED = "TOOL_CHANGED"
@@ -76,6 +79,9 @@ class StoredApproval:
     cost_ceiling_cents: int = 0
     expires_at: dt.datetime | None = None
     edited_arguments: dict | None = None
+    approval_id: uuid.UUID | None = None
+    plan_version: int = 1
+    call_version: str | None = None
 
 
 @dataclass(frozen=True)
@@ -86,6 +92,26 @@ class ResumeVerdict:
     # The arguments that may actually execute. Populated only on success, so a
     # caller cannot accidentally use a rejected call's payload.
     arguments: dict | None = None
+
+
+def compute_call_version(
+    plan_version: int,
+    tool_key: str,
+    tool_version: str,
+    argument_digest: str,
+) -> str:
+    """The single canonical binding of a decision to a call *and its context*.
+
+    tool/version/digest bind the call; plan_version binds the plan revision it
+    was proposed under. A re-plan that happens to regenerate an identical call
+    still produces a different call_version, because consent given against one
+    plan is not consent against its successor.
+
+    One implementation, used by creation and by resume. Two encodings of "the
+    same" value is how a binding silently stops matching itself.
+    """
+    payload = f"{int(plan_version)}|{tool_key}|{tool_version}|{argument_digest}"
+    return "cv:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def build_request(
@@ -143,6 +169,7 @@ def evaluate_resume(
     now: dt.datetime,
     estimated_cost_cents: int = 0,
     checkpoint_redacted: bool = True,
+    current_plan_version: int | None = None,
 ) -> ResumeVerdict:
     """Decide whether the call about to run is the call that was approved.
 
@@ -175,6 +202,19 @@ def evaluate_resume(
             False, ResumeRefusal.VERSION_CHANGED,
             f"approved {stored.tool_key} v{stored.tool_version}, about to run v{tool_version}",
         )
+
+    if current_plan_version is not None:
+        expected = compute_call_version(
+            current_plan_version,
+            tool_key,
+            tool_version,
+            argument_digest(tool_key, tool_version, arguments),
+        )
+        if stored.call_version is None or stored.call_version != expected:
+            return ResumeVerdict(
+                False, ResumeRefusal.PLAN_REVISED,
+                "the plan was revised after this was approved; a fresh decision is required",
+            )
 
     if argument_digest(tool_key, tool_version, arguments) != stored.argument_digest:
         return ResumeVerdict(

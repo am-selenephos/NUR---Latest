@@ -331,3 +331,78 @@ async def unlock_dependants(
         {"workflow": workflow_id, "owner": owner_user_id},
     )
     return [row[0] for row in result.fetchall()]
+
+
+async def queue_ready_dependants(
+    db: AsyncSession, *, owner_user_id: uuid.UUID, workflow_id: uuid.UUID
+) -> list[dict]:
+    """Move READY steps to QUEUED and write one dispatch intent each.
+
+    This is the missing link that made the dependant pipeline dead:
+    `unlock_dependants` promoted BLOCKED to READY, the worker published READY
+    steps directly, and `claim_step` only ever claims QUEUED. Every dependant
+    message therefore lost its claim and the child never executed.
+
+    The transition and the intent are written in one transaction. Publishing
+    before commit would let a rollback strand a message the database never
+    agreed to; publishing after commit with no record would strand the step if
+    the process died in between. The row is the durable middle.
+
+    SKIP LOCKED so two schedulers running concurrently divide the work instead
+    of blocking on each other.
+    """
+    rows = (
+        await db.execute(
+            text(
+                """
+                WITH claimed AS (
+                    SELECT id FROM agent_steps
+                     WHERE workflow_id = :workflow
+                       AND owner_user_id = :owner
+                       AND state = 'READY'
+                     ORDER BY ordinal
+                     FOR UPDATE SKIP LOCKED
+                )
+                UPDATE agent_steps s
+                   SET state = 'QUEUED', queued_at = now(), updated_at = now()
+                  FROM claimed
+                 WHERE s.id = claimed.id
+             RETURNING s.id, s.attempt
+                """
+            ),
+            {"workflow": workflow_id, "owner": owner_user_id},
+        )
+    ).mappings().all()
+
+    queued: list[dict] = []
+    for row in rows:
+        # One intent per step attempt. The unique dispatch_key makes a repeated
+        # scheduler pass idempotent rather than duplicating the intent.
+        await db.execute(
+            text(
+                """
+                INSERT INTO agent_dispatch_outbox (
+                    owner_user_id, workflow_id, step_id, dispatch_key, state
+                ) VALUES (:owner, :workflow, :step, :key, 'RETRYABLE')
+                ON CONFLICT (dispatch_key) DO NOTHING
+                """
+            ),
+            {
+                "owner": owner_user_id,
+                "workflow": workflow_id,
+                "step": row["id"],
+                "key": f"{row['id']}:{row['attempt']}",
+            },
+        )
+        await record_event(
+            db,
+            owner_user_id=owner_user_id,
+            workflow_id=workflow_id,
+            step_id=row["id"],
+            event_type="STEP_QUEUED",
+            summary="dependant queued with a dispatch intent",
+            from_state=StepState.READY.value,
+            to_state=StepState.QUEUED.value,
+        )
+        queued.append({"step_id": row["id"], "attempt": row["attempt"]})
+    return queued

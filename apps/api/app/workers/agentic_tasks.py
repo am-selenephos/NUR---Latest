@@ -100,13 +100,10 @@ async def _execute_step(
             trace_id=trace.trace_id,
         )
 
-        # Newly READY dependants are queued here rather than inside the runtime,
-        # so the runtime stays free of transport concerns and remains testable
-        # without a broker.
-        for dependant in outcome.get("unlocked", []):
-            execute_agentic_step_task.delay(
-                dependant, owner_user_id, workflow_id, trace.traceparent()
-            )
+        # No direct dispatch. A READY step cannot be claimed, and publishing work
+        # the database has not committed is how a rollback leaves a message
+        # nothing will honour. The runtime queues dependants and writes a durable
+        # dispatch intent in the same transaction; transport consumes that.
         return outcome
 
 

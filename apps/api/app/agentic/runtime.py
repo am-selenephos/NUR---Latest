@@ -28,6 +28,7 @@ being unsafe.
 
 from __future__ import annotations
 
+import datetime as dt
 import time
 import uuid
 from dataclasses import dataclass
@@ -137,36 +138,86 @@ async def _ensure_approval_row(
     risk_class: str,
     reversible: bool,
     cost_ceiling_cents: int,
-) -> None:
-    """Create exactly one pending approval for this step, bound to this call.
+    expected_result: str | None = None,
+    scope_summary: str | None = None,
+    expires_at: "dt.datetime | None" = None,
+) -> uuid.UUID:
+    """Create exactly one actionable approval for this step, bound to this call.
 
-    A WAITING_APPROVAL step with no actionable approval row is a broken state:
-    the owner is blocking a workflow they were never asked about. Equally, a
-    redelivered message must not stack duplicate cards in the inbox, so the
-    insert is conditional on no pending row already existing for the step with
-    the same digest.
+    Previously this wrote neither plan_version nor call_version, so every insert
+    violated ck_agent_approval_pending_bound and the runtime could not create an
+    approval at all — the pause path was unreachable.
+
+    Replacement is explicit rather than a caught unique violation. The index
+    permits one PENDING row per step, so an existing pending approval for a
+    *different* call must be invalidated first. Relying on the constraint to
+    reject the insert would lose the old row's history and turn an ordinary
+    re-plan into an error path.
     """
     import json
 
+    from app.agentic.approvals import compute_call_version
+
     digest = argument_digest(tool_key, tool_version, arguments)
+
+    # Lock the workflow so plan_version cannot move under us between read and
+    # insert; the step lock keeps a concurrent worker from pausing it twice.
+    plan_version = (
+        await db.execute(
+            text(
+                "SELECT plan_version FROM agent_workflows "
+                "WHERE id = :w AND owner_user_id = :o FOR UPDATE"
+            ),
+            {"w": workflow_id, "o": owner_user_id},
+        )
+    ).scalar_one()
     await db.execute(
+        text("SELECT 1 FROM agent_steps WHERE id = :s AND owner_user_id = :o FOR UPDATE"),
+        {"s": step_id, "o": owner_user_id},
+    )
+
+    call_version = compute_call_version(plan_version, tool_key, tool_version, digest)
+
+    existing = (
+        await db.execute(
+            text(
+                "SELECT id, call_version FROM agent_approvals "
+                "WHERE step_id = :s AND owner_user_id = :o AND decision = 'PENDING' "
+                "FOR UPDATE"
+            ),
+            {"s": step_id, "o": owner_user_id},
+        )
+    ).mappings().first()
+
+    if existing is not None:
+        if existing["call_version"] == call_version:
+            # Same call, already asked. Idempotent: a redelivery must not stack
+            # a second card in the inbox.
+            return existing["id"]
+        # A different call. Invalidate rather than delete: what NUR previously
+        # asked for is part of the record.
+        await db.execute(
+            text(
+                "UPDATE agent_approvals SET decision = 'INVALIDATED' "
+                "WHERE id = :id AND owner_user_id = :o"
+            ),
+            {"id": existing["id"], "o": owner_user_id},
+        )
+
+    row = await db.execute(
         text(
             """
             INSERT INTO agent_approvals (
                 owner_user_id, workflow_id, step_id, tool_key, tool_version,
-                argument_digest, redacted_arguments, rationale, risk_class,
-                reversible, cost_ceiling_cents, decision
+                argument_digest, redacted_arguments, rationale, expected_result,
+                risk_class, reversible, scope_summary, cost_ceiling_cents,
+                decision, plan_version, call_version, expires_at
+            ) VALUES (
+                :owner, :workflow, :step, :tool, :version, :digest,
+                CAST(:args AS jsonb), :rationale, :expected, :risk, :reversible,
+                :scope, :ceiling, 'PENDING', :plan_version, :call_version, :expires
             )
-            SELECT :owner, :workflow, :step, :tool, :version, :digest,
-                   CAST(:args AS jsonb), :rationale, :risk, :reversible,
-                   :ceiling, 'PENDING'
-             WHERE NOT EXISTS (
-                 SELECT 1 FROM agent_approvals
-                  WHERE step_id = :step
-                    AND owner_user_id = :owner
-                    AND decision = 'PENDING'
-                    AND argument_digest = :digest
-             )
+            RETURNING id
             """
         ),
         {
@@ -178,11 +229,18 @@ async def _ensure_approval_row(
             "digest": digest,
             "args": json.dumps(redact_arguments(arguments)),
             "rationale": rationale[:2000],
+            "expected": expected_result,
             "risk": risk_class,
             "reversible": reversible,
+            "scope": scope_summary,
             "ceiling": cost_ceiling_cents,
+            "plan_version": plan_version,
+            "call_version": call_version,
+            "expires": expires_at,
         },
     )
+    return row.scalar_one()
+
 
 
 async def execute_step(
@@ -195,6 +253,7 @@ async def execute_step(
     worker: str,
     approval: StoredApproval | None = None,
     within_scope: bool = True,
+    plan_version: int = 1,
 ) -> StepOutcome:
     """Run one already-claimed step through the gate and the handler.
 
@@ -278,6 +337,7 @@ async def execute_step(
                 arguments=effective_arguments,
                 now=_dt.datetime.now(_dt.timezone.utc),
                 estimated_cost_cents=contract.estimated_cost_cents,
+                current_plan_version=plan_version,
             )
             held = resume.allowed
             if held:
@@ -541,7 +601,7 @@ async def run_step(
     After execution the loop actually closes: verify, persist, transition to a
     terminal state, unlock dependants, and recompute the workflow's state.
     """
-    from app.agentic.orchestrator import unlock_dependants
+    from app.agentic.orchestrator import queue_ready_dependants, unlock_dependants
     from app.agentic.verifier import Verdict, verify_step_result
 
     from app.agentic.policy_store import load_policy, load_step_approval
@@ -562,7 +622,7 @@ async def run_step(
     scope = (
         await db.execute(
             text(
-                "SELECT orbit_id, project_id FROM agent_workflows "
+                "SELECT orbit_id, project_id, plan_version FROM agent_workflows "
                 "WHERE id = :workflow AND owner_user_id = :owner"
             ),
             {"workflow": step["workflow_id"], "owner": owner_user_id},
@@ -588,6 +648,7 @@ async def run_step(
         worker=worker,
         approval=approval,
         within_scope=within_scope,
+        plan_version=int(scope.get("plan_version") or 1),
     )
 
     step = await _load_step(db, owner_user_id, step_id)
@@ -679,10 +740,20 @@ async def run_step(
     )
 
     unlocked: list[str] = []
+    queued: list[str] = []
     if final is StepState.SUCCEEDED:
         unlocked = [
             str(dep)
             for dep in await unlock_dependants(
+                db, owner_user_id=owner_user_id, workflow_id=workflow_id
+            )
+        ]
+        # READY is not runnable: claim_step only claims QUEUED. The scheduler
+        # moves them and writes the dispatch intent in this same transaction, so
+        # a rollback takes the intent with it.
+        queued = [
+            str(row["step_id"])
+            for row in await queue_ready_dependants(
                 db, owner_user_id=owner_user_id, workflow_id=workflow_id
             )
         ]
@@ -698,6 +769,7 @@ async def run_step(
         "step_state": final.value,
         "result_digest": digest,
         "unlocked": unlocked,
+        "queued": queued,
         "workflow_state": workflow_state,
         "trace_id": trace.trace_id,
     }
