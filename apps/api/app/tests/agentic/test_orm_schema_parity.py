@@ -475,6 +475,11 @@ def test_the_foreign_key_set_is_exactly_as_expected(engine):
         ("agent_tool_calls", "(step_id) REFERENCES agent_steps(id) ON DELETE SET NULL"),
         # audit history survives a deleted approval
         ("agent_tool_calls", "(approval_id) REFERENCES agent_approvals(id) ON DELETE SET NULL"),
+        # composite: an approval_id must name a row sharing this call's owner,
+        # workflow and step — not merely one that exists somewhere.
+        ("agent_tool_calls",
+         "(approval_id, owner_user_id, workflow_id, step_id) REFERENCES "
+         "agent_approvals(id, owner_user_id, workflow_id, step_id)"),
         # policy scope
         ("agent_policies", "(orbit_id) REFERENCES orbits(id) ON DELETE CASCADE"),
         ("agent_policies", "(project_id) REFERENCES am_projects(id) ON DELETE CASCADE"),
