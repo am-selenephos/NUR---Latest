@@ -32,9 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agentic.enums import (
     STEP_TERMINAL,
     StepState,
-    WorkflowState,
     assert_step_transition,
-    assert_workflow_transition,
 )
 
 # How long a worker may hold a step before recovery considers it abandoned.
@@ -313,34 +311,6 @@ async def transition_step(
             "next": nxt.value,
             "terminal": nxt in STEP_TERMINAL,
             "attempt": execution_attempt,
-        },
-    )
-    return result.first() is not None
-
-
-async def transition_workflow(
-    db: AsyncSession,
-    *,
-    owner_user_id: uuid.UUID,
-    workflow_id: uuid.UUID,
-    current: WorkflowState,
-    nxt: WorkflowState,
-) -> bool:
-    assert_workflow_transition(current, nxt)
-    result = await db.execute(
-        text(
-            """
-            UPDATE agent_workflows
-               SET state = :next, updated_at = now()
-             WHERE id = :workflow AND owner_user_id = :owner AND state = :current
-            RETURNING id
-            """
-        ),
-        {
-            "workflow": workflow_id,
-            "owner": owner_user_id,
-            "current": current.value,
-            "next": nxt.value,
         },
     )
     return result.first() is not None

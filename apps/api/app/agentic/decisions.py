@@ -26,10 +26,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agentic import registry
 from app.agentic.aggregate import aggregate_workflow
-from app.agentic.approvals import compute_call_version
+from app.agentic.approvals import StoredApproval, apply_edit, compute_call_version
+from app.agentic.enums import ApprovalDecision
 from app.agentic.input_schemas import validate_arguments
-from app.agentic.orchestrator import argument_digest, record_event
-from app.agentic.redaction import redact_arguments
+from app.agentic.orchestrator import record_event
 
 
 class DecisionRefused(RuntimeError):
@@ -294,27 +294,42 @@ async def decide(
         await _invalidate_other_actionable(db, owner_user_id, step["id"], approval_id)
 
         if verdict == "EDIT":
-            digest = argument_digest(
-                approval["tool_key"], approval["tool_version"], edited_arguments
+            # `apply_edit` owns what an edit *means*: a new binding, with the
+            # digest and call_version recomputed from the edited payload and the
+            # decision's identity, expiry and ceiling preserved. This used to be
+            # reimplemented inline here, which left `apply_edit` with seven tests
+            # and no production caller — so those tests proved a helper the
+            # product did not use, while the shipped path was a second
+            # implementation free to drift from it.
+            stored = StoredApproval(
+                approval_id=approval_id,
+                tool_key=approval["tool_key"],
+                tool_version=approval["tool_version"],
+                argument_digest=approval["argument_digest"],
+                redacted_arguments=approval["redacted_arguments"],
+                decision=ApprovalDecision(approval["decision"]),
+                cost_ceiling_cents=approval["cost_ceiling_cents"],
+                expires_at=approval["expires_at"],
+                plan_version=int(approval["plan_version"]),
+                call_version=approval["call_version"],
             )
-            call_version = compute_call_version(
-                int(workflow["plan_version"]),
-                approval["tool_key"],
-                approval["tool_version"],
-                digest,
+            edited = apply_edit(
+                stored, edited_arguments, plan_version=int(workflow["plan_version"])
             )
             await db.execute(
                 text(
                     "UPDATE agent_approvals SET decision = 'EDITED', decided_at = now(), "
                     "decided_note = :note, edited_arguments = CAST(:edited AS jsonb), "
                     "argument_digest = :digest, call_version = :cv, "
+                    "plan_version = :plan_version, "
                     "redacted_arguments = CAST(:redacted AS jsonb) WHERE id = :id"
                 ),
                 {
                     "id": approval_id, "note": note,
-                    "edited": json.dumps(edited_arguments),
-                    "digest": digest, "cv": call_version,
-                    "redacted": json.dumps(redact_arguments(edited_arguments)),
+                    "edited": json.dumps(edited.edited_arguments),
+                    "digest": edited.argument_digest, "cv": edited.call_version,
+                    "plan_version": edited.plan_version,
+                    "redacted": json.dumps(edited.redacted_arguments),
                 },
             )
             event = "APPROVAL_EDITED"
