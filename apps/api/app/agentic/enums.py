@@ -186,6 +186,11 @@ STEP_TRANSITIONS: dict[StepState, frozenset[StepState]] = {
         {
             StepState.VERIFYING,
             StepState.WAITING_APPROVAL,
+            # A tool's registered contract changed underneath a step that was
+            # compiled against an earlier version. Nothing ran, so this is not
+            # a verification outcome — direct from RUNNING, not by way of
+            # VERIFYING.
+            StepState.NEEDS_REVISION,
             StepState.FAILED,
             StepState.CANCELLED,
         }

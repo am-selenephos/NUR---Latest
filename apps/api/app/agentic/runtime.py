@@ -291,6 +291,33 @@ async def execute_step(
 
     contract = registry.contract(tool_key)
 
+    # ── Version gate. Before the policy gate, so a registry change is caught
+    #    even for an auto-run tool that would otherwise sail straight through
+    #    to ALLOW. A step compiled against v1 executing under a v2 contract
+    #    would run with a tool_version the plan never actually reviewed — the
+    #    same class of gap `evaluate_resume` closes for approvals, but nothing
+    #    closed it for auto-run work at all. ──
+    if step["tool_version"] != contract.version:
+        await record_event(
+            db, owner_user_id=owner_user_id, workflow_id=workflow_id, step_id=step_id,
+            event_type="TOOL_VERSION_CHANGED",
+            summary=(
+                f"step compiled against {tool_key} v{step['tool_version']}, "
+                f"registry now serves v{contract.version}"
+            ),
+            from_state=StepState.RUNNING.value, to_state=StepState.NEEDS_REVISION.value,
+            trace_id=trace.trace_id,
+        )
+        await transition_step(
+            db, owner_user_id=owner_user_id, step_id=step_id,
+            current=StepState.RUNNING, nxt=StepState.NEEDS_REVISION,
+        )
+        return StepOutcome(
+            False, StepState.NEEDS_REVISION,
+            f"tool version changed: step has v{step['tool_version']}, "
+            f"registry has v{contract.version}",
+        )
+
     # ── Gate. After the claim so only one worker asks; before the handler so a
     #    refusal costs nothing. ──
     verdict = evaluate(contract, policy, within_scope=within_scope)
