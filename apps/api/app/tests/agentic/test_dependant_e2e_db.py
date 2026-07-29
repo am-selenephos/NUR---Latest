@@ -15,10 +15,9 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from app.agentic import handlers, registry
+from app.agentic import handlers
 from app.agentic.enums import InitiativeLevel, RiskClass
 from app.agentic.observability import new_trace
-from app.agentic.policy import OwnerPolicy
 from app.agentic.runtime import run_step
 from app.models.agentic import AgentPolicy, AgentStep, AgentWorkflow
 from app.tests.conftest import register_user

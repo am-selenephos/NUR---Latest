@@ -6,7 +6,6 @@ commits, a *new* session sees the intent, the dispatcher claims and publishes it
 and the child executes through the real worker entry function in its own session.
 """
 
-import uuid
 from uuid import UUID
 
 import pytest
@@ -96,7 +95,7 @@ async def test_committed_intent_is_dispatched_and_the_child_runs(session_for, ow
         workflow, parent, child = await _seed_two_steps(db, owner)
         await run_step(db, owner_user_id=owner, step_id=parent.id, trace=new_trace(), worker="w1")
         await db.commit()
-        workflow_id, parent_id, child_id = workflow.id, parent.id, child.id
+        workflow_id, child_id = workflow.id, child.id
 
     # A genuinely new session: nothing is carried over in identity map or txn.
     async with session_for() as fresh:

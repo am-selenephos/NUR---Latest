@@ -5,8 +5,6 @@ The previous single field decided both, so widening what could be approved also
 widened what could run unattended.
 """
 
-import pytest
-
 from app.agentic.enums import InitiativeLevel, RiskClass
 from app.agentic.policy import Decision, OwnerPolicy, ToolContract, evaluate
 from app.agentic.policy_store import capabilities_for

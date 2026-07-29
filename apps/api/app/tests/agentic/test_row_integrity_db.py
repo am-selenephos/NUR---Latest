@@ -8,8 +8,7 @@ The RLS matrix covers every owner-scoped Agency table rather than one, because a
 single-table result says nothing about the other eight.
 """
 
-import datetime as dt
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 from sqlalchemy import text
@@ -152,7 +151,6 @@ async def test_another_owner_cannot_select_or_update(
 ):
     """Every owner-scoped Agency table, not one."""
     workflow, step = await _seed(scoped, owner)
-    now = dt.datetime.now(dt.timezone.utc)
     seeds = {
         "agent_workflows": None,
         "agent_steps": None,
