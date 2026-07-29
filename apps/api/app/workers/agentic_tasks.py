@@ -23,13 +23,13 @@ abandoned step reclaimable.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import uuid
 
 from sqlalchemy import text
 
 from app.agentic.aggregate import aggregate_workflow
+from app.agentic.handlers import bind_all_handlers
 from app.agentic.observability import continue_or_start, worker_id
 from app.agentic.orchestrator import (
     reclaim_expired_steps,
@@ -41,10 +41,16 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging, log
 from app.db.rls import set_user_context
 from app.db.session import get_sessionmaker
+from app.workers.asyncrun import run_task
 from app.workers.celery_app import celery
 
 configure_logging()
 logger = logging.getLogger("nur.worker.agentic")
+
+# Bind at import, which for this module means at worker boot: `celery_app`'s
+# include list imports it before the worker starts consuming. Without this the
+# registry is empty in the worker process and every step raises UnboundToolError.
+bind_all_handlers()
 
 
 @celery.task(name="nur.agentic.execute_step", ignore_result=False, acks_late=True)
@@ -55,7 +61,7 @@ def execute_agentic_step_task(
     traceparent: str | None = None,
 ) -> dict:
     """Execute one claimed step. Payload is IDs plus a traceparent, nothing else."""
-    return asyncio.run(_execute_step(step_id, owner_user_id, workflow_id, traceparent))
+    return run_task(lambda: _execute_step(step_id, owner_user_id, workflow_id, traceparent))
 
 
 async def _execute_step(
@@ -123,7 +129,7 @@ def dispatch_agentic_intents_task(limit: int | None = None) -> dict:
     Publishing goes through `execute_agentic_step_task.delay`, so the payload is
     IDs plus a traceparent and never the plan or any owner text.
     """
-    return asyncio.run(_dispatch(limit))
+    return run_task(lambda: _dispatch(limit))
 
 
 async def _dispatch(limit: int | None) -> dict:
@@ -168,7 +174,7 @@ def recover_agentic_steps_task(limit: int = 50) -> dict:
     content. Reclaiming alone is not recovery: the step also needs a dispatch
     intent, or it returns to QUEUED with nothing coming to execute it.
     """
-    return asyncio.run(_recover(limit))
+    return run_task(lambda: _recover(limit))
 
 
 async def _recover(limit: int) -> dict:
@@ -231,7 +237,7 @@ async def _recover(limit: int) -> dict:
 @celery.task(name="nur.agentic.unlock", ignore_result=False)
 def unlock_agentic_dependants_task(owner_user_id: str, workflow_id: str) -> dict:
     """Promote BLOCKED steps whose dependencies have all succeeded."""
-    return asyncio.run(_unlock(owner_user_id, workflow_id))
+    return run_task(lambda: _unlock(owner_user_id, workflow_id))
 
 
 async def _unlock(owner_user_id: str, workflow_id: str) -> dict:

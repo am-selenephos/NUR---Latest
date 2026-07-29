@@ -56,6 +56,13 @@ async def lifespan(app: FastAPI):
     s = get_settings()
     app.state.ready = True
     app.state.redis = Redis.from_url(s.redis_url, decode_responses=True)
+    # Bind the Agency Plane tool handlers. Without this the registry is empty in
+    # the API process, so `GET /agentic/tools` reported every tool as
+    # `bound: false` — describing the product as less capable than it is, from
+    # the one surface an owner uses to check what NUR can do.
+    from app.agentic.handlers import bind_all_handlers
+
+    bind_all_handlers()
     try:
         yield
     finally:

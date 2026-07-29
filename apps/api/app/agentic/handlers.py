@@ -806,3 +806,28 @@ def bind_durable_handlers() -> tuple[str, ...]:
     registry.bind("schedule_timeline_event", schedule_timeline_event)
     registry.bind("accept_or_correct_insight", accept_or_correct_insight)
     return registry.bound_keys()
+
+
+def bind_all_handlers() -> tuple[str, ...]:
+    """Bind every implemented handler. The Agency Plane's composition root.
+
+    Nothing outside the test suite used to call the three `bind_*` functions, so
+    in production the registry was empty: a real Celery worker that received
+    `nur.agentic.execute_step` raised `UnboundToolError` for every tool, and
+    `GET /agentic/tools` reported all 24 as `bound: false`. Every in-process test
+    bound handlers itself in a fixture, so the whole tool layer could be inert in
+    production while the suite stayed green — it took a real worker consuming a
+    real broker message to surface it.
+
+    Both long-lived processes call this at startup: the API (so the catalog it
+    serves is truthful) and the worker (so a step can actually execute).
+
+    `create_capsule`, `queue_project_run` and `complete_task` stay unbound on
+    purpose — a Capsule crosses the owner's privacy boundary and a project run
+    spends budget, and neither has an owner-reviewed flow yet. Declared and
+    unbound is the honest state: they raise rather than half-working.
+    """
+    bind_read_only_handlers()
+    bind_draft_handlers()
+    bind_durable_handlers()
+    return registry.bound_keys()

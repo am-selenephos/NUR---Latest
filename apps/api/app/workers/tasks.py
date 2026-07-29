@@ -1,13 +1,13 @@
 """Phase 0 worker spine: idempotent, ID-only payloads, structured logs.
 Workers never execute user-supplied code and never receive private raw text."""
 import logging
-import asyncio
 import socket
 import uuid
 
 from app.core.logging import configure_logging, log
 from app.db.rls import set_user_context
 from app.db.session import get_sessionmaker
+from app.workers.asyncrun import run_task
 from app.omega.due_owner_service import omega_consolidation_due_owner_ids
 from app.omega.replay_service import omega_consolidate_owner
 from app.services.project_execution import execute_run
@@ -33,7 +33,7 @@ def send_verification_email_stub(user_id: str) -> None:
 @celery.task(name="nur.omega_consolidate_owner", ignore_result=False)
 def omega_consolidate_owner_task(owner_user_id: str, orbit_id: str | None = None, run_kind: str = "DAILY") -> dict:
     """Omega replay job: ID-only payloads, no raw private text."""
-    return asyncio.run(_omega_consolidate_owner(owner_user_id, orbit_id, run_kind))
+    return run_task(lambda: _omega_consolidate_owner(owner_user_id, orbit_id, run_kind))
 
 
 async def _omega_consolidate_owner(owner_user_id: str, orbit_id: str | None, run_kind: str) -> dict:
@@ -57,7 +57,7 @@ def execute_project_run_task(run_id: str, owner_user_id: str, worker_id: str | N
     """Execute one approved+queued AM Project run. Payload is IDs only; the run's
     deterministic adapter never touches external systems. The claim inside
     execute_run makes a duplicate delivery an idempotent no-op."""
-    return asyncio.run(_execute_project_run(run_id, owner_user_id, worker_id))
+    return run_task(lambda: _execute_project_run(run_id, owner_user_id, worker_id))
 
 
 async def _execute_project_run(run_id: str, owner_user_id: str, worker_id: str | None) -> dict:
@@ -79,7 +79,7 @@ async def _execute_project_run(run_id: str, owner_user_id: str, worker_id: str |
 @celery.task(name="nur.omega_consolidate_due_owners", ignore_result=False)
 def omega_consolidate_due_owners_task() -> dict:
     """Scheduled Omega pass: owner IDs only, never raw private text."""
-    return asyncio.run(_omega_consolidate_due_owners())
+    return run_task(lambda: _omega_consolidate_due_owners())
 
 
 async def _omega_consolidate_due_owners() -> dict:

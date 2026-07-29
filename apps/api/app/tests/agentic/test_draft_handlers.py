@@ -109,9 +109,33 @@ def test_bound_draft_tools_match_their_declared_contracts():
         assert registry.contract(key).risk_class is RiskClass.R1_PRIVATE_DRAFT
 
 
-def test_durable_tools_remain_unbound():
-    """R2 tools mutate owner truth and must not be callable from this phase."""
-    for key in ("activate_plan", "schedule_timeline_event", "create_capsule",
-                "complete_task", "accept_or_correct_insight", "queue_project_run"):
+def test_the_highest_consequence_tools_stay_unbound():
+    """Three R2 tools are deliberately never bound, and it is not the whole class.
+
+    This assertion used to cover every R2 tool with the reasoning that they
+    "must not be callable from this phase". That premise is gone: the exact-call
+    approval machinery exists precisely so a durable tool *can* run behind
+    recorded consent, `bind_durable_handlers` binds three of them, and
+    `test_durable_handlers.py` proves each refuses without an approval bound to
+    its exact arguments.
+
+    What remains true — and is the guarantee worth pinning — is that a Capsule
+    crossing the owner's privacy boundary, a project run that spends budget, and
+    task completion have no owner-reviewed flow yet. Declared and unbound is the
+    honest state for those: they raise rather than half-working.
+    """
+    for key in ("create_capsule", "queue_project_run", "complete_task"):
         with pytest.raises(registry.UnboundToolError):
             registry.handler(key)
+
+
+def test_bound_durable_tools_are_bound_and_gated_by_approval():
+    """The complement of the above: the three that are bound are genuinely
+    callable, and every one of them is R2 — so the policy engine forces an
+    explicit owner decision before any of them executes."""
+    from app.agentic.handlers import bind_all_handlers
+
+    bind_all_handlers()
+    for key in ("activate_plan", "schedule_timeline_event", "accept_or_correct_insight"):
+        assert registry.is_bound(key), f"{key} should be callable behind approval"
+        assert registry.contract(key).risk_class is RiskClass.R2_DURABLE_PRIVATE
