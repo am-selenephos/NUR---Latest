@@ -122,3 +122,108 @@ def test_the_verifier_asks_no_model():
     source = inspect.getsource(verifier)
     for needle in ("openai", "Runner", "completions", "handler("):
         assert needle not in source
+
+
+# ── capability fail-closed (P0) ──────────────────────────────────────────────
+
+def test_capabilities_cannot_fall_back_to_the_full_set():
+    """The previous expression was `(A & B) or C`, so an empty intersection
+    granted every capability in the product. And `allowed_tools` holds tool
+    keys, not capability names, so the intersection was empty almost always."""
+    import ast
+    from app.agentic import policy_store
+
+    tree = ast.parse(inspect.getsource(policy_store))
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Module, ast.ClassDef)):
+            if node.body and isinstance(node.body[0], ast.Expr) \
+               and isinstance(node.body[0].value, ast.Constant):
+                node.body = node.body[1:]
+    assert "or KNOWN_CAPABILITIES" not in ast.unparse(tree)
+
+
+def test_an_empty_allowlist_grants_nothing():
+    from app.agentic.policy_store import capabilities_for
+
+    assert capabilities_for(frozenset()) == frozenset()
+
+
+def test_unknown_tool_keys_grant_nothing():
+    from app.agentic.policy_store import capabilities_for
+
+    assert capabilities_for(frozenset({"shell_exec", "not_a_tool"})) == frozenset()
+
+
+def test_capabilities_are_the_union_of_allowed_tool_contracts():
+    from app.agentic.policy_store import capabilities_for
+
+    granted = capabilities_for(frozenset({"get_timeline", "get_plan"}))
+    assert granted == frozenset({"read_timeline", "read_plans"})
+
+
+def test_a_capability_bearing_tool_cannot_run_under_an_empty_policy():
+    from app.agentic.policy import Decision, OwnerPolicy, evaluate
+    from app.agentic.registry import contract
+    from app.agentic.enums import InitiativeLevel, RiskClass
+
+    empty = OwnerPolicy(
+        initiative_level=InitiativeLevel.INTERNAL,
+        max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
+        granted_capabilities=frozenset(),
+    )
+    assert evaluate(contract("get_timeline"), empty).decision is Decision.DENY
+
+
+# ── post-claim gate state (P0) ───────────────────────────────────────────────
+
+def test_policy_and_approval_load_after_the_claim():
+    """State read before claiming may have changed by execution time — an owner
+    revoking a policy or rejecting an approval in that window would be ignored."""
+    source = inspect.getsource(runtime.run_step)
+    claim = source.index("await claim_step(")
+    policy = source.index("load_policy(")
+    approval = source.index("load_step_approval(")
+    execute = source.index("await execute_step(")
+    assert claim < policy < execute
+    assert claim < approval < execute
+
+
+def test_the_worker_no_longer_preloads_gate_state():
+    source = inspect.getsource(agentic_tasks)
+    assert "load_policy(" not in source
+    assert "load_step_approval(" not in source
+
+
+def test_scope_for_policy_precedence_comes_from_the_claimed_workflow():
+    source = inspect.getsource(runtime.run_step)
+    assert "orbit_id" in source and "project_id" in source
+
+
+# ── REVISE is not failure (P1) ───────────────────────────────────────────────
+
+def test_revise_maps_to_needs_revision_not_failed():
+    from app.agentic.enums import StepState
+
+    source = inspect.getsource(runtime.run_step)
+    assert "Verdict.REVISE" in source
+    assert "StepState.NEEDS_REVISION" in source
+    assert StepState.NEEDS_REVISION.value == "NEEDS_REVISION"
+
+
+def test_needs_revision_is_not_terminal():
+    """Re-planning must be able to re-queue the step."""
+    from app.agentic.enums import STEP_TERMINAL, STEP_TRANSITIONS, StepState
+
+    assert StepState.NEEDS_REVISION not in STEP_TERMINAL
+    assert StepState.QUEUED in STEP_TRANSITIONS[StepState.NEEDS_REVISION]
+
+
+def test_a_revising_step_keeps_dependants_blocked():
+    """`unlock_dependants` promotes only when every dependency is SUCCEEDED."""
+    from app.agentic.orchestrator import unlock_dependants
+
+    assert "<> 'SUCCEEDED'" in inspect.getsource(unlock_dependants)
+
+
+def test_workflow_reports_needs_revision():
+    assert "NEEDS_REVISION" in inspect.getsource(runtime._aggregate_workflow)

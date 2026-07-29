@@ -53,25 +53,60 @@ async def load_policy(
 
     chosen = pick()
     if chosen is None:
-        # No configured policy is not permission. SUGGEST with an R1 ceiling.
+        # No configured policy is not permission. SUGGEST, an R1 ceiling, and
+        # zero capabilities — an owner who has never opened these settings has
+        # granted nothing, so a capability-bearing tool cannot run at all.
         return OwnerPolicy(
             initiative_level=InitiativeLevel.SUGGEST,
             max_risk_class=RiskClass.R1_PRIVATE_DRAFT,
             granted_capabilities=frozenset(),
         )
 
+    allowed_tools = frozenset(chosen.allowed_tools or ())
     return OwnerPolicy(
         initiative_level=InitiativeLevel(chosen.initiative_level),
         max_risk_class=RiskClass(chosen.max_risk_class),
-        allowed_tools=frozenset(chosen.allowed_tools or ()),
+        allowed_tools=allowed_tools,
         denied_tools=frozenset(chosen.denied_tools or ()),
-        # Capabilities are intersected with the known set: a name that is not a
-        # declared capability cannot grant anything, so a typo or an injected
-        # value fails closed rather than widening what a workflow may do.
-        granted_capabilities=frozenset(chosen.allowed_tools or ()) & KNOWN_CAPABILITIES
-        or KNOWN_CAPABILITIES,
+        granted_capabilities=capabilities_for(allowed_tools),
         daily_budget_cents=chosen.daily_budget_cents,
     )
+
+
+def capabilities_for(allowed_tools: frozenset[str]) -> frozenset[str]:
+    """The exact union of capabilities required by the explicitly allowed tools.
+
+    This replaces a fail-open that granted everything. The previous expression
+    was `frozenset(allowed_tools) & KNOWN_CAPABILITIES or KNOWN_CAPABILITIES`,
+    which evaluates as `(A & B) or C` — so whenever the intersection was empty
+    it fell through to the full capability set. And `allowed_tools` holds tool
+    *keys*, not capability names, so that intersection was empty almost always.
+    The net effect was that nearly every policy silently granted every
+    capability in the product, which is the exact escalation the capability
+    system exists to prevent.
+
+    Capabilities are now derived, never fallen back to:
+
+      * an empty or missing allowlist grants nothing;
+      * a tool key that resolves to no contract contributes nothing;
+      * a capability a contract names but the known set does not is dropped, so
+        a typo or an injected value cannot widen what a workflow may do.
+
+    There is no branch in this function that can return KNOWN_CAPABILITIES.
+    """
+    from app.agentic.registry import UnknownToolError, contract
+
+    granted: set[str] = set()
+    for key in allowed_tools:
+        try:
+            tool = contract(key)
+        except UnknownToolError:
+            # An unrecognised tool grants nothing rather than being trusted.
+            continue
+        granted |= set(tool.required_capabilities)
+    # Intersect, never union-with-fallback: an unknown capability name is
+    # dropped instead of admitted.
+    return frozenset(granted & KNOWN_CAPABILITIES)
 
 
 async def load_step_approval(

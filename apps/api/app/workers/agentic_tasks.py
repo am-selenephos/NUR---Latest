@@ -28,7 +28,6 @@ import logging
 import uuid
 
 from app.agentic.observability import continue_or_start, worker_id
-from app.agentic.policy_store import load_policy, load_step_approval
 from app.agentic.orchestrator import (
     reclaim_expired_steps,
     transition_step,
@@ -78,17 +77,16 @@ async def _execute_step(
         # policy, so a wrong owner id yields nothing rather than another's data.
         await set_user_context(db, owner)
 
-        policy = await load_policy(db, owner_user_id=owner)
-        approval = await load_step_approval(db, owner_user_id=owner, step_id=uuid.UUID(step_id))
-
+        # Policy and approval are resolved inside the runtime, after the claim.
+        # Loading them here would read state that may change before the step
+        # actually runs, so an owner revoking a policy or rejecting an approval
+        # in that window would have their decision ignored.
         outcome = await run_step(
             db,
             owner_user_id=owner,
             step_id=uuid.UUID(step_id),
-            policy=policy,
             trace=trace,
             worker=me,
-            approval=approval,
         )
         await db.commit()
 

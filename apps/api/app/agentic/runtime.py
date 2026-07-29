@@ -135,18 +135,18 @@ async def execute_step(
     approval: StoredApproval | None = None,
     within_scope: bool = True,
 ) -> StepOutcome:
-    """Run one step through the full loop.
+    """Run one already-claimed step through the gate and the handler.
+
+    This function does not claim. `run_step` is the only claim site in the
+    system; a guarded second one here would still be a second one, and the
+    guard is exactly the kind of flag that gets passed wrongly once and
+    reintroduces double-claiming.
 
     Returns a StepOutcome rather than raising for expected refusals — a policy
     denial and a lost claim are both normal states of the system, and turning
     them into exceptions would make ordinary operation look like failure in the
     logs. Genuine faults still raise.
     """
-    claim = await claim_step(db, owner_user_id=owner_user_id, step_id=step_id, worker_id=worker)
-    if not claim.claimed:
-        # A duplicate delivery. Not an error; the other worker has it.
-        return StepOutcome(False, StepState.QUEUED, claim.reason)
-
     step = await _load_step(db, owner_user_id, step_id)
     if step is None:
         raise RuntimeRefusal("claimed a step that cannot be re-read; RLS context is wrong")
@@ -337,6 +337,7 @@ async def _aggregate_workflow(
                 SELECT
                   count(*) FILTER (WHERE state = 'SUCCEEDED') AS ok,
                   count(*) FILTER (WHERE state = 'FAILED')    AS failed,
+                  count(*) FILTER (WHERE state = 'NEEDS_REVISION') AS revising,
                   count(*) FILTER (WHERE state = 'WAITING_APPROVAL') AS waiting,
                   count(*) AS total
                 FROM agent_steps
@@ -351,6 +352,10 @@ async def _aggregate_workflow(
         state = "SUCCEEDED"
     elif row["failed"]:
         state = "FAILED"
+    elif row["revising"]:
+        # Dependants stay BLOCKED: unlock_dependants only promotes when every
+        # dependency is SUCCEEDED, so a revising step holds its subtree.
+        state = "NEEDS_REVISION"
     elif row["waiting"]:
         state = "WAITING_APPROVAL"
     else:
@@ -371,13 +376,17 @@ async def run_step(
     *,
     owner_user_id: uuid.UUID,
     step_id: uuid.UUID,
-    policy: OwnerPolicy,
     trace: TraceContext,
     worker: str,
-    approval: StoredApproval | None = None,
     within_scope: bool = True,
 ) -> dict[str, Any]:
     """The single top-level entry point. The runtime owns the claim.
+
+    Policy and approval are resolved *after* the claim, never before. State read
+    before claiming is state that may have changed by the time the step runs: an
+    owner who revokes a policy or rejects an approval in that window would have
+    had their decision ignored, because the worker was already holding a stale
+    copy. Loading inside the claim closes that window.
 
     There is exactly one claim site in the system and it is inside
     `execute_step`. The worker sets the RLS context and calls this; it does not
@@ -389,6 +398,41 @@ async def run_step(
     """
     from app.agentic.orchestrator import unlock_dependants
     from app.agentic.verifier import Verdict, verify_step_result
+
+    from app.agentic.policy_store import load_policy, load_step_approval
+
+    claim = await claim_step(
+        db, owner_user_id=owner_user_id, step_id=step_id, worker_id=worker
+    )
+    if not claim.claimed:
+        return {"executed": False, "step_state": "QUEUED", "reason": claim.reason}
+
+    step = await _load_step(db, owner_user_id, step_id)
+    if step is None:
+        raise RuntimeRefusal("claimed a step that cannot be re-read; RLS context is wrong")
+
+    # Scope for policy precedence comes from the workflow the claimed step
+    # belongs to, so a Project policy can override an Orbit policy which
+    # overrides the account default.
+    scope = (
+        await db.execute(
+            text(
+                "SELECT orbit_id, project_id FROM agent_workflows "
+                "WHERE id = :workflow AND owner_user_id = :owner"
+            ),
+            {"workflow": step["workflow_id"], "owner": owner_user_id},
+        )
+    ).mappings().first() or {}
+
+    policy = await load_policy(
+        db,
+        owner_user_id=owner_user_id,
+        orbit_id=scope.get("orbit_id"),
+        project_id=scope.get("project_id"),
+    )
+    approval = await load_step_approval(
+        db, owner_user_id=owner_user_id, step_id=step_id
+    )
 
     outcome = await execute_step(
         db,
@@ -456,7 +500,16 @@ async def run_step(
             "workflow_state": workflow_state,
         }
 
-    final = StepState.SUCCEEDED if verification.verdict is Verdict.PASS else StepState.FAILED
+    # REVISE is not failure. An honest no-op completed correctly and simply did
+    # not achieve the step's aim; calling that a system failure would make a
+    # planning problem look like a defect and would stop a workflow that should
+    # be re-planned. FAILED is reserved for results that are unusable.
+    if verification.verdict is Verdict.PASS:
+        final = StepState.SUCCEEDED
+    elif verification.verdict is Verdict.REVISE:
+        final = StepState.NEEDS_REVISION
+    else:
+        final = StepState.FAILED
     digest = await _persist_step_result(
         db, owner_user_id=owner_user_id, step_id=step_id, result=outcome.result,
         verdict=verification.verdict.value, duration_ms=outcome.duration_ms,
@@ -464,7 +517,11 @@ async def run_step(
     )
     await record_event(
         db, owner_user_id=owner_user_id, workflow_id=workflow_id, step_id=step_id,
-        event_type="STEP_VERIFIED" if final is StepState.SUCCEEDED else "STEP_REJECTED",
+        event_type=(
+            "STEP_VERIFIED" if final is StepState.SUCCEEDED
+            else "STEP_NEEDS_REVISION" if final is StepState.NEEDS_REVISION
+            else "STEP_REJECTED"
+        ),
         summary=f"{verification.verdict.value}: {'; '.join(verification.reasons) or 'checks passed'}",
         detail={"checks_run": list(verification.checks_run), "result_digest": digest},
         from_state=StepState.VERIFYING.value, to_state=final.value,

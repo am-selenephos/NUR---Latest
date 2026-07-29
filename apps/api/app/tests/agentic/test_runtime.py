@@ -16,10 +16,23 @@ def _order(source: str, *needles: str) -> list[int]:
 
 def test_policy_is_evaluated_after_the_claim_and_before_the_handler():
     """Before the claim, two workers would both pass the gate. After the
-    handler, it is not a gate."""
-    source = inspect.getsource(runtime.execute_step)
-    claim, gate, handler = _order(source, "claim_step(", "evaluate(contract", "registry.handler(")
-    assert claim < gate < handler
+    handler, it is not a gate.
+
+    The claim now lives in `run_step`, which also loads policy and approval; the
+    gate and handler live in `execute_step`, which `run_step` calls only after
+    claiming. Ordering is asserted across both.
+    """
+    entry = inspect.getsource(runtime.run_step)
+    claim, load_policy, execute = _order(
+        entry, "await claim_step(", "load_policy(", "await execute_step("
+    )
+    assert claim < load_policy < execute
+
+    inner = inspect.getsource(runtime.execute_step)
+    gate, handler = _order(inner, "evaluate(contract", "registry.handler(")
+    assert gate < handler
+    # And the inner function must never claim again.
+    assert "claim_step(" not in inner
 
 
 def test_approval_is_checked_before_the_handler_resolves():
@@ -67,9 +80,9 @@ def test_awaiting_approval_is_an_outcome_not_a_failure():
 def test_a_lost_claim_returns_rather_than_raising():
     """A duplicate delivery is normal operation; raising would make ordinary
     behaviour look like failure in the logs."""
-    source = inspect.getsource(runtime.execute_step)
+    source = inspect.getsource(runtime.run_step)
     lost = source.index("if not claim.claimed")
-    assert "return StepOutcome" in source[lost:lost + 300]
+    assert "return {" in source[lost:lost + 300]
 
 
 def test_a_step_that_cannot_be_reread_raises_rather_than_continuing():

@@ -49,6 +49,10 @@ class StepState(StrEnum):
     RUNNING = "RUNNING"
     VERIFYING = "VERIFYING"
     SUCCEEDED = "SUCCEEDED"
+    # A step that executed correctly but did not achieve its aim. Distinct from
+    # FAILED, which means the result is unusable. Overloading SKIPPED here would
+    # conflate "never ran" with "ran honestly and did not land".
+    NEEDS_REVISION = "NEEDS_REVISION"
     FAILED = "FAILED"
     SKIPPED = "SKIPPED"
     CANCELLED = "CANCELLED"
@@ -187,8 +191,15 @@ STEP_TRANSITIONS: dict[StepState, frozenset[StepState]] = {
         }
     ),
     StepState.VERIFYING: frozenset(
-        {StepState.SUCCEEDED, StepState.FAILED, StepState.CANCELLED}
+        {
+            StepState.SUCCEEDED,
+            StepState.NEEDS_REVISION,
+            StepState.FAILED,
+            StepState.CANCELLED,
+        }
     ),
+    # A step awaiting revision is not terminal: re-planning re-queues it.
+    StepState.NEEDS_REVISION: frozenset({StepState.QUEUED, StepState.CANCELLED}),
     StepState.SUCCEEDED: frozenset(),
     StepState.FAILED: frozenset({StepState.QUEUED}),  # retry re-queues the same step
     StepState.SKIPPED: frozenset(),
