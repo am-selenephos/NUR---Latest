@@ -293,3 +293,102 @@ async def test_pending_approval_requires_step_and_call_version(scoped, owner):
             {"o": owner, "w": workflow.id, "d": "sha256:" + "a" * 64},
         )
     assert "ck_agent_approval_plan_version" in str(caught.value)
+
+
+@pytest.mark.asyncio
+async def test_approval_cannot_bind_to_a_step_from_another_workflow(scoped, owner):
+    """Independent foreign keys are each satisfied by rows that have nothing to
+    do with each other, so an approval could legally point at a step belonging
+    to a different workflow. The trigger is what forbids it."""
+    first = await _workflow(scoped, owner)
+    second = await _workflow(scoped, owner)
+    step_of_second = AgentStep(
+        owner_user_id=owner, workflow_id=second.id, ordinal=1, key="s1",
+        state="WAITING_APPROVAL", role="operator",
+    )
+    scoped.add(step_of_second)
+    await scoped.flush()
+
+    with pytest.raises(Exception) as caught:
+        await scoped.execute(
+            text(
+                "INSERT INTO agent_approvals (owner_user_id, workflow_id, step_id, tool_key, "
+                "tool_version, argument_digest, rationale, risk_class, decision, call_version) "
+                "VALUES (:o, :w, :s, 't', '1', :d, 'r', 'R2_DURABLE_PRIVATE', 'PENDING', 'cv:x')"
+            ),
+            {
+                "o": owner, "w": first.id, "s": step_of_second.id,
+                "d": "sha256:" + "a" * 64,
+            },
+        )
+    assert "different workflow" in str(caught.value)
+
+
+@pytest.mark.asyncio
+async def test_approval_cannot_bind_to_another_owners_step(scoped, owner, app_engine, client):
+    """A wrong owner id must be refused even though both foreign keys resolve."""
+    from app.tests.conftest import register_user
+
+    workflow = await _workflow(scoped, owner)
+    step = AgentStep(
+        owner_user_id=owner, workflow_id=workflow.id, ordinal=1, key="s1",
+        state="WAITING_APPROVAL", role="operator",
+    )
+    scoped.add(step)
+    await scoped.commit()
+
+    stranger_response, _e, _p = await register_user(client, chosen_name="Bee")
+    assert stranger_response.status_code == 201
+    stranger = UUID(stranger_response.json()["id"])
+
+    maker = async_sessionmaker(app_engine, expire_on_commit=False)
+    async with maker() as other:
+        await other.execute(
+            text("SELECT set_config('app.current_user_id', :o, false)"), {"o": str(stranger)}
+        )
+        with pytest.raises(Exception) as caught:
+            await other.execute(
+                text(
+                    "INSERT INTO agent_approvals (owner_user_id, workflow_id, step_id, "
+                    "tool_key, tool_version, argument_digest, rationale, risk_class, "
+                    "decision, call_version) "
+                    "VALUES (:o, :w, :s, 't', '1', :d, 'r', 'R2_DURABLE_PRIVATE', "
+                    "'PENDING', 'cv:x')"
+                ),
+                {
+                    "o": stranger, "w": workflow.id, "s": step.id,
+                    "d": "sha256:" + "a" * 64,
+                },
+            )
+        # Under forced RLS the stranger cannot see the step at all, so the
+        # trigger reports it as not visible rather than as a mismatch. Either
+        # message is a refusal; what matters is that the row is not written.
+        assert "agent_approval_binding" in str(caught.value) or "violates" in str(caught.value)
+
+
+@pytest.mark.asyncio
+async def test_a_correctly_bound_approval_is_accepted(scoped, owner):
+    """Guards the three tests above from passing because the trigger rejects
+    everything."""
+    workflow = await _workflow(scoped, owner)
+    step = AgentStep(
+        owner_user_id=owner, workflow_id=workflow.id, ordinal=1, key="s1",
+        state="WAITING_APPROVAL", role="operator",
+    )
+    scoped.add(step)
+    await scoped.flush()
+
+    await scoped.execute(
+        text(
+            "INSERT INTO agent_approvals (owner_user_id, workflow_id, step_id, tool_key, "
+            "tool_version, argument_digest, rationale, risk_class, decision, call_version) "
+            "VALUES (:o, :w, :s, 't', '1', :d, 'r', 'R2_DURABLE_PRIVATE', 'PENDING', 'cv:x')"
+        ),
+        {"o": owner, "w": workflow.id, "s": step.id, "d": "sha256:" + "a" * 64},
+    )
+    count = (
+        await scoped.execute(
+            text("SELECT count(*) FROM agent_approvals WHERE step_id = :s"), {"s": step.id}
+        )
+    ).scalar()
+    assert count == 1

@@ -322,3 +322,146 @@ def test_append_only_ledger_has_no_update_or_delete_grant(engine):
         )
     }
     assert grants == {"SELECT", "INSERT"}, grants
+
+
+# SQLAlchemy and PostgreSQL name equivalent types differently in a few places.
+# Each entry is a real equivalence, not a way to make a mismatch pass.
+TYPE_EQUIVALENTS = {
+    ("UUID", "UUID"), ("JSONB", "JSONB"), ("TEXT", "TEXT"),
+    ("VARCHAR", "VARCHAR"), ("INTEGER", "INTEGER"), ("BOOLEAN", "BOOLEAN"),
+    ("TIMESTAMP", "TIMESTAMP"),
+}
+
+
+def _family(type_) -> str:
+    name = type(type_).__name__.upper()
+    return {"STRING": "VARCHAR", "DATETIME": "TIMESTAMP"}.get(name, name)
+
+
+@pytest.mark.parametrize("table", AGENTIC_TABLES)
+def test_type_families_match(engine, table):
+    actual = db_columns(engine, table)
+    problems = []
+    for column in Base.metadata.tables[table].columns:
+        real = actual.get(column.name)
+        if real is None:
+            continue
+        orm_family = _family(column.type)
+        db_family = type(real["type"]).__name__.upper()
+        db_family = {"STRING": "VARCHAR", "DATETIME": "TIMESTAMP"}.get(db_family, db_family)
+        if (orm_family, db_family) not in TYPE_EQUIVALENTS:
+            problems.append(f"{column.name}: ORM {orm_family} vs DB {db_family}")
+    assert not problems, f"{table}: {problems}"
+
+
+@pytest.mark.parametrize("table", AGENTIC_TABLES)
+def test_varchar_lengths_match(engine, table):
+    """A shorter database column silently truncates; a longer ORM declaration
+    lets a value through that the database will reject at insert time."""
+    actual = db_columns(engine, table)
+    problems = []
+    for column in Base.metadata.tables[table].columns:
+        real = actual.get(column.name)
+        if real is None or _family(column.type) != "VARCHAR":
+            continue
+        orm_len = getattr(column.type, "length", None)
+        db_len = getattr(real["type"], "length", None)
+        if orm_len != db_len:
+            problems.append(f"{column.name}: ORM length {orm_len} vs DB length {db_len}")
+    assert not problems, f"{table}: {problems}"
+
+
+@pytest.mark.parametrize("table", AGENTIC_TABLES)
+def test_timestamps_are_timezone_aware(engine, table):
+    """A naive timestamp column silently drops the offset, which turns lease
+    expiry and approval expiry into wrong-by-hours comparisons."""
+    actual = db_columns(engine, table)
+    problems = []
+    for column in Base.metadata.tables[table].columns:
+        real = actual.get(column.name)
+        if real is None or _family(column.type) != "TIMESTAMP":
+            continue
+        if not getattr(real["type"], "timezone", False):
+            problems.append(f"{column.name}: database column is not timestamptz")
+        if not getattr(column.type, "timezone", False):
+            problems.append(f"{column.name}: ORM column is not timezone-aware")
+    assert not problems, f"{table}: {problems}"
+
+
+# Columns whose server default carries a security or correctness meaning. A
+# changed default here is a behaviour change, not a cosmetic one.
+SECURITY_DEFAULTS = {
+    ("agent_policies", "initiative_level"): "SUGGEST",
+    ("agent_policies", "max_risk_class"): "R1_PRIVATE_DRAFT",
+    ("agent_steps", "approval_required"): "true",
+    ("agent_steps", "risk_class"): "R0_READ_ONLY",
+    ("agent_approvals", "decision"): "PENDING",
+    ("agent_checkpoints", "redacted"): "false",
+    ("agent_dispatch_outbox", "state"): "RETRYABLE",
+}
+
+
+def test_security_relevant_server_defaults(engine):
+    """The conservative defaults are the ones that hold when nothing is
+    configured: SUGGEST initiative, an R1 ceiling, approval required, an
+    unredacted checkpoint marked unredacted."""
+    problems = []
+    for (table, column), expected in SECURITY_DEFAULTS.items():
+        real = db_columns(engine, table).get(column)
+        assert real is not None, f"{table}.{column} does not exist"
+        default = (real.get("default") or "").split("::")[0].strip("'")
+        if default != expected:
+            problems.append(f"{table}.{column}: default {default!r}, expected {expected!r}")
+    assert not problems, problems
+
+
+# ── exact foreign keys ───────────────────────────────────────────────────────
+
+EXPECTED_FKS = [
+    ("agent_workflows", ["owner_user_id"], "users", ["id"], "CASCADE"),
+    ("agent_steps", ["owner_user_id"], "users", ["id"], "CASCADE"),
+    ("agent_steps", ["workflow_id"], "agent_workflows", ["id"], "CASCADE"),
+    ("agent_approvals", ["owner_user_id"], "users", ["id"], "CASCADE"),
+    ("agent_approvals", ["workflow_id"], "agent_workflows", ["id"], "CASCADE"),
+    ("agent_approvals", ["step_id"], "agent_steps", ["id"], "CASCADE"),
+    ("agent_run_events", ["owner_user_id"], "users", ["id"], "CASCADE"),
+    ("agent_run_events", ["workflow_id"], "agent_workflows", ["id"], "CASCADE"),
+    ("agent_checkpoints", ["owner_user_id"], "users", ["id"], "CASCADE"),
+    ("agent_tool_calls", ["owner_user_id"], "users", ["id"], "CASCADE"),
+    ("agent_tool_calls", ["approval_id"], "agent_approvals", ["id"], "SET NULL"),
+    ("agent_policies", ["owner_user_id"], "users", ["id"], "CASCADE"),
+    ("agent_evaluations", ["owner_user_id"], "users", ["id"], "CASCADE"),
+    ("agent_dispatch_outbox", ["owner_user_id"], "users", ["id"], "CASCADE"),
+    ("agent_dispatch_outbox", ["workflow_id"], "agent_workflows", ["id"], "CASCADE"),
+    ("agent_dispatch_outbox", ["step_id"], "agent_steps", ["id"], "CASCADE"),
+]
+
+
+def test_foreign_key_definitions_are_exact(engine):
+    """Counting one FK per table proves nothing about where it points or what
+    happens on delete. A SET NULL where CASCADE was intended leaves orphans; a
+    CASCADE where SET NULL was intended destroys audit history."""
+    rows = _fetch(
+        engine,
+        "SELECT c.relname, con.conname, pg_get_constraintdef(con.oid) "
+        "FROM pg_constraint con JOIN pg_class c ON c.oid = con.conrelid "
+        "WHERE c.relname = ANY(:names) AND con.contype::text = 'f'",
+        {"names": AGENTIC_TABLES},
+    )
+    defs = [(table, definition) for table, _name, definition in rows]
+
+    missing = []
+    for table, cols, ref_table, ref_cols, on_delete in EXPECTED_FKS:
+        want_local = "(" + ", ".join(cols) + ")"
+        want_ref = f"{ref_table}({', '.join(ref_cols)})"
+        match = [
+            d for t, d in defs
+            if t == table and want_local in d and want_ref in d
+            and f"ON DELETE {on_delete}" in d
+        ]
+        if not match:
+            present = [d for t, d in defs if t == table]
+            missing.append(
+                f"{table}{want_local} -> {want_ref} ON DELETE {on_delete}; present: {present}"
+            )
+    assert not missing, missing
