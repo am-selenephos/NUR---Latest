@@ -342,3 +342,60 @@ async def test_composite_step_fks_null_only_the_step_column(scoped):
     assert len(rows) == 2
     for name, definition in rows:
         assert "ON DELETE SET NULL (step_id)" in definition, f"{name}: {definition}"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "table", ["agent_workflows", "agent_steps", "agent_policies", "agent_dispatch_outbox"]
+)
+async def test_an_owner_cannot_reassign_their_own_row_to_someone_else(
+    scoped, owner, client, app_engine, table
+):
+    """The other direction of the RLS matrix, and the one a SELECT/UPDATE test
+    does not cover.
+
+    "A stranger cannot touch my rows" is not the same guarantee as "I cannot hand
+    my row to a stranger". Without `WITH CHECK` on UPDATE, an owner could rewrite
+    `owner_user_id` and plant a workflow, a policy or a dispatch intent inside
+    someone else's account — writing *into* another owner rather than reading out
+    of them. A policy with only a USING clause permits exactly that: the row is
+    visible before the update and the new value is never checked.
+    """
+    workflow, step = await _seed(scoped, owner)
+    seeds = {
+        "agent_workflows": None,
+        "agent_steps": None,
+        "agent_policies": "INSERT INTO agent_policies (owner_user_id) VALUES (:o)",
+        "agent_dispatch_outbox": (
+            "INSERT INTO agent_dispatch_outbox (owner_user_id, workflow_id, step_id, "
+            "dispatch_key, state) VALUES (:o, :w, :s, 'reassign-probe', 'RETRYABLE')"
+        ),
+    }
+    if seeds[table]:
+        await scoped.execute(
+            text(seeds[table]), {"o": owner, "w": workflow.id, "s": step.id}
+        )
+    await scoped.commit()
+    await scoped.execute(
+        text("SELECT set_config('app.current_user_id', :o, false)"), {"o": str(owner)}
+    )
+
+    other, _e, _p = await register_user(client, chosen_name="Dee")
+    stranger = UUID(other.json()["id"])
+
+    # Attempted from the owner's own session, on the owner's own rows.
+    try:
+        result = await scoped.execute(
+            text(f"UPDATE {table} SET owner_user_id = :s WHERE owner_user_id = :o"),
+            {"s": stranger, "o": owner},
+        )
+    except Exception as caught:  # noqa: BLE001 - a refusal is the correct outcome
+        # The expected path: WITH CHECK rejects the new owner outright.
+        assert "row-level security" in str(caught), str(caught)
+        await scoped.rollback()
+        return
+
+    assert result.rowcount == 0, (
+        f"{table}: an owner reassigned {result.rowcount} of their own rows to another "
+        "owner; WITH CHECK is missing on UPDATE"
+    )
