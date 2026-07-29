@@ -116,7 +116,18 @@ def _quiet_hours(raw: dict | None) -> tuple[tuple[int, int] | None, str]:
 
     candidate = raw.get("tz") or raw.get("timezone")
     if isinstance(candidate, str) and candidate.strip():
-        zone = candidate.strip()
+        # Validated here, once, rather than trusted downstream. The zone is
+        # interpolated into `AT TIME ZONE` when spend is summed, and PostgreSQL
+        # raises on an unrecognised name — so an owner with a typo in this jsonb
+        # made `load_policy` throw, which fails *every* step execution for them.
+        # A bad config value must degrade, not take the runtime down.
+        from zoneinfo import ZoneInfo
+
+        try:
+            ZoneInfo(candidate.strip())
+            zone = candidate.strip()
+        except Exception:  # noqa: BLE001 - any malformed or unknown zone
+            zone = "UTC"
 
     start, end = raw.get("start"), raw.get("end")
     if not isinstance(start, int) or not isinstance(end, int):

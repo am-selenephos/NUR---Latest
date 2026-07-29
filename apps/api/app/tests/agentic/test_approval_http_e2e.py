@@ -140,13 +140,26 @@ async def test_approve_reaches_the_handler(client, session_for, owner):
             )
         ).scalar() == 1
 
+    # Scoped to this step's own intent. The dispatcher claims across owners by
+    # design — that is what the SECURITY DEFINER ops boundary is for — so a global
+    # "sent == 1" would be asserting that no other test in this database has work
+    # due, which is not this test's business.
+    async with session_for() as lookup:
+        intent_id = (
+            await lookup.execute(
+                text("SELECT id FROM agent_dispatch_outbox WHERE step_id = :s"),
+                {"s": ids[1]},
+            )
+        ).scalar_one()
+
     published: list[tuple] = []
     async with session_for() as dispatch_db:
         result = await dispatcher.dispatch_once(
             dispatch_db, dispatcher_id="d1", publish=lambda *a: published.append(a)
         )
-        assert len(result["sent"]) == 1
-    assert len(published) == 1
+        assert str(intent_id) in result["sent"], result
+    mine = [p for p in published if p[0] == str(ids[1])]
+    assert len(mine) == 1, f"this step was not published exactly once: {published}"
 
     outcome = await agentic_tasks._execute_step(
         str(ids[1]), str(owner), str(ids[0]), None
