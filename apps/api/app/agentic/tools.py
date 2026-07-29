@@ -40,6 +40,14 @@ class ToolSpec:
     writes: tuple[str, ...] = ()
     idempotent: bool = True
     timeout_seconds: int = 30
+    # Typed output references: result key -> entity kind. Declared by the tool
+    # rather than inferred from the key's shape. Suffix matching on "_id"
+    # classified every identifier as an artifact, so a plan id and a research
+    # brief id were indistinguishable in the ledger — and neither was an
+    # artifact at all.
+    entity_refs: tuple[tuple[str, str], ...] = ()
+    artifact_ref_keys: tuple[str, ...] = ()
+    evidence_ref_keys: tuple[str, ...] = ()
 
 
 def _tool(
@@ -54,6 +62,9 @@ def _tool(
     cost_cents: int = 0,
     reversible: bool = True,
     timeout_seconds: int = 30,
+    entity_refs: tuple[tuple[str, str], ...] = (),
+    artifact_ref_keys: tuple[str, ...] = (),
+    evidence_ref_keys: tuple[str, ...] = (),
 ) -> ToolSpec:
     return ToolSpec(
         contract=ToolContract(
@@ -69,6 +80,9 @@ def _tool(
         writes=writes,
         idempotent=idempotent,
         timeout_seconds=timeout_seconds,
+        entity_refs=entity_refs,
+        artifact_ref_keys=artifact_ref_keys,
+        evidence_ref_keys=evidence_ref_keys,
     )
 
 
@@ -108,32 +122,33 @@ READ_ONLY: tuple[ToolSpec, ...] = (
 # ── Private drafts. Reversible, owner-visible, never durable owner truth. ────
 PRIVATE_DRAFT: tuple[ToolSpec, ...] = (
     _tool("create_draft_plan", R1, "Draft a Plan for the owner to review.",
-          capabilities=("draft_plans",), writes=("Draft Plan",), idempotent=False),
+          capabilities=("draft_plans",), writes=("Draft Plan",), idempotent=False, entity_refs=(("plan_id", "PLAN"),)),
     _tool("create_research_brief", R1, "Draft a research brief.",
-          capabilities=("draft_research",), writes=("Research brief",), idempotent=False),
+          capabilities=("draft_research",), writes=("Research brief",), idempotent=False, entity_refs=(("brief_id", "RESEARCH_BRIEF"),)),
     # Proposes only. Promotion to owner truth is not a tool.
     _tool("create_memory_candidate", R1, "Propose a memory candidate for owner review.",
-          capabilities=("propose_memory",), writes=("Memory candidate",), idempotent=False),
+          capabilities=("propose_memory",), writes=("Memory candidate",), idempotent=False, entity_refs=(("candidate_id", "MEMORY_CANDIDATE"),)),
     _tool("create_project_task_draft", R1, "Draft a Project task.",
           capabilities=("draft_projects",), writes=("Draft task",), idempotent=False),
     _tool("create_timeline_draft", R1, "Draft a Timeline event, unscheduled.",
-          capabilities=("draft_timeline",), writes=("Draft Timeline event",), idempotent=False),
+          capabilities=("draft_timeline",), writes=("Draft Timeline event",), idempotent=False, entity_refs=(("event_id", "TIMELINE_EVENT"),)),
     _tool("create_insight_candidate", R1, "Propose a candidate Insight with evidence.",
-          capabilities=("propose_insights",), writes=("Candidate Insight",), idempotent=False),
+          capabilities=("propose_insights",), writes=("Candidate Insight",), idempotent=False, entity_refs=(("insight_id", "INSIGHT"),)),
     _tool("save_private_artifact", R1, "Store a private artifact for the owner.",
-          capabilities=("write_artifacts",), writes=("Private artifact",), idempotent=False),
+          capabilities=("write_artifacts",), writes=("Private artifact",), idempotent=False,
+          artifact_ref_keys=("artifact_id",)),
 )
 
 # ── Durable private mutations. Owner approval by default via the policy engine. ─
 DURABLE: tuple[ToolSpec, ...] = (
     _tool("activate_plan", R2, "Activate a drafted Plan.",
-          capabilities=("write_plans",), writes=("Plan",), idempotent=False),
+          capabilities=("write_plans",), writes=("Plan",), idempotent=False, entity_refs=(("plan_id", "PLAN"),)),
     _tool("schedule_timeline_event", R2, "Schedule a Timeline event.",
-          capabilities=("write_timeline",), writes=("Timeline event",), idempotent=False),
+          capabilities=("write_timeline",), writes=("Timeline event",), idempotent=False, entity_refs=(("event_id", "TIMELINE_EVENT"),)),
     _tool("complete_task", R2, "Mark a task complete.",
           capabilities=("write_projects",), writes=("Project task",), idempotent=False),
     _tool("accept_or_correct_insight", R2, "Record the owner's decision on an Insight.",
-          capabilities=("write_insights",), writes=("Insight status",), idempotent=False),
+          capabilities=("write_insights",), writes=("Insight status",), idempotent=False, entity_refs=(("insight_id", "INSIGHT"),)),
     # Capsules leave the owner's private boundary in a bounded way, so this is
     # the highest-consequence tool in the set even though it stays internal.
     _tool("create_capsule", R2, "Create a Context Capsule from explicitly chosen sources.",

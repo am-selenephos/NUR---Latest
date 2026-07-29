@@ -124,6 +124,67 @@ async def _record_tool_call(
     )
 
 
+async def _ensure_approval_row(
+    db: AsyncSession,
+    *,
+    owner_user_id: uuid.UUID,
+    workflow_id: uuid.UUID,
+    step_id: uuid.UUID,
+    tool_key: str,
+    tool_version: str,
+    arguments: dict,
+    rationale: str,
+    risk_class: str,
+    reversible: bool,
+    cost_ceiling_cents: int,
+) -> None:
+    """Create exactly one pending approval for this step, bound to this call.
+
+    A WAITING_APPROVAL step with no actionable approval row is a broken state:
+    the owner is blocking a workflow they were never asked about. Equally, a
+    redelivered message must not stack duplicate cards in the inbox, so the
+    insert is conditional on no pending row already existing for the step with
+    the same digest.
+    """
+    import json
+
+    digest = argument_digest(tool_key, tool_version, arguments)
+    await db.execute(
+        text(
+            """
+            INSERT INTO agent_approvals (
+                owner_user_id, workflow_id, step_id, tool_key, tool_version,
+                argument_digest, redacted_arguments, rationale, risk_class,
+                reversible, cost_ceiling_cents, decision
+            )
+            SELECT :owner, :workflow, :step, :tool, :version, :digest,
+                   CAST(:args AS jsonb), :rationale, :risk, :reversible,
+                   :ceiling, 'PENDING'
+             WHERE NOT EXISTS (
+                 SELECT 1 FROM agent_approvals
+                  WHERE step_id = :step
+                    AND owner_user_id = :owner
+                    AND decision = 'PENDING'
+                    AND argument_digest = :digest
+             )
+            """
+        ),
+        {
+            "owner": owner_user_id,
+            "workflow": workflow_id,
+            "step": step_id,
+            "tool": tool_key,
+            "version": tool_version,
+            "digest": digest,
+            "args": json.dumps(redact_arguments(arguments)),
+            "rationale": rationale[:2000],
+            "risk": risk_class,
+            "reversible": reversible,
+            "ceiling": cost_ceiling_cents,
+        },
+    )
+
+
 async def execute_step(
     db: AsyncSession,
     *,
@@ -188,11 +249,52 @@ async def execute_step(
         return StepOutcome(False, StepState.FAILED, verdict.reason)
 
     if verdict.decision is Decision.REQUIRE_APPROVAL:
-        held = (
-            approval is not None
-            and approval.decision in (ApprovalDecision.APPROVED, ApprovalDecision.EDITED)
-        )
+        # A row that merely says APPROVED is not sufficient. The approval is
+        # re-validated against the call about to run: tool, version, current
+        # arguments, expiry and cost ceiling. This applies to R0 and R1 calls
+        # that require approval exactly as it does to R2 — the protection
+        # belongs to the decision, not to the risk class.
+        held = False
+        if approval is not None:
+            import datetime as _dt
+
+            from app.agentic.approvals import evaluate_resume
+
+            resume = evaluate_resume(
+                approval,
+                tool_key=tool_key,
+                tool_version=contract.version,
+                arguments=arguments,
+                now=_dt.datetime.now(_dt.timezone.utc),
+                estimated_cost_cents=contract.estimated_cost_cents,
+            )
+            held = resume.allowed
+            if not held:
+                await record_event(
+                    db, owner_user_id=owner_user_id, workflow_id=workflow_id, step_id=step_id,
+                    event_type="APPROVAL_REFUSED",
+                    summary=f"{resume.refusal}: {resume.message}",
+                    trace_id=trace.trace_id,
+                )
+            elif approval.decision is ApprovalDecision.EDITED and approval.edited_arguments:
+                # An edited approval executes the edited payload, never the one
+                # the model originally proposed.
+                arguments = dict(approval.edited_arguments)
+
         if not held:
+            await _ensure_approval_row(
+                db,
+                owner_user_id=owner_user_id,
+                workflow_id=workflow_id,
+                step_id=step_id,
+                tool_key=tool_key,
+                tool_version=contract.version,
+                arguments=arguments,
+                rationale=verdict.reason,
+                risk_class=contract.risk_class.value,
+                reversible=contract.reversible,
+                cost_ceiling_cents=contract.estimated_cost_cents,
+            )
             # Pausing is a first-class outcome, not a failure. The step goes back
             # to WAITING_APPROVAL and the owner is asked.
             await record_event(
@@ -273,6 +375,7 @@ async def _persist_step_result(
     verdict: str,
     duration_ms: int,
     trace_id: str,
+    tool_key: str | None = None,
 ) -> str:
     """Persist the output manifest, digest and verdict onto the step row.
 
@@ -286,12 +389,41 @@ async def _persist_step_result(
     """
     import json
 
+    from app.agentic.registry import UnknownToolError, spec as tool_spec
+
     payload = redact_arguments(result or {})
     digest = argument_digest("__result__", "1", payload)
+
+    # Typed extraction from the tool's declared contract. Suffix matching on
+    # "_id" previously classified every identifier as an artifact, so a plan id,
+    # a research brief id and a genuine artifact id were indistinguishable in
+    # the ledger — and only one of them was an artifact.
+    artifact_ids: list[str] = []
+    evidence_ids: list[str] = []
+    entity_refs: list[dict[str, str]] = []
+    try:
+        declared = tool_spec(tool_key) if tool_key else None
+    except UnknownToolError:
+        declared = None
+    if declared is not None and isinstance(payload, dict):
+        for key in declared.artifact_ref_keys:
+            value = payload.get(key)
+            if isinstance(value, str):
+                artifact_ids.append(value)
+        for key in declared.evidence_ref_keys:
+            value = payload.get(key)
+            if isinstance(value, str):
+                evidence_ids.append(value)
+        for key, kind in declared.entity_refs:
+            value = payload.get(key)
+            if isinstance(value, str):
+                entity_refs.append({"kind": kind, "id": value})
+
     manifest = {
         "keys": sorted(payload.keys()) if isinstance(payload, dict) else [],
-        "artifact_ids": [v for k, v in (payload.items() if isinstance(payload, dict) else [])
-                         if k.endswith("_id") and isinstance(v, str)],
+        "artifact_ids": artifact_ids,
+        "evidence_ids": evidence_ids,
+        "entity_refs": entity_refs,
         "result_digest": digest,
         "duration_ms": duration_ms,
         "trace_id": trace_id,
@@ -303,6 +435,7 @@ async def _persist_step_result(
                SET result = CAST(:result AS jsonb),
                    verification_verdict = :verdict,
                    artifact_ids = CAST(:artifacts AS jsonb),
+                   evidence_ids = CAST(:evidence AS jsonb),
                    trace_id = :trace,
                    completed_at = now(),
                    updated_at = now()
@@ -312,7 +445,8 @@ async def _persist_step_result(
         {
             "result": json.dumps({"manifest": manifest, "output": payload}),
             "verdict": verdict,
-            "artifacts": json.dumps(manifest["artifact_ids"]),
+            "artifacts": json.dumps(artifact_ids),
+            "evidence": json.dumps(evidence_ids),
             "trace": trace_id,
             "step": step_id,
             "owner": owner_user_id,
@@ -477,6 +611,7 @@ async def run_step(
         await _persist_step_result(
             db, owner_user_id=owner_user_id, step_id=step_id, result=outcome.result,
             verdict="VERIFIER_ERROR", duration_ms=outcome.duration_ms, trace_id=trace.trace_id,
+            tool_key=step["tool_key"],
         )
         await record_event(
             db, owner_user_id=owner_user_id, workflow_id=workflow_id, step_id=step_id,
@@ -513,7 +648,7 @@ async def run_step(
     digest = await _persist_step_result(
         db, owner_user_id=owner_user_id, step_id=step_id, result=outcome.result,
         verdict=verification.verdict.value, duration_ms=outcome.duration_ms,
-        trace_id=trace.trace_id,
+        trace_id=trace.trace_id, tool_key=step["tool_key"],
     )
     await record_event(
         db, owner_user_id=owner_user_id, workflow_id=workflow_id, step_id=step_id,

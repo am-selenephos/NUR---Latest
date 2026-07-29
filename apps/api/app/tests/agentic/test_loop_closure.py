@@ -227,3 +227,93 @@ def test_a_revising_step_keeps_dependants_blocked():
 
 def test_workflow_reports_needs_revision():
     assert "NEEDS_REVISION" in inspect.getsource(runtime._aggregate_workflow)
+
+
+# ── central exact-resume + approval row (4.5) ────────────────────────────────
+
+def test_resume_is_evaluated_centrally_before_the_handler():
+    """A row that merely says APPROVED is not sufficient."""
+    source = inspect.getsource(runtime.execute_step)
+    resume = source.index("evaluate_resume(")
+    handler = source.index("registry.handler(")
+    assert resume < handler
+
+
+def test_central_resume_applies_to_every_risk_class():
+    """The protection belongs to the decision, not the risk class — an R0 call
+    that requires approval gets the same check as an R2 one."""
+    import ast
+
+    tree = ast.parse(inspect.getsource(runtime.execute_step).lstrip())
+    # Strip comments and docstrings by round-tripping through the AST, then
+    # assert no branch in the approval path tests a risk class — the check must
+    # be unconditional on risk.
+    code = ast.unparse(tree)
+    gate = code.index("REQUIRE_APPROVAL")
+    window = code[gate:gate + 1400]
+    assert "evaluate_resume(" in window
+    for risk_branch in ("RiskClass.R2", "RiskClass.R3", "risk_class ==", "risk_class is"):
+        assert risk_branch not in window, f"resume is conditional on {risk_branch}"
+
+
+def test_an_edited_approval_executes_the_edited_payload():
+    source = inspect.getsource(runtime.execute_step)
+    assert "approval.edited_arguments" in source
+    assert "arguments = dict(approval.edited_arguments)" in source
+
+
+def test_waiting_approval_always_creates_an_actionable_row():
+    """A WAITING_APPROVAL step with no approval row is an owner blocking a
+    workflow they were never asked about."""
+    source = inspect.getsource(runtime.execute_step)
+    ensure = source.index("_ensure_approval_row(")
+    waiting = source.index("StepState.WAITING_APPROVAL")
+    assert ensure < waiting
+
+
+def test_repeated_delivery_does_not_stack_duplicate_cards():
+    source = inspect.getsource(runtime._ensure_approval_row)
+    assert "WHERE NOT EXISTS" in source
+    assert "decision = 'PENDING'" in source
+    assert "argument_digest = :digest" in source
+
+
+def test_a_refused_resume_is_recorded():
+    assert "APPROVAL_REFUSED" in inspect.getsource(runtime.execute_step)
+
+
+# ── typed output references (4.7) ────────────────────────────────────────────
+
+def test_no_suffix_guessing_remains():
+    source = inspect.getsource(runtime._persist_step_result)
+    assert 'endswith("_id")' not in source
+
+
+def test_references_come_from_the_contract():
+    source = inspect.getsource(runtime._persist_step_result)
+    for field in ("artifact_ref_keys", "evidence_ref_keys", "entity_refs"):
+        assert field in source
+
+
+def test_entity_kinds_are_declared_per_tool():
+    from app.agentic.registry import spec
+
+    assert spec("create_draft_plan").entity_refs == (("plan_id", "PLAN"),)
+    assert spec("create_insight_candidate").entity_refs == (("insight_id", "INSIGHT"),)
+    assert spec("create_research_brief").entity_refs == (("brief_id", "RESEARCH_BRIEF"),)
+    assert spec("create_timeline_draft").entity_refs == (("event_id", "TIMELINE_EVENT"),)
+
+
+def test_only_a_real_artifact_tool_declares_artifact_keys():
+    """A plan id is not an artifact. Previously every identifier became one."""
+    from app.agentic.tools import ALL_TOOLS
+
+    with_artifacts = [s.contract.key for s in ALL_TOOLS if s.artifact_ref_keys]
+    assert with_artifacts == ["save_private_artifact"]
+
+
+def test_manifest_separates_the_three_reference_kinds():
+    source = inspect.getsource(runtime._persist_step_result)
+    assert '"artifact_ids": artifact_ids' in source
+    assert '"evidence_ids": evidence_ids' in source
+    assert '"entity_refs": entity_refs' in source
