@@ -257,9 +257,17 @@ def test_central_resume_applies_to_every_risk_class():
 
 
 def test_an_edited_approval_executes_the_edited_payload():
-    source = inspect.getsource(runtime.execute_step)
-    assert "approval.edited_arguments" in source
-    assert "arguments = dict(approval.edited_arguments)" in source
+    """This previously asserted the line existed, and passed while it was
+    unreachable — the payload was validated before the edit was applied, so the
+    branch could never be entered. Reachability is the property that matters, so
+    it is asserted by ordering and covered behaviourally in
+    test_edited_approval.py.
+    """
+    import ast
+
+    code = ast.unparse(ast.parse(inspect.getsource(runtime.execute_step).lstrip()))
+    assert "effective_arguments" in code
+    assert code.index("effective_arguments") < code.index("evaluate_resume(")
 
 
 def test_waiting_approval_always_creates_an_actionable_row():

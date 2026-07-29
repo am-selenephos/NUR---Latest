@@ -260,26 +260,37 @@ async def execute_step(
 
             from app.agentic.approvals import evaluate_resume
 
+            # The effective payload is chosen *before* validation, not after.
+            # Validating the original arguments against an EDITED approval's
+            # digest can never match — the digest was recomputed from the edit —
+            # so `held` was always false and the branch that applied the edit was
+            # unreachable. The edited path existed only in the reading.
+            effective_arguments = (
+                dict(approval.edited_arguments)
+                if approval.decision is ApprovalDecision.EDITED and approval.edited_arguments
+                else arguments
+            )
+
             resume = evaluate_resume(
                 approval,
                 tool_key=tool_key,
                 tool_version=contract.version,
-                arguments=arguments,
+                arguments=effective_arguments,
                 now=_dt.datetime.now(_dt.timezone.utc),
                 estimated_cost_cents=contract.estimated_cost_cents,
             )
             held = resume.allowed
-            if not held:
+            if held:
+                # The handler and the ledger both receive exactly what passed the
+                # gate. Anything else would mean auditing a call that did not run.
+                arguments = dict(resume.arguments or effective_arguments)
+            else:
                 await record_event(
                     db, owner_user_id=owner_user_id, workflow_id=workflow_id, step_id=step_id,
                     event_type="APPROVAL_REFUSED",
                     summary=f"{resume.refusal}: {resume.message}",
                     trace_id=trace.trace_id,
                 )
-            elif approval.decision is ApprovalDecision.EDITED and approval.edited_arguments:
-                # An edited approval executes the edited payload, never the one
-                # the model originally proposed.
-                arguments = dict(approval.edited_arguments)
 
         if not held:
             await _ensure_approval_row(
