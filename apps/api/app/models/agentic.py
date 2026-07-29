@@ -350,12 +350,6 @@ class AgentToolCall(Base):
     tool_version: Mapped[str] = mapped_column(String(32), nullable=False)
     risk_class: Mapped[str] = mapped_column(String(24), nullable=False)
     argument_digest: Mapped[str] = mapped_column(String(71), nullable=False)
-    # Binds the approval to the plan revision that produced it, so a re-plan
-    # invalidates consent even when it regenerates an identical call.
-    plan_version: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=1, server_default=text("1")
-    )
-    call_version: Mapped[str | None] = mapped_column(Text)
     redacted_arguments: Mapped[dict] = mapped_column(
         JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
     )
