@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agentic.aggregate import aggregate_workflow
 from app.agentic.approvals import compute_call_version
 from app.agentic.orchestrator import argument_digest, record_event
 from app.agentic.redaction import redact_arguments
@@ -274,33 +275,10 @@ async def decide(
     else:
         raise DecisionRefused("decision must be APPROVE, EDIT or REJECT", 422)
 
-    # One aggregate, shared with the runtime. A rejected workflow with nothing
-    # runnable left must not read RUNNING forever — CANCELLED is the truthful
-    # terminal, and BLOCKED descendants beneath a cancelled parent can never
-    # become runnable because unlock_dependants only promotes on SUCCEEDED.
-    workflow_state = (
-        await db.execute(
-            text(
-                """
-                SELECT CASE
-                  WHEN count(*) FILTER (WHERE state = 'FAILED') > 0 THEN 'FAILED'
-                  WHEN count(*) FILTER (WHERE state = 'WAITING_APPROVAL') > 0
-                       THEN 'WAITING_APPROVAL'
-                  WHEN count(*) FILTER (WHERE state = 'SUCCEEDED') = count(*) THEN 'SUCCEEDED'
-                  WHEN count(*) FILTER (
-                         WHERE state IN ('QUEUED', 'READY', 'RUNNING', 'VERIFYING')
-                       ) = 0
-                       AND count(*) FILTER (WHERE state = 'CANCELLED') > 0 THEN 'CANCELLED'
-                  ELSE 'RUNNING' END
-                FROM agent_steps WHERE workflow_id = :w
-                """
-            ),
-            {"w": workflow["id"]},
-        )
-    ).scalar_one()
-    await db.execute(
-        text("UPDATE agent_workflows SET state = :st, updated_at = now() WHERE id = :w"),
-        {"st": workflow_state, "w": workflow["id"]},
+    # One aggregate, shared with the runtime and recovery — not a second
+    # implementation of the same CASE statement to drift out of sync with it.
+    workflow_state = await aggregate_workflow(
+        db, owner_user_id=owner_user_id, workflow_id=workflow["id"]
     )
 
     return DecisionResult(

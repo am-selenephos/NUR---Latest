@@ -196,7 +196,14 @@ async def heartbeat_step(
     return result.first() is not None
 
 
-async def reclaim_expired_steps(db: AsyncSession, *, limit: int = 50) -> list[uuid.UUID]:
+@dataclass(frozen=True)
+class ReclaimedStep:
+    step_id: uuid.UUID
+    workflow_id: uuid.UUID
+    owner_user_id: uuid.UUID
+
+
+async def reclaim_expired_steps(db: AsyncSession, *, limit: int = 50) -> list[ReclaimedStep]:
     """Return abandoned RUNNING steps to QUEUED.
 
     Deliberately not owner-scoped in its WHERE clause: this is the recovery
@@ -207,6 +214,11 @@ async def reclaim_expired_steps(db: AsyncSession, *, limit: int = 50) -> list[uu
     A reclaimed step keeps its attempt count, so a step that repeatedly kills
     its worker is visible as a rising attempt number rather than looking fresh
     each time.
+
+    Returns workflow_id and owner_user_id alongside each step id so the caller
+    can recompute the affected workflows' aggregate state — a workflow stuck
+    reading FAILED or WAITING_APPROVAL because its only active step was the one
+    just reclaimed must not stay wrong once that step is runnable again.
     """
     result = await db.execute(
         text(
@@ -225,12 +237,15 @@ async def reclaim_expired_steps(db: AsyncSession, *, limit: int = 50) -> list[uu
                   LIMIT :limit
                   FOR UPDATE SKIP LOCKED
              )
-            RETURNING id
+            RETURNING id, workflow_id, owner_user_id
             """
         ),
         {"limit": limit},
     )
-    return [row[0] for row in result.fetchall()]
+    return [
+        ReclaimedStep(step_id=row[0], workflow_id=row[1], owner_user_id=row[2])
+        for row in result.fetchall()
+    ]
 
 
 async def transition_step(

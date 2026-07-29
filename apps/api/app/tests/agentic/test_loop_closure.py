@@ -8,7 +8,7 @@ and a loop that stops at VERIFYING.
 
 import inspect
 
-from app.agentic import runtime, verifier
+from app.agentic import aggregate, runtime, verifier
 from app.agentic.verifier import Verdict, verify_step_result
 from app.workers import agentic_tasks
 
@@ -39,7 +39,7 @@ def test_the_loop_reaches_a_terminal_state_not_verifying():
 def test_the_loop_unlocks_dependants_and_aggregates_the_workflow():
     source = inspect.getsource(runtime.run_step)
     assert "unlock_dependants(" in source
-    assert "_aggregate_workflow(" in source
+    assert "aggregate_workflow(" in source
 
 
 def test_the_worker_never_publishes_ready_work_directly():
@@ -76,7 +76,7 @@ def test_results_are_persisted_not_left_in_a_return_value():
 def test_workflow_state_is_computed_from_steps_not_tracked():
     """A separately maintained counter drifts the first time a step is reclaimed
     or re-planned."""
-    source = inspect.getsource(runtime._aggregate_workflow)
+    source = inspect.getsource(aggregate.aggregate_workflow)
     assert "FILTER (WHERE state = 'SUCCEEDED')" in source
     assert "FILTER (WHERE state = 'FAILED')" in source
 
@@ -233,7 +233,7 @@ def test_a_revising_step_keeps_dependants_blocked():
 
 
 def test_workflow_reports_needs_revision():
-    assert "NEEDS_REVISION" in inspect.getsource(runtime._aggregate_workflow)
+    assert "NEEDS_REVISION" in inspect.getsource(aggregate.aggregate_workflow)
 
 
 # ── central exact-resume + approval row (4.5) ────────────────────────────────

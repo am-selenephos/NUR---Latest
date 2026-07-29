@@ -39,6 +39,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agentic import registry
+from app.agentic.aggregate import aggregate_workflow
 from app.agentic.approvals import StoredApproval
 from app.agentic.enums import ApprovalDecision, StepState
 from app.agentic.observability import TraceContext
@@ -542,56 +543,6 @@ async def _persist_step_result(
     return digest
 
 
-async def _aggregate_workflow(
-    db: AsyncSession, *, owner_user_id: uuid.UUID, workflow_id: uuid.UUID
-) -> str:
-    """Derive the workflow's state from its steps.
-
-    Computed rather than tracked. A separately maintained counter drifts the
-    first time a step is reclaimed or re-planned, and a workflow whose state
-    disagrees with its own steps is worse than one with no state at all.
-    """
-    row = (
-        await db.execute(
-            text(
-                """
-                SELECT
-                  count(*) FILTER (WHERE state = 'SUCCEEDED') AS ok,
-                  count(*) FILTER (WHERE state = 'FAILED')    AS failed,
-                  count(*) FILTER (WHERE state = 'NEEDS_REVISION') AS revising,
-                  count(*) FILTER (WHERE state = 'WAITING_APPROVAL') AS waiting,
-                  count(*) AS total
-                FROM agent_steps
-                WHERE workflow_id = :workflow AND owner_user_id = :owner
-                """
-            ),
-            {"workflow": workflow_id, "owner": owner_user_id},
-        )
-    ).mappings().one()
-
-    if row["total"] and row["ok"] == row["total"]:
-        state = "SUCCEEDED"
-    elif row["failed"]:
-        state = "FAILED"
-    elif row["revising"]:
-        # Dependants stay BLOCKED: unlock_dependants only promotes when every
-        # dependency is SUCCEEDED, so a revising step holds its subtree.
-        state = "NEEDS_REVISION"
-    elif row["waiting"]:
-        state = "WAITING_APPROVAL"
-    else:
-        state = "RUNNING"
-
-    await db.execute(
-        text(
-            "UPDATE agent_workflows SET state = :state, updated_at = now() "
-            "WHERE id = :workflow AND owner_user_id = :owner"
-        ),
-        {"state": state, "workflow": workflow_id, "owner": owner_user_id},
-    )
-    return state
-
-
 async def run_step(
     db: AsyncSession,
     *,
@@ -674,7 +625,7 @@ async def run_step(
     # event and terminal-or-waiting state inside execute_step.
     if not outcome.ok:
         workflow_state = (
-            await _aggregate_workflow(db, owner_user_id=owner_user_id, workflow_id=workflow_id)
+            await aggregate_workflow(db, owner_user_id=owner_user_id, workflow_id=workflow_id)
             if workflow_id
             else None
         )
@@ -712,7 +663,7 @@ async def run_step(
             db, owner_user_id=owner_user_id, step_id=step_id,
             current=StepState.VERIFYING, nxt=StepState.FAILED,
         )
-        workflow_state = await _aggregate_workflow(
+        workflow_state = await aggregate_workflow(
             db, owner_user_id=owner_user_id, workflow_id=workflow_id
         )
         return {
@@ -774,7 +725,7 @@ async def run_step(
             )
         ]
 
-    workflow_state = await _aggregate_workflow(
+    workflow_state = await aggregate_workflow(
         db, owner_user_id=owner_user_id, workflow_id=workflow_id
     )
     return {

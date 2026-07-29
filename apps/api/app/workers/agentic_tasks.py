@@ -27,6 +27,7 @@ import asyncio
 import logging
 import uuid
 
+from app.agentic.aggregate import aggregate_workflow
 from app.agentic.observability import continue_or_start, worker_id
 from app.agentic.orchestrator import (
     reclaim_expired_steps,
@@ -121,10 +122,23 @@ def recover_agentic_steps_task(limit: int = 50) -> dict:
 async def _recover(limit: int) -> dict:
     async with get_sessionmaker()() as db:
         reclaimed = await reclaim_expired_steps(db, limit=limit)
+        # A workflow stuck reading FAILED or WAITING_APPROVAL because its only
+        # active step was the one just reclaimed must not stay wrong once that
+        # step is QUEUED again. One aggregate call per distinct workflow, not
+        # per step — a workflow with two reclaimed steps needs recomputing once.
+        seen: set[tuple] = set()
+        for row in reclaimed:
+            key = (row.owner_user_id, row.workflow_id)
+            if key in seen:
+                continue
+            seen.add(key)
+            await aggregate_workflow(
+                db, owner_user_id=row.owner_user_id, workflow_id=row.workflow_id
+            )
         await db.commit()
         if reclaimed:
             log(logger, "agentic steps reclaimed", count=len(reclaimed))
-        return {"reclaimed": [str(step_id) for step_id in reclaimed]}
+        return {"reclaimed": [str(row.step_id) for row in reclaimed]}
 
 
 @celery.task(name="nur.agentic.unlock", ignore_result=False)
