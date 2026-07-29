@@ -27,15 +27,14 @@ import asyncio
 import logging
 import uuid
 
-from app.agentic.enums import StepState
 from app.agentic.observability import continue_or_start, worker_id
+from app.agentic.policy_store import load_policy, load_step_approval
 from app.agentic.orchestrator import (
-    claim_step,
     reclaim_expired_steps,
-    record_event,
     transition_step,
     unlock_dependants,
 )
+from app.agentic.runtime import run_step
 from app.core.logging import configure_logging, log
 from app.db.rls import set_user_context
 from app.db.session import get_sessionmaker
@@ -62,10 +61,16 @@ async def _execute_step(
     workflow_id: str,
     traceparent: str | None,
 ) -> dict:
+    """Set the owner RLS context, then hand off to the one runtime entry point.
+
+    The worker does not claim. There is exactly one claim site in the system and
+    it lives inside `runtime.execute_step`. An earlier version of this task
+    claimed here as well, which meant the runtime — reached later — would find
+    the step already RUNNING and refuse to execute it. Two claim sites is not a
+    duplicated line; it is a loop that cannot run.
+    """
     trace = continue_or_start(traceparent).child()
     owner = uuid.UUID(owner_user_id)
-    workflow = uuid.UUID(workflow_id)
-    step = uuid.UUID(step_id)
     me = worker_id()
 
     async with get_sessionmaker()() as db:
@@ -73,45 +78,38 @@ async def _execute_step(
         # policy, so a wrong owner id yields nothing rather than another's data.
         await set_user_context(db, owner)
 
-        claim = await claim_step(db, owner_user_id=owner, step_id=step, worker_id=me)
-        if not claim.claimed:
-            # Normal outcome for a duplicate delivery. Acknowledge and stop —
-            # retrying here is how one step becomes two executions.
-            await db.commit()
-            log(
-                logger,
-                "agentic step claim skipped",
-                step_id=step_id,
-                reason=claim.reason,
-                trace_id=trace.trace_id,
-            )
-            return {"claimed": False, "reason": claim.reason, "trace_id": trace.trace_id}
+        policy = await load_policy(db, owner_user_id=owner)
+        approval = await load_step_approval(db, owner_user_id=owner, step_id=uuid.UUID(step_id))
 
-        await record_event(
+        outcome = await run_step(
             db,
             owner_user_id=owner,
-            workflow_id=workflow,
-            step_id=step,
-            event_type="STEP_CLAIMED",
-            summary=f"claimed by {me}",
-            from_state=StepState.QUEUED.value,
-            to_state=StepState.RUNNING.value,
-            trace_id=trace.trace_id,
+            step_id=uuid.UUID(step_id),
+            policy=policy,
+            trace=trace,
+            worker=me,
+            approval=approval,
         )
         await db.commit()
 
-        # Handler execution lands with the runtime phase. Until a tool handler is
-        # bound, the step is left RUNNING under its lease rather than being
-        # marked SUCCEEDED — recovery will reclaim it, which is the honest
-        # behaviour for work that has not actually been performed.
         log(
             logger,
-            "agentic step claimed",
+            "agentic step finished",
             step_id=step_id,
-            worker=me,
+            executed=outcome.get("executed"),
+            step_state=outcome.get("step_state"),
+            workflow_state=outcome.get("workflow_state"),
             trace_id=trace.trace_id,
         )
-        return {"claimed": True, "step_id": step_id, "trace_id": trace.trace_id}
+
+        # Newly READY dependants are queued here rather than inside the runtime,
+        # so the runtime stays free of transport concerns and remains testable
+        # without a broker.
+        for dependant in outcome.get("unlocked", []):
+            execute_agentic_step_task.delay(
+                dependant, owner_user_id, workflow_id, trace.traceparent()
+            )
+        return outcome
 
 
 @celery.task(name="nur.agentic.recover", ignore_result=False)
