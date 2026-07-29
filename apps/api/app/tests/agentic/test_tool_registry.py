@@ -145,6 +145,7 @@ def test_read_only_tools_auto_run_at_suggest_but_drafts_do_not():
     policy = OwnerPolicy(
         initiative_level=InitiativeLevel.SUGGEST,
         max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
+        auto_run_tools=frozenset({"get_plan"}),
         granted_capabilities=KNOWN_CAPABILITIES,
     )
     assert evaluate(registry.contract("get_plan"), policy).decision is Decision.ALLOW

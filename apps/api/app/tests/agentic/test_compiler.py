@@ -15,9 +15,16 @@ from app.agentic.enums import InitiativeLevel, RiskClass, StepState
 from app.agentic.policy import OwnerPolicy
 from app.agentic.tools import KNOWN_CAPABILITIES
 
+# Compilation must not be blocked by unattended-use settings: a step that will
+# ask for approval still compiles. auto_run is named broadly here so the
+# compiler tests exercise compilation rather than the auto-run gate.
 PERMISSIVE = OwnerPolicy(
     initiative_level=InitiativeLevel.INTERNAL,
     max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
+    auto_run_tools=frozenset(
+        {"get_plan", "get_timeline", "create_draft_plan", "activate_plan",
+         "schedule_timeline_event", "create_insight_candidate"}
+    ),
     granted_capabilities=KNOWN_CAPABILITIES,
     daily_budget_cents=1_000_000,
 )
@@ -136,9 +143,12 @@ def test_compilation_is_deterministic():
 
 def test_approval_keys_are_surfaced_up_front():
     """So an approval card can show the whole ask, not one step at a time."""
+    # `get_plan` is named for unattended use; `create_draft_plan` is permitted
+    # but not, so only the draft step should ask.
     suggest = OwnerPolicy(
         initiative_level=InitiativeLevel.SUGGEST,
         max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
+        auto_run_tools=frozenset({"get_plan"}),
         granted_capabilities=KNOWN_CAPABILITIES,
     )
     plan = (step("read", tool="get_plan"), step("draft", tool="create_draft_plan", deps=("read",)))

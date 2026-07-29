@@ -22,9 +22,12 @@ from app.agentic.policy import (
     evaluate,
 )
 
+# Under the permitted/auto-run split, "permissive" must name the tool for
+# unattended use as well as permit it. An empty auto-run set now means ask.
 PERMISSIVE = OwnerPolicy(
     initiative_level=InitiativeLevel.DELEGATED,
     max_risk_class=RiskClass.R4_IRREVERSIBLE,
+    auto_run_tools=frozenset({"t"}),
     daily_budget_cents=1_000_000,
 )
 
@@ -39,6 +42,7 @@ def test_external_never_auto_runs_at_any_initiative_level():
         policy = OwnerPolicy(
             initiative_level=level,
             max_risk_class=RiskClass.R4_IRREVERSIBLE,
+            auto_run_tools=frozenset({"t"}),
             daily_budget_cents=1_000_000,
         )
         verdict = evaluate(tool(RiskClass.R3_EXTERNAL), policy)
@@ -70,6 +74,7 @@ def test_full_risk_by_initiative_matrix():
         policy = OwnerPolicy(
             initiative_level=level,
             max_risk_class=RiskClass.R4_IRREVERSIBLE,
+            auto_run_tools=frozenset({"t"}),
             daily_budget_cents=1_000_000,
         )
         decision = evaluate(tool(risk), policy).decision
@@ -93,7 +98,8 @@ def test_denied_list_beats_an_allowlist_entry():
     policy = OwnerPolicy(
         initiative_level=InitiativeLevel.INTERNAL,
         max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
-        allowed_tools=frozenset({"t"}),
+        permitted_tools=frozenset({"t"}),
+        auto_run_tools=frozenset({"t"}),
         denied_tools=frozenset({"t"}),
     )
     assert evaluate(tool(RiskClass.R0_READ_ONLY), policy).decision is Decision.DENY
@@ -104,14 +110,16 @@ def test_allowlist_narrows_rather_than_widens():
     policy = OwnerPolicy(
         initiative_level=InitiativeLevel.INTERNAL,
         max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
-        allowed_tools=frozenset({"other"}),
+        permitted_tools=frozenset({"t", "other"}),
+        auto_run_tools=frozenset({"other"}),
     )
     assert evaluate(tool(RiskClass.R0_READ_ONLY), policy).decision is Decision.REQUIRE_APPROVAL
     # And it cannot lift an external call into auto-run.
     permissive_list = OwnerPolicy(
         initiative_level=InitiativeLevel.CONNECTED,
         max_risk_class=RiskClass.R4_IRREVERSIBLE,
-        allowed_tools=frozenset({"t"}),
+        permitted_tools=frozenset({"t"}),
+        auto_run_tools=frozenset({"t"}),
     )
     assert evaluate(tool(RiskClass.R3_EXTERNAL), permissive_list).decision is Decision.REQUIRE_APPROVAL
 
@@ -121,6 +129,7 @@ def test_missing_capability_denies_rather_than_prompting():
     policy = OwnerPolicy(
         initiative_level=InitiativeLevel.INTERNAL,
         max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
+        auto_run_tools=frozenset({"t"}),
         granted_capabilities=frozenset({"read_plan"}),
     )
     verdict = evaluate(
@@ -166,6 +175,7 @@ def test_zero_budget_means_unlimited_not_blocked():
     policy = OwnerPolicy(
         initiative_level=InitiativeLevel.INTERNAL,
         max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
+        auto_run_tools=frozenset({"t"}),
         daily_budget_cents=0,
     )
     assert evaluate(tool(RiskClass.R0_READ_ONLY, estimated_cost_cents=999), policy).decision is Decision.ALLOW
@@ -180,6 +190,7 @@ def test_quiet_hours_wrap_around_midnight(window, hour, inside):
     policy = OwnerPolicy(
         initiative_level=InitiativeLevel.INTERNAL,
         max_risk_class=RiskClass.R2_DURABLE_PRIVATE,
+        auto_run_tools=frozenset({"t"}),
         quiet_hours=window,
     )
     now = dt.datetime(2026, 7, 28, hour, tzinfo=dt.timezone.utc)

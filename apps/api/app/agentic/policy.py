@@ -83,9 +83,25 @@ class ToolContract:
 
 @dataclass(frozen=True)
 class OwnerPolicy:
+    """Two independent questions, two fields.
+
+    `permitted_tools` answers "may this tool exist in the workflow at all, and
+    may it be offered to the owner for approval?". `auto_run_tools` answers the
+    narrower "may it run without asking?". A single field doing both jobs meant
+    widening what could be approved also widened what could run unattended.
+
+    The asymmetry matters most in the negative cases. A permitted tool that is
+    not auto-run must ask, not refuse — refusing would make the owner's own
+    permission useless. An unpermitted tool must refuse outright and must not
+    create an approval row, because an inbox that can grant a capability the
+    workflow never had is a capability-escalation mechanism wearing a consent
+    interface.
+    """
+
     initiative_level: InitiativeLevel = InitiativeLevel.SUGGEST
     max_risk_class: RiskClass = RiskClass.R1_PRIVATE_DRAFT
-    allowed_tools: frozenset[str] = frozenset()
+    permitted_tools: frozenset[str] = frozenset()
+    auto_run_tools: frozenset[str] = frozenset()
     denied_tools: frozenset[str] = frozenset()
     granted_capabilities: frozenset[str] = frozenset()
     daily_budget_cents: int = 0
@@ -129,7 +145,17 @@ def evaluate(
             remedy="Remove it from denied tools to reconsider.",
         )
 
-    # 2. Scope. A call that reaches outside the workflow's declared context is
+    # 2. Permission. A tool the owner never permitted is refused here, before
+    #    any approval row can be created. This ordering is the whole reason the
+    #    inbox cannot be used to acquire a capability.
+    if policy.permitted_tools and tool.key not in policy.permitted_tools:
+        return PolicyVerdict(
+            Decision.DENY,
+            f"{tool.key} is not permitted in this scope.",
+            remedy="Add it to permitted tools before it can be planned or approved.",
+        )
+
+    # 3. Scope. A call that reaches outside the workflow's declared context is
     #    refused regardless of risk — this is the cross-owner and cross-orbit
     #    boundary, not a preference.
     if not within_scope:
@@ -204,12 +230,14 @@ def evaluate(
 
     ceiling = AUTO_RUN_CEILING[policy.initiative_level]
     if ceiling is not None and _risk_rank(tool.risk_class) <= _risk_rank(ceiling):
-        # An allowlist, when non-empty, is a further narrowing — not a widening.
-        if policy.allowed_tools and tool.key not in policy.allowed_tools:
+        # Permitted but not auto-run means ask, never deny. An empty auto-run
+        # set is the safe default: nothing runs unattended until the owner names
+        # it, and everything permitted can still be approved.
+        if tool.key not in policy.auto_run_tools:
             return PolicyVerdict(
                 Decision.REQUIRE_APPROVAL,
-                f"{tool.key} is not on the owner's allowed list for unattended use.",
-                remedy="Add it to allowed tools to let it run unattended.",
+                f"{tool.key} is permitted but not enabled for unattended use.",
+                remedy="Add it to auto-run tools to let it run without asking.",
             )
         return PolicyVerdict(Decision.ALLOW, f"{tool.risk_class} is within {policy.initiative_level}.")
 

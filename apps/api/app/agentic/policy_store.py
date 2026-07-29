@@ -62,13 +62,22 @@ async def load_policy(
             granted_capabilities=frozenset(),
         )
 
-    allowed_tools = frozenset(chosen.allowed_tools or ())
+    permitted = frozenset(getattr(chosen, "permitted_tools", None) or ())
+    # auto_run is a strict subset of permitted: naming a tool for unattended use
+    # cannot also permit it, or auto_run would quietly become a second
+    # permission grant.
+    auto_run = frozenset(getattr(chosen, "auto_run_tools", None) or ()) & permitted
     return OwnerPolicy(
         initiative_level=InitiativeLevel(chosen.initiative_level),
         max_risk_class=RiskClass(chosen.max_risk_class),
-        allowed_tools=allowed_tools,
+        permitted_tools=permitted,
+        auto_run_tools=auto_run,
         denied_tools=frozenset(chosen.denied_tools or ()),
-        granted_capabilities=capabilities_for(allowed_tools),
+        # Capabilities derive from permitted tools only. Deriving them from
+        # auto_run would mean a tool could be approved without the capability it
+        # needs, and deriving from the legacy column would keep the split
+        # decorative.
+        granted_capabilities=capabilities_for(permitted),
         daily_budget_cents=chosen.daily_budget_cents,
     )
 
