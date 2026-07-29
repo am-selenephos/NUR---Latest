@@ -489,11 +489,22 @@ async def execute_step(
         )
         duration_ms = int((time.monotonic() - started) * 1000)
     except TimeoutError:
-        # asyncio.wait_for raises TimeoutError; the handler's task is already
-        # cancelled. The session may be mid-statement, so it is rolled back
-        # before anything is recorded about the failure.
+        # `asyncio.wait_for` cancelled the handler, possibly mid-statement, which
+        # leaves the underlying asyncpg connection in an indeterminate state: a
+        # plain rollback on it raises MissingGreenlet and the timeout path would
+        # crash instead of recording the failure. `invalidate()` discards that
+        # connection rather than returning a poisoned one to the pool, so the
+        # bookkeeping below runs on a fresh one.
         duration_ms = int((time.monotonic() - started) * 1000)
-        await db.rollback()
+        await db.invalidate()
+
+        # A fresh connection means a fresh transaction, and the RLS context is
+        # transaction-local — without re-establishing it every write below would
+        # silently affect zero rows and the step would stay RUNNING.
+        from app.db.rls import set_user_context
+
+        await set_user_context(db, owner_user_id)
+
         await record_event(
             db, owner_user_id=owner_user_id, workflow_id=workflow_id, step_id=step_id,
             event_type="STEP_TIMEOUT",
