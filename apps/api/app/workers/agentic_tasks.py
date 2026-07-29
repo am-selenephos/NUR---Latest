@@ -27,6 +27,8 @@ import asyncio
 import logging
 import uuid
 
+from sqlalchemy import text
+
 from app.agentic.aggregate import aggregate_workflow
 from app.agentic.observability import continue_or_start, worker_id
 from app.agentic.orchestrator import (
@@ -35,6 +37,7 @@ from app.agentic.orchestrator import (
     unlock_dependants,
 )
 from app.agentic.runtime import run_step
+from app.core.config import get_settings
 from app.core.logging import configure_logging, log
 from app.db.rls import set_user_context
 from app.db.session import get_sessionmaker
@@ -108,13 +111,62 @@ async def _execute_step(
         return outcome
 
 
+@celery.task(name="nur.agentic.dispatch", ignore_result=False)
+def dispatch_agentic_intents_task(limit: int | None = None) -> dict:
+    """Drain committed outbox intents onto the queue.
+
+    This is the production dispatcher. Celery Beat runs it on
+    `NUR_AGENTIC_DISPATCH_INTERVAL_SECONDS`; nothing calls `dispatch_once`
+    by hand. Before this existed the outbox was a table nothing drained: the
+    runtime committed intents correctly and they sat there forever.
+
+    Publishing goes through `execute_agentic_step_task.delay`, so the payload is
+    IDs plus a traceparent and never the plan or any owner text.
+    """
+    return asyncio.run(_dispatch(limit))
+
+
+async def _dispatch(limit: int | None) -> dict:
+    from app.agentic import dispatcher
+
+    settings = get_settings()
+    batch = int(limit) if limit is not None else int(settings.agentic_dispatch_batch)
+    me = worker_id()
+
+    def publish(step_id: str, owner_user_id: str, workflow_id: str, traceparent: str | None):
+        # The broker call. Raising here returns the row to RETRYABLE with
+        # bounded backoff rather than losing the intent.
+        execute_agentic_step_task.delay(step_id, owner_user_id, workflow_id, traceparent)
+
+    async with get_sessionmaker()() as db:
+        # No owner RLS context: claiming spans owners by design, and it goes
+        # through the SECURITY DEFINER ops boundary rather than a privileged
+        # role. `nur_app` gains no table privilege from this.
+        outcome = await dispatcher.dispatch_once(
+            db, dispatcher_id=me, publish=publish, limit=batch
+        )
+
+    if outcome["claimed"]:
+        log(
+            logger,
+            "agentic dispatch pass",
+            claimed=outcome["claimed"],
+            sent=len(outcome["sent"]),
+            failed=len(outcome["failed"]),
+            fenced=len(outcome["fenced"]),
+            dispatcher=me,
+        )
+    return outcome
+
+
 @celery.task(name="nur.agentic.recover", ignore_result=False)
 def recover_agentic_steps_task(limit: int = 50) -> dict:
-    """Sweep abandoned leases back to QUEUED.
+    """Sweep abandoned leases back to QUEUED, and re-queue them for dispatch.
 
-    Runs without an owner context because it spans owners by design; the sweeper
-    connects under a role whose RLS policy already confines it, and asking it to
-    enumerate every owner first would be both slower and more privileged.
+    Runs without an owner context because it spans owners by design, through the
+    SECURITY DEFINER ops boundary rather than under a role that can read owner
+    content. Reclaiming alone is not recovery: the step also needs a dispatch
+    intent, or it returns to QUEUED with nothing coming to execute it.
     """
     return asyncio.run(_recover(limit))
 
@@ -122,23 +174,58 @@ def recover_agentic_steps_task(limit: int = 50) -> dict:
 async def _recover(limit: int) -> dict:
     async with get_sessionmaker()() as db:
         reclaimed = await reclaim_expired_steps(db, limit=limit)
-        # A workflow stuck reading FAILED or WAITING_APPROVAL because its only
-        # active step was the one just reclaimed must not stay wrong once that
-        # step is QUEUED again. One aggregate call per distinct workflow, not
-        # per step — a workflow with two reclaimed steps needs recomputing once.
+
+        requeued: list[str] = []
         seen: set[tuple] = set()
         for row in reclaimed:
-            key = (row.owner_user_id, row.workflow_id)
-            if key in seen:
-                continue
-            seen.add(key)
-            await aggregate_workflow(
-                db, owner_user_id=row.owner_user_id, workflow_id=row.workflow_id
+            # Per-owner RLS context for the owner-scoped writes. Reclaiming is
+            # the only cross-owner act; everything after it is done *as* that
+            # owner, which keeps one aggregate implementation and needs no
+            # further cross-owner privilege.
+            await set_user_context(db, row.owner_user_id)
+
+            # A reclaimed step is QUEUED with nothing coming unless an intent
+            # exists. `attempt` was incremented by the claim it lost, so this
+            # dispatch_key cannot collide with the one already marked SENT for
+            # the previous attempt.
+            attempt = (
+                await db.execute(
+                    text("SELECT attempt FROM agent_steps WHERE id = :s"), {"s": row.step_id}
+                )
+            ).scalar_one()
+            await db.execute(
+                text(
+                    """
+                    INSERT INTO agent_dispatch_outbox (
+                        owner_user_id, workflow_id, step_id, dispatch_key, state
+                    ) VALUES (:o, :w, :s, :key, 'RETRYABLE')
+                    ON CONFLICT (dispatch_key) DO NOTHING
+                    """
+                ),
+                {
+                    "o": row.owner_user_id, "w": row.workflow_id, "s": row.step_id,
+                    "key": f"{row.step_id}:recovered:{attempt}",
+                },
             )
+            requeued.append(str(row.step_id))
+
+            # A workflow stuck reading FAILED or WAITING_APPROVAL because its
+            # only active step was the one just reclaimed must not stay wrong
+            # once that step is QUEUED again. One aggregate call per distinct
+            # workflow — two reclaimed steps in one workflow recompute once.
+            key = (row.owner_user_id, row.workflow_id)
+            if key not in seen:
+                seen.add(key)
+                await aggregate_workflow(
+                    db, owner_user_id=row.owner_user_id, workflow_id=row.workflow_id
+                )
         await db.commit()
         if reclaimed:
             log(logger, "agentic steps reclaimed", count=len(reclaimed))
-        return {"reclaimed": [str(row.step_id) for row in reclaimed]}
+        return {
+            "reclaimed": [str(row.step_id) for row in reclaimed],
+            "requeued": requeued,
+        }
 
 
 @celery.task(name="nur.agentic.unlock", ignore_result=False)
@@ -159,6 +246,7 @@ async def _unlock(owner_user_id: str, workflow_id: str) -> dict:
 
 
 __all__ = [
+    "dispatch_agentic_intents_task",
     "execute_agentic_step_task",
     "recover_agentic_steps_task",
     "unlock_agentic_dependants_task",

@@ -115,6 +115,18 @@ async def test_committed_intent_is_dispatched_and_the_child_runs(session_for, ow
                                 {"s": child_id})
         ).scalar_one() == "QUEUED"
 
+    # This step's own intent, so the assertions below name a specific row. The
+    # dispatcher claims across owners by design — that is the whole point of the
+    # ops boundary — so a global "claimed == 1" would be asserting that no other
+    # test in this database has work due, which is not this test's business.
+    async with session_for() as lookup:
+        intent_id = (
+            await lookup.execute(
+                text("SELECT id FROM agent_dispatch_outbox WHERE step_id = :s"),
+                {"s": child_id},
+            )
+        ).scalar_one()
+
     published: list[tuple] = []
     async with session_for() as dispatch_db:
         result = await dispatcher.dispatch_once(
@@ -122,11 +134,11 @@ async def test_committed_intent_is_dispatched_and_the_child_runs(session_for, ow
             dispatcher_id="d1",
             publish=lambda *args: published.append(args),
         )
-        assert result["claimed"] == 1, result
-        assert len(result["sent"]) == 1, result
+        assert str(intent_id) in result["sent"], result
 
-    assert len(published) == 1
-    step_arg, owner_arg, workflow_arg, _trace = published[0]
+    mine = [p for p in published if UUID(p[0]) == child_id]
+    assert len(mine) == 1, "the child's intent must be published exactly once"
+    step_arg, owner_arg, workflow_arg, _trace = mine[0]
     assert UUID(step_arg) == child_id
     assert UUID(owner_arg) == owner
     assert UUID(workflow_arg) == workflow_id
@@ -201,12 +213,21 @@ async def test_broker_failure_leaves_a_recoverable_row(session_for, owner):
     def exploding(*_args):
         raise ConnectionError("broker unavailable")
 
+    async with session_for() as lookup:
+        intent_id = (
+            await lookup.execute(
+                text("SELECT id FROM agent_dispatch_outbox WHERE step_id = :s"),
+                {"s": child_id},
+            )
+        ).scalar_one()
+
     async with session_for() as dispatch_db:
         result = await dispatcher.dispatch_once(
             dispatch_db, dispatcher_id="d1", publish=exploding
         )
-        assert result["claimed"] == 1
-        assert len(result["failed"]) == 1
+        # Scoped to this step's intent: the dispatcher spans owners, so other
+        # tests' due work is legitimately in the same pass.
+        assert str(intent_id) in result["failed"], result
 
     async with session_for() as check:
         row = (

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agentic.approvals import StoredApproval
@@ -77,6 +77,8 @@ async def load_policy(
     # cannot also permit it, or auto_run would quietly become a second
     # permission grant.
     auto_run = frozenset(chosen.auto_run_tools or ()) & permitted
+
+    window, zone = _quiet_hours(chosen.quiet_hours)
     return OwnerPolicy(
         initiative_level=InitiativeLevel(chosen.initiative_level),
         max_risk_class=RiskClass(chosen.max_risk_class),
@@ -89,7 +91,72 @@ async def load_policy(
         # decorative.
         granted_capabilities=capabilities_for(permitted),
         daily_budget_cents=chosen.daily_budget_cents,
+        # Read from the durable ledger, never carried in memory between runs. A
+        # counter held in a worker process resets on restart and is wrong the
+        # moment a second worker exists; the budget then silently stops binding.
+        spent_today_cents=await daily_spend_cents(
+            db, owner_user_id=owner_user_id, timezone_name=zone
+        ),
+        quiet_hours=window,
+        timezone_name=zone,
     )
+
+
+def _quiet_hours(raw: dict | None) -> tuple[tuple[int, int] | None, str]:
+    """Read `{"start": 22, "end": 7, "tz": "Asia/Karachi"}` from the policy.
+
+    Returns (window, zone). A malformed or absent window yields no quiet hours,
+    but the zone is still returned so spend accounting has a day boundary to
+    use. Hours outside 0-23 are dropped rather than clamped: clamping a typo
+    into a valid hour invents a rule the owner never wrote.
+    """
+    zone = "UTC"
+    if not isinstance(raw, dict):
+        return None, zone
+
+    candidate = raw.get("tz") or raw.get("timezone")
+    if isinstance(candidate, str) and candidate.strip():
+        zone = candidate.strip()
+
+    start, end = raw.get("start"), raw.get("end")
+    if not isinstance(start, int) or not isinstance(end, int):
+        return None, zone
+    if not (0 <= start <= 23 and 0 <= end <= 23):
+        return None, zone
+    return (start, end), zone
+
+
+async def daily_spend_cents(
+    db: AsyncSession, *, owner_user_id: uuid.UUID, timezone_name: str = "UTC"
+) -> int:
+    """What this owner has already spent today, from `agent_tool_calls`.
+
+    The authoritative record is the ledger of calls that actually happened, so
+    the figure survives a restart and is consistent across concurrent workers.
+
+    "Today" is a calendar day in the owner's own zone, computed by Postgres via
+    `AT TIME ZONE` so the boundary moves with the owner rather than at UTC
+    midnight. Retries do not double-charge because each `agent_tool_calls` row
+    is one invocation: a duplicate delivery that loses its claim never reaches
+    the handler and so never writes a row.
+
+    Scoped to `owner_user_id`, so another owner's spend cannot consume this
+    owner's budget — and RLS confines it to this owner regardless.
+    """
+    total = (
+        await db.execute(
+            text(
+                """
+                SELECT COALESCE(SUM(cost_cents), 0) FROM agent_tool_calls
+                 WHERE owner_user_id = :owner
+                   AND (created_at AT TIME ZONE :tz)::date
+                       = (now() AT TIME ZONE :tz)::date
+                """
+            ),
+            {"owner": owner_user_id, "tz": timezone_name},
+        )
+    ).scalar_one()
+    return int(total or 0)
 
 
 def capabilities_for(allowed_tools: frozenset[str]) -> frozenset[str]:

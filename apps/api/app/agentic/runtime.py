@@ -28,6 +28,7 @@ being unsafe.
 
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 import inspect
 import time
@@ -43,9 +44,17 @@ from app.agentic.aggregate import aggregate_workflow
 from app.agentic.approvals import StoredApproval
 from app.agentic.enums import ApprovalDecision, StepState
 from app.agentic.observability import TraceContext
-from app.agentic.orchestrator import argument_digest, claim_step, record_event, transition_step
+from app.agentic.orchestrator import (
+    DEFAULT_LEASE_SECONDS,
+    argument_digest,
+    attempt_still_current,
+    claim_step,
+    record_event,
+    transition_step,
+)
 from app.agentic.policy import Decision, OwnerPolicy, evaluate
 from app.agentic.redaction import redact_arguments, telemetry_safe
+from app.core.config import get_settings
 
 
 @dataclass(frozen=True)
@@ -66,7 +75,8 @@ async def _load_step(db: AsyncSession, owner_user_id: uuid.UUID, step_id: uuid.U
         text(
             """
             SELECT id, workflow_id, key, state, role, tool_key, tool_version,
-                   risk_class, input_refs, approval_required, attempt
+                   risk_class, input_refs, approval_required, attempt,
+                   timeout_seconds, execution_attempt
               FROM agent_steps
              WHERE id = :step AND owner_user_id = :owner
             """
@@ -91,12 +101,19 @@ async def _record_tool_call(
     duration_ms: int,
     trace_id: str,
     approval_id: uuid.UUID | None = None,
+    cost_cents: int = 0,
 ) -> None:
     """Every invocation is recorded, including the ones that were refused.
 
     A denial is the more interesting row: it is the evidence that the gate did
     its job. An audit trail holding only successful calls cannot demonstrate
     that anything was ever prevented.
+
+    `cost_cents` is charged only for a call that actually ran. This column was
+    previously never written at all, which meant `daily_spend_cents` summed
+    zeros forever and the owner's budget ceiling could never bind no matter what
+    it was set to. A denied or refused call costs nothing, so charging it would
+    let a policy that correctly refused work consume the budget anyway.
     """
     await db.execute(
         text(
@@ -104,14 +121,16 @@ async def _record_tool_call(
             INSERT INTO agent_tool_calls (
                 owner_user_id, workflow_id, step_id, tool_key, tool_version,
                 risk_class, argument_digest, redacted_arguments, outcome,
-                denial_reason, duration_ms, trace_id, approval_id
+                denial_reason, duration_ms, trace_id, approval_id, cost_cents
             ) VALUES (
                 :owner, :workflow, :step, :tool, :version, :risk, :digest,
-                CAST(:args AS jsonb), :outcome, :denial, :duration, :trace, :approval
+                CAST(:args AS jsonb), :outcome, :denial, :duration, :trace,
+                :approval, :cost
             )
             """
         ),
         {
+            "cost": max(0, int(cost_cents)),
             "owner": owner_user_id,
             "workflow": workflow_id,
             "step": step_id,
@@ -261,6 +280,7 @@ async def execute_step(
     approval: StoredApproval | None = None,
     within_scope: bool = True,
     plan_version: int = 1,
+    execution_attempt: uuid.UUID | None = None,
 ) -> StepOutcome:
     """Run one already-claimed step through the gate and the handler.
 
@@ -447,10 +467,16 @@ async def execute_step(
             )
             return StepOutcome(False, StepState.WAITING_APPROVAL, verdict.reason)
 
-    # ── Execute. The handler re-checks approval for durable tools; that
-    #    duplication is intentional defence in depth. ──
+    # ── Execute, under a hard ceiling. The handler re-checks approval for
+    #    durable tools; that duplication is intentional defence in depth. ──
     handler = registry.handler(tool_key)
     started = time.monotonic()
+    # Strictly shorter than the lease. A handler allowed to run past its lease
+    # would be reclaimed while still executing, so two workers would hold the
+    # same step; timing out first turns that into an explicit, retryable failure
+    # and guarantees no immortal RUNNING row.
+    budget = step["timeout_seconds"] or get_settings().agentic_step_timeout_seconds
+    timeout_seconds = max(1, min(int(budget), DEFAULT_LEASE_SECONDS - 1))
     try:
         kwargs = dict(arguments)
         # Only durable handlers re-check consent; read and draft handlers do not
@@ -458,8 +484,32 @@ async def execute_step(
         # surfaces as a step failure rather than as the wiring bug it is.
         if approval is not None and "approval" in inspect.signature(handler).parameters:
             kwargs["approval"] = approval
-        result = await handler(db, owner_user_id, **kwargs)
+        result = await asyncio.wait_for(
+            handler(db, owner_user_id, **kwargs), timeout=timeout_seconds
+        )
         duration_ms = int((time.monotonic() - started) * 1000)
+    except TimeoutError:
+        # asyncio.wait_for raises TimeoutError; the handler's task is already
+        # cancelled. The session may be mid-statement, so it is rolled back
+        # before anything is recorded about the failure.
+        duration_ms = int((time.monotonic() - started) * 1000)
+        await db.rollback()
+        await record_event(
+            db, owner_user_id=owner_user_id, workflow_id=workflow_id, step_id=step_id,
+            event_type="STEP_TIMEOUT",
+            summary=f"{tool_key} exceeded its {timeout_seconds}s ceiling and was cancelled",
+            from_state=StepState.RUNNING.value, to_state=StepState.FAILED.value,
+            trace_id=trace.trace_id,
+        )
+        await transition_step(
+            db, owner_user_id=owner_user_id, step_id=step_id,
+            current=StepState.RUNNING, nxt=StepState.FAILED,
+            execution_attempt=execution_attempt,
+        )
+        return StepOutcome(
+            False, StepState.FAILED, f"timeout after {timeout_seconds}s",
+            duration_ms=duration_ms,
+        )
     except Exception as error:  # noqa: BLE001 - recorded, then re-raised as a step failure
         duration_ms = int((time.monotonic() - started) * 1000)
         await _record_tool_call(
@@ -482,6 +532,7 @@ async def execute_step(
         await transition_step(
             db, owner_user_id=owner_user_id, step_id=step_id,
             current=StepState.RUNNING, nxt=StepState.FAILED,
+            execution_attempt=execution_attempt,
         )
         return StepOutcome(False, StepState.FAILED, type(error).__name__, duration_ms=duration_ms)
 
@@ -494,6 +545,17 @@ async def execute_step(
         outcome="SUCCEEDED", denial_reason=None, duration_ms=duration_ms,
         trace_id=trace.trace_id,
         approval_id=approval.approval_id if approval else None,
+        # Charged here, on the one path where the handler actually ran.
+        cost_cents=contract.estimated_cost_cents,
+    )
+    # The workflow's own running total, so a budget question can be answered
+    # about one workflow without re-summing the owner's whole ledger.
+    await db.execute(
+        text(
+            "UPDATE agent_workflows SET cost_cents = cost_cents + :cost, updated_at = now() "
+            "WHERE id = :workflow AND owner_user_id = :owner"
+        ),
+        {"cost": contract.estimated_cost_cents, "workflow": workflow_id, "owner": owner_user_id},
     )
     await record_event(
         db, owner_user_id=owner_user_id, workflow_id=workflow_id, step_id=step_id,
@@ -505,6 +567,7 @@ async def execute_step(
     await transition_step(
         db, owner_user_id=owner_user_id, step_id=step_id,
         current=StepState.RUNNING, nxt=StepState.VERIFYING,
+        execution_attempt=execution_attempt,
     )
     return StepOutcome(True, StepState.VERIFYING, "executed", result=result, duration_ms=duration_ms)
 
@@ -622,18 +685,42 @@ async def run_step(
 
     After execution the loop actually closes: verify, persist, transition to a
     terminal state, unlock dependants, and recompute the workflow's state.
+
+    **Two transactions, not one.** The claim commits before the handler runs.
+    Holding claim + handler + verification + terminal write in a single
+    transaction meant a worker killed mid-handler rolled the claim back too: the
+    step returned to QUEUED looking untouched, with no record that an attempt had
+    ever been made and no way to tell a crash from a step that never started. For
+    a handler with an external side effect that is the difference between "retry
+    safely" and "repeat an effect nobody can see". Committing the claim first
+    makes the attempt durable, and `execution_attempt` fences the second
+    transaction so the reclaimed-then-resumed worker cannot complete it.
     """
     from app.agentic.orchestrator import queue_ready_dependants, unlock_dependants
     from app.agentic.verifier import Verdict, verify_step_result
 
     from app.agentic.policy_store import load_policy, load_step_approval
 
+    from app.db.rls import set_user_context
+
+    # ── TRANSACTION 1: the durable claim, and nothing else. ──
     claim = await claim_step(
         db, owner_user_id=owner_user_id, step_id=step_id, worker_id=worker
     )
     if not claim.claimed:
         return {"executed": False, "step_state": "QUEUED", "reason": claim.reason}
+    await db.commit()
+    attempt_token = claim.execution_attempt
 
+    # The RLS context is transaction-local by design (`set_config(..., true)`),
+    # so committing the claim discards it. Re-establishing it is not optional
+    # bookkeeping: without this every owner-scoped read below sees zero rows and
+    # the step is unreadable immediately after being successfully claimed.
+    await set_user_context(db, owner_user_id)
+
+    # ── TRANSACTION 2: reload everything under the durable claim and execute.
+    #    Nothing read before the commit above is trusted here: the row is
+    #    re-read, and so are the workflow, policy, contract and approval. ──
     step = await _load_step(db, owner_user_id, step_id)
     if step is None:
         raise RuntimeRefusal("claimed a step that cannot be re-read; RLS context is wrong")
@@ -671,7 +758,23 @@ async def run_step(
         approval=approval,
         within_scope=within_scope,
         plan_version=int(scope.get("plan_version") or 1),
+        execution_attempt=attempt_token,
     )
+
+    # Whatever happened in the handler, this attempt may no longer own the step:
+    # its lease can have expired and recovery can have reissued the token to a
+    # replacement worker. Writing a terminal state now would overwrite the live
+    # attempt's outcome with a dead one's.
+    if attempt_token is not None and not await attempt_still_current(
+        db, owner_user_id=owner_user_id, step_id=step_id, execution_attempt=attempt_token
+    ):
+        await db.rollback()
+        return {
+            "executed": False,
+            "fenced": True,
+            "step_state": "RECLAIMED",
+            "reason": "this attempt's lease was reclaimed; another worker owns the step",
+        }
 
     step = await _load_step(db, owner_user_id, step_id)
     workflow_id = step["workflow_id"] if step else None
@@ -717,6 +820,7 @@ async def run_step(
         await transition_step(
             db, owner_user_id=owner_user_id, step_id=step_id,
             current=StepState.VERIFYING, nxt=StepState.FAILED,
+            execution_attempt=attempt_token,
         )
         workflow_state = await aggregate_workflow(
             db, owner_user_id=owner_user_id, workflow_id=workflow_id
@@ -759,6 +863,7 @@ async def run_step(
     await transition_step(
         db, owner_user_id=owner_user_id, step_id=step_id,
         current=StepState.VERIFYING, nxt=final,
+        execution_attempt=attempt_token,
     )
 
     unlocked: list[str] = []

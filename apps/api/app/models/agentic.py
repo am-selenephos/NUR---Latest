@@ -113,6 +113,12 @@ class AgentWorkflow(Base):
     trace_id: Mapped[str | None] = mapped_column(String(64))
     failure_code: Mapped[str | None] = mapped_column(String(64))
     expires_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    # Per-workflow ledger allocator. Incremented under a row lock rather than
+    # derived from MAX(sequence), which collided under concurrency and took the
+    # domain mutation down with the failed event insert.
+    event_seq: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
     created_at: Mapped[dt.datetime] = _created()
     updated_at: Mapped[dt.datetime] = _updated()
 
@@ -171,6 +177,13 @@ class AgentStep(Base):
     )
     idempotency_key: Mapped[str | None] = mapped_column(String(200))
     worker_id: Mapped[str | None] = mapped_column(String(120))
+    # Reissued on every claim and every reclaim. Completion, failure and
+    # heartbeat writes match on it, so a worker whose lease was reclaimed
+    # cannot finish the attempt it no longer owns — worker_id alone would
+    # still match its own name.
+    execution_attempt: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, server_default=text("gen_random_uuid()")
+    )
     lease_expires_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
     timeout_seconds: Mapped[int | None] = mapped_column(Integer)
     budget_cents: Mapped[int] = mapped_column(

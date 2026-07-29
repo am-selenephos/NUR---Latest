@@ -63,25 +63,9 @@ async def claim_intents(
     rows = (
         await db.execute(
             text(
-                """
-                WITH due AS (
-                    SELECT id FROM agent_dispatch_outbox
-                     WHERE (state = 'RETRYABLE' AND next_attempt_at <= now())
-                        OR (state = 'CLAIMED' AND lease_expires_at < now())
-                     ORDER BY next_attempt_at
-                     LIMIT :limit
-                     FOR UPDATE SKIP LOCKED
-                )
-                UPDATE agent_dispatch_outbox o
-                   SET state = 'CLAIMED',
-                       claimed_by = :dispatcher,
-                       claim_token = gen_random_uuid(),
-                       lease_expires_at = now() + make_interval(secs => :lease)
-                  FROM due
-                 WHERE o.id = due.id
-             RETURNING o.id, o.owner_user_id, o.workflow_id, o.step_id,
-                       o.dispatch_key, o.attempts, o.traceparent, o.claim_token
-                """
+                "SELECT id, owner_user_id, workflow_id, step_id, dispatch_key, "
+                "attempts, traceparent, claim_token "
+                "FROM agent_ops_claim_dispatch(:dispatcher, :lease, :limit)"
             ),
             {"dispatcher": dispatcher_id, "lease": LEASE_SECONDS, "limit": limit},
         )
@@ -97,14 +81,14 @@ async def mark_sent(db: AsyncSession, intent: DispatchIntent) -> bool:
     a name match alone. The token is reissued on every claim, so a stale
     acknowledgement updates zero rows and the caller can tell.
     """
-    result = await db.execute(
-        text(
-            "UPDATE agent_dispatch_outbox SET state = 'SENT', sent_at = now() "
-            "WHERE id = :id AND state = 'CLAIMED' AND claim_token = :token"
-        ),
-        {"id": intent.id, "token": intent.claim_token},
+    return bool(
+        (
+            await db.execute(
+                text("SELECT agent_ops_mark_dispatch_sent(:id, :token)"),
+                {"id": intent.id, "token": intent.claim_token},
+            )
+        ).scalar_one()
     )
-    return result.rowcount == 1
 
 
 async def mark_failed(db: AsyncSession, intent: DispatchIntent, error: str) -> bool:
@@ -113,28 +97,21 @@ async def mark_failed(db: AsyncSession, intent: DispatchIntent, error: str) -> b
     The CHECK forbids RETRYABLE carrying claim metadata, so the lease and token
     are cleared here — which is also correct: the dispatcher no longer holds it.
     """
-    result = await db.execute(
-        text(
-            """
-            UPDATE agent_dispatch_outbox
-               SET state = 'RETRYABLE',
-                   claimed_by = NULL,
-                   claim_token = NULL,
-                   lease_expires_at = NULL,
-                   attempts = attempts + 1,
-                   last_error = :error,
-                   next_attempt_at = now() + make_interval(secs => :backoff)
-             WHERE id = :id AND state = 'CLAIMED' AND claim_token = :token
-            """
-        ),
-        {
-            "id": intent.id,
-            "token": intent.claim_token,
-            "error": error[:200],
-            "backoff": backoff_for(intent.attempts),
-        },
+    return bool(
+        (
+            await db.execute(
+                text(
+                    "SELECT agent_ops_mark_dispatch_failed(:id, :token, :error, :backoff)"
+                ),
+                {
+                    "id": intent.id,
+                    "token": intent.claim_token,
+                    "error": error[:200],
+                    "backoff": backoff_for(intent.attempts),
+                },
+            )
+        ).scalar_one()
     )
-    return result.rowcount == 1
 
 
 async def dispatch_once(

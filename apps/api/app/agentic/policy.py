@@ -107,6 +107,12 @@ class OwnerPolicy:
     daily_budget_cents: int = 0
     spent_today_cents: int = 0
     quiet_hours: tuple[int, int] | None = None
+    # Quiet hours are an hour-of-day rule, so they are meaningless without the
+    # zone they are hours *of*. Comparing a UTC hour against an owner's
+    # "22:00-07:00" silences the wrong part of their day by however far they are
+    # from UTC. Defaults to UTC only because that is the honest reading of a
+    # policy that never named a zone.
+    timezone_name: str = "UTC"
 
 
 @dataclass(frozen=True)
@@ -228,7 +234,11 @@ def evaluate(
 
     # 9. Quiet hours suppress unattended work, but never turn an approval into
     #    an auto-run — they only ever make the answer more conservative.
-    if policy.quiet_hours and now is not None and _in_quiet_hours(now, policy.quiet_hours):
+    if (
+        policy.quiet_hours
+        and now is not None
+        and _in_quiet_hours(now, policy.quiet_hours, policy.timezone_name)
+    ):
         return PolicyVerdict(
             Decision.REQUIRE_APPROVAL,
             "Inside the owner's quiet hours; unattended work is held.",
@@ -255,13 +265,35 @@ def evaluate(
     )
 
 
-def _in_quiet_hours(now: dt.datetime, window: tuple[int, int]) -> bool:
+def _in_quiet_hours(
+    now: dt.datetime, window: tuple[int, int], timezone_name: str = "UTC"
+) -> bool:
     """Inclusive of the start hour, exclusive of the end, and wrap-aware so a
-    22:00-07:00 window behaves as one night rather than two broken halves."""
+    22:00-07:00 window behaves as one night rather than two broken halves.
+
+    Evaluated in the owner's zone. `now` arrives as an aware UTC instant, and
+    reading `.hour` off it directly would compare a UTC hour against an owner's
+    local window — silencing the wrong hours by exactly their offset, which for
+    a +05:00 owner means a night-time rule quietly applying to their afternoon.
+    """
     start, end = window
-    hour = now.hour
     if start == end:
         return False
+
+    local = now
+    try:
+        from zoneinfo import ZoneInfo
+
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=dt.timezone.utc)
+        local = now.astimezone(ZoneInfo(timezone_name))
+    except Exception:  # noqa: BLE001
+        # An unknown or malformed zone must not become "no quiet hours at all":
+        # failing open would run unattended work during the window the owner
+        # asked to be left alone. Fall back to the instant as given.
+        local = now
+
+    hour = local.hour
     if start < end:
         return start <= hour < end
     return hour >= start or hour < end

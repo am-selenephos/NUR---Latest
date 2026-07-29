@@ -153,6 +153,19 @@ class Settings(BaseSettings):
     omega_consolidation_interval_hours: int = Field(default=24, validation_alias="NUR_OMEGA_CONSOLIDATION_INTERVAL_HOURS")
     omega_max_experiences_per_run: int = Field(default=100, validation_alias="NUR_OMEGA_MAX_EXPERIENCES_PER_RUN")
 
+    # Agency Plane background loops. The dispatcher drains committed outbox
+    # intents onto the queue; recovery reclaims abandoned step leases. Both are
+    # Celery Beat entries rather than manual invocations, and both are safe to
+    # run at any interval because each claim is a fenced conditional UPDATE.
+    agentic_dispatch_enabled: bool = Field(default=True, validation_alias="NUR_AGENTIC_DISPATCH_ENABLED")
+    agentic_dispatch_interval_seconds: int = Field(default=5, validation_alias="NUR_AGENTIC_DISPATCH_INTERVAL_SECONDS")
+    agentic_recovery_interval_seconds: int = Field(default=60, validation_alias="NUR_AGENTIC_RECOVERY_INTERVAL_SECONDS")
+    agentic_dispatch_batch: int = Field(default=20, validation_alias="NUR_AGENTIC_DISPATCH_BATCH")
+    # Hard ceiling on one handler's execution, strictly shorter than the step
+    # lease so a hung handler fails and becomes recoverable rather than holding
+    # a lease that recovery would then reclaim underneath a live worker.
+    agentic_step_timeout_seconds: int = Field(default=120, validation_alias="NUR_AGENTIC_STEP_TIMEOUT_SECONDS")
+
     @field_validator("ai_provider")
     @classmethod
     def _known_provider(cls, value: str) -> str:

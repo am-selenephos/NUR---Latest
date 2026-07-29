@@ -42,13 +42,24 @@ def test_the_loop_unlocks_dependants_and_aggregates_the_workflow():
     assert "aggregate_workflow(" in source
 
 
-def test_the_worker_never_publishes_ready_work_directly():
-    """A READY step cannot be claimed, and publishing work the database has not
-    committed is how a rollback leaves a message nothing will honour. The
-    runtime queues dependants and writes a dispatch intent in the same
-    transaction; transport consumes that."""
-    source = inspect.getsource(agentic_tasks)
-    assert "execute_agentic_step_task.delay(" not in source
+def test_the_execution_path_never_publishes_work_directly():
+    """Publishing work the database has not committed is how a rollback leaves a
+    message nothing will honour.
+
+    The *execution* task must never publish: it queues dependants and writes a
+    dispatch intent in the same transaction. Only the dispatcher publishes, and
+    only from an intent that is already committed — so `.delay(` appearing in
+    `_dispatch` is correct and appearing in `_execute_step` is not. Asserting
+    against the whole module would have to be relaxed the moment a dispatcher
+    existed, which is why the assertion is per-function.
+    """
+    execute_source = inspect.getsource(agentic_tasks._execute_step)
+    assert ".delay(" not in execute_source, "the execution path must not publish"
+
+    dispatch_source = inspect.getsource(agentic_tasks._dispatch)
+    assert "execute_agentic_step_task.delay(" in dispatch_source, (
+        "the dispatcher is the only publisher and must actually publish"
+    )
 
     runtime_source = inspect.getsource(runtime.run_step)
     assert "queue_ready_dependants(" in runtime_source
