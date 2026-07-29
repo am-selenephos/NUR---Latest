@@ -184,7 +184,7 @@ async def test_outbox_roundtrip_with_lease_state(scoped, owner):
     row = AgentDispatchOutbox(
         owner_user_id=owner, workflow_id=workflow.id, step_id=step.id,
         dispatch_key=f"{step.id}:1", state="CLAIMED", attempts=1,
-        claimed_by="worker-a",
+        claimed_by="worker-a", claim_token=uuid4(),
         lease_expires_at=dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=5),
         traceparent="00-" + "a" * 32 + "-" + "b" * 16 + "-01",
     )
@@ -248,8 +248,8 @@ async def test_outbox_state_check_accepts_exactly_three_values(scoped, owner):
     now = dt.datetime.now(dt.timezone.utc)
     shapes = [
         ("RETRYABLE", {}),
-        ("CLAIMED", {"claimed_by": "worker-a", "lease_expires_at": future}),
-        ("SENT", {"sent_at": now}),
+        ("CLAIMED", {"claimed_by": "worker-a", "claim_token": uuid4(), "lease_expires_at": future}),
+        ("SENT", {"claimed_by": "worker-a", "claim_token": uuid4(), "sent_at": now}),
     ]
     for index, (state, extra) in enumerate(shapes):
         columns = ["owner_user_id", "workflow_id", "step_id", "dispatch_key", "state", *extra]
@@ -457,6 +457,14 @@ async def test_outbox_state_shape_invariants(scoped, owner):
                    lease_expires_at=future)
     await rejected("bad-claimed-and-sent", state="CLAIMED", claimed_by="w",
                    lease_expires_at=future, sent_at=now)
+    # A CLAIMED or SENT row with everything else present but no claim_token
+    # would previously have been accepted — the exact gap that let a stale
+    # acknowledgement be fenced only at the application layer, never the
+    # database's.
+    await rejected("bad-claimed-no-token", state="CLAIMED", claimed_by="w",
+                   lease_expires_at=future)
+    await rejected("bad-sent-no-token", state="SENT", claimed_by="w", sent_at=now)
+    await rejected("bad-retryable-with-token", state="RETRYABLE", claim_token=uuid4())
 
     # Valid shapes commit and reload.
     workflow2 = await _workflow(scoped, owner)
@@ -479,18 +487,19 @@ async def test_outbox_state_shape_invariants(scoped, owner):
         text(
             "INSERT INTO agent_dispatch_outbox "
             "(owner_user_id, workflow_id, step_id, dispatch_key, state, claimed_by, "
-            " lease_expires_at) "
-            "VALUES (:o, :w, :s, 'ok-claimed', 'CLAIMED', 'worker-a', :lease)"
+            " claim_token, lease_expires_at) "
+            "VALUES (:o, :w, :s, 'ok-claimed', 'CLAIMED', 'worker-a', :token, :lease)"
         ),
-        {"o": owner, "w": workflow2.id, "s": step2.id, "lease": future},
+        {"o": owner, "w": workflow2.id, "s": step2.id, "token": uuid4(), "lease": future},
     )
     await scoped.execute(
         text(
             "INSERT INTO agent_dispatch_outbox "
-            "(owner_user_id, workflow_id, step_id, dispatch_key, state, sent_at) "
-            "VALUES (:o, :w, :s, 'ok-sent', 'SENT', :sent)"
+            "(owner_user_id, workflow_id, step_id, dispatch_key, state, claimed_by, "
+            " claim_token, sent_at) "
+            "VALUES (:o, :w, :s, 'ok-sent', 'SENT', 'worker-a', :token, :sent)"
         ),
-        {"o": owner, "w": workflow2.id, "s": step2.id, "sent": now},
+        {"o": owner, "w": workflow2.id, "s": step2.id, "token": uuid4(), "sent": now},
     )
     kept = (
         await scoped.execute(
@@ -516,10 +525,11 @@ async def test_every_claimed_row_can_be_found_by_lease_expiry(scoped, owner):
         text(
             "INSERT INTO agent_dispatch_outbox "
             "(owner_user_id, workflow_id, step_id, dispatch_key, state, claimed_by, "
-            " lease_expires_at) "
-            "VALUES (:o, :w, :s, 'expired', 'CLAIMED', 'dead-worker', now() - interval '1 min')"
+            " claim_token, lease_expires_at) "
+            "VALUES (:o, :w, :s, 'expired', 'CLAIMED', 'dead-worker', :token, "
+            "now() - interval '1 min')"
         ),
-        {"o": owner, "w": workflow.id, "s": step.id},
+        {"o": owner, "w": workflow.id, "s": step.id, "token": uuid4()},
     )
     reclaimable = (
         await scoped.execute(

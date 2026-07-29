@@ -237,6 +237,7 @@ async def test_an_expired_lease_is_reclaimed_by_another_dispatcher(session_for, 
         await dead.execute(
             text(
                 "UPDATE agent_dispatch_outbox SET state = 'CLAIMED', claimed_by = 'dead', "
+                "claim_token = gen_random_uuid(), "
                 "lease_expires_at = now() - interval '1 minute' WHERE step_id = :s"
             ),
             {"s": child_id},
