@@ -461,12 +461,13 @@ def test_the_foreign_key_set_is_exactly_as_expected(engine):
         ("agent_checkpoints",
          "(step_id, workflow_id, owner_user_id) REFERENCES agent_steps(id, workflow_id, "
          "owner_user_id) ON DELETE CASCADE"),
+        # Column-specific: null only the step reference, keep ownership intact.
         ("agent_run_events",
          "(step_id, workflow_id, owner_user_id) REFERENCES agent_steps(id, workflow_id, "
-         "owner_user_id) ON DELETE SET NULL"),
+         "owner_user_id) ON DELETE SET NULL (step_id)"),
         ("agent_tool_calls",
          "(step_id, workflow_id, owner_user_id) REFERENCES agent_steps(id, workflow_id, "
-         "owner_user_id) ON DELETE SET NULL"),
+         "owner_user_id) ON DELETE SET NULL (step_id)"),
         # legacy single-column step FKs still present alongside the composites
         ("agent_checkpoints", "(step_id) REFERENCES agent_steps(id) ON DELETE CASCADE"),
         ("agent_dispatch_outbox", "(step_id) REFERENCES agent_steps(id) ON DELETE CASCADE"),

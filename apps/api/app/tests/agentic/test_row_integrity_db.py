@@ -253,3 +253,94 @@ async def test_forged_owner_insert_is_rejected(scoped, owner, client, app_engine
         with pytest.raises(Exception) as caught:
             await db.execute(text(sql), {"forged": owner})
         assert "row-level security" in str(caught.value), str(caught.value)
+
+
+@pytest.mark.asyncio
+async def test_deleting_a_step_preserves_audit_rows(scoped, owner):
+    """A tool call and a run event must survive their step's deletion with only
+    step_id nulled.
+
+    The composite FKs were declared plain ON DELETE SET NULL, which nulls every
+    referencing column — and workflow_id and owner_user_id are NOT NULL.
+
+    It did not fail, and the reason matters: the legacy single-column FK fired
+    first, and once step_id was NULL the composite was vacuously satisfied under
+    MATCH SIMPLE. Correct behaviour by accident of a redundant constraint.
+    `test_composite_step_fks_null_only_the_step_column` asserts the action is
+    now column-specific, which is what keeps this true if the legacy FKs are
+    ever dropped as cleanup.
+    """
+    workflow, step = await _seed(scoped, owner)
+    await scoped.execute(
+        text(
+            "INSERT INTO agent_tool_calls (owner_user_id, workflow_id, step_id, tool_key, "
+            "tool_version, risk_class, argument_digest, outcome) "
+            "VALUES (:o, :w, :s, 't', '1', 'R0_READ_ONLY', 'sha256:a', 'SUCCEEDED')"
+        ),
+        {"o": owner, "w": workflow.id, "s": step.id},
+    )
+    await scoped.execute(
+        text(
+            "INSERT INTO agent_run_events (owner_user_id, workflow_id, step_id, sequence, "
+            "event_type, summary) VALUES (:o, :w, :s, 1, 'E', 's')"
+        ),
+        {"o": owner, "w": workflow.id, "s": step.id},
+    )
+    await scoped.execute(text("DELETE FROM agent_steps WHERE id = :s"), {"s": step.id})
+
+    for table in ("agent_tool_calls", "agent_run_events"):
+        row = (
+            await scoped.execute(
+                text(
+                    f"SELECT step_id, workflow_id, owner_user_id FROM {table} "
+                    f"WHERE workflow_id = :w"
+                ),
+                {"w": workflow.id},
+            )
+        ).one()
+        assert row.step_id is None, f"{table}: step reference not cleared"
+        assert row.workflow_id == workflow.id, f"{table}: workflow reference destroyed"
+        assert row.owner_user_id == owner, f"{table}: owner reference destroyed"
+
+    await scoped.rollback()
+
+
+@pytest.mark.asyncio
+async def test_deleting_a_workflow_still_cascades(scoped, owner):
+    """The audit exemption is for steps only; a deleted workflow still takes its
+    rows with it."""
+    workflow, step = await _seed(scoped, owner)
+    await scoped.execute(
+        text(
+            "INSERT INTO agent_tool_calls (owner_user_id, workflow_id, step_id, tool_key, "
+            "tool_version, risk_class, argument_digest, outcome) "
+            "VALUES (:o, :w, :s, 't', '1', 'R0_READ_ONLY', 'sha256:a', 'SUCCEEDED')"
+        ),
+        {"o": owner, "w": workflow.id, "s": step.id},
+    )
+    await scoped.execute(text("DELETE FROM agent_workflows WHERE id = :w"), {"w": workflow.id})
+    remaining = (
+        await scoped.execute(
+            text("SELECT count(*) FROM agent_tool_calls WHERE workflow_id = :w"),
+            {"w": workflow.id},
+        )
+    ).scalar()
+    assert remaining == 0
+
+
+@pytest.mark.asyncio
+async def test_composite_step_fks_null_only_the_step_column(scoped):
+    """Column-specific action, so audit rows survive even if the legacy
+    single-column FKs are dropped."""
+    rows = (
+        await scoped.execute(
+            text(
+                "SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint "
+                "WHERE conname IN ('fk_agent_tool_call_step_binding', "
+                "'fk_agent_event_step_binding')"
+            )
+        )
+    ).all()
+    assert len(rows) == 2
+    for name, definition in rows:
+        assert "ON DELETE SET NULL (step_id)" in definition, f"{name}: {definition}"

@@ -103,6 +103,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # 0040's upgrade drops this; recreating it here keeps a downgrade/upgrade
+    # cycle lossless. Without it the constraint disappeared silently.
+    op.execute(
+        "ALTER TABLE agent_approvals ADD CONSTRAINT agent_approvals_step_id_fkey "
+        "FOREIGN KEY (step_id) REFERENCES agent_steps (id) ON DELETE CASCADE"
+    )
     for name, table in [
         ("fk_agent_checkpoint_step_binding", "agent_checkpoints"),
         ("fk_agent_event_step_binding", "agent_run_events"),
