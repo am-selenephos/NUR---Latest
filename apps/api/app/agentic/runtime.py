@@ -326,7 +326,11 @@ async def execute_step(
             # unreachable. The edited path existed only in the reading.
             effective_arguments = (
                 dict(approval.edited_arguments)
-                if approval.decision is ApprovalDecision.EDITED and approval.edited_arguments
+                # `is not None`, not truthiness: an edit to {} is an intentional
+                # empty payload, and treating it as "no edit" would silently run
+                # the original arguments the owner replaced.
+                if approval.decision is ApprovalDecision.EDITED
+                and approval.edited_arguments is not None
                 else arguments
             )
 

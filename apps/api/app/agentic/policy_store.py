@@ -24,6 +24,10 @@ from app.agentic.tools import KNOWN_CAPABILITIES
 from app.models.agentic import AgentApproval, AgentPolicy
 
 
+class MultipleActionableApprovals(RuntimeError):
+    """Corruption: one step, several live decisions. Never resolved silently."""
+
+
 async def load_policy(
     db: AsyncSession,
     *,
@@ -127,21 +131,41 @@ def capabilities_for(allowed_tools: frozenset[str]) -> frozenset[str]:
 async def load_step_approval(
     db: AsyncSession, *, owner_user_id: uuid.UUID, step_id: uuid.UUID
 ) -> StoredApproval | None:
-    """The approval bound to this step, if the owner has decided on one."""
-    row = (
+    """The actionable consent for this step, or nothing.
+
+    Only APPROVED and EDITED are consent. A PENDING row is a question the owner
+    has not answered — handing it to the execution gate as if it were an answer
+    is the difference between asking and assuming. REJECTED, EXPIRED and
+    INVALIDATED are history.
+
+    More than one actionable row for a single step is corruption the uniqueness
+    index is meant to prevent. Choosing the newest would quietly execute under
+    whichever decision happened to sort first; this fails closed instead.
+    """
+    rows = (
         await db.execute(
             select(AgentApproval)
             .where(
                 AgentApproval.owner_user_id == owner_user_id,
                 AgentApproval.step_id == step_id,
+                AgentApproval.decision.in_(
+                    [ApprovalDecision.APPROVED.value, ApprovalDecision.EDITED.value]
+                ),
             )
             .order_by(AgentApproval.created_at.desc())
-            .limit(1)
         )
-    ).scalar_one_or_none()
-    if row is None:
+    ).scalars().all()
+
+    if not rows:
         return None
+    if len(rows) > 1:
+        raise MultipleActionableApprovals(
+            f"step {step_id} has {len(rows)} actionable approvals; refusing to choose"
+        )
+
+    row = rows[0]
     return StoredApproval(
+        approval_id=row.id,
         tool_key=row.tool_key,
         tool_version=row.tool_version,
         argument_digest=row.argument_digest,
@@ -150,4 +174,6 @@ async def load_step_approval(
         cost_ceiling_cents=row.cost_ceiling_cents,
         expires_at=row.expires_at,
         edited_arguments=row.edited_arguments,
+        plan_version=row.plan_version,
+        call_version=row.call_version,
     )

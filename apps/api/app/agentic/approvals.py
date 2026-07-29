@@ -141,22 +141,33 @@ def build_request(
     )
 
 
-def apply_edit(stored: StoredApproval, edited: dict) -> StoredApproval:
+def apply_edit(
+    stored: StoredApproval, edited: dict, *, plan_version: int | None = None
+) -> StoredApproval:
     """An owner edit produces a new binding, not a mutation of the old one.
 
     Editing is genuinely approving something different, so the digest is
     recomputed from the edited arguments. The alternative — keeping the original
     digest — would let an edit widen a call without a fresh decision.
     """
+    version = stored.plan_version if plan_version is None else plan_version
+    digest = argument_digest(stored.tool_key, stored.tool_version, edited)
     return StoredApproval(
+        # Identity, expiry and ceiling survive: an edit changes what runs, not
+        # which decision this is or how long it stays valid.
+        approval_id=stored.approval_id,
         tool_key=stored.tool_key,
         tool_version=stored.tool_version,
-        argument_digest=argument_digest(stored.tool_key, stored.tool_version, edited),
+        argument_digest=digest,
         redacted_arguments=redact_arguments(edited),
         decision=ApprovalDecision.EDITED,
         cost_ceiling_cents=stored.cost_ceiling_cents,
         expires_at=stored.expires_at,
         edited_arguments=dict(edited),
+        plan_version=version,
+        call_version=compute_call_version(
+            version, stored.tool_key, stored.tool_version, digest
+        ),
     )
 
 
