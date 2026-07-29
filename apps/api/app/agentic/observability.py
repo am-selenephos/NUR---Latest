@@ -68,10 +68,14 @@ def continue_or_start(traceparent: str | None) -> TraceContext:
 
 
 def worker_id() -> str:
-    """Stable-enough identity for lease ownership.
+    """Stable-enough identity for attributing work to a process.
 
-    Host plus pid: a restarted worker gets a new pid and therefore cannot
-    heartbeat a lease its dead predecessor was holding, which is the behaviour
-    `heartbeat_step` relies on to refuse a reclaimed worker.
+    Host plus pid, so a restarted worker is distinguishable from its dead
+    predecessor in the ledger and in `worker_id` on a claimed step.
+
+    This is an identity, not a fence. Lease ownership is enforced by
+    `execution_attempt`, which is reissued on every claim and every reclaim —
+    a restarted worker could otherwise reuse a recycled pid, and a *same*-pid
+    worker whose lease was reclaimed would still match its own name.
     """
     return f"{os.uname().nodename}:{os.getpid()}"

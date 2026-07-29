@@ -62,8 +62,9 @@ def test_continue_preserves_an_upstream_trace():
     assert continue_or_start(upstream.traceparent()).trace_id == upstream.trace_id
 
 
-def test_worker_id_changes_across_processes():
-    """A restarted worker must not be able to heartbeat its predecessor's lease,
-    which `heartbeat_step` relies on by matching worker_id."""
+def test_worker_id_identifies_the_process():
+    """`worker_id` attributes a claim to a process for the ledger. It is not the
+    fence — `execution_attempt` is, because a pid can be recycled and a worker
+    whose lease was reclaimed still matches its own name."""
     assert ":" in worker_id()
     assert worker_id().endswith(str(__import__("os").getpid()))

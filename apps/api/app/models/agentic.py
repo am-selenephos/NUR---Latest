@@ -178,9 +178,9 @@ class AgentStep(Base):
     idempotency_key: Mapped[str | None] = mapped_column(String(200))
     worker_id: Mapped[str | None] = mapped_column(String(120))
     # Reissued on every claim and every reclaim. Completion, failure and
-    # heartbeat writes match on it, so a worker whose lease was reclaimed
-    # cannot finish the attempt it no longer owns — worker_id alone would
-    # still match its own name.
+    # terminal-transition writes all match on it, so a worker whose lease was
+    # reclaimed cannot finish the attempt it no longer owns — worker_id alone
+    # would still match its own name.
     execution_attempt: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), nullable=False, server_default=text("gen_random_uuid()")
     )
