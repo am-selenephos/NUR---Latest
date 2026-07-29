@@ -390,6 +390,34 @@ async def execute_step(
                     summary=f"{resume.refusal}: {resume.message}",
                     trace_id=trace.trace_id,
                 )
+                # The refusal reasons that mean the decision itself is stale —
+                # not merely insufficient for this attempt (COST_CEILING_EXCEEDED)
+                # or about checkpoint safety (CHECKPOINT_UNREDACTED), both of
+                # which leave a perfectly valid decision that just doesn't cover
+                # this replay. A stale APPROVED/EDITED row left un-invalidated
+                # would sit beside the fresh PENDING card `_ensure_approval_row`
+                # is about to mint, looking like live consent it no longer is.
+                if (
+                    resume.refusal is not None
+                    and resume.refusal.value
+                    in ("PLAN_REVISED", "ARGUMENTS_CHANGED", "EXPIRED",
+                        "TOOL_CHANGED", "VERSION_CHANGED")
+                    and approval.approval_id is not None
+                ):
+                    await db.execute(
+                        text(
+                            "UPDATE agent_approvals SET decision = 'INVALIDATED', "
+                            "invalidated_from = decision, invalidated_at = now(), "
+                            "invalidation_reason = :reason "
+                            "WHERE id = :id AND owner_user_id = :owner "
+                            "AND decision IN ('APPROVED', 'EDITED')"
+                        ),
+                        {
+                            "reason": f"stale: {resume.refusal.value}",
+                            "id": approval.approval_id,
+                            "owner": owner_user_id,
+                        },
+                    )
 
         if not held:
             await _ensure_approval_row(
