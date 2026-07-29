@@ -120,13 +120,15 @@ async def test_plan_revision_invalidates_the_stale_approval_and_mints_one_fresh_
             text(
                 "SELECT id, decision, invalidated_from, invalidated_at, invalidation_reason, "
                 "plan_version, call_version, argument_digest FROM agent_approvals "
-                "WHERE step_id = :s ORDER BY id"
+                "WHERE step_id = :s ORDER BY created_at"
             ),
             {"s": step.id},
         )
     ).mappings().all()
     assert len(rows) == 2, rows
 
+    # By creation order, not by id: UUIDs are random and do not sort by when
+    # the row was written.
     stale, fresh = rows[0], rows[1]
     assert stale["id"] == original["id"]
     assert stale["decision"] == "INVALIDATED"

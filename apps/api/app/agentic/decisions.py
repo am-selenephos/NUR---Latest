@@ -16,6 +16,7 @@ re-plan must be told rather than silently obeyed.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import uuid
 from dataclasses import dataclass
@@ -23,8 +24,10 @@ from dataclasses import dataclass
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agentic import registry
 from app.agentic.aggregate import aggregate_workflow
 from app.agentic.approvals import compute_call_version
+from app.agentic.input_schemas import validate_arguments
 from app.agentic.orchestrator import argument_digest, record_event
 from app.agentic.redaction import redact_arguments
 
@@ -117,6 +120,59 @@ def _check_binding(approval, workflow, *, seen_digest, seen_plan_version, seen_c
         # is still not the same decision.
         raise DecisionRefused(
             "the workflow was re-planned; this approval no longer applies", 409
+        )
+
+
+def _validate_before_queue(approval, step, workflow) -> None:
+    """Everything APPROVE and EDIT must both be true before anything queues.
+
+    Digest/plan_version/call_version equality against what the client saw is
+    `_check_binding`'s job; this is the independent check against what is
+    *currently* true regardless of what the client believes — expiry, the
+    step's own tool identity, whatever the registry serves right now, whether
+    a handler even exists to run it, the cost ceiling, and a call_version
+    recomputed fresh rather than trusted from the stored row.
+    """
+    now = dt.datetime.now(dt.timezone.utc)
+    if approval["expires_at"] is not None and now >= approval["expires_at"]:
+        raise DecisionRefused("the approval expired; ask again rather than assuming consent persists", 409)
+
+    if step["tool_key"] != approval["tool_key"] or step["tool_version"] != approval["tool_version"]:
+        raise DecisionRefused(
+            "the step's tool no longer matches what this approval was written for", 409
+        )
+
+    try:
+        current_contract = registry.contract(approval["tool_key"])
+    except LookupError as exc:
+        raise DecisionRefused(f"{approval['tool_key']} is no longer a known tool", 409) from exc
+
+    if current_contract.version != approval["tool_version"]:
+        raise DecisionRefused(
+            f"the registry now serves {approval['tool_key']} v{current_contract.version}, "
+            f"not v{approval['tool_version']} this approval was written for", 409,
+        )
+
+    if not registry.is_bound(approval["tool_key"]):
+        raise DecisionRefused(f"{approval['tool_key']} has no bound handler", 409)
+
+    if (
+        approval["cost_ceiling_cents"]
+        and current_contract.estimated_cost_cents > approval["cost_ceiling_cents"]
+    ):
+        raise DecisionRefused(
+            f"{current_contract.estimated_cost_cents}c exceeds the approved ceiling of "
+            f"{approval['cost_ceiling_cents']}c", 409,
+        )
+
+    expected_call_version = compute_call_version(
+        int(workflow["plan_version"]), approval["tool_key"], approval["tool_version"],
+        approval["argument_digest"],
+    )
+    if expected_call_version != approval["call_version"]:
+        raise DecisionRefused(
+            "this approval's call_version no longer matches its own recorded plan_version, "
+            "tool and digest; it cannot be trusted", 409,
         )
 
 
@@ -217,14 +273,27 @@ async def decide(
         new_state = "CANCELLED"
 
     elif verdict in ("APPROVE", "EDIT"):
+        # Independent of what the client saw: expiry, the step's own tool
+        # identity, whatever the registry currently serves, whether a handler
+        # is even bound, the cost ceiling, and a freshly recomputed
+        # call_version. All of this runs before anything mutates.
+        _validate_before_queue(approval, step, workflow)
+
+        if verdict == "EDIT":
+            if edited_arguments is None:
+                raise DecisionRefused("an edit must supply edited_arguments", 422)
+            schema_problems = validate_arguments(approval["tool_key"], edited_arguments)
+            if schema_problems:
+                raise DecisionRefused(
+                    "invalid edited_arguments: " + "; ".join(schema_problems), 422
+                )
+
         # Invalidate first. Promoting before clearing an older actionable row
         # trips uq_agent_approval_one_actionable and aborts the transaction
         # before the invalidation can run.
         await _invalidate_other_actionable(db, owner_user_id, step["id"], approval_id)
 
         if verdict == "EDIT":
-            if edited_arguments is None:
-                raise DecisionRefused("an edit must supply edited_arguments", 422)
             digest = argument_digest(
                 approval["tool_key"], approval["tool_version"], edited_arguments
             )
