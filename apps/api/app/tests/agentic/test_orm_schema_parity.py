@@ -47,8 +47,11 @@ def _run(coro):
 @pytest.fixture(scope="module")
 def engine():
     url = _url()
-    if not url:
-        pytest.skip("no database configured; set ALEMBIC_DATABASE_URL for parity proof")
+    # A missing or unreachable database is a hard failure, not a skip. A skipped
+    # integration test reads as a pass in CI and proves nothing; the database is
+    # an autouse requirement of this suite, so its absence is a broken
+    # environment rather than an unsupported configuration.
+    assert url, "no database configured: set ALEMBIC_DATABASE_URL or DATABASE_URL"
 
     async def probe():
         eng = create_async_engine(url)
@@ -56,10 +59,10 @@ def engine():
             await conn.execute(text("SELECT 1"))
         return eng
 
-    try:
-        return _run(probe())
-    except Exception as exc:  # pragma: no cover - environment dependent
-        pytest.skip(f"database unreachable: {exc}")
+    eng = _run(probe())
+    yield eng
+    _run(eng.dispose())
+    _LOOP.close()
 
 
 def _columns(engine, table: str) -> dict[str, dict]:
@@ -217,6 +220,20 @@ def test_index_definitions_match_their_intent(engine):
             "table": "agent_run_events", "unique": True,
             "columns": ["workflow_id", "sequence"], "predicate": None,
         },
+        # Retry and reclaim are different queries over different columns; one
+        # shared index would make reclaim a filter over the wrong column.
+        "ix_agent_dispatch_retryable": {
+            "table": "agent_dispatch_outbox", "unique": False,
+            "columns": ["next_attempt_at"], "predicate": "state = 'RETRYABLE'",
+        },
+        "ix_agent_dispatch_claimed_lease": {
+            "table": "agent_dispatch_outbox", "unique": False,
+            "columns": ["lease_expires_at"], "predicate": "state = 'CLAIMED'",
+        },
+        "ix_agent_approval_call_version": {
+            "table": "agent_approvals", "unique": False,
+            "columns": ["step_id", "call_version"], "predicate": None,
+        },
     }
     rows = _fetch(
         engine,
@@ -233,8 +250,11 @@ def test_index_definitions_match_their_intent(engine):
         table, definition = found[name]
         if table != want["table"]:
             problems.append(f"{name}: on {table}, expected {want['table']}")
-        if want["unique"] and "CREATE UNIQUE INDEX" not in definition:
-            problems.append(f"{name}: not UNIQUE — {definition}")
+        is_unique = "CREATE UNIQUE INDEX" in definition
+        if is_unique != want["unique"]:
+            problems.append(
+                f"{name}: unique={is_unique}, expected unique={want['unique']}"
+            )
         # Columns must appear in order inside the parenthesised list.
         head = definition.split("USING btree (", 1)[-1].split(")", 1)[0]
         actual_cols = [c.strip() for c in head.split(",")]
@@ -290,25 +310,6 @@ def test_foreign_keys_and_primary_keys_exist(engine):
         assert by_table.get(table, {}).get("f"), f"{table}: no foreign key to users/workflow"
 
 
-def _unused_required_indexes(engine):
-    expected = {
-        "uq_agent_steps_idempotency",
-        "uq_agent_approval_one_pending",
-        "uq_agent_dispatch_key",
-        "uq_agent_policy_account",
-        "uq_agent_policy_orbit",
-        "uq_agent_policy_project",
-        "ix_agent_run_events_workflow_seq",
-    }
-    present = {
-        row[0]
-        for row in _fetch(
-            engine,
-            "SELECT indexname FROM pg_indexes WHERE indexname = ANY(:names)",
-            {"names": sorted(expected)},
-        )
-    }
-    assert expected <= present, f"missing indexes: {sorted(expected - present)}"
 
 
 def test_append_only_ledger_has_no_update_or_delete_grant(engine):
