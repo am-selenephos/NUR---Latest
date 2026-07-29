@@ -45,41 +45,55 @@ class DecisionResult:
     outbox_intent_id: uuid.UUID | None
 
 
+# The one lock order every approval path uses: workflow, then step, then the
+# step's approvals ordered by id. `_ensure_approval_row` acquires the same
+# sequence. Two different orders across two paths is a deadlock waiting for
+# concurrency, and a docstring claiming consistency does not create it.
 async def _locked_context(db: AsyncSession, owner_user_id: uuid.UUID, approval_id: uuid.UUID):
-    """Lock approval, step and workflow together, in that order everywhere.
-
-    A consistent lock order is what keeps two owners deciding concurrently from
-    deadlocking each other.
-    """
-    approval = (
+    """Resolve ids without locking, then acquire locks in canonical order."""
+    ids = (
         await db.execute(
             text(
-                "SELECT * FROM agent_approvals "
-                "WHERE id = :id AND owner_user_id = :o FOR UPDATE"
+                "SELECT workflow_id, step_id FROM agent_approvals "
+                "WHERE id = :id AND owner_user_id = :o"
             ),
             {"id": approval_id, "o": owner_user_id},
         )
     ).mappings().first()
-    if approval is None:
+    if ids is None:
         # 404 rather than 403: confirming a row exists but belongs to someone
         # else is itself a disclosure.
         raise DecisionRefused("approval not found", 404)
 
-    step = (
-        await db.execute(
-            text("SELECT * FROM agent_steps WHERE id = :s AND owner_user_id = :o FOR UPDATE"),
-            {"s": approval["step_id"], "o": owner_user_id},
-        )
-    ).mappings().first()
     workflow = (
         await db.execute(
             text(
                 "SELECT * FROM agent_workflows WHERE id = :w AND owner_user_id = :o FOR UPDATE"
             ),
-            {"w": approval["workflow_id"], "o": owner_user_id},
+            {"w": ids["workflow_id"], "o": owner_user_id},
         )
     ).mappings().first()
-    if step is None or workflow is None:
+    step = (
+        await db.execute(
+            text("SELECT * FROM agent_steps WHERE id = :s AND owner_user_id = :o FOR UPDATE"),
+            {"s": ids["step_id"], "o": owner_user_id},
+        )
+    ).mappings().first()
+    # Every approval for this step, ordered by id — so a concurrent creation and
+    # a concurrent decision contend in the same sequence.
+    approvals = (
+        await db.execute(
+            text(
+                "SELECT * FROM agent_approvals WHERE step_id = :s AND owner_user_id = :o "
+                "ORDER BY id FOR UPDATE"
+            ),
+            {"s": ids["step_id"], "o": owner_user_id},
+        )
+    ).mappings().all()
+
+    # Reloaded after locking: values read before the lock may be stale.
+    approval = next((row for row in approvals if row["id"] == approval_id), None)
+    if step is None or workflow is None or approval is None:
         raise DecisionRefused("approval is not bound to a live step and workflow", 409)
     return approval, step, workflow
 
@@ -202,6 +216,11 @@ async def decide(
         new_state = "CANCELLED"
 
     elif verdict in ("APPROVE", "EDIT"):
+        # Invalidate first. Promoting before clearing an older actionable row
+        # trips uq_agent_approval_one_actionable and aborts the transaction
+        # before the invalidation can run.
+        await _invalidate_other_actionable(db, owner_user_id, step["id"], approval_id)
+
         if verdict == "EDIT":
             if edited_arguments is None:
                 raise DecisionRefused("an edit must supply edited_arguments", 422)
@@ -239,7 +258,6 @@ async def decide(
             )
             event = "APPROVAL_APPROVED"
 
-        await _invalidate_other_actionable(db, owner_user_id, step["id"], approval_id)
         intent_id = await _queue_step_with_intent(
             db,
             owner_user_id=owner_user_id,
@@ -256,13 +274,26 @@ async def decide(
     else:
         raise DecisionRefused("decision must be APPROVE, EDIT or REJECT", 422)
 
+    # One aggregate, shared with the runtime. A rejected workflow with nothing
+    # runnable left must not read RUNNING forever — CANCELLED is the truthful
+    # terminal, and BLOCKED descendants beneath a cancelled parent can never
+    # become runnable because unlock_dependants only promotes on SUCCEEDED.
     workflow_state = (
         await db.execute(
             text(
-                "SELECT CASE WHEN count(*) FILTER (WHERE state = 'FAILED') > 0 THEN 'FAILED' "
-                "WHEN count(*) FILTER (WHERE state = 'WAITING_APPROVAL') > 0 "
-                "THEN 'WAITING_APPROVAL' ELSE 'RUNNING' END "
-                "FROM agent_steps WHERE workflow_id = :w"
+                """
+                SELECT CASE
+                  WHEN count(*) FILTER (WHERE state = 'FAILED') > 0 THEN 'FAILED'
+                  WHEN count(*) FILTER (WHERE state = 'WAITING_APPROVAL') > 0
+                       THEN 'WAITING_APPROVAL'
+                  WHEN count(*) FILTER (WHERE state = 'SUCCEEDED') = count(*) THEN 'SUCCEEDED'
+                  WHEN count(*) FILTER (
+                         WHERE state IN ('QUEUED', 'READY', 'RUNNING', 'VERIFYING')
+                       ) = 0
+                       AND count(*) FILTER (WHERE state = 'CANCELLED') > 0 THEN 'CANCELLED'
+                  ELSE 'RUNNING' END
+                FROM agent_steps WHERE workflow_id = :w
+                """
             ),
             {"w": workflow["id"]},
         )

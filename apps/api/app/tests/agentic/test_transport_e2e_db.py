@@ -281,3 +281,73 @@ async def test_a_sent_row_is_not_republished(session_for, owner):
             second, dispatcher_id="d1", publish=lambda *a: None
         )
         assert again["claimed"] == 0, "SENT rows must not be picked up again"
+
+
+@pytest.mark.asyncio
+async def test_a_stale_dispatcher_cannot_acknowledge_reclaimed_work(session_for, owner):
+    """claimed_by is an identity, not a token. Without a per-claim token, a
+    dispatcher that stalls and wakes after its lease was reclaimed would be
+    accepted on a name match alone."""
+    async with session_for() as db:
+        workflow, parent, child = await _seed_two_steps(db, owner)
+        await run_step(db, owner_user_id=owner, step_id=parent.id, trace=new_trace(), worker="w1")
+        await db.commit()
+        child_id = child.id
+
+    # d1 claims and holds token A.
+    async with session_for() as first:
+        d1_intents = await dispatcher.claim_intents(first, dispatcher_id="d1")
+        await first.commit()
+    assert len(d1_intents) == 1
+    stale = d1_intents[0]
+
+    # The lease expires and d2 reclaims, which reissues the token.
+    async with session_for() as expire:
+        await expire.execute(
+            text(
+                "UPDATE agent_dispatch_outbox SET lease_expires_at = now() - interval '1 min' "
+                "WHERE step_id = :s"
+            ),
+            {"s": child_id},
+        )
+        await expire.commit()
+
+    async with session_for() as second:
+        d2_intents = await dispatcher.claim_intents(second, dispatcher_id="d2")
+        await second.commit()
+    assert len(d2_intents) == 1
+    fresh = d2_intents[0]
+    assert fresh.claim_token != stale.claim_token
+
+    # d1 can neither acknowledge nor fail the work it no longer owns.
+    async with session_for() as ghost:
+        assert await dispatcher.mark_sent(ghost, stale) is False
+        assert await dispatcher.mark_failed(ghost, stale, "stale") is False
+        await ghost.commit()
+
+    async with session_for() as check:
+        row = (
+            await check.execute(
+                text(
+                    "SELECT state, claimed_by, claim_token FROM agent_dispatch_outbox "
+                    "WHERE step_id = :s"
+                ),
+                {"s": child_id},
+            )
+        ).mappings().one()
+        assert row["state"] == "CLAIMED", "a stale ack must change nothing"
+        assert row["claimed_by"] == "d2"
+        assert row["claim_token"] == fresh.claim_token
+
+    # Only d2 can acknowledge.
+    async with session_for() as owner_session:
+        assert await dispatcher.mark_sent(owner_session, fresh) is True
+        await owner_session.commit()
+
+    async with session_for() as final:
+        assert (
+            await final.execute(
+                text("SELECT state FROM agent_dispatch_outbox WHERE step_id = :s"),
+                {"s": child_id},
+            )
+        ).scalar_one() == "SENT"

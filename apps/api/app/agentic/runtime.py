@@ -89,6 +89,7 @@ async def _record_tool_call(
     denial_reason: str | None,
     duration_ms: int,
     trace_id: str,
+    approval_id: uuid.UUID | None = None,
 ) -> None:
     """Every invocation is recorded, including the ones that were refused.
 
@@ -102,10 +103,10 @@ async def _record_tool_call(
             INSERT INTO agent_tool_calls (
                 owner_user_id, workflow_id, step_id, tool_key, tool_version,
                 risk_class, argument_digest, redacted_arguments, outcome,
-                denial_reason, duration_ms, trace_id
+                denial_reason, duration_ms, trace_id, approval_id
             ) VALUES (
                 :owner, :workflow, :step, :tool, :version, :risk, :digest,
-                CAST(:args AS jsonb), :outcome, :denial, :duration, :trace
+                CAST(:args AS jsonb), :outcome, :denial, :duration, :trace, :approval
             )
             """
         ),
@@ -122,6 +123,10 @@ async def _record_tool_call(
             "denial": denial_reason,
             "duration": duration_ms,
             "trace": trace_id,
+            # NULL for auto-run work; the authorising row for approved or edited
+            # execution, so a durable effect can always be traced to the consent
+            # that permitted it.
+            "approval": approval_id,
         },
     )
 
@@ -295,6 +300,7 @@ async def execute_step(
             risk_class=contract.risk_class.value, arguments=arguments,
             outcome="DENIED", denial_reason=verdict.reason[:120], duration_ms=0,
             trace_id=trace.trace_id,
+            approval_id=approval.approval_id if approval else None,
         )
         await record_event(
             db, owner_user_id=owner_user_id, workflow_id=workflow_id, step_id=step_id,
@@ -406,6 +412,7 @@ async def execute_step(
             risk_class=contract.risk_class.value, arguments=arguments,
             outcome="FAILED", denial_reason=type(error).__name__, duration_ms=duration_ms,
             trace_id=trace.trace_id,
+            approval_id=approval.approval_id if approval else None,
         )
         await record_event(
             db, owner_user_id=owner_user_id, workflow_id=workflow_id, step_id=step_id,
@@ -430,6 +437,7 @@ async def execute_step(
         risk_class=contract.risk_class.value, arguments=arguments,
         outcome="SUCCEEDED", denial_reason=None, duration_ms=duration_ms,
         trace_id=trace.trace_id,
+        approval_id=approval.approval_id if approval else None,
     )
     await record_event(
         db, owner_user_id=owner_user_id, workflow_id=workflow_id, step_id=step_id,

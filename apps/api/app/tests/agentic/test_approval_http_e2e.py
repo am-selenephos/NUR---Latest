@@ -299,3 +299,113 @@ async def test_missing_binding_fields_are_rejected(client, session_for, owner):
     assert response.status_code == 422, response.text
     missing = {e["loc"][-1] for e in response.json()["detail"]}
     assert {"seen_plan_version", "seen_call_version"} <= missing
+
+
+@pytest.mark.asyncio
+async def test_reject_marks_the_workflow_cancelled(client, session_for, owner):
+    """A rejected workflow with nothing runnable left must not read RUNNING."""
+    async with session_for() as db:
+        workflow, step, approval = await _waiting_step_with_approval(db, owner)
+        workflow_id, step_id, approval_id = workflow.id, step.id, approval.id
+
+    response = await client.post(
+        f"/api/v1/agentic/approvals/{approval_id}/decide",
+        json=_body(approval, "REJECT"),
+        headers=_csrf(client),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["step_state"] == "CANCELLED"
+    assert response.json()["workflow_state"] == "CANCELLED"
+
+    async with session_for() as check:
+        assert (
+            await check.execute(
+                text("SELECT state FROM agent_workflows WHERE id = :w"), {"w": workflow_id}
+            )
+        ).scalar_one() == "CANCELLED"
+        assert (
+            await check.execute(
+                text("SELECT count(*) FROM agent_dispatch_outbox WHERE step_id = :s"),
+                {"s": step_id},
+            )
+        ).scalar() == 0
+
+
+@pytest.mark.asyncio
+async def test_a_stale_actionable_row_is_replaced_without_a_unique_violation(
+    client, session_for, owner
+):
+    """Promotion before invalidation trips uq_agent_approval_one_actionable and
+    aborts the transaction before the invalidation can run."""
+    async with session_for() as db:
+        workflow, step, approval = await _waiting_step_with_approval(db, owner)
+        step_id, approval_id = step.id, approval.id
+        # An older APPROVED row for the same step, as a prior decision would leave.
+        await db.execute(
+            text(
+                "INSERT INTO agent_approvals (owner_user_id, workflow_id, step_id, tool_key, "
+                "tool_version, argument_digest, rationale, risk_class, decision, "
+                "plan_version, call_version) "
+                "VALUES (:o, :w, :s, :t, '1', :d, 'older', 'R0_READ_ONLY', 'APPROVED', 1, :cv)"
+            ),
+            {
+                "o": owner, "w": workflow.id, "s": step.id, "t": TOOL,
+                "d": "sha256:" + "9" * 64, "cv": "cv:" + "9" * 64,
+            },
+        )
+        await db.commit()
+
+    response = await client.post(
+        f"/api/v1/agentic/approvals/{approval_id}/decide",
+        json=_body(approval, "APPROVE"),
+        headers=_csrf(client),
+    )
+    assert response.status_code == 200, response.text
+
+    async with session_for() as check:
+        rows = (
+            await check.execute(
+                text(
+                    "SELECT id, decision FROM agent_approvals WHERE step_id = :s ORDER BY decision"
+                ),
+                {"s": step_id},
+            )
+        ).mappings().all()
+        actionable = [r for r in rows if r["decision"] in ("APPROVED", "EDITED")]
+        assert len(actionable) == 1, rows
+        assert actionable[0]["id"] == approval_id
+        assert any(r["decision"] == "INVALIDATED" for r in rows), "history must survive"
+        assert (
+            await check.execute(
+                text("SELECT count(*) FROM agent_dispatch_outbox WHERE step_id = :s"),
+                {"s": step_id},
+            )
+        ).scalar() == 1
+
+
+@pytest.mark.asyncio
+async def test_the_tool_call_records_its_authorising_approval(client, session_for, owner):
+    """A durable effect must be traceable to the consent that permitted it."""
+    async with session_for() as db:
+        workflow, step, approval = await _waiting_step_with_approval(db, owner)
+        workflow_id, step_id, approval_id = workflow.id, step.id, approval.id
+
+    await client.post(
+        f"/api/v1/agentic/approvals/{approval_id}/decide",
+        json=_body(approval, "APPROVE"),
+        headers=_csrf(client),
+    )
+    await agentic_tasks._execute_step(str(step_id), str(owner), str(workflow_id), None)
+
+    async with session_for() as check:
+        row = (
+            await check.execute(
+                text(
+                    "SELECT approval_id, argument_digest FROM agent_tool_calls "
+                    "WHERE step_id = :s AND outcome = 'SUCCEEDED'"
+                ),
+                {"s": step_id},
+            )
+        ).mappings().one()
+        assert row["approval_id"] == approval_id
+        assert row["argument_digest"] == argument_digest(TOOL, "1", ARGS)

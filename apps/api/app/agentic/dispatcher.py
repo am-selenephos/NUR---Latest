@@ -47,6 +47,7 @@ class DispatchIntent:
     dispatch_key: str
     attempts: int
     traceparent: str | None
+    claim_token: uuid.UUID
 
 
 async def claim_intents(
@@ -74,11 +75,12 @@ async def claim_intents(
                 UPDATE agent_dispatch_outbox o
                    SET state = 'CLAIMED',
                        claimed_by = :dispatcher,
+                       claim_token = gen_random_uuid(),
                        lease_expires_at = now() + make_interval(secs => :lease)
                   FROM due
                  WHERE o.id = due.id
              RETURNING o.id, o.owner_user_id, o.workflow_id, o.step_id,
-                       o.dispatch_key, o.attempts, o.traceparent
+                       o.dispatch_key, o.attempts, o.traceparent, o.claim_token
                 """
             ),
             {"dispatcher": dispatcher_id, "lease": LEASE_SECONDS, "limit": limit},
@@ -87,38 +89,52 @@ async def claim_intents(
     return [DispatchIntent(**row) for row in rows]
 
 
-async def mark_sent(db: AsyncSession, intent_id: uuid.UUID) -> None:
-    """Record acceptance. claimed_by and lease are preserved so the row still
-    says which dispatcher published it."""
-    await db.execute(
-        text(
-            "UPDATE agent_dispatch_outbox SET state = 'SENT', sent_at = now() WHERE id = :id"
-        ),
-        {"id": intent_id},
-    )
+async def mark_sent(db: AsyncSession, intent: DispatchIntent) -> bool:
+    """Record acceptance, fenced by the claim token.
 
-
-async def mark_failed(db: AsyncSession, intent: DispatchIntent, error: str) -> None:
-    """Return the row to RETRYABLE with backoff.
-
-    The CHECK forbids RETRYABLE carrying claim metadata, so the lease is cleared
-    here — which is also correct: the dispatcher no longer holds it.
+    `claimed_by` is an identity, not a token. A dispatcher that stalls, has its
+    lease reclaimed by another, then wakes and writes SENT would be accepted on
+    a name match alone. The token is reissued on every claim, so a stale
+    acknowledgement updates zero rows and the caller can tell.
     """
-    await db.execute(
+    result = await db.execute(
+        text(
+            "UPDATE agent_dispatch_outbox SET state = 'SENT', sent_at = now() "
+            "WHERE id = :id AND state = 'CLAIMED' AND claim_token = :token"
+        ),
+        {"id": intent.id, "token": intent.claim_token},
+    )
+    return result.rowcount == 1
+
+
+async def mark_failed(db: AsyncSession, intent: DispatchIntent, error: str) -> bool:
+    """Return the row to RETRYABLE with backoff, fenced by the claim token.
+
+    The CHECK forbids RETRYABLE carrying claim metadata, so the lease and token
+    are cleared here — which is also correct: the dispatcher no longer holds it.
+    """
+    result = await db.execute(
         text(
             """
             UPDATE agent_dispatch_outbox
                SET state = 'RETRYABLE',
                    claimed_by = NULL,
+                   claim_token = NULL,
                    lease_expires_at = NULL,
                    attempts = attempts + 1,
                    last_error = :error,
                    next_attempt_at = now() + make_interval(secs => :backoff)
-             WHERE id = :id
+             WHERE id = :id AND state = 'CLAIMED' AND claim_token = :token
             """
         ),
-        {"id": intent.id, "error": error[:200], "backoff": backoff_for(intent.attempts)},
+        {
+            "id": intent.id,
+            "token": intent.claim_token,
+            "error": error[:200],
+            "backoff": backoff_for(intent.attempts),
+        },
     )
+    return result.rowcount == 1
 
 
 async def dispatch_once(
@@ -140,7 +156,7 @@ async def dispatch_once(
     # row a second dispatcher grabs while the first is still in flight.
     await db.commit()
 
-    sent, failed = [], []
+    sent, failed, fenced = [], [], []
     for intent in intents:
         try:
             publish(
@@ -150,10 +166,16 @@ async def dispatch_once(
                 intent.traceparent,
             )
         except Exception as error:  # noqa: BLE001 - recorded and retried
-            await mark_failed(db, intent, f"{type(error).__name__}: {error}")
-            failed.append(str(intent.id))
+            if await mark_failed(db, intent, f"{type(error).__name__}: {error}"):
+                failed.append(str(intent.id))
+            else:
+                fenced.append(str(intent.id))
         else:
-            await mark_sent(db, intent.id)
-            sent.append(str(intent.id))
+            if await mark_sent(db, intent):
+                sent.append(str(intent.id))
+            else:
+                # Our lease was reclaimed while we were publishing. The message
+                # may still arrive; the step claim makes that harmless.
+                fenced.append(str(intent.id))
     await db.commit()
-    return {"claimed": len(intents), "sent": sent, "failed": failed}
+    return {"claimed": len(intents), "sent": sent, "failed": failed, "fenced": fenced}
