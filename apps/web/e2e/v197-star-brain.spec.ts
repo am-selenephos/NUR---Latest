@@ -155,7 +155,7 @@ test("Entry replaces the center MasterStar with the exact interactive V43 brain"
   await expect(brain).toHaveAttribute("data-nur-dispersal", "radial-circle");
   await expect(brain).toHaveAttribute("title", /drag to spin the mind.+double-click: neural storm.+scroll to zoom/);
   await expect(entry.locator("#nur-v43-exact-star-brain-runtime"))
-    .toHaveAttribute("data-nur-runtime-hash", "8e249a704734e0d60bedff389883e90460338d14ac806c00ca6e5019b5834192");
+    .toHaveAttribute("data-nur-runtime-hash", "680f15dada3042052d34512e3ce0cf3641ef4326576cb2811a479ae6cdeaacbe");
   await expect(brain.locator("#nur-brain-canvas")).toBeVisible();
 
   const expectedPoints = testInfo.project.name.includes("mobile") ? "1355" : "2086";
@@ -355,7 +355,7 @@ test("Systems map mounts only the exact brain and keeps the NUR lockup on one ax
   await expect(brain).toHaveAttribute("data-nur-dispersal", "radial-circle");
   await expect(brain.locator("#nur-brain-canvas")).toBeVisible();
   await expect(universe.locator("#nur-v43-exact-star-brain-runtime"))
-    .toHaveAttribute("data-nur-runtime-hash", "8e249a704734e0d60bedff389883e90460338d14ac806c00ca6e5019b5834192");
+    .toHaveAttribute("data-nur-runtime-hash", "680f15dada3042052d34512e3ce0cf3641ef4326576cb2811a479ae6cdeaacbe");
 
   const expectedPoints = testInfo.project.name.includes("mobile") ? "1355" : "2086";
   const expectedStemPoints = testInfo.project.name.includes("mobile") ? "97" : "147";
@@ -495,8 +495,14 @@ test("Systems map mounts only the exact brain and keeps the NUR lockup on one ax
   }
   expect(mapContract.mantraRelocated).toBe(true);
   expect(mapContract.mantraMapOverlap).toBe(0);
-  expect(mapContract.selectedBackground).toContain("33, 232, 255");
-  expect(mapContract.selectedBackground).toContain("255, 58, 158");
+  // Stellar Gold #FFD35A and Coral Flame #FF526F, both canonical in the SOL 5.6
+  // palette. This asserted cyan #21E8FF and Radiant Rose #FF3A9E until 06a40fb
+  // ("restore black holographic galaxy runtime") deliberately moved the selected
+  // nav pill from a cool gradient to a warm one; cyan and rose remain in the
+  // palette, just not in this rule. Pinned to colours the canonical palette
+  // actually names rather than to whatever the stylesheet currently emits.
+  expect(mapContract.selectedBackground).toContain("255, 211, 90");
+  expect(mapContract.selectedBackground).toContain("255, 82, 111");
   await page.screenshot({ path: testInfo.outputPath("systems-final.png") });
 
   await brain.locator("#nur-brain-canvas").click();
