@@ -1,5 +1,6 @@
 import { V197ApiClient, type V197BridgeSnapshot, type V197Session } from "./v197ApiClient";
 import { renderV197Adjunct } from "./v197Adjuncts";
+import { renderV197Orbit } from "./v197Orbit";
 import { bindV197Actions, bindV197EntryAuth } from "./v197Bindings";
 import { emitBridgeEvent, routeForPage, routeForWorldFocus, V197_EVENTS, type V197NativeRoute } from "./v197Events";
 import { hydrateTrackAV197, renderWorldLens } from "./v197Hydration";
@@ -198,6 +199,10 @@ export class V197Bridge {
         async () => this.refreshSnapshot(),
       );
       if (adjunctRendered) return;
+      // Orbit is a bridge-native surface like the other adjuncts: plain DOM and
+      // SVG in the canonical document, never a React tree owning a product page.
+      const orbitRendered = await renderV197Orbit(this.universeDocument, route, this.api);
+      if (orbitRendered) return;
       const page = pageByRoute[canonicalRoute];
       if (page) this.click(V197_SELECTORS.pageNav(page));
       const world = worldByRoute[canonicalRoute];
