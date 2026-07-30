@@ -325,6 +325,64 @@ test("the five detail tabs render, and NUR View always states its doubt", async 
   expect(doubt.body.length).toBeGreaterThan(30);
 });
 
+test("labels stay legible: only the frame and the selection are named", async () => {
+  const frame = await openMap(sharedPage);
+  await frame.click('[data-map-mode="universe"]');
+  const unselected = await frame.evaluate(() => {
+    const labelled = Array.from(document.querySelectorAll(".nur-map-node"))
+      .filter((node) => node.querySelector(".nur-map-node-label"));
+    return {
+      total: document.querySelectorAll(".nur-map-node").length,
+      labelled: labelled.length,
+      kinds: Array.from(new Set(labelled.map(
+        (node) => (node as SVGElement).dataset.mapKind ?? "?",
+      ))).sort(),
+      // Every node still carries its name for hover and assistive tech.
+      allHaveTitles: Array.from(document.querySelectorAll(".nur-map-node"))
+        .every((node) => Boolean(node.querySelector("title"))),
+    };
+  });
+  // Labelling every node produced dozens of overlapping strings in the outer
+  // ring and the canvas stopped being readable at all.
+  expect(unselected.kinds).toEqual(["MASTER_STAR", "SYSTEM"]);
+  expect(unselected.labelled).toBeLessThan(unselected.total);
+  expect(unselected.allHaveTitles).toBe(true);
+
+  // Selecting brings the neighbourhood's names back — but under a hard cap.
+  // Selecting the anchor puts almost the whole graph in focus, which is how the
+  // overlap came back after the first fix, so the budget is what actually holds.
+  await frame.click('[data-map-node="nur"]');
+  const selected = await frame.evaluate(
+    () => Array.from(document.querySelectorAll(".nur-map-node"))
+      .filter((node) => node.querySelector(".nur-map-node-label")).length,
+  );
+  expect(selected).toBeGreaterThanOrEqual(unselected.labelled);
+  expect(selected).toBeLessThanOrEqual(unselected.labelled + 14);
+});
+
+test("the anchor opens Current Position, not an empty object panel", async () => {
+  const frame = await openMap(sharedPage);
+  await frame.click('[data-map-mode="universe"]');
+  await frame.click('[data-map-node="nur"]');
+  const position = await frame.evaluate(() => {
+    const panel = document.querySelector("[data-map-current-position]");
+    return {
+      present: Boolean(panel),
+      labels: Array.from(panel?.querySelectorAll(".nur-map-field-label") ?? [])
+        .map((node) => node.textContent),
+      // §10 forbids fake precision: no confidence percentage on this panel.
+      hasPercentConfidence: /confidence[^.]*\d+%/i.test(panel?.textContent ?? ""),
+    };
+  });
+  expect(position.present).toBe(true);
+  expect(position.labels).toEqual([
+    "Active priorities", "Open decisions", "Current constraints",
+    "Recent movement", "Major risks", "Systems",
+    "How much of this NUR can see",
+  ]);
+  expect(position.hasPercentConfidence).toBe(false);
+});
+
 test("an unmeasured path dimension says so instead of showing a number", async () => {
   const frame = await openMap(sharedPage);
   await frame.click('[data-map-mode="paths"]');

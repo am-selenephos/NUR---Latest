@@ -929,6 +929,32 @@ export async function renderV197Map(
       canvas.append(edgeLayer);
     }
 
+    // ── which nodes get a drawn label ─────────────────────────────────────────
+    // The anchor and the Systems are the frame and are always named. Beyond that
+    // only the selection's neighbourhood is named, capped, and only for nodes big
+    // enough to carry text.
+    //
+    // Both halves of that are needed. Labelling by size alone produced dozens of
+    // overlapping strings in the outer ring. Labelling the whole neighbourhood
+    // reproduced it the moment the *anchor* was selected, because almost
+    // everything hangs off the anchor — so the cap is what actually holds.
+    const LABEL_BUDGET = 14;
+    const labelled = new Set<string>();
+    const focusCandidates: GraphNode[] = [];
+    for (const node of nodes) {
+      if (node.kind === "MASTER_STAR" || node.kind === "SYSTEM") {
+        labelled.add(node.id);
+        continue;
+      }
+      if (state.selected && near.has(node.id) && (NODE_RADIUS[node.kind] ?? 8) >= 9) {
+        focusCandidates.push(node);
+      }
+    }
+    focusCandidates.sort(
+      (a, b) => (NODE_RADIUS[b.kind] ?? 8) - (NODE_RADIUS[a.kind] ?? 8),
+    );
+    for (const node of focusCandidates.slice(0, LABEL_BUDGET)) labelled.add(node.id);
+
     const nodeLayer = svg(doc, "g", { class: "nur-map-node-layer" });
     for (const node of nodes) {
       const layout = node.data.layout as { x: number; y: number } | undefined;
@@ -999,7 +1025,9 @@ export async function renderV197Map(
       tip.textContent = `${node.label} — ${kindWord}, ${node.status.toLowerCase()}`;
       group.append(tip);
 
-      if (state.showLabels && radius >= 9) {
+      // §39: reduce labels while zoomed out. Every node keeps its name in the
+      // hover tooltip and in the outline, so nothing is hidden — only undrawn.
+      if (state.showLabels && labelled.has(node.id)) {
         const label = svg(doc, "text", {
           x: layout.x, y: layout.y + radius + 13,
           "text-anchor": "middle", class: "nur-map-node-label",
@@ -1502,6 +1530,71 @@ export async function renderV197Map(
 
   function overviewTab(into: HTMLElement, node: GraphNode): void {
     const data = node.data;
+    if (node.kind === "MASTER_STAR") {
+      // §8: the centre is the owner's current operating state, not NUR as a
+      // separate being. Every line below is a count or a row from their ledger.
+      const counts = state.graph.counts;
+      const read = (key: string): { ref: string; label: string }[] =>
+        (state.smart?.[key] as { ref: string; label: string }[] | undefined) ?? [];
+      const focus = read("current_focus");
+      const decisions = read("needs_decision");
+      const blocked = read("blocked");
+      const momentum = read("momentum");
+      const fragile = read("fragile_paths");
+
+      into.dataset.mapCurrentPosition = "true";
+      into.append(field(
+        doc, "Active priorities",
+        focus.length ? focus.map((row) => row.label).join(" · ") : "None recorded",
+        focus.length === 0,
+      ));
+      into.append(field(
+        doc, "Open decisions",
+        decisions.length
+          ? `${decisions.length} waiting on you — ${decisions[0].label}`
+          : "None waiting on you",
+        decisions.length === 0,
+      ));
+      into.append(field(
+        doc, "Current constraints",
+        blocked.length
+          ? `${blocked.length} goal${blocked.length === 1 ? "" : "s"} blocked`
+          : "Nothing is blocked",
+        blocked.length === 0,
+      ));
+      into.append(field(
+        doc, "Recent movement",
+        momentum.length
+          ? `${momentum.length} outcome${momentum.length === 1 ? "" : "s"} in the last 14 days`
+          : "No outcome recorded in the last 14 days",
+        momentum.length === 0,
+      ));
+      into.append(field(
+        doc, "Major risks",
+        fragile.length
+          ? `${fragile.length} assumption${fragile.length === 1 ? "" : "s"} past review`
+          : "No assumption is past its review date",
+        fragile.length === 0,
+      ));
+      const states = state.graph.system_regions
+        .map((row) => `${row.title}: ${STATE_WORD[row.state] ?? row.state}`)
+        .join(" · ");
+      into.append(field(doc, "Systems", states || "No Systems"));
+      // Confidence in words, and only from what is actually observable. A number
+      // here would be the fake precision §10 forbids.
+      const recorded = (counts.goals ?? 0) + (counts.decisions ?? 0)
+        + (counts.blockers ?? 0) + (counts.semantic_edges ?? 0);
+      into.append(field(
+        doc, "How much of this NUR can see",
+        recorded === 0
+          ? "Almost nothing is recorded yet, so NUR's model of your position is "
+            + "close to empty. Anything it says now rests on very little."
+          : `${recorded} recorded objects and connections. Anything you have not `
+            + "written down is invisible here.",
+        recorded === 0,
+      ));
+      return;
+    }
     if (node.kind === "SYSTEM") {
       const region = state.graph.system_regions.find((row) => row.node_id === node.id);
       if (region) {
