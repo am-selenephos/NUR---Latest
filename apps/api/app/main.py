@@ -113,6 +113,7 @@ def create_app() -> FastAPI:
     from app.api.v1.consultations import router as consultations_router
     from app.api.v1.hypotheses import router as hypotheses_router
     from app.api.v1.insights import router as insights_router
+    from app.api.v1.orbit_world import router as orbit_world_router
     from app.api.v1.orbits import router as orbits_router
     from app.api.v1.capsules import router as capsules_router
     from app.api.v1.profile import router as profile_router
@@ -144,6 +145,7 @@ def create_app() -> FastAPI:
     app.include_router(hypotheses_router, prefix="/api/v1")
     app.include_router(insights_router, prefix="/api/v1")
     app.include_router(orbits_router, prefix="/api/v1")
+    app.include_router(orbit_world_router, prefix="/api/v1")
     app.include_router(capsules_router, prefix="/api/v1")
     app.include_router(profile_router, prefix="/api/v1")
     app.include_router(product_surfaces_router, prefix="/api/v1")
