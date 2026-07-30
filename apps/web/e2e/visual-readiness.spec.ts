@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { copyFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { expect, test, type FrameLocator, type Locator, type Page, type Route } from "@playwright/test";
 import { installBundledFontPolicy } from "./helpers/nurMocks";
@@ -156,6 +156,13 @@ async function screenshot(page: Page, name: string) {
   const path = proofPath(name);
   await mkdir(dirname(path), { recursive: true });
   await page.screenshot({ path, fullPage: false, animations: "disabled" });
+}
+
+async function duplicateProofImage(sourceName: string, targetName: string) {
+  const source = proofPath(sourceName);
+  const target = proofPath(targetName);
+  await mkdir(dirname(target), { recursive: true });
+  await copyFile(source, target);
 }
 
 async function locatorScreenshot(locator: Locator, name: string) {
@@ -463,40 +470,52 @@ async function assertCouncilStageGeometry(frame: FrameLocator, mobile: boolean) 
 async function assertBoundaryControlsStyled(frame: FrameLocator) {
   const modal = frame.locator("#scope-modal .scope-modal");
   await expect(modal).toBeVisible();
-  const modalStyle = await modal.evaluate(el => ({
-    backgroundColor: getComputedStyle(el).backgroundColor,
-    backgroundImage: getComputedStyle(el).backgroundImage,
-    borderRadius: getComputedStyle(el).borderRadius,
-  }));
+  const snapshot = await modal.evaluate(el => {
+    const document = el.ownerDocument;
+    const visible = (element: Element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && getComputedStyle(element).visibility !== "hidden";
+    };
+    const controlStyle = (element: Element) => {
+      const style = getComputedStyle(element);
+      return {
+        visible: visible(element),
+        backgroundColor: style.backgroundColor,
+        borderRadius: style.borderRadius,
+        color: style.color,
+      };
+    };
+    const modalStyle = getComputedStyle(el);
+    return {
+      modalStyle: {
+        backgroundColor: modalStyle.backgroundColor,
+        backgroundImage: modalStyle.backgroundImage,
+        borderRadius: modalStyle.borderRadius,
+      },
+      allControlCount: document.querySelectorAll("#scope-modal .scope-option").length,
+      boundaryOptions: [...document.querySelectorAll("#scope-modal .scope-option[data-scope]")].map(controlStyle),
+      languageControls: [...document.querySelectorAll(
+        "#nur-v197-locale, #nur-v197-writing-preference, #nur-v197-language-save",
+      )].map(controlStyle),
+    };
+  });
+  const { modalStyle } = snapshot;
   expect(modalStyle.backgroundColor, "boundary modal is not native white").not.toBe("rgb(255, 255, 255)");
   expect(modalStyle.backgroundImage, "boundary modal has NUR material styling").not.toBe("none");
   expect(Number.parseFloat(modalStyle.borderRadius), "boundary modal keeps the approved V197 radius").toBe(8);
 
-  const allControls = frame.locator("#scope-modal .scope-option");
-  await expect(allControls).toHaveCount(7);
-  const boundaryOptions = frame.locator("#scope-modal .scope-option[data-scope]");
-  await expect(boundaryOptions).toHaveCount(4);
-  for (let index = 0; index < 4; index += 1) {
-    const button = boundaryOptions.nth(index);
-    await expect(button).toBeVisible();
-    const style = await button.evaluate(el => {
-      const cs = getComputedStyle(el);
-      return {
-        backgroundColor: cs.backgroundColor,
-        borderRadius: cs.borderRadius,
-        color: cs.color,
-      };
-    });
+  expect(snapshot.allControlCount, "boundary modal control count").toBe(7);
+  expect(snapshot.boundaryOptions, "boundary option count").toHaveLength(4);
+  for (const [index, style] of snapshot.boundaryOptions.entries()) {
+    expect(style.visible, `boundary option ${index} is visible`).toBe(true);
     expect(style.backgroundColor, `boundary option ${index} is not native white`).not.toBe("rgb(255, 255, 255)");
     expect(Number.parseFloat(style.borderRadius), `boundary option ${index} has softened edges`).toBeGreaterThanOrEqual(8);
   }
 
-  const languageControls = frame.locator("#nur-v197-locale, #nur-v197-writing-preference, #nur-v197-language-save");
-  await expect(languageControls).toHaveCount(3);
-  for (let index = 0; index < 3; index += 1) {
-    const control = languageControls.nth(index);
-    await expect(control).toBeVisible();
-    await expect(control, `language control ${index} is not native white`).not.toHaveCSS("background-color", "rgb(255, 255, 255)");
+  expect(snapshot.languageControls, "language control count").toHaveLength(3);
+  for (const [index, style] of snapshot.languageControls.entries()) {
+    expect(style.visible, `language control ${index} is visible`).toBe(true);
+    expect(style.backgroundColor, `language control ${index} is not native white`).not.toBe("rgb(255, 255, 255)");
   }
 }
 
@@ -528,7 +547,10 @@ async function assertSystemsMapGeometry(page: Page, viewportLabel: string) {
     ? await box(`${viewportLabel} add system`, addControl)
     : { x: -1000, y: -1000, width: 1, height: 1 };
   const visibleNodes = frame.locator(".universe-system-node:visible");
-  const nodeCount = await visibleNodes.count();
+  const nodeBoxes = await visibleNodes.evaluateAll(elements => elements.map(element => {
+    const rect = element.getBoundingClientRect();
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+  }));
 
   assertNoOverlap(`${viewportLabel}: System Field/title collision`, title, await maybeBox(frame.locator(".universe-field-readout")), 6);
   assertNoOverlap(`${viewportLabel}: NUR title/master star collision`, title, master);
@@ -536,9 +558,10 @@ async function assertSystemsMapGeometry(page: Page, viewportLabel: string) {
   assertNoOverlap(`${viewportLabel}: Add System/title collision`, add, title, 8);
   assertNoOverlap(`${viewportLabel}: Add System/master star collision`, add, master, 8);
 
-  for (let i = 0; i < nodeCount; i += 1) {
-    const node = await box(`${viewportLabel} map node ${i}`, visibleNodes.nth(i));
-    assertNoOverlap(`${viewportLabel}: Add System covers node label ${i}`, add, node, 4);
+  for (const [index, node] of nodeBoxes.entries()) {
+    expect(node.width, `${viewportLabel} map node ${index} has width`).toBeGreaterThan(0);
+    expect(node.height, `${viewportLabel} map node ${index} has height`).toBeGreaterThan(0);
+    assertNoOverlap(`${viewportLabel}: Add System covers node label ${index}`, add, node, 4);
   }
 
   if (viewport?.width === 1280) {
@@ -627,8 +650,9 @@ test("systems map has DOM anti-overlap proof at primary desktop and mobile break
   await page.goto("/systems");
   await assertSystemsMapGeometry(page, label);
   if (mobileProject) {
-    await screenshot(page, "systems-overlap-proof-393x852.png");
-    await screenshot(page, "systems-mobile-clean-393x852.png");
+    const source = "systems-overlap-proof-393x852.png";
+    await screenshot(page, source);
+    await duplicateProofImage(source, "systems-mobile-clean-393x852.png");
   } else {
     await screenshot(page, "systems-overlap-proof-1440x900.png");
   }
@@ -643,8 +667,9 @@ test("systems map keeps label breathing at secondary desktop and mobile breakpoi
   await page.goto("/systems");
   await assertSystemsMapGeometry(page, label);
   if (mobileProject) {
-    await screenshot(page, "systems-overlap-proof-430x932.png");
-    await screenshot(page, "systems-mobile-clean-430x932.png");
+    const source = "systems-overlap-proof-430x932.png";
+    await screenshot(page, source);
+    await duplicateProofImage(source, "systems-mobile-clean-430x932.png");
   } else {
     await screenshot(page, "systems-overlap-proof-1280x720.png");
     await screenshot(page, "systems-1280-label-breathing.png");
