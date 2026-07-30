@@ -134,37 +134,42 @@ test("every Orbit control is a luminous glass capsule, never a boxed outline", a
   expect(verdict.offenders).toEqual([]);
 });
 
-test("the canonical galaxy stays visible behind Orbit", async () => {
+test("Orbit is hosted inside the canonical shell, not laid over it", async () => {
   const page = sharedPage;
   const frame = await openOrbit(page);
-  const layering = await frame.evaluate(() => {
+  const shell = await frame.evaluate(() => {
     const root = document.getElementById("nur-orbit-root");
-    const galaxy = document.getElementById("space3d");
-    const front = document.getElementById("nur-front-v61");
     const style = getComputedStyle(root as Element);
+    const rail = document.querySelector(".nur-rail");
+    const topbar = document.querySelector(".nur-topbar");
+    const galaxy = document.getElementById("space3d");
+    const host = document.getElementById("nur-surface-host");
     return {
-      rootZ: Number(style.zIndex),
-      rootBackgroundImage: style.backgroundImage,
-      rootBackgroundColor: style.backgroundColor,
-      galaxyZ: galaxy ? Number(getComputedStyle(galaxy).zIndex) : null,
-      galaxyVisibility: galaxy ? getComputedStyle(galaxy).visibility : null,
-      frontVisibility: front ? getComputedStyle(front).visibility : null,
-      backdropClass: document.body.classList.contains("nur-bridge-surface-active"),
+      // Not a full-screen overlay: no fixed positioning and no stacking context,
+      // so `#space3d` keeps blending its starfield over this surface.
+      position: style.position,
+      zIndex: style.zIndex,
+      backgroundColor: style.backgroundColor,
+      insideHost: Boolean(host && root && host.contains(root)),
+      insideCanonicalShell: Boolean(root?.closest(".nur-viewport")),
+      // The checkpoint UI is intact: rail, top nav and galaxy all still render.
+      railVisible: rail ? getComputedStyle(rail).visibility : null,
+      topbarVisible: topbar ? getComputedStyle(topbar).visibility : null,
+      galaxyVisible: galaxy ? getComputedStyle(galaxy).visibility : null,
+      canonicalPageHidden: getComputedStyle(
+        document.querySelector(".nur-viewport > .nur-page") as Element,
+      ).display === "none",
     };
   });
-  // This surface previously painted an opaque #000000 here, which covered the
-  // canonical galaxy completely and left NUR with no stars at all. The root must
-  // be a translucent scrim, never a solid fill.
-  expect(layering.rootBackgroundColor).not.toBe("rgb(0, 0, 0)");
-  expect(layering.rootBackgroundImage).toContain("gradient");
-  // The galaxy itself keeps rendering; only the competing canonical content
-  // layer steps aside while the surface owns the screen.
-  expect(layering.galaxyVisibility).toBe("visible");
-  expect(layering.frontVisibility).toBe("hidden");
-  expect(layering.backdropClass).toBe(true);
-  if (layering.galaxyZ !== null) {
-    expect(layering.rootZ).toBeGreaterThan(layering.galaxyZ);
-  }
+  expect(shell.position).toBe("relative");
+  expect(shell.zIndex).toBe("auto");
+  expect(shell.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(shell.insideHost).toBe(true);
+  expect(shell.insideCanonicalShell).toBe(true);
+  expect(shell.railVisible).toBe("visible");
+  expect(shell.topbarVisible).toBe("visible");
+  expect(shell.galaxyVisible).toBe("visible");
+  expect(shell.canonicalPageHidden).toBe(true);
 });
 
 test("all three views render and the switcher reports the active one", async () => {
@@ -285,8 +290,9 @@ test("a reading always shows its basis, and an inferred one is never a bare fact
       `/api/v1/orbit-entities/${personId}/signals`, { credentials: "include" },
     )).json();
     if (Array.isArray(existing) && existing.length > 0) return;
+    // PUT, not POST: the endpoint is an upsert keyed on (person, kind, basis).
     await fetch(`/api/v1/orbit-entities/${personId}/signals`, {
-      method: "POST", credentials: "include", headers,
+      method: "PUT", credentials: "include", headers,
       body: JSON.stringify({
         signal_kind: "CONNECTION",
         basis: "USER_STATED",

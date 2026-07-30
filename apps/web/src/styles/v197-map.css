@@ -57,29 +57,20 @@
 }
 
 #nur-map-root {
-  position: fixed;
-  inset: 0;
-  /* Above `#space3d` (the canonical galaxy canvas, fixed at z-index 280) for the
-   * same reason Orbit is: below it, the canonical galaxy paints over this surface
-   * and the field stops reading as predominantly black. Layering above rather
-   * than hiding keeps the canonical runtime completely untouched, so leaving the
-   * route needs no restore step. Kept below the auth overlay at 1200. */
-  z-index: 320;
-  /* Transparent, NOT opaque black. The canonical galaxy `#space3d` sits at
-   * z-index 280 with `mix-blend-mode: screen` and is what draws the stars.
-   * Painting a solid `#000000` here at 320 covered it completely, so this
-   * surface rendered over a dead black field and the universe disappeared.
-   * A faint scrim only — enough to hold contrast for the glass panes, thin
-   * enough that the starfield still reads through it. */
-  background: radial-gradient(
-    ellipse 120% 100% at 50% 45%,
-    rgba(0, 0, 0, 0.12) 0%,
-    rgba(0, 0, 0, 0.3) 55%,
-    rgba(0, 0, 0, 0.52) 100%
-  );
+  /* Hosted inside the canonical content region, not laid over the page.
+   *
+   * No `position: fixed`, no z-index, and no background on purpose. The
+   * canonical shell sits at z-index 10, below `#space3d` at 280, and the
+   * galaxy blends with `mix-blend-mode: screen` — which only lightens. So a
+   * surface in here receives the starfield painted over it exactly the way
+   * canonical content does. Adding a background or a stacking context here is
+   * what previously cost NUR its stars. */
+  position: relative;
+  width: 100%;
+  min-height: calc(100vh - 120px);
+  background: transparent;
   color: var(--map-pearl);
   font-family: "Bodoni Moda", Georgia, serif;
-  overflow: hidden;
 }
 
 /* ── shell and the three zones ────────────────────────────────────────────── */
@@ -87,7 +78,7 @@
 .nur-map-shell {
   display: grid;
   grid-template-rows: auto 1fr;
-  height: 100%;
+  min-height: calc(100vh - 120px);
   padding: var(--map-margin);
   gap: var(--map-gap);
   box-sizing: border-box;

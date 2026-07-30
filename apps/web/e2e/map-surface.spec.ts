@@ -136,34 +136,36 @@ test("every Map control is a luminous glass capsule, never a boxed outline", asy
   expect(verdict.offenders).toEqual([]);
 });
 
-test("the canonical galaxy stays visible behind Map", async () => {
+test("Map is hosted inside the canonical shell, not laid over it", async () => {
   const frame = await openMap(sharedPage);
-  const layering = await frame.evaluate(() => {
+  const shell = await frame.evaluate(() => {
     const root = document.getElementById("nur-map-root");
+    const style = getComputedStyle(root as Element);
+    const rail = document.querySelector(".nur-rail");
+    const topbar = document.querySelector(".nur-topbar");
     const galaxy = document.getElementById("space3d");
-    const front = document.getElementById("nur-front-v61");
-    const style = root ? getComputedStyle(root) : null;
+    const host = document.getElementById("nur-surface-host");
     return {
-      mapZ: style ? Number(style.zIndex) : null,
-      galaxyZ: galaxy ? Number(getComputedStyle(galaxy).zIndex) : null,
-      backgroundColor: style ? style.backgroundColor : null,
-      backgroundImage: style ? style.backgroundImage : null,
-      galaxyVisibility: galaxy ? getComputedStyle(galaxy).visibility : null,
-      frontVisibility: front ? getComputedStyle(front).visibility : null,
-      backdropClass: document.body.classList.contains("nur-bridge-surface-active"),
+      position: style.position,
+      zIndex: style.zIndex,
+      backgroundColor: style.backgroundColor,
+      insideHost: Boolean(host && root && host.contains(root)),
+      insideCanonicalShell: Boolean(root?.closest(".nur-viewport")),
+      railVisible: rail ? getComputedStyle(rail).visibility : null,
+      topbarVisible: topbar ? getComputedStyle(topbar).visibility : null,
+      galaxyVisible: galaxy ? getComputedStyle(galaxy).visibility : null,
     };
   });
-  expect(layering.mapZ).toBe(320);
-  if (layering.galaxyZ !== null) {
-    expect(layering.mapZ as number).toBeGreaterThan(layering.galaxyZ);
-  }
-  // Map previously painted an opaque #000000 here, hiding the galaxy entirely.
-  // The scrim must stay translucent so the starfield reads through it.
-  expect(layering.backgroundColor).not.toBe("rgb(0, 0, 0)");
-  expect(layering.backgroundImage).toContain("gradient");
-  expect(layering.galaxyVisibility).toBe("visible");
-  expect(layering.frontVisibility).toBe("hidden");
-  expect(layering.backdropClass).toBe(true);
+  // Map previously covered the page with an opaque fixed layer, which cost NUR
+  // its stars and its whole navigation shell.
+  expect(shell.position).toBe("relative");
+  expect(shell.zIndex).toBe("auto");
+  expect(shell.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(shell.insideHost).toBe(true);
+  expect(shell.insideCanonicalShell).toBe(true);
+  expect(shell.railVisible).toBe("visible");
+  expect(shell.topbarVisible).toBe("visible");
+  expect(shell.galaxyVisible).toBe("visible");
 });
 
 test("System regions come from the server, each with a state and a reason", async () => {
@@ -694,18 +696,19 @@ test("leaving Map restores the canonical universe untouched", async () => {
       // The canonical galaxy is still the canonical galaxy.
       galaxyPresent: Boolean(document.getElementById("space3d")),
       reactRoot: Boolean(document.getElementById("root")),
-      // The backdrop must release the canonical content layer on the way out.
-      backdropCleared: !document.body.classList.contains("nur-bridge-surface-active"),
+      // The host must be released on the way out, and the canonical page shown.
+      hostReleased: !document.getElementById("nur-surface-host"),
       frontVisibility: front ? getComputedStyle(front).visibility : null,
+      canonicalPageShown: Boolean(document.querySelector(".nur-viewport > .nur-page.active")),
       liveRegionClipped: live ? getComputedStyle(live).position : null,
     };
   });
   expect(after.mapRemoved).toBe(true);
   expect(after.reactRoot).toBe(false);
   expect(after.galaxyPresent).toBe(true);
-  expect(after.backdropCleared).toBe(true);
-  // The canonical page is fully visible again, and the screen-reader live region
-  // is back to its own positioning rather than left clipped by the backdrop.
+  expect(after.hostReleased).toBe(true);
+  // The canonical page is fully back, star-brain and all.
   expect(after.frontVisibility).toBe("visible");
+  expect(after.canonicalPageShown).toBe(true);
   expect(after.liveRegionClipped).not.toBe("absolute");
 });

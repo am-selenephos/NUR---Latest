@@ -22,7 +22,7 @@
 import ORBIT_CSS from "../styles/v197-orbit.css?raw";
 import { markV197HolographicWordmark } from "./v197Brand";
 import { createV197StarSeal } from "./v197StarSeal";
-import { setV197SurfaceBackdrop } from "./v197SurfaceBackdrop";
+import { claimV197SurfaceHost, releaseV197SurfaceHost } from "./v197SurfaceHost";
 import type { V197ApiClient } from "./v197ApiClient";
 
 const ROOT_ID = "nur-orbit-root";
@@ -1160,16 +1160,23 @@ export async function renderV197Orbit(
 ): Promise<boolean> {
   if (route !== ORBIT_ROUTE) {
     doc.getElementById(ROOT_ID)?.remove();
-    // Always restore the canonical content layer on the way out, or leaving this
-    // route would leave the canonical page invisible.
-    setV197SurfaceBackdrop(doc, false);
+    // Give the canonical content region back, or leaving this route would leave
+    // the canonical page hidden behind a removed surface.
+    releaseV197SurfaceHost(doc);
     return false;
   }
 
   ensureStyle(doc);
-  // Keep the canonical galaxy visible behind this surface and step the
-  // competing canonical content layer aside. See v197SurfaceBackdrop.
-  setV197SurfaceBackdrop(doc, true);
+  // Mount inside the canonical shell: the rail, the top nav and the starfield all
+  // stay, and this surface takes only the content region. See v197SurfaceHost.
+  const claimed = claimV197SurfaceHost(doc);
+  if (claimed === null) {
+    // No canonical viewport means no honest place to render. Falling back to a
+    // full-screen overlay is exactly the behaviour this replaced.
+    releaseV197SurfaceHost(doc);
+    return false;
+  }
+  const host: HTMLElement = claimed;
 
   const state: OrbitState = {
     view: doc.defaultView && doc.defaultView.innerWidth <= 900 ? "list" : "orbit",
@@ -1298,7 +1305,7 @@ export async function renderV197Orbit(
     }
 
     root.append(shell);
-    doc.body.append(root);
+    host.append(root);
   }
 
   paint();
