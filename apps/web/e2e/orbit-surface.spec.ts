@@ -134,21 +134,34 @@ test("every Orbit control is a luminous glass capsule, never a boxed outline", a
   expect(verdict.offenders).toEqual([]);
 });
 
-test("the field stays predominantly black beneath the canonical galaxy", async () => {
+test("the canonical galaxy stays visible behind Orbit", async () => {
   const page = sharedPage;
   const frame = await openOrbit(page);
   const layering = await frame.evaluate(() => {
     const root = document.getElementById("nur-orbit-root");
     const galaxy = document.getElementById("space3d");
+    const front = document.getElementById("nur-front-v61");
+    const style = getComputedStyle(root as Element);
     return {
-      rootZ: Number(getComputedStyle(root as Element).zIndex),
-      rootBackground: getComputedStyle(root as Element).backgroundColor,
+      rootZ: Number(style.zIndex),
+      rootBackgroundImage: style.backgroundImage,
+      rootBackgroundColor: style.backgroundColor,
       galaxyZ: galaxy ? Number(getComputedStyle(galaxy).zIndex) : null,
+      galaxyVisibility: galaxy ? getComputedStyle(galaxy).visibility : null,
+      frontVisibility: front ? getComputedStyle(front).visibility : null,
+      backdropClass: document.body.classList.contains("nur-bridge-surface-active"),
     };
   });
-  expect(layering.rootBackground).toBe("rgb(0, 0, 0)");
-  // The galaxy canvas is fixed and full-viewport. Below it, Orbit's field is
-  // painted over and stops reading as black at all.
+  // This surface previously painted an opaque #000000 here, which covered the
+  // canonical galaxy completely and left NUR with no stars at all. The root must
+  // be a translucent scrim, never a solid fill.
+  expect(layering.rootBackgroundColor).not.toBe("rgb(0, 0, 0)");
+  expect(layering.rootBackgroundImage).toContain("gradient");
+  // The galaxy itself keeps rendering; only the competing canonical content
+  // layer steps aside while the surface owns the screen.
+  expect(layering.galaxyVisibility).toBe("visible");
+  expect(layering.frontVisibility).toBe("hidden");
+  expect(layering.backdropClass).toBe(true);
   if (layering.galaxyZ !== null) {
     expect(layering.rootZ).toBeGreaterThan(layering.galaxyZ);
   }
@@ -249,16 +262,51 @@ test("selecting a person opens all five tabs and dims the unrelated field", asyn
 test("a reading always shows its basis, and an inferred one is never a bare fact", async () => {
   const page = sharedPage;
   const frame = await openOrbit(page);
-  await frame.evaluate(() => {
+
+  // Seed the reading this test is about, rather than relying on whatever signals
+  // happen to be left in the database. It passed for a while on residue from
+  // earlier runs and then failed the first time it met a freshly seeded
+  // environment — the assertions below are unchanged, only the precondition is
+  // now guaranteed instead of assumed.
+  await frame.evaluate(async () => {
+    const csrf = document.cookie.split("; ")
+      .find((row) => row.startsWith("nur_csrf="))?.split("=")[1] ?? "";
+    const headers = { "Content-Type": "application/json", "X-CSRF-Token": csrf };
+    const field = await (await fetch("/api/v1/orbit-field", { credentials: "include" })).json();
+    let personId: string | undefined = field?.people?.[0]?.id;
+    if (!personId) {
+      const made = await (await fetch("/api/v1/orbits/people", {
+        method: "POST", credentials: "include", headers,
+        body: JSON.stringify({ display_name: "Basis Probe", relationship_type: "Friend" }),
+      })).json();
+      personId = made.id;
+    }
+    const existing = await (await fetch(
+      `/api/v1/orbit-entities/${personId}/signals`, { credentials: "include" },
+    )).json();
+    if (Array.isArray(existing) && existing.length > 0) return;
+    await fetch(`/api/v1/orbit-entities/${personId}/signals`, {
+      method: "POST", credentials: "include", headers,
+      body: JSON.stringify({
+        signal_kind: "CONNECTION",
+        basis: "USER_STATED",
+        value: 70,
+        evidence: [],
+      }),
+    });
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  const reloaded = await openOrbit(page);
+  await reloaded.evaluate(() => {
     document.querySelector<HTMLButtonElement>('[data-orbit-view="list"]')?.click();
   });
   await page.waitForTimeout(400);
-  await frame.evaluate(() => {
+  await reloaded.evaluate(() => {
     document.querySelector<HTMLButtonElement>(".nur-orbit-row")?.click();
   });
   await page.waitForTimeout(1200);
 
-  const basis = await frame.evaluate(() => {
+  const basis = await reloaded.evaluate(() => {
     const root = document.getElementById("nur-orbit-root");
     const badges = Array.from(root?.querySelectorAll(".nur-orbit-basis") ?? []);
     return {
@@ -278,11 +326,11 @@ test("a reading always shows its basis, and an inferred one is never a bare fact
   expect(basis.whyButtons).toBeGreaterThan(0);
 
   // "Why is NUR showing this?" must open real substance, never an empty shell.
-  await frame.evaluate(() => {
+  await reloaded.evaluate(() => {
     document.querySelector<HTMLButtonElement>("[data-orbit-why]")?.click();
   });
   await page.waitForTimeout(500);
-  const why = await frame.evaluate(() => {
+  const why = await reloaded.evaluate(() => {
     const box = document.querySelector(".nur-orbit-why");
     return {
       open: Boolean(box),

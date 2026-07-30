@@ -136,22 +136,34 @@ test("every Map control is a luminous glass capsule, never a boxed outline", asy
   expect(verdict.offenders).toEqual([]);
 });
 
-test("Map renders above the canonical galaxy so the field stays black", async () => {
+test("the canonical galaxy stays visible behind Map", async () => {
   const frame = await openMap(sharedPage);
   const layering = await frame.evaluate(() => {
     const root = document.getElementById("nur-map-root");
     const galaxy = document.getElementById("space3d");
+    const front = document.getElementById("nur-front-v61");
+    const style = root ? getComputedStyle(root) : null;
     return {
-      mapZ: root ? Number(getComputedStyle(root).zIndex) : null,
+      mapZ: style ? Number(style.zIndex) : null,
       galaxyZ: galaxy ? Number(getComputedStyle(galaxy).zIndex) : null,
-      background: root ? getComputedStyle(root).backgroundColor : null,
+      backgroundColor: style ? style.backgroundColor : null,
+      backgroundImage: style ? style.backgroundImage : null,
+      galaxyVisibility: galaxy ? getComputedStyle(galaxy).visibility : null,
+      frontVisibility: front ? getComputedStyle(front).visibility : null,
+      backdropClass: document.body.classList.contains("nur-bridge-surface-active"),
     };
   });
   expect(layering.mapZ).toBe(320);
   if (layering.galaxyZ !== null) {
     expect(layering.mapZ as number).toBeGreaterThan(layering.galaxyZ);
   }
-  expect(layering.background).toBe("rgb(0, 0, 0)");
+  // Map previously painted an opaque #000000 here, hiding the galaxy entirely.
+  // The scrim must stay translucent so the starfield reads through it.
+  expect(layering.backgroundColor).not.toBe("rgb(0, 0, 0)");
+  expect(layering.backgroundImage).toContain("gradient");
+  expect(layering.galaxyVisibility).toBe("visible");
+  expect(layering.frontVisibility).toBe("hidden");
+  expect(layering.backdropClass).toBe(true);
 });
 
 test("System regions come from the server, each with a state and a reason", async () => {
@@ -674,13 +686,26 @@ test("leaving Map restores the canonical universe untouched", async () => {
   const handle = await page.waitForSelector("#nur-universe-stage");
   const frame = await handle.contentFrame();
   if (!frame) throw new Error("the universe stage frame is not attached");
-  const after = await frame.evaluate(() => ({
-    mapRemoved: !document.getElementById("nur-map-root"),
-    // The canonical galaxy is still the canonical galaxy.
-    galaxyPresent: Boolean(document.getElementById("space3d")),
-    reactRoot: Boolean(document.getElementById("root")),
-  }));
+  const after = await frame.evaluate(() => {
+    const front = document.getElementById("nur-front-v61");
+    const live = document.getElementById("nur-a11y-live");
+    return {
+      mapRemoved: !document.getElementById("nur-map-root"),
+      // The canonical galaxy is still the canonical galaxy.
+      galaxyPresent: Boolean(document.getElementById("space3d")),
+      reactRoot: Boolean(document.getElementById("root")),
+      // The backdrop must release the canonical content layer on the way out.
+      backdropCleared: !document.body.classList.contains("nur-bridge-surface-active"),
+      frontVisibility: front ? getComputedStyle(front).visibility : null,
+      liveRegionClipped: live ? getComputedStyle(live).position : null,
+    };
+  });
   expect(after.mapRemoved).toBe(true);
   expect(after.reactRoot).toBe(false);
   expect(after.galaxyPresent).toBe(true);
+  expect(after.backdropCleared).toBe(true);
+  // The canonical page is fully visible again, and the screen-reader live region
+  // is back to its own positioning rather than left clipped by the backdrop.
+  expect(after.frontVisibility).toBe("visible");
+  expect(after.liveRegionClipped).not.toBe("absolute");
 });

@@ -1,0 +1,961 @@
+/* Timeline — past, present and possible futures, rendered into the black void.
+ *
+ * Shares Map and Orbit's visual law (no boxes, no opaque panels, luminous glass
+ * capsules only) but carries its own temporal grammar:
+ *
+ *   The past crystallises. Completed and observed items render solid, with a
+ *   defined crystalline edge — settled, unambiguous.
+ *
+ *   The present is brightest. Around Now the strongest contrast and the only
+ *   restrained pulse on the page live — everything else stays still.
+ *
+ *   The future stays translucent. Planned and predicted items are softer,
+ *   spacious, and grow more uncertain — thinner strokes, lower opacity — the
+ *   further out they sit. A prediction is dotted; nothing in the future is ever
+ *   drawn as settled fact.
+ *
+ * Meaning is never carried by colour alone: past/present/future pair a hue with
+ * an opacity and a stroke treatment, and every truth state pairs its hue with a
+ * distinct glyph shown in text.
+ */
+
+:root {
+  --tl-void: #000000;
+  --tl-glass: #030307;
+  --tl-navy: #06062b;
+  --tl-abyss: #101052;
+
+  --tl-pearl: #fff8df;
+  --tl-antique-gold: #c9942f;
+  --tl-champagne: #f8d98a;
+  --tl-gold: #ffd35a;
+
+  --tl-cyan: #21e8ff;
+  --tl-violet: #843dff;
+  --tl-lilac: #c16bff;
+  --tl-fuchsia: #ff18c8;
+  --tl-rose: #ff3a9e;
+  --tl-coral: #ff526f;
+
+  --tl-rail: 264px;
+  --tl-detail: 376px;
+  --tl-gap: 14px;
+  --tl-margin: 18px;
+
+  --tl-quick: 140ms;
+  --tl-settle: 260ms;
+}
+
+#nur-timeline-root {
+  position: fixed;
+  inset: 0;
+  /* Above `#space3d` (fixed at z-index 280), same reasoning as Map and Orbit:
+   * layering above rather than hiding keeps the canonical runtime untouched, so
+   * leaving the route needs no restore step. Kept below the auth overlay at
+   * 1200. */
+  z-index: 320;
+  /* Transparent, NOT opaque black. The canonical galaxy `#space3d` sits at
+   * z-index 280 with `mix-blend-mode: screen` and is what draws the stars.
+   * Painting a solid `#000000` here at 320 covered it completely, so this
+   * surface rendered over a dead black field and the universe disappeared.
+   * A faint scrim only — enough to hold contrast for the glass panes, thin
+   * enough that the starfield still reads through it. */
+  background: radial-gradient(
+    ellipse 120% 100% at 50% 45%,
+    rgba(0, 0, 0, 0.12) 0%,
+    rgba(0, 0, 0, 0.3) 55%,
+    rgba(0, 0, 0, 0.52) 100%
+  );
+  color: var(--tl-pearl);
+  font-family: "Bodoni Moda", Georgia, serif;
+  overflow: hidden;
+}
+
+/* ── shell and zones ──────────────────────────────────────────────────────── */
+
+.nur-timeline-shell {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  padding: var(--tl-margin);
+  gap: var(--tl-gap);
+  box-sizing: border-box;
+}
+
+.nur-timeline-zones {
+  display: grid;
+  grid-template-columns: var(--tl-rail) minmax(0, 1fr) var(--tl-detail);
+  gap: var(--tl-gap);
+  min-height: 0;
+}
+
+.nur-timeline-pane {
+  position: relative;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(6, 6, 43, 0.5), rgba(3, 3, 7, 0.72));
+  border: 1px solid rgba(248, 217, 138, 0.13);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 223, 0.05),
+    0 18px 60px rgba(0, 0, 0, 0.6);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.nur-timeline-pane-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 14px 22px;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(248, 217, 138, 0.28) transparent;
+}
+
+/* ── header ───────────────────────────────────────────────────────────────── */
+
+.nur-timeline-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.nur-timeline-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.nur-timeline-title h1 {
+  margin: 0;
+  font-size: 27px;
+  letter-spacing: 0.055em;
+  color: var(--tl-pearl);
+  text-shadow: 0 0 26px rgba(255, 211, 90, 0.2);
+}
+
+.nur-timeline-subtitle {
+  margin: 0;
+  font-size: 12.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 248, 223, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nur-timeline-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ── the capsule: the only control shape in this file ─────────────────────── */
+
+.nur-timeline-capsule {
+  position: relative;
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  min-height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(248, 217, 138, 0.34);
+  background:
+    radial-gradient(120% 160% at 50% -40%, rgba(255, 211, 90, 0.15), transparent 62%),
+    linear-gradient(180deg, rgba(6, 6, 43, 0.62), rgba(3, 3, 7, 0.9));
+  color: var(--tl-pearl);
+  font-family: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.075em;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 223, 0.14),
+    0 0 0 1px rgba(33, 232, 255, 0.05),
+    0 6px 22px rgba(0, 0, 0, 0.55);
+  transition:
+    border-color var(--tl-quick) ease,
+    box-shadow var(--tl-quick) ease,
+    transform var(--tl-quick) ease;
+}
+
+.nur-timeline-capsule::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    115deg,
+    transparent 18%,
+    rgba(33, 232, 255, 0.5) 38%,
+    rgba(255, 248, 223, 0.7) 50%,
+    rgba(255, 24, 200, 0.42) 62%,
+    transparent 82%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity var(--tl-settle) ease;
+  pointer-events: none;
+}
+
+.nur-timeline-capsule:hover {
+  border-color: rgba(255, 211, 90, 0.62);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 223, 0.22),
+    0 0 22px rgba(255, 211, 90, 0.18),
+    0 8px 26px rgba(0, 0, 0, 0.6);
+}
+
+.nur-timeline-capsule:hover::after { opacity: 1; }
+
+.nur-timeline-capsule[aria-pressed="true"],
+.nur-timeline-capsule.is-active {
+  border-color: rgba(255, 211, 90, 0.78);
+  background:
+    radial-gradient(120% 170% at 50% -30%, rgba(255, 211, 90, 0.3), transparent 60%),
+    linear-gradient(180deg, rgba(16, 16, 82, 0.7), rgba(3, 3, 7, 0.92));
+  color: #fffdf4;
+}
+
+.nur-timeline-capsule[aria-pressed="true"]::after { opacity: 0.75; }
+
+.nur-timeline-capsule:disabled,
+.nur-timeline-capsule[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.42;
+  border-color: rgba(248, 217, 138, 0.16);
+  transform: none;
+}
+
+.nur-timeline-capsule:disabled:hover::after,
+.nur-timeline-capsule[aria-disabled="true"]:hover::after { opacity: 0; }
+
+.nur-timeline-capsule:focus-visible,
+.nur-timeline-node:focus-visible,
+.nur-timeline-row:focus-visible,
+.nur-timeline-tab:focus-visible,
+.nur-timeline-search:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.9),
+    0 0 0 4px rgba(33, 232, 255, 0.85),
+    0 0 26px rgba(33, 232, 255, 0.42);
+}
+
+.nur-timeline-capsule-sm {
+  padding: 5px 11px;
+  min-height: 27px;
+  font-size: 11px;
+}
+
+/* ── search ───────────────────────────────────────────────────────────────── */
+
+#nur-timeline-root .nur-timeline-search {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  border: 1px solid rgba(248, 217, 138, 0.3) !important;
+  border-radius: 999px !important;
+  background: linear-gradient(180deg, rgba(6, 6, 43, 0.6), rgba(3, 3, 7, 0.88));
+  color: var(--tl-pearl);
+  font-family: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  padding: 8px 15px;
+  min-height: 34px;
+  width: 100%;
+  box-sizing: border-box;
+  box-shadow: inset 0 1px 0 rgba(255, 248, 223, 0.1);
+}
+
+#nur-timeline-root .nur-timeline-search::placeholder { color: rgba(255, 248, 223, 0.36); }
+#nur-timeline-root .nur-timeline-search::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ── navigator ────────────────────────────────────────────────────────────── */
+
+.nur-timeline-nav-group { margin-bottom: 20px; }
+
+.nur-timeline-nav-label {
+  margin: 0 0 9px;
+  font-size: 10px;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  color: rgba(255, 211, 90, 0.62);
+}
+
+.nur-timeline-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.nur-timeline-nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nur-timeline-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: rgba(255, 248, 223, 0.86);
+  font-family: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--tl-quick) ease, border-color var(--tl-quick) ease;
+}
+
+.nur-timeline-row:hover {
+  background: rgba(16, 16, 82, 0.4);
+  border-color: rgba(248, 217, 138, 0.22);
+}
+
+.nur-timeline-row.is-selected {
+  background: linear-gradient(90deg, rgba(255, 211, 90, 0.16), rgba(16, 16, 82, 0.3));
+  border-color: rgba(255, 211, 90, 0.5);
+}
+
+.nur-timeline-row-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nur-timeline-row-meta {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: rgba(255, 248, 223, 0.44);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Flow: the signature temporal river ───────────────────────────────────── */
+
+.nur-timeline-flow-wrap {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+}
+
+.nur-timeline-flow-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px 20px 60px;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(248, 217, 138, 0.28) transparent;
+}
+
+/* The temporal spine: one vertical luminous line the whole river hangs from. */
+.nur-timeline-spine {
+  position: relative;
+  margin-left: 90px;
+  padding-left: 28px;
+  border-left: 1.5px solid rgba(248, 217, 138, 0.22);
+}
+
+.nur-timeline-spine::before {
+  /* A soft gradient along the spine itself: dimmer in deep past, brightest at
+   * Now, fading again into the future — the river's own light source. */
+  content: "";
+  position: absolute;
+  left: -1.5px;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: linear-gradient(
+    180deg,
+    rgba(201, 148, 47, 0.35) 0%,
+    rgba(255, 211, 90, 0.7) 45%,
+    rgba(255, 248, 223, 0.95) 50%,
+    rgba(33, 232, 255, 0.55) 55%,
+    rgba(193, 107, 255, 0.3) 100%
+  );
+}
+
+.nur-timeline-day-group { margin-bottom: 22px; }
+
+.nur-timeline-day-label {
+  position: absolute;
+  left: -90px;
+  width: 78px;
+  text-align: right;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: rgba(255, 248, 223, 0.42);
+  padding-top: 3px;
+}
+
+/* ── Now Horizon ──────────────────────────────────────────────────────────── */
+
+.nur-timeline-now-horizon {
+  position: relative;
+  margin: 20px 0 26px -28px;
+  padding-left: 28px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nur-timeline-now-horizon::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 211, 90, 0.7) 15%,
+    rgba(255, 248, 223, 0.95) 50%,
+    rgba(33, 232, 255, 0.6) 85%,
+    transparent
+  );
+}
+
+.nur-timeline-now-sigil {
+  position: relative;
+  z-index: 1;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fffdf4 0%, var(--tl-gold) 55%, transparent 100%);
+  box-shadow: 0 0 16px rgba(255, 211, 90, 0.7), 0 0 32px rgba(33, 232, 255, 0.25);
+}
+
+.nur-timeline-now-label {
+  position: relative;
+  z-index: 1;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tl-champagne);
+  background: var(--tl-void);
+  padding: 2px 8px;
+}
+
+@keyframes nur-timeline-now-breathe {
+  0%, 100% { opacity: 0.75; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
+
+.nur-timeline-now-sigil { animation: nur-timeline-now-breathe 3.2s ease-in-out infinite; }
+
+/* ── entry chips: the past/present/future truth grammar ──────────────────── */
+
+.nur-timeline-entry {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 9px 13px;
+  border-radius: 15px;
+  cursor: pointer;
+  transition: background var(--tl-quick) ease, opacity var(--tl-quick) ease;
+}
+
+.nur-timeline-entry::before {
+  /* A point on the spine, offset to the left of the card. */
+  content: "";
+  position: absolute;
+  left: -33px;
+  top: 15px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.nur-timeline-entry:hover { background: rgba(16, 16, 82, 0.32); }
+
+.nur-timeline-entry.is-selected {
+  background: linear-gradient(90deg, rgba(255, 211, 90, 0.14), rgba(16, 16, 82, 0.26));
+}
+
+.nur-timeline-entry.is-dimmed { opacity: 0.35; }
+
+/* Past: crystallised — solid, defined, lower motion. */
+.nur-timeline-entry.is-past {
+  border: 1px solid rgba(201, 148, 47, 0.28);
+  background: linear-gradient(180deg, rgba(6, 6, 43, 0.3), rgba(3, 3, 7, 0.5));
+}
+.nur-timeline-entry.is-past::before {
+  background: var(--tl-antique-gold);
+  box-shadow: 0 0 6px rgba(201, 148, 47, 0.6);
+}
+
+/* Present: brightest, strongest contrast. */
+.nur-timeline-entry.is-present {
+  border: 1px solid rgba(255, 211, 90, 0.55);
+  background: linear-gradient(180deg, rgba(16, 16, 82, 0.5), rgba(3, 3, 7, 0.6));
+  box-shadow: 0 0 22px rgba(255, 211, 90, 0.12);
+}
+.nur-timeline-entry.is-present::before {
+  background: var(--tl-gold);
+  box-shadow: 0 0 10px rgba(255, 211, 90, 0.85);
+}
+
+/* Overdue: restrained Coral Flame (§60) — still owed, never an alarm. */
+.nur-timeline-entry.is-overdue {
+  border: 1px solid rgba(255, 82, 111, 0.4);
+  background: linear-gradient(180deg, rgba(44, 6, 18, 0.34), rgba(3, 3, 7, 0.5));
+}
+.nur-timeline-entry.is-overdue::before {
+  background: var(--tl-coral);
+  box-shadow: 0 0 8px rgba(255, 82, 111, 0.7);
+}
+
+/* Future: translucent, softer boundary, growing uncertainty with distance. */
+.nur-timeline-entry.is-future {
+  border: 1px dashed rgba(193, 107, 255, 0.28);
+  background: linear-gradient(180deg, rgba(16, 16, 82, 0.18), rgba(3, 3, 7, 0.3));
+  opacity: 0.86;
+}
+.nur-timeline-entry.is-future::before {
+  background: transparent;
+  border: 1.5px solid rgba(193, 107, 255, 0.6);
+}
+
+.nur-timeline-entry.is-dragging {
+  cursor: grabbing;
+  border-color: rgba(255, 211, 90, 0.75) !important;
+  box-shadow: 0 0 18px rgba(255, 211, 90, 0.3);
+}
+
+.nur-timeline-entry-glyph {
+  font-size: 13px;
+  line-height: 1;
+  margin-top: 1px;
+  color: rgba(255, 248, 223, 0.7);
+}
+
+.nur-timeline-entry-body { min-width: 0; flex: 1; }
+
+.nur-timeline-entry-title {
+  font-size: 13px;
+  color: rgba(255, 248, 223, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nur-timeline-entry-meta {
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  color: rgba(255, 248, 223, 0.46);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A dependency line between two visible entries. Dashed, thin — connective, not
+ * a strong visual claim the way a truth state is. */
+.nur-timeline-dependency-line {
+  position: absolute;
+  left: -33px;
+  width: 1px;
+  border-left: 1px dashed rgba(33, 232, 255, 0.3);
+  pointer-events: none;
+}
+
+/* A Phase band: a faint background strip spanning the days it covers. */
+.nur-timeline-phase-band {
+  position: absolute;
+  left: -90px;
+  right: 0;
+  border-left: 2px solid rgba(255, 24, 200, 0.3);
+  background: linear-gradient(90deg, rgba(255, 24, 200, 0.05), transparent 40%);
+  pointer-events: none;
+}
+
+.nur-timeline-phase-label {
+  position: sticky;
+  top: 0;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 24, 200, 0.6);
+  padding: 2px 0 4px 4px;
+}
+
+/* ── unscheduled holding field ────────────────────────────────────────────── */
+
+.nur-timeline-unscheduled {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(248, 217, 138, 0.16);
+}
+
+/* ── canvas controls ──────────────────────────────────────────────────────── */
+
+.nur-timeline-canvas-controls {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  max-width: calc(100% - 28px);
+}
+
+/* ── detail panel ─────────────────────────────────────────────────────────── */
+
+.nur-timeline-detail-header { margin-bottom: 14px; }
+
+.nur-timeline-detail-kind {
+  margin: 0 0 4px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 211, 90, 0.66);
+}
+
+.nur-timeline-detail-title {
+  margin: 0 0 8px;
+  font-size: 19px;
+  letter-spacing: 0.02em;
+  color: var(--tl-pearl);
+  text-wrap: balance;
+}
+
+.nur-timeline-tabs {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.nur-timeline-tab {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 248, 223, 0.58);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: color var(--tl-quick) ease, border-color var(--tl-quick) ease;
+}
+
+.nur-timeline-tab:hover { color: var(--tl-pearl); }
+
+.nur-timeline-tab[aria-selected="true"] {
+  color: #fffdf4;
+  border-color: rgba(255, 211, 90, 0.55);
+  background: linear-gradient(180deg, rgba(255, 211, 90, 0.16), transparent);
+}
+
+.nur-timeline-field { margin-bottom: 15px; }
+
+.nur-timeline-field-label {
+  margin: 0 0 4px;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 211, 90, 0.58);
+}
+
+.nur-timeline-field-value {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(255, 248, 223, 0.88);
+}
+
+.nur-timeline-field-value.is-unmeasured {
+  color: rgba(255, 248, 223, 0.4);
+  font-style: italic;
+}
+
+.nur-timeline-empty {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: rgba(255, 248, 223, 0.44);
+  font-style: italic;
+}
+
+.nur-timeline-card {
+  border-radius: 15px;
+  border: 1px solid rgba(248, 217, 138, 0.16);
+  background: linear-gradient(180deg, rgba(6, 6, 43, 0.44), rgba(3, 3, 7, 0.66));
+  padding: 11px 13px;
+  margin-bottom: 9px;
+}
+
+.nur-timeline-doubt {
+  border-radius: 15px;
+  border: 1px solid rgba(193, 107, 255, 0.3);
+  background: linear-gradient(180deg, rgba(24, 8, 44, 0.5), rgba(3, 3, 7, 0.7));
+  padding: 11px 13px;
+  margin-top: 6px;
+}
+
+.nur-timeline-doubt-label {
+  margin: 0 0 4px;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--tl-lilac);
+}
+
+/* ── reschedule confirmation: the ripple dialog ───────────────────────────── */
+
+.nur-timeline-ripple-dialog {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(3px);
+}
+
+.nur-timeline-ripple-card {
+  width: min(420px, 90%);
+  max-height: 80%;
+  overflow-y: auto;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 211, 90, 0.35);
+  background: linear-gradient(180deg, rgba(16, 16, 82, 0.86), rgba(3, 3, 7, 0.96));
+  padding: 20px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
+}
+
+.nur-timeline-ripple-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: var(--tl-pearl);
+}
+
+.nur-timeline-ripple-move {
+  font-size: 12.5px;
+  color: rgba(255, 248, 223, 0.7);
+  margin: 0 0 12px;
+}
+
+.nur-timeline-ripple-affected {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nur-timeline-ripple-affected li {
+  font-size: 12px;
+  color: rgba(255, 248, 223, 0.8);
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(6, 6, 43, 0.4);
+}
+
+.nur-timeline-ripple-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* ── Horizons ──────────────────────────────────────────────────────────────── */
+
+.nur-timeline-horizons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.nur-timeline-horizon-col {
+  border-radius: 18px;
+  border: 1px solid rgba(248, 217, 138, 0.15);
+  background: linear-gradient(180deg, rgba(6, 6, 43, 0.4), rgba(3, 3, 7, 0.6));
+  padding: 12px;
+  min-height: 120px;
+}
+
+.nur-timeline-horizon-label {
+  margin: 0 0 10px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 211, 90, 0.6);
+}
+
+.nur-timeline-horizon-item {
+  font-size: 11.5px;
+  color: rgba(255, 248, 223, 0.82);
+  padding: 6px 8px;
+  border-radius: 10px;
+  margin-bottom: 5px;
+  background: rgba(16, 16, 82, 0.3);
+  cursor: pointer;
+}
+
+.nur-timeline-horizon-item:hover { background: rgba(16, 16, 82, 0.5); }
+
+.nur-timeline-drift {
+  margin-top: 16px;
+  padding: 10px 13px;
+  border-radius: 15px;
+  border: 1px solid rgba(255, 82, 111, 0.3);
+  background: linear-gradient(180deg, rgba(44, 6, 18, 0.4), rgba(3, 3, 7, 0.6));
+  font-size: 12px;
+  color: rgba(255, 248, 223, 0.8);
+}
+
+/* ── Review ───────────────────────────────────────────────────────────────── */
+
+.nur-timeline-review-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.nur-timeline-stat {
+  border-radius: 15px;
+  border: 1px solid rgba(248, 217, 138, 0.15);
+  background: linear-gradient(180deg, rgba(6, 6, 43, 0.4), rgba(3, 3, 7, 0.6));
+  padding: 12px 14px;
+}
+
+.nur-timeline-stat-label {
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 211, 90, 0.55);
+  margin-bottom: 4px;
+}
+
+.nur-timeline-stat-value {
+  font-size: 20px;
+  color: var(--tl-pearl);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Calendar ─────────────────────────────────────────────────────────────── */
+
+.nur-timeline-calendar-day {
+  margin-bottom: 16px;
+}
+
+.nur-timeline-calendar-date {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 211, 90, 0.6);
+  margin-bottom: 6px;
+}
+
+/* ── banners ──────────────────────────────────────────────────────────────── */
+
+.nur-timeline-banner {
+  border-radius: 15px;
+  border: 1px solid rgba(255, 82, 111, 0.4);
+  background: linear-gradient(180deg, rgba(44, 6, 18, 0.5), rgba(3, 3, 7, 0.7));
+  padding: 10px 13px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+  color: rgba(255, 248, 223, 0.86);
+}
+
+.nur-timeline-banner.is-notice {
+  border-color: rgba(33, 232, 255, 0.34);
+  background: linear-gradient(180deg, rgba(4, 26, 40, 0.5), rgba(3, 3, 7, 0.7));
+}
+
+/* ── mobile: Flow-first, bottom sheet ─────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .nur-timeline-zones { grid-template-columns: minmax(0, 1fr); }
+
+  .nur-timeline-pane.nur-timeline-nav,
+  .nur-timeline-pane.nur-timeline-detail { display: none; }
+
+  .nur-timeline-shell.is-mobile-detail .nur-timeline-detail {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: 76vh;
+    border-radius: 22px 22px 0 0;
+    z-index: 8;
+  }
+
+  .nur-timeline-header {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .nur-timeline-header-actions { justify-content: flex-start; }
+
+  .nur-timeline-spine { margin-left: 58px; }
+  .nur-timeline-day-label { left: -58px; width: 48px; }
+  .nur-timeline-entry::before { left: -25px; }
+  .nur-timeline-dependency-line { left: -25px; }
+  .nur-timeline-phase-band { left: -58px; }
+}
+
+/* ── motion ───────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .nur-timeline-now-sigil { animation: none !important; }
+  .nur-timeline-capsule,
+  .nur-timeline-row,
+  .nur-timeline-tab,
+  .nur-timeline-entry { transition: none !important; }
+  .nur-timeline-capsule:hover { transform: none; }
+}
+
+/* ── accessible outline ───────────────────────────────────────────────────── */
+
+.nur-timeline-outline { list-style: none; margin: 0; padding: 0; }
+.nur-timeline-outline ul {
+  list-style: none;
+  margin: 0 0 0 14px;
+  padding: 0 0 0 10px;
+  border-left: 1px solid rgba(248, 217, 138, 0.16);
+}
+.nur-timeline-outline li { margin: 3px 0; }
+
+.nur-timeline-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

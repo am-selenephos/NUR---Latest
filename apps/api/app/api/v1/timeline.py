@@ -10,6 +10,12 @@ from sqlalchemy import select
 from app.api.deps import Identity, Scoped, require_csrf
 from app.models import CognitiveEvent, Goal, Outcome, Plan, PlanStep, TimelineEvent
 from app.models._mixins import now_utc
+from app.models.timeline_layer import (
+    DATE_PRECISIONS,
+    ENERGY_TYPES,
+    STATUS_VALUES,
+    VISIBILITY_SCOPES,
+)
 from app.services.glow_service import award_glow_if_eligible
 
 router = APIRouter(prefix="/timeline", tags=["timeline"])
@@ -34,6 +40,18 @@ class TimelineEventIn(BaseModel):
     prediction_id: uuid.UUID | None = None
     importance: int = Field(default=50, ge=0, le=100)
     payload: dict = Field(default_factory=dict)
+    # ── §5's truth model: an item can be created already in one of the
+    # non-default states (PREDICTED from Map, INFERRED from Talk, IMPORTED from
+    # a calendar link, DUE from Insights) rather than always starting PLANNED. ──
+    status: str = "PLANNED"
+    ends_at: dt.datetime | None = None
+    all_day: bool = False
+    timezone_name: str | None = None
+    date_precision: str = "EXACT"
+    earliest_at: dt.datetime | None = None
+    latest_at: dt.datetime | None = None
+    visibility_scope: str = "PRIVATE"
+    energy_type: str | None = None
 
 
 class TimelineEventOut(BaseModel):
@@ -52,6 +70,18 @@ class TimelineEventOut(BaseModel):
     plan_id: uuid.UUID | None
     project_id: uuid.UUID | None
     person_id: uuid.UUID | None
+    ends_at: dt.datetime | None = None
+    all_day: bool = False
+    timezone_name: str | None = None
+    date_precision: str = "EXACT"
+    earliest_at: dt.datetime | None = None
+    latest_at: dt.datetime | None = None
+    actual_start_at: dt.datetime | None = None
+    actual_end_at: dt.datetime | None = None
+    completion_state: str | None = None
+    phase_id: uuid.UUID | None = None
+    visibility_scope: str = "PRIVATE"
+    energy_type: str | None = None
     group_id: uuid.UUID | None
     orbit_id: uuid.UUID | None
     prediction_id: uuid.UUID | None
@@ -151,9 +181,31 @@ async def list_timeline(
     return [TimelineEventOut.model_validate(row) for row in rows]
 
 
+def _validate_creation_truth_fields(payload: TimelineEventIn) -> None:
+    if payload.status not in STATUS_VALUES:
+        raise HTTPException(422, f"status must be one of: {', '.join(STATUS_VALUES)}.")
+    if payload.date_precision not in DATE_PRECISIONS:
+        raise HTTPException(
+            422, f"date_precision must be one of: {', '.join(DATE_PRECISIONS)}."
+        )
+    if payload.visibility_scope not in VISIBILITY_SCOPES:
+        raise HTTPException(
+            422, f"visibility_scope must be one of: {', '.join(VISIBILITY_SCOPES)}."
+        )
+    if payload.energy_type is not None and payload.energy_type not in ENERGY_TYPES:
+        raise HTTPException(422, f"energy_type must be one of: {', '.join(ENERGY_TYPES)}.")
+    if payload.date_precision == "UNSCHEDULED" and (
+        payload.scheduled_for or payload.ends_at or payload.earliest_at or payload.latest_at
+    ):
+        raise HTTPException(
+            422, "An UNSCHEDULED entry cannot carry a scheduled_for, ends_at, earliest_at or latest_at."
+        )
+
+
 @router.post("/events", response_model=TimelineEventOut, status_code=201, dependencies=[Depends(require_csrf)])
 async def create_timeline_event(payload: TimelineEventIn, db: Scoped, identity: Identity) -> TimelineEventOut:
     owner_user_id, _ = identity
+    _validate_creation_truth_fields(payload)
     row = TimelineEvent(
         owner_user_id=owner_user_id,
         event_type=payload.event_type.upper().strip(),
@@ -174,6 +226,15 @@ async def create_timeline_event(payload: TimelineEventIn, db: Scoped, identity: 
         prediction_id=payload.prediction_id,
         importance=payload.importance,
         event_payload=payload.payload,
+        status=payload.status,
+        ends_at=payload.ends_at,
+        all_day=payload.all_day,
+        timezone_name=payload.timezone_name,
+        date_precision=payload.date_precision,
+        earliest_at=payload.earliest_at,
+        latest_at=payload.latest_at,
+        visibility_scope=payload.visibility_scope,
+        energy_type=payload.energy_type,
     )
     db.add(row)
     await db.flush()

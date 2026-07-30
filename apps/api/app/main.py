@@ -136,6 +136,7 @@ def create_app() -> FastAPI:
     from app.intelligence.routes import router as intelligence_router
     from app.api.v1.agentic import router as agentic_router
     from app.api.v1.timeline import router as timeline_router
+    from app.api.v1.timeline_workspace import router as timeline_workspace_router
     from app.api.v1.universe import router as universe_router
     from app.omega.routes import router as omega_router
     from app.billing.routes import router as billing_router
@@ -169,6 +170,10 @@ def create_app() -> FastAPI:
     app.include_router(ops_router, prefix="/api/v1")
     app.include_router(translations_router, prefix="/api/v1")
     app.include_router(timeline_router, prefix="/api/v1")
+    # Same `/timeline` prefix: entry creation and the original truth-state
+    # transitions stay in timeline.py, the composed Flow/Calendar/Horizons/Review
+    # surface and everything that had no home live beside it.
+    app.include_router(timeline_workspace_router, prefix="/api/v1")
     app.include_router(agentic_router, prefix="/api/v1")
     app.include_router(universe_router, prefix="/api/v1")
     app.include_router(omega_router, prefix="/api/v1")

@@ -32,6 +32,7 @@
 import MAP_CSS from "../styles/v197-map.css?raw";
 import { markV197HolographicWordmark } from "./v197Brand";
 import { createV197StarSeal } from "./v197StarSeal";
+import { setV197SurfaceBackdrop } from "./v197SurfaceBackdrop";
 import type { V197ApiClient } from "./v197ApiClient";
 
 const ROOT_ID = "nur-map-root";
@@ -393,10 +394,16 @@ export async function renderV197Map(
 ): Promise<boolean> {
   if (route !== MAP_ROUTE) {
     doc.getElementById(ROOT_ID)?.remove();
+    // Always restore the canonical content layer on the way out, or leaving this
+    // route would leave the canonical page invisible.
+    setV197SurfaceBackdrop(doc, false);
     return false;
   }
 
   ensureStyle(doc);
+  // Keep the canonical galaxy visible behind this surface and step the
+  // competing canonical content layer aside. See v197SurfaceBackdrop.
+  setV197SurfaceBackdrop(doc, true);
 
   const view = doc.defaultView;
   const isMobile = Boolean(view && view.innerWidth <= 900);

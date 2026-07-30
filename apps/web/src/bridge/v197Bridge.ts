@@ -2,6 +2,7 @@ import { V197ApiClient, type V197BridgeSnapshot, type V197Session } from "./v197
 import { renderV197Adjunct } from "./v197Adjuncts";
 import { renderV197Orbit } from "./v197Orbit";
 import { renderV197Map } from "./v197Map";
+import { renderV197Timeline } from "./v197Timeline";
 import { bindV197Actions, bindV197EntryAuth } from "./v197Bindings";
 import { emitBridgeEvent, routeForPage, routeForWorldFocus, V197_EVENTS, type V197NativeRoute } from "./v197Events";
 import { hydrateTrackAV197, renderWorldLens } from "./v197Hydration";
@@ -208,6 +209,11 @@ export class V197Bridge {
       // outcomes into a causal surface, and owns no life entity of its own.
       const mapRendered = await renderV197Map(this.universeDocument, route, this.api);
       if (mapRendered) return;
+      // Timeline, likewise: it composes canonical timeline_events and
+      // scheduled_actions into a temporal surface and owns no life entity of
+      // its own.
+      const timelineRendered = await renderV197Timeline(this.universeDocument, route, this.api);
+      if (timelineRendered) return;
       const page = pageByRoute[canonicalRoute];
       if (page) this.click(V197_SELECTORS.pageNav(page));
       const world = worldByRoute[canonicalRoute];

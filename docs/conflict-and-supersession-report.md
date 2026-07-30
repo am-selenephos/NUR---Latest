@@ -125,6 +125,16 @@ destroy proven work.
 | affected_tests | `app/tests/test_sol_living_system.py` (`SYSTEM_SLUGS` is asserted against the catalog and against `/api/v1/map` node ids) |
 | resolution_status | **OPEN — founder decision.** Implementation taken meanwhile: the Map renders System regions **driven from the canonical catalog** rather than a hardcoded list, so it displays whatever `SYSTEMS` contains and will pick up a seventh automatically the moment the founder adds it. Consequence to be honest about: acceptance criterion 1 ("Seven Systems appear as meaningful regions") currently renders **six** regions, and cannot be met without this decision. |
 
+**Update, Timeline spec (§40.5, "By System" lane grouping):** the Timeline
+instruction independently lists the same seven — Quiet Ambition, Rebuild, Study,
+Money, Body, Connection, Creation. This is the same list, not a new one, so it is
+not a second conflict; it is corroborating evidence that the seven-System naming
+is a settled intention on the founder's side across at least two separate
+instructions, which raises the priority of resolving CONFLICT-010 but does not
+change what an implementer may do about it today. Timeline's own System lane
+grouping is, like Map's regions, driven from the catalog rather than a hardcoded
+list of seven, for the same reason.
+
 ### Noted while auditing, not a conflict
 
 `_stable_layout` in `app/api/v1/map.py` already distributes System nodes with

@@ -156,6 +156,36 @@ class TimelineEvent(Base):
     event_payload: Mapped[dict] = mapped_column(
         JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
     )
+    # ── Added by migration 0052 so a Timeline entry carries a genuine truth
+    # model rather than a single status string. `date_precision` is what stops
+    # false clock precision: an item can be date-only, a window, before a date,
+    # after a dependency, a flexible week, a horizon, or explicitly unscheduled —
+    # and the database refuses to let an UNSCHEDULED row carry any date at all. ──
+    ends_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    all_day: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
+    timezone_name: Mapped[str | None] = mapped_column(String(64))
+    date_precision: Mapped[str] = mapped_column(
+        String(24), default="EXACT", server_default="EXACT", nullable=False
+    )
+    earliest_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    latest_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    actual_start_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    actual_end_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    #: A quality verdict distinct from `status`. The database requires
+    #: `actual_end_at` before this can be set — a verdict about something needs
+    #: the something to have an end.
+    completion_state: Mapped[str | None] = mapped_column(String(32))
+    phase_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("timeline_phases.id", ondelete="SET NULL")
+    )
+    #: Same vocabulary as `MapAnnotation.visibility_scope` on purpose — one
+    #: privacy word set across surfaces rather than a different one per page.
+    visibility_scope: Mapped[str] = mapped_column(
+        String(24), default="PRIVATE", server_default="PRIVATE", nullable=False
+    )
+    energy_type: Mapped[str | None] = mapped_column(String(24))
     created_at = _created()
     updated_at = _created()
 

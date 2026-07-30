@@ -120,3 +120,7 @@ from app.models.map_layer import (  # noqa: F401
     MapAnnotation, MapBlocker, MapDecisionOption, MapEdge, MapLayout,
     MapSuggestion, MapView,
 )
+from app.models.timeline_layer import (  # noqa: F401
+    TimelineExternalLink, TimelinePhase, TimelinePreference, TimelineRecurrence,
+    TimelineReschedule, TimelineReview,
+)

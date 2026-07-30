@@ -62,7 +62,18 @@
    * screen, so leaving Orbit needs no restore step and nothing in V197 is
    * modified. Kept below the auth-wait overlay at 1200 so sign-in still surfaces. */
   z-index: 320;
-  background: var(--orbit-void);
+  /* Transparent, NOT opaque black. The canonical galaxy `#space3d` sits at
+   * z-index 280 with `mix-blend-mode: screen` and is what draws the stars.
+   * Painting a solid `#000000` here at 320 covered it completely, so this
+   * surface rendered over a dead black field and the universe disappeared.
+   * A faint scrim only — enough to hold contrast for the glass panes, thin
+   * enough that the starfield still reads through it. */
+  background: radial-gradient(
+    ellipse 120% 100% at 50% 45%,
+    rgba(0, 0, 0, 0.12) 0%,
+    rgba(0, 0, 0, 0.3) 55%,
+    rgba(0, 0, 0, 0.52) 100%
+  );
   color: var(--orbit-pearl);
   font-family: "Bodoni Moda", Georgia, serif;
   overflow: hidden;
