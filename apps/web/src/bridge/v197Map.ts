@@ -289,6 +289,14 @@ interface MapState {
   error: string | null;
   notice: string | null;
   busy: boolean;
+  /** False until the first graph load settles.
+   *
+   * Without this the first paint showed the empty state — "your Map begins with
+   * where you are" — to an owner whose Map is merely still loading, which is a
+   * lie about their own records and reads as data loss. §32 asks for a loading
+   * state; this is what distinguishes "nothing recorded" from "not arrived yet".
+   */
+  loaded: boolean;
 }
 
 // ── small DOM helpers ────────────────────────────────────────────────────────
@@ -416,6 +424,7 @@ export async function renderV197Map(
     error: null,
     notice: null,
     busy: false,
+    loaded: false,
   };
 
   // ── data ───────────────────────────────────────────────────────────────────
@@ -439,6 +448,7 @@ export async function renderV197Map(
     } catch {
       state.smart = null;
     }
+    state.loaded = true;
     paint();
   }
 
@@ -792,6 +802,19 @@ export async function renderV197Map(
 
     const nodes = visibleNodes();
     const near = neighbourhood();
+
+    if (!state.loaded) {
+      // §32: loading is its own state. Saying "your Map begins with where you
+      // are" to someone whose map has simply not arrived is a claim about their
+      // records that happens to be false.
+      const loading = el(doc, "div", "nur-map-pane-scroll");
+      loading.dataset.mapLoading = "true";
+      loading.append(el(doc, "p", "nur-map-detail-kind", "Map"));
+      loading.append(el(doc, "p", "nur-map-empty", "Assembling your Systems and routes…"));
+      wrap.append(loading);
+      pane.append(wrap);
+      return pane;
+    }
 
     if (!nodes.some((row) => row.kind !== "MASTER_STAR" && row.kind !== "SYSTEM")) {
       // §31: the empty Map is beautiful and useful, never "no data available".
@@ -1163,6 +1186,87 @@ export async function renderV197Map(
     close.addEventListener("click", () => actions.toggleOutline());
     wrap.append(close);
     return wrap;
+  }
+
+  /**
+   * §33's mobile default: a Focus list, not a shrunken galaxy.
+   *
+   * This exists because of a real defect found running the spec on WebKit mobile:
+   * the rail and detail panel are `display: none` at phone widths, and the
+   * candidate strip lived only in the detail panel — so on a phone NUR's
+   * suggestions rendered into a hidden panel and were unreachable. Everything
+   * waiting on the owner has to be reachable on the surface they actually open.
+   */
+  function mapMobileFocusList(): HTMLElement {
+    const pane = el(doc, "section", "nur-map-pane nur-map-workspace");
+    pane.setAttribute("aria-label", "Focus list");
+    const scroll = el(doc, "div", "nur-map-pane-scroll");
+    scroll.dataset.mapFocusList = "true";
+
+    const section = (label: string, rows: { ref: string; label: string; reason?: string }[]): void => {
+      const group = el(doc, "div", "nur-map-nav-group");
+      group.append(el(doc, "p", "nur-map-nav-label", label));
+      if (!rows.length) {
+        group.append(el(doc, "p", "nur-map-empty", "Nothing here yet."));
+      } else {
+        const list = el(doc, "ul", "nur-map-nav-list");
+        for (const row of rows) {
+          const item = el(doc, "li");
+          const button = el(doc, "button", "nur-map-row");
+          button.type = "button";
+          if (state.selected === row.ref) button.classList.add("is-selected");
+          button.append(el(doc, "span", undefined, "◦"));
+          button.append(el(doc, "span", "nur-map-row-label", row.label));
+          button.append(el(doc, "span", "nur-map-row-meta", row.reason ? "why" : ""));
+          if (row.reason) button.title = row.reason;
+          button.addEventListener("click", () => actions.select(row.ref));
+          item.append(button);
+          list.append(item);
+        }
+        group.append(list);
+      }
+      scroll.append(group);
+    };
+
+    const read = (key: string): { ref: string; label: string; reason?: string }[] =>
+      (state.smart?.[key] as { ref: string; label: string; reason?: string }[] | undefined) ?? [];
+
+    section("Current focus", read("current_focus"));
+    section("Needs decision", read("needs_decision"));
+    section("Blocked", read("blocked"));
+    section("Momentum", read("momentum"));
+    section("Fragile paths", read("fragile_paths"));
+
+    // Systems stay reachable on a phone, with their state and its reason.
+    const systems = el(doc, "div", "nur-map-nav-group");
+    systems.append(el(doc, "p", "nur-map-nav-label", "Systems"));
+    const list = el(doc, "ul", "nur-map-nav-list");
+    for (const region of state.graph.system_regions) {
+      const item = el(doc, "li");
+      const button = el(doc, "button", "nur-map-row");
+      button.type = "button";
+      button.append(el(doc, "span", undefined, STATE_GLYPH[region.state] ?? "○"));
+      button.append(el(doc, "span", "nur-map-row-label", region.title));
+      button.append(el(
+        doc, "span", "nur-map-row-meta", STATE_WORD[region.state] ?? region.state,
+      ));
+      button.title = region.state_reason;
+      button.addEventListener("click", () => actions.select(region.node_id));
+      item.append(button);
+      list.append(item);
+    }
+    systems.append(list);
+    scroll.append(systems);
+
+    // The candidate strip, on the surface rather than behind a hidden panel.
+    const pending = state.graph.suggested_changes.suggestions;
+    if (pending.length) {
+      scroll.append(el(doc, "p", "nur-map-nav-label", "NUR suggests"));
+      for (const suggestion of pending) scroll.append(candidateCard(suggestion));
+    }
+
+    pane.append(scroll);
+    return pane;
   }
 
   function mapPathsView(): HTMLElement {
@@ -1670,6 +1774,9 @@ export async function renderV197Map(
     root.dataset.v197NativeAdjunct = "true";
 
     const shell = el(doc, "div", "nur-map-shell");
+    // Exposed so a caller can wait for the graph rather than racing the first
+    // paint, and so the loading state is observable rather than inferred.
+    root.dataset.mapLoaded = state.loaded ? "true" : "false";
     if (isMobile && state.selected) shell.classList.add("is-mobile-detail");
     shell.append(mapHeader());
 
@@ -1693,6 +1800,8 @@ export async function renderV197Map(
     zones.append(mapNavigator());
     if (state.mode === "paths") zones.append(mapPathsView());
     else if (state.mode === "decisions") zones.append(mapDecisionsView());
+    // On a phone, Focus is a list. The galaxy is Visual mode, reached explicitly.
+    else if (isMobile && state.mode === "focus") zones.append(mapMobileFocusList());
     else zones.append(mapCanvas());
     zones.append(mapDetailPanel());
     shell.append(zones);

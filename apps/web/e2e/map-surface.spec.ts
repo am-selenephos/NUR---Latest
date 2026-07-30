@@ -60,6 +60,16 @@ async function openMap(page: Page): Promise<Frame> {
   const handle = await page.waitForSelector("#nur-universe-stage");
   const frame = await handle.contentFrame();
   if (!frame) throw new Error("the universe stage frame is not attached");
+  // Wait for the graph, not just the first paint. Asserting against the initial
+  // empty render passed on desktop Chromium purely because the fetch was fast
+  // enough, and failed on WebKit mobile — a race in the test, and the reason the
+  // loading state now exists in the product.
+  await expect.poll(
+    async () => frame.evaluate(
+      () => document.getElementById("nur-map-root")?.dataset.mapLoaded ?? "missing",
+    ),
+    { timeout: 20_000, message: "the Map graph never finished loading" },
+  ).toBe("true");
   return frame;
 }
 
@@ -169,6 +179,9 @@ test("System regions come from the server, each with a state and a reason", asyn
 });
 
 test("all four modes render their own workspace", async () => {
+  // Three sequential mode switches, each fetching from the API. On WebKit mobile
+  // that exceeds the 30s default; the assertions are unchanged, only the budget.
+  test.slow();
   const frame = await openMap(sharedPage);
   for (const [mode, marker] of [
     ["paths", "[data-map-paths]"],
@@ -272,6 +285,10 @@ test("every drawn connection can say why the two things are connected", async ()
 });
 
 test("the five detail tabs render, and NUR View always states its doubt", async () => {
+  // Five tab switches, and every state change repaints the whole root. That is
+  // cheap on desktop Chromium and measurably slow on WebKit mobile — a real
+  // characteristic of the current render strategy, not a flake. Budget only.
+  test.slow();
   const frame = await openMap(sharedPage);
   await frame.click('[data-map-mode="universe"]');
   // Select the anchor, which always exists for every owner.
@@ -408,14 +425,35 @@ test("dragging a node with the mouse persists position and nothing else", async 
   });
   expect(target, "no System node to drag").not.toBeNull();
 
+  // Park the node at a known point inside the viewBox first. This test persists
+  // layout, so without a reset it drifts further from centre on every run until
+  // the node sits outside the canvas and the synthesised press misses it — which
+  // is exactly how it started failing.
   const before = await frame.evaluate(async (id) => {
+    const csrf = document.cookie.split("; ")
+      .find((row) => row.startsWith("nur_csrf="))?.split("=")[1] ?? "";
     const views = await (await fetch("/api/v1/map/views", { credentials: "include" })).json();
+    const ref = { type: id.split(":")[0].replace(/-/g, "_"), id: id.split(":")[1] };
+    await fetch(`/api/v1/map/views/${views.default_view_id}/layout`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+      body: JSON.stringify({
+        nodes: [{ node_ref_type: ref.type, node_ref_id: ref.id, x: 0, y: 0 }],
+      }),
+    });
     const graph = await (await fetch(`/api/v1/map/views/${views.default_view_id}/graph`, {
       credentials: "include",
     })).json();
     const node = graph.nodes.find((row: { id: string }) => row.id === id);
     return { x: node.data.layout.x, y: node.data.layout.y, parent: node.parent_id };
   }, target as string);
+  expect(before.x).toBe(0);
+
+  // Repaint so the node is actually drawn at the parked position before dragging.
+  await sharedPage.reload({ waitUntil: "networkidle" });
+  const fresh = await openMap(page);
+  await fresh.click('[data-map-mode="universe"]');
 
   const locator = page.frameLocator("#nur-universe-stage")
     .locator(`[data-map-node="${target}"]`);
@@ -432,7 +470,7 @@ test("dragging a node with the mouse persists position and nothing else", async 
 
   // Wait for the release to reach the server rather than assuming it has.
   await expect.poll(
-    async () => frame.evaluate(async (id) => {
+    async () => fresh.evaluate(async (id) => {
       const views = await (await fetch("/api/v1/map/views", { credentials: "include" })).json();
       const graph = await (await fetch(`/api/v1/map/views/${views.default_view_id}/graph`, {
         credentials: "include",
@@ -443,7 +481,7 @@ test("dragging a node with the mouse persists position and nothing else", async 
     { timeout: 15_000, message: "the drag never reached the server" },
   ).not.toBe(before.x);
 
-  const persisted = await frame.evaluate(async (id) => {
+  const persisted = await fresh.evaluate(async (id) => {
     const views = await (await fetch("/api/v1/map/views", { credentials: "include" })).json();
     const graph = await (await fetch(`/api/v1/map/views/${views.default_view_id}/graph`, {
       credentials: "include",

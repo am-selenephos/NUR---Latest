@@ -451,7 +451,13 @@
 
 /* Node shapes. Kind is carried by geometry as well as hue, so the map stays
  * readable in greyscale and to anyone who does not separate these colours. */
-.nur-map-node { cursor: pointer; }
+.nur-map-node {
+  cursor: pointer;
+  /* Without this the browser claims a touch drag as a scroll/pan gesture before
+   * any pointermove reaches the handler, so repositioning silently did nothing on
+   * a touch device. */
+  touch-action: none;
+}
 .nur-map-node-label {
   font-size: 11px;
   letter-spacing: 0.045em;
