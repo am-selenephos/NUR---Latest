@@ -3,7 +3,7 @@
 import datetime as dt
 import uuid
 
-from sqlalchemy import Float, ForeignKey, Integer, String, Text, text
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import DateTime
@@ -41,6 +41,46 @@ class Person(Base):
     privacy_scope: Mapped[str] = mapped_column(
         String(32), default="PRIVATE_ORBIT", server_default="PRIVATE_ORBIT", nullable=False
     )
+
+    # ── Orbit relational columns (migration 0050). `people` is the Orbit person
+    #    entity rather than a second table claiming the same thing. ──
+
+    # The band, owner-owned. NULL means "not yet placed", which is the honest
+    # state for someone imported from a Talk reference and not yet reviewed.
+    orbit_level: Mapped[str | None] = mapped_column(String(16))
+    # A suggestion is never an assignment. Both columns exist so the interface can
+    # offer a move and explain it without having already performed it, and the
+    # database refuses a suggestion with no reason.
+    orbit_level_suggestion: Mapped[str | None] = mapped_column(String(16))
+    orbit_level_suggestion_reason: Mapped[str | None] = mapped_column(Text)
+    tags: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+    # Kept apart deliberately: a generated summary must never overwrite the
+    # owner's own words about a person.
+    user_summary: Mapped[str | None] = mapped_column(Text)
+    nur_summary: Mapped[str | None] = mapped_column(Text)
+    relational_state: Mapped[str | None] = mapped_column(String(24))
+    avatar_ref: Mapped[str | None] = mapped_column(String(400))
+
+    # Permissions. Everything the owner has not granted defaults closed;
+    # memory_allowed is the exception because a person the owner typed in is
+    # already a durable private reference.
+    memory_allowed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true")
+    )
+    inference_allowed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    sharing_allowed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    capsule_eligible: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    archived_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    last_interaction_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+
     created_at = _created()
     updated_at = _created()
 

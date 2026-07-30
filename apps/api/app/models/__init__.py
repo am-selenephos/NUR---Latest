@@ -3,6 +3,16 @@ from app.models.user import User
 from app.models.profile import Profile
 from app.models.session import Session
 from app.models.orbit import Orbit
+from app.models.orbit_relational import (  # noqa: F401
+    OrbitContextLink,
+    OrbitGroup,
+    OrbitGroupMember,
+    OrbitLayoutNode,
+    OrbitRelationalInsight,
+    OrbitRelationalSignal,
+    OrbitRelationship,
+    OrbitThread,
+)
 from app.models.consent import ConsentRecord
 from app.models.audit import AuditEvent
 from app.models.password_recovery import PasswordResetChallenge
