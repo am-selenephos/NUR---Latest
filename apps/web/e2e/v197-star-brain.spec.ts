@@ -155,7 +155,7 @@ test("Entry replaces the center MasterStar with the exact interactive V43 brain"
   await expect(brain).toHaveAttribute("data-nur-dispersal", "radial-circle");
   await expect(brain).toHaveAttribute("title", /drag to spin the mind.+double-click: neural storm.+scroll to zoom/);
   await expect(entry.locator("#nur-v43-exact-star-brain-runtime"))
-    .toHaveAttribute("data-nur-runtime-hash", "680f15dada3042052d34512e3ce0cf3641ef4326576cb2811a479ae6cdeaacbe");
+    .toHaveAttribute("data-nur-runtime-hash", "6c6c70fb566cacb658a693ab9d747c6b42fa02c9b588eb66b5d21968850a9eac");
   await expect(brain.locator("#nur-brain-canvas")).toBeVisible();
 
   const expectedPoints = testInfo.project.name.includes("mobile") ? "1355" : "2086";
@@ -164,6 +164,11 @@ test("Entry replaces the center MasterStar with the exact interactive V43 brain"
   await expect(brain).toHaveAttribute("data-nur-stem-point-count", expectedStemPoints);
   await expect(brain).toHaveAttribute("data-nur-sparkle-profile", "exact-galaxy-rig-star");
   await expect(brain).toHaveAttribute("data-nur-galaxy-paint", "v197-simple-galaxy-particle-v1");
+  await expect(brain).toHaveAttribute(
+    "data-nur-render-profile",
+    "bounded-prism-cache-direct-pinpoints-v1",
+  );
+  await expect(brain).toHaveAttribute("data-nur-prism-wheel", "32");
   await expect(brain).toHaveAttribute("data-nur-anatomy", "cortex-cerebellum-brainstem");
   await expect.poll(() => entry.locator("body").evaluate(() => (
     typeof (window as unknown as { nurStarBrain?: { shatter?: unknown } }).nurStarBrain?.shatter
@@ -355,7 +360,7 @@ test("Systems map mounts only the exact brain and keeps the NUR lockup on one ax
   await expect(brain).toHaveAttribute("data-nur-dispersal", "radial-circle");
   await expect(brain.locator("#nur-brain-canvas")).toBeVisible();
   await expect(universe.locator("#nur-v43-exact-star-brain-runtime"))
-    .toHaveAttribute("data-nur-runtime-hash", "680f15dada3042052d34512e3ce0cf3641ef4326576cb2811a479ae6cdeaacbe");
+    .toHaveAttribute("data-nur-runtime-hash", "6c6c70fb566cacb658a693ab9d747c6b42fa02c9b588eb66b5d21968850a9eac");
 
   const expectedPoints = testInfo.project.name.includes("mobile") ? "1355" : "2086";
   const expectedStemPoints = testInfo.project.name.includes("mobile") ? "97" : "147";
@@ -363,6 +368,11 @@ test("Systems map mounts only the exact brain and keeps the NUR lockup on one ax
   await expect(brain).toHaveAttribute("data-nur-stem-point-count", expectedStemPoints);
   await expect(brain).toHaveAttribute("data-nur-sparkle-profile", "exact-galaxy-rig-star");
   await expect(brain).toHaveAttribute("data-nur-galaxy-paint", "v197-simple-galaxy-particle-v1");
+  await expect(brain).toHaveAttribute(
+    "data-nur-render-profile",
+    "bounded-prism-cache-direct-pinpoints-v1",
+  );
+  await expect(brain).toHaveAttribute("data-nur-prism-wheel", "32");
   await expect(brain).toHaveAttribute("data-nur-anatomy", "cortex-cerebellum-brainstem");
   await expect.poll(() => universe.locator("body").evaluate(() => (
     typeof (window as unknown as { nurStarBrain?: { storm?: unknown } }).nurStarBrain?.storm

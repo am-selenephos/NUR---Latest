@@ -177,7 +177,24 @@ export async function json(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
 }
 
+export async function installBundledFontPolicy(page: Page) {
+  // Canonical V197 still carries its historical Google Fonts link, while the
+  // production bridge supplies the exact Bodoni/Crimson faces from local
+  // bundled files. Do not let mocked readiness wait on public DNS before an
+  // iframe can reach readyState=complete.
+  await page.route("https://fonts.googleapis.com/**", route => route.fulfill({
+    status: 200,
+    contentType: "text/css",
+    body: "",
+  }));
+  await page.route("https://fonts.gstatic.com/**", route => route.fulfill({
+    status: 204,
+    body: "",
+  }));
+}
+
 export async function installNurMocks(page: Page) {
+  await installBundledFontPolicy(page);
   const state: MockState = {
     outcomePosts: 1,
     preferences: {

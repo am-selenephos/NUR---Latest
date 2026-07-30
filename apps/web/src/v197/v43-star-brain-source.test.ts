@@ -11,7 +11,7 @@ const bridge = readFileSync(bridgePath, "utf8");
 describe("V43-derived NUR star-brain source", () => {
   it("keeps the supplied V43 anatomy and adds the approved sparkle/stem extension", () => {
     expect(createHash("sha256").update(runtime).digest("hex"))
-      .toBe("680f15dada3042052d34512e3ce0cf3641ef4326576cb2811a479ae6cdeaacbe");
+      .toBe("6c6c70fb566cacb658a693ab9d747c6b42fa02c9b588eb66b5d21968850a9eac");
     expect(runtime).toContain("canvas.id = 'nur-brain-canvas';");
     expect(runtime).toContain("const N_CORTEX = MOBILE ? 740 : 1112;");
     expect(runtime).toContain("const N_CEREB  = MOBILE ? 154 : 225;");
@@ -29,12 +29,18 @@ describe("V43-derived NUR star-brain source", () => {
     expect(runtime).toContain("starPath(g,mid,mid,outer,-Math.PI/2);");
     // Halos are rasterised once per colour and size bucket rather than allocating
     // two radial gradients per star per frame, as the rig does.
-    // The complete star is rasterised once per colour and size bucket and then
-    // blitted. Drawing halo, body, core and spikes live cost 66 ms per frame at
-    // 1,820 points; one drawImage per point is a single composite.
+    // Large stars are rasterised once per colour and size bucket. Sub-pixel
+    // stars paint directly, while the prism palette is fixed to 32 steps, so
+    // neither scaled blits nor unbounded colour-keyed canvases can stall RAF.
     expect(runtime).toContain("const starCache=new Map();");
+    expect(runtime).toContain("const PRISM_WHEEL=Array.from({length:32}");
+    expect(runtime).toContain("const starCssCache=new Map();");
     expect(runtime).toContain("function starSprite(col,bucket)");
-    expect(runtime).toContain("c.drawImage(sprite,x-reach,y-reach,reach*2,reach*2);");
+    expect(runtime).toContain("if(rad<.78)");
+    expect(runtime).toContain("c.fillRect(x-size/2,y-size/2,size,size);");
+    expect(runtime).toContain("c.drawImage(sprite,x-sprite.width/2,y-sprite.height/2);");
+    expect(runtime).toContain("host.dataset.nurRenderProfile='bounded-prism-cache-direct-pinpoints-v1';");
+    expect(runtime).toContain("host.dataset.nurPrismWheel=String(PRISM_WHEEL.length);");
     expect(runtime).toContain("window.nurStarBrain={ storm, absorb, shatter, firePulse, dispose };");
     expect(runtime).not.toContain("nur-brain-canvas-v197");
     expect(() => new Function(runtime)).not.toThrow();

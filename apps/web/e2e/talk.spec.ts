@@ -1,4 +1,17 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type FrameLocator, type Page, type Route } from "@playwright/test";
+
+import { installBundledFontPolicy } from "./helpers/nurMocks";
+
+const V197_BRIDGE_READY_TIMEOUT_MS = 12_000;
+
+async function readyUniverse(page: Page, pageSelector: string): Promise<FrameLocator> {
+  await expect(page.locator("#nur-universe-stage")).toHaveClass(/is-visible/, {
+    timeout: V197_BRIDGE_READY_TIMEOUT_MS,
+  });
+  const universe = page.frameLocator("#nur-universe-stage");
+  await expect(universe.locator(pageSelector)).toBeVisible();
+  return universe;
+}
 
 const user = {
   id: "11111111-1111-1111-1111-111111111111",
@@ -47,6 +60,7 @@ async function sse(route: Route, events: Array<{ id: number; event: string; data
 }
 
 async function installTalkMocks(page: Page, opts: { providerAvailable: boolean }) {
+  await installBundledFontPolicy(page);
   const thread: ThreadRow[] = [];
   let lastTalkMode = "talk";
   let planCreated = false;
@@ -270,8 +284,7 @@ async function installTalkMocks(page: Page, opts: { providerAvailable: boolean }
 test("talk disabled provider fails closed with a visible honest error, never a silent user-only bubble", async ({ page }) => {
   await installTalkMocks(page, { providerAvailable: false });
   await page.goto("/talk");
-  const universe = page.frameLocator("#nur-universe-stage");
-  await expect(universe.locator("#page-talk")).toBeVisible();
+  const universe = await readyUniverse(page, "#page-talk");
   await universe.locator("#talk-input").fill("Hold this without fake AI.");
   await universe.getByRole("button", { name: "Send to NUR" }).click();
 
@@ -299,7 +312,7 @@ test("talk disabled provider fails closed with a visible honest error, never a s
 test("talk mocked semantic stream preserves structured result and plan/correction actions", async ({ page }) => {
   const mocks = await installTalkMocks(page, { providerAvailable: true });
   await page.goto("/systems");
-  const universe = page.frameLocator("#nur-universe-stage");
+  const universe = await readyUniverse(page, "#page-systems");
   const reflect = universe.locator('.universe-prompt-row [data-action="reflect"]');
   await reflect.click();
   await expect(reflect).toHaveAttribute("aria-pressed", "true");
@@ -332,13 +345,14 @@ test("talk mocked semantic stream preserves structured result and plan/correctio
 
 test("former glow action is outcome-gated before visible count changes", async ({ page }) => {
   const mocks = await installTalkMocks(page, { providerAvailable: true });
-  const universe = page.frameLocator("#nur-universe-stage");
-  const outcomesReturned = universe.locator(".universe-hero-stats > span").nth(1);
   await page.goto("/systems");
+  const universe = await readyUniverse(page, "#page-systems");
+  const outcomesReturned = universe.locator(".universe-hero-stats > span").nth(1);
   await expect(outcomesReturned).toContainText("00");
   await expect(outcomesReturned).toContainText("outcomes returned");
 
   await page.goto("/plan");
+  await readyUniverse(page, "#page-plan");
   await expect(universe.getByText("Mark a Personal Glow")).toHaveCount(0);
   await expect(universe.locator("#nur-outcome-composer")).toBeHidden();
   await universe.locator(".plan-check[data-plan-step-id='step-1']").click();
@@ -346,14 +360,17 @@ test("former glow action is outcome-gated before visible count changes", async (
   expect(mocks.outcomePosts()).toBe(0);
 
   await page.goto("/systems");
+  await readyUniverse(page, "#page-systems");
   await expect(outcomesReturned).toContainText("00");
 
   await page.goto("/plan");
+  await readyUniverse(page, "#page-plan");
   await universe.locator("#nur-outcome-input").fill("The owner shipped the visible fix.");
   await universe.locator('[data-action="return-outcome"]').click();
   await expect.poll(() => mocks.outcomePosts()).toBe(1);
 
   await page.goto("/systems");
+  await readyUniverse(page, "#page-systems");
   await expect(outcomesReturned).toContainText("01");
 });
 
@@ -389,11 +406,12 @@ test("talk thread survives reload from persisted API state", async ({ page }) =>
   );
 
   await page.goto("/talk");
-  const universe = page.frameLocator("#nur-universe-stage");
+  const universe = await readyUniverse(page, "#page-talk");
   await expect(universe.getByText("This line was already persisted.", { exact: true })).toBeVisible();
   const answer = universe.locator("#talk-stream .talk-message.nur[data-event-id='persisted-nur']");
   await expect(answer).toContainText("Persisted answer.");
   await page.reload();
+  await readyUniverse(page, "#page-talk");
   await expect(universe.getByText("This line was already persisted.", { exact: true })).toBeVisible();
   await expect(answer).toContainText("Persisted answer.");
 });

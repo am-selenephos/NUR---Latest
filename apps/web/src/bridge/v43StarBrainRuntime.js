@@ -46,18 +46,24 @@
     }
     return SPECTRA.G[0];
   }
-  function mixCol(a,b,t){
+  // Prism stars used to generate a new interpolated RGB triplet every frame.
+  // Because RGB is part of the sprite-cache key, that silently created an
+  // unbounded stream of offscreen canvases and eventually stalled the rig.
+  // A fixed 32-colour wheel is visually continuous across hundreds of stars
+  // with independent phases, while bounding the complete sprite palette.
+  const PRISM_WHEEL=Array.from({length:32},(_,step)=>{
+    const orbit=step/32*PRISM.length;
+    const i0=Math.floor(orbit)%PRISM.length, i1=(i0+1)%PRISM.length;
+    const t=orbit-i0, a=PRISM[i0], b=PRISM[i1];
     return [
       Math.round(a[0]+(b[0]-a[0])*t),
       Math.round(a[1]+(b[1]-a[1])*t),
       Math.round(a[2]+(b[2]-a[2])*t)
     ];
-  }
-  function prismShift(col,phase,twinkle=1){
-    const orbit=(phase%(Math.PI*2)+Math.PI*2)/(Math.PI*2)*PRISM.length;
-    const i0=Math.floor(orbit)%PRISM.length, i1=(i0+1)%PRISM.length;
-    const prism=mixCol(PRISM[i0],PRISM[i1],orbit-i0);
-    return mixCol(col,prism,Math.min(.58,.24+twinkle*.1));
+  });
+  function prismShift(phase){
+    const turn=(phase%(Math.PI*2)+Math.PI*2)/(Math.PI*2);
+    return PRISM_WHEEL[Math.floor(turn*PRISM_WHEEL.length)%PRISM_WHEEL.length];
   }
 
   /* ---- 3D star-brain point cloud ---------------------------------------
@@ -155,6 +161,9 @@
   host.dataset.nurSparkleProfile='exact-galaxy-rig-star';
   host.dataset.nurGalaxyPaint='v197-simple-galaxy-particle-v1';
   host.dataset.nurAnatomy='cortex-cerebellum-brainstem';
+  host.dataset.nurOpacityProfile='crisp-opaque-v1';
+  host.dataset.nurRenderProfile='bounded-prism-cache-direct-pinpoints-v1';
+  host.dataset.nurPrismWheel=String(PRISM_WHEEL.length);
 
   /* ---- synapse edges (k-nearest within same tissue) --------------------- */
   const edges=[]; const adj=pts.map(()=>[]);
@@ -342,6 +351,7 @@
      allocations per second while producing a richer star. */
 
   const starCache=new Map();
+  const starCssCache=new Map();
   const STAR_BUCKETS=[.30,.42,.58,.78,1.02,1.32,1.70,2.2,2.85,3.7];
   function starBucket(rad){
     for(let i=0;i<STAR_BUCKETS.length;i++) if(rad<=STAR_BUCKETS[i]) return STAR_BUCKETS[i];
@@ -358,7 +368,10 @@
     let sprite=starCache.get(key);
     if(sprite) return sprite;
 
-    const glow=bucket*2.9;
+    // Keep the stellar body crisp on both Entry and Systems. The previous
+    // 2.9x halo radius softened the Entry cloud into a haze at the larger host
+    // size; a tighter shared sprite preserves glow without diffusing anatomy.
+    const glow=bucket*2.35;
     const size=Math.max(6,Math.ceil(glow*2));
     sprite=document.createElement('canvas');
     sprite.width=size; sprite.height=size;
@@ -366,14 +379,14 @@
     if(g){
       const mid=size/2;
       const grad=g.createRadialGradient(mid,mid,0,mid,mid,mid);
-      grad.addColorStop(0,`rgba(${col[0]},${col[1]},${col[2]},.46)`);
-      grad.addColorStop(.30,`rgba(${col[0]},${col[1]},${col[2]},.16)`);
-      grad.addColorStop(.64,`rgba(${col[0]},${col[1]},${col[2]},.04)`);
+      grad.addColorStop(0,`rgba(${col[0]},${col[1]},${col[2]},.34)`);
+      grad.addColorStop(.28,`rgba(${col[0]},${col[1]},${col[2]},.105)`);
+      grad.addColorStop(.62,`rgba(${col[0]},${col[1]},${col[2]},.022)`);
       grad.addColorStop(1,`rgba(${col[0]},${col[1]},${col[2]},0)`);
       g.fillStyle=grad; g.fillRect(0,0,size,size);
 
       const outer=bucket*1.34;
-      g.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},.95)`;
+      g.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},.99)`;
       starPath(g,mid,mid,outer,-Math.PI/2);
       g.fill();
 
@@ -391,21 +404,39 @@
         g.stroke();
       }
     }
-    sprite.__glow=glow;
     starCache.set(key,sprite);
     return sprite;
   }
 
+  function starCss(col){
+    const key=col[0]+'_'+col[1]+'_'+col[2];
+    let css=starCssCache.get(key);
+    if(!css){
+      css=`rgb(${col[0]},${col[1]},${col[2]})`;
+      starCssCache.set(key,css);
+    }
+    return css;
+  }
+
   function paintGalaxyStar(x,y,rad,alpha,col){
-    const a=Math.min(.95,alpha*2.35);
+    const a=Math.min(.98,alpha*2.72);
     if(a<=.014) return;
+    // Sub-pixel stars cannot expose a rasterised four-point silhouette, but
+    // scaling an offscreen canvas for each of them still costs a full image
+    // composite. Paint those natural pinpoints directly; larger stars retain
+    // the exact cached halo/body/core sprite. This removes more than half the
+    // drawImage traffic without reducing a single anatomy or dust point.
+    if(rad<.78){
+      const size=rad<.46?.72:1.06;
+      c.globalAlpha=a;
+      c.fillStyle=starCss(col);
+      c.fillRect(x-size/2,y-size/2,size,size);
+      return;
+    }
     const bucket=starBucket(rad);
     const sprite=starSprite(col,bucket);
-    const reach=sprite.__glow*(rad/bucket);
-    const prev=c.globalAlpha;
-    c.globalAlpha=prev*a;
-    c.drawImage(sprite,x-reach,y-reach,reach*2,reach*2);
-    c.globalAlpha=prev;
+    c.globalAlpha=a;
+    c.drawImage(sprite,x-sprite.width/2,y-sprite.height/2);
   }
 
   /* ---- storms / absorb / bloom ------------------------------------------ */
@@ -616,10 +647,11 @@
       const starR=r*(1+glint*.48);
       if(cohesion<1) p.tw+=p.tws*(1-cohesion)*1.6;
       const starCol=(p.prism&&!isDust)
-        ?prismShift(p.col,p.prismPhase+now*p.prismSpeed+p.gl*.18,twinkle)
+        ?prismShift(p.prismPhase+now*p.prismSpeed+p.gl*.18)
         :p.col;
       paintGalaxyStar(q.x,q.y,starR,a,starCol);
     }
+    c.globalAlpha=1;
 
     // travelling neural pulses
     for(let i=pulses.length-1;i>=0;i--){

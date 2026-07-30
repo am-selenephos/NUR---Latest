@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { expect, test, type FrameLocator, type Locator, type Page, type Route } from "@playwright/test";
+import { installBundledFontPolicy } from "./helpers/nurMocks";
 
 const now = new Date().toISOString();
 const baseUser = {
@@ -168,6 +169,7 @@ async function json(route: Route, body: unknown, status = 200) {
 }
 
 async function installVisualMocks(page: Page, locale = "en") {
+  await installBundledFontPolicy(page);
   await page.context().addCookies([{
     name: "nur_csrf",
     value: "visual-readiness-csrf",

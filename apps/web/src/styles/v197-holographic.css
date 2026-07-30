@@ -58,43 +58,33 @@ body.universe-edition .universe-state-strip::before,
 body.universe-edition .universe-composer-shell::before,
 body.universe-edition .f4-sheet::before,
 body.universe-edition .share-sheet::before {
-  content: "";
-  position: absolute;
-  inset: -40% -40% -40% -10%;
-  width: 180%;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.46;
+  content: "" !important;
+  position: absolute !important;
+  inset: -40% -40% -40% -10% !important;
+  width: 180% !important;
+  height: auto !important;
+  z-index: -1 !important;
+  pointer-events: none !important;
+  opacity: 0.46 !important;
   transform: translate3d(-14%, 0, 0);
-  /* Spectral, but held at low alpha: a sheen across dark glass, not a rainbow
-     poster. Violet is absent for the same reason blue is: measured on the map
-     panel it produced 3.0% magenta-leaning pixels against Entry's 0.1%, which is
-     what read as "Systems is purple, login is black". The spectrum now runs gold
-     -> peach -> mint -> green -> gold, at roughly half the previous alpha, so
-     the panels sit at Entry's value instead of above it. The blue band is
-     deliberately absent — the founder's instruction was
-     to remove the blue tint, and a blue stop at the midpoint is what re-read as
-     navy on a wide panel even at 0.10 alpha. The spectrum runs gold → rose →
-     gold, so it shifts without ever landing on blue, violet or magenta. */
-  /* No magenta, no violet, no blue. Measured on the map panel, the hot-pink
-     (255, 58, 158) and violet (206, 142, 246) stops produced 3.0% magenta-
-     leaning pixels against Entry's 0.1% in the same box — that difference is
-     what reads as "Systems is purple, login is black". Alpha is roughly halved
-     too, because the panels also measured brighter than Entry: RGB (26.4, 21.7,
-     19.0) against (11.1, 10.6, 10.0). The sheen still shifts, along gold ->
-     peach -> mint -> green -> gold, and stays inside the same value range as
-     Entry. */
+  /* Entry's complete spectrum is optical light over a neutral-black base, not
+     pigment in the panel fill. Keeping every stop below six percent alpha lets
+     gold, tangerine, pink, violet, cyan, teal and green appear as refraction
+     without ever turning the glass navy, purple or maroon. */
   background: linear-gradient(
     104deg,
-    rgba(255, 214, 138, 0.00) 0%,
-    rgba(255, 244, 216, 0.055) 10%,
-    rgba(255, 198, 128, 0.06) 24%,
-    rgba(255, 178, 140, 0.05) 40%,
-    rgba(186, 232, 210, 0.05) 58%,
-    rgba(160, 234, 186, 0.045) 74%,
-    rgba(255, 224, 146, 0.06) 90%,
-    rgba(255, 214, 138, 0.00) 100%
-  );
+    rgba(255, 236, 150, 0) 0%,
+    rgba(255, 211, 90, .055) 10%,
+    rgba(255, 122, 69, .042) 21%,
+    rgba(255, 82, 111, .036) 31%,
+    rgba(255, 121, 200, .032) 41%,
+    rgba(193, 107, 255, .028) 51%,
+    rgba(33, 232, 255, .026) 61%,
+    rgba(105, 240, 180, .032) 72%,
+    rgba(168, 250, 152, .038) 82%,
+    rgba(255, 211, 90, .05) 92%,
+    rgba(255, 236, 150, 0) 100%
+  ) !important;
 }
 
 /* One moving light owner is enough to make the whole field feel alive. Repeated
@@ -653,7 +643,7 @@ body.universe-edition .nur-viewport::after {
   opacity: 0 !important;
 }
 
-/* ── 13. Holographic film on the controls ──────────────────────────────────
+/* ── 13. Holographic film on every control ─────────────────────────────────
    Painted on `.nur-holo-film`, a real element the bridge prepends, because
    canonical already uses both pseudo elements on these controls — `f4spin` on
    `.f4-primary::before` among them. Two earlier attempts took one of those and
@@ -665,22 +655,62 @@ body.universe-edition .nur-viewport::after {
    button at any moment and it read as two or three tones — which is exactly the
    complaint. The wheel is compressed to a third of the surface and repeated
    instead, so a *full* spectrum spans the control at every instant and the
-   drift changes which part of the wheel sits where. Full rainbow and continuous
-   colour shift at the same time.
+   drift changes which part of the wheel sits where.
 
-   The drift runs on `transform`, so it composites and does not re-rasterise. */
-@keyframes nurHoloFilmDrift {
-  0%   { transform: translate3d(0, 0, 0); }
-  100% { transform: translate3d(-33.333%, 0, 0); }
+   Every control carries the complete rainbow at rest. One inherited optical
+   phase moves every film together: the interface gets a genuinely
+   colour-changing material without promoting sixty individual buttons to
+   sixty animation owners. */
+@property --nur-holo-global-x {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 0%;
+}
+
+@keyframes nurHoloGlobalPhase {
+  0%   { --nur-holo-global-x: 0%; }
+  100% { --nur-holo-global-x: -33.333%; }
+}
+
+:root:has(#nur-front-v61) {
+  animation: nurHoloGlobalPhase 18s linear infinite;
 }
 
 .nur-holo-film {
   position: absolute;
   inset: 0;
   z-index: 0;
+  display: block;
   overflow: hidden;
   border-radius: inherit;
   pointer-events: none;
+  background:
+    radial-gradient(circle at 15% 22%, rgba(255, 255, 255, .78) 0 .55px, rgba(255, 211, 90, .32) .8px, transparent 2.2px),
+    radial-gradient(circle at 73% 72%, rgba(255, 250, 232, .6) 0 .45px, rgba(112, 246, 214, .22) .75px, transparent 2px),
+    radial-gradient(circle at 89% 27%, rgba(255, 248, 223, .54) 0 .4px, rgba(255, 122, 196, .2) .7px, transparent 1.9px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 222, 153, .24),
+    0 0 12px rgba(255, 211, 90, .09) !important;
+  opacity: .075;
+  transition: opacity 180ms ease, filter 180ms ease;
+}
+
+.nur-holo-control {
+  --nur-holo-local-x: 0%;
+}
+
+/* One shared phase keeps the cost bounded; small stable offsets stop adjacent
+   controls from reading like a single rainbow wallpaper sliced into boxes. */
+.nur-holo-control:nth-of-type(4n + 2) { --nur-holo-local-x: -5.5%; }
+.nur-holo-control:nth-of-type(4n + 3) { --nur-holo-local-x: -11%; }
+.nur-holo-control:nth-of-type(4n + 4) { --nur-holo-local-x: -16.5%; }
+
+/* Canonical intentionally clears every child shadow inside map nodes. The film
+   is a new optical child, so restore only its gold rim at matching specificity. */
+body.universe-edition #nur-front-v61 .universe-system-node > .nur-holo-film {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 222, 153, .24),
+    0 0 12px rgba(255, 211, 90, .09) !important;
 }
 
 /* One full wheel per third of the surface — eleven stops, wrapping cleanly from
@@ -690,20 +720,6 @@ body.universe-edition .nur-viewport::after {
   content: "";
   position: absolute;
   border-radius: inherit;
-  background: repeating-linear-gradient(
-    104deg,
-    rgba(255, 236, 150, .34)  0%,
-    rgba(255, 190, 116, .34)  3.03%,
-    rgba(255, 140, 128, .34)  6.06%,
-    rgba(255, 122, 196, .34)  9.09%,
-    rgba(214, 132, 255, .34) 12.12%,
-    rgba(150, 162, 255, .34) 15.15%,
-    rgba(110, 214, 255, .34) 18.18%,
-    rgba(112, 246, 214, .34) 21.21%,
-    rgba(168, 250, 152, .34) 24.24%,
-    rgba(226, 246, 140, .34) 27.27%,
-    rgba(255, 236, 150, .34) 33.33%
-  );
 }
 
 .nur-holo-film::before {
@@ -711,55 +727,477 @@ body.universe-edition .nur-viewport::after {
   bottom: -50%;
   left: 0;
   width: 300%;
-  will-change: transform;
-  animation: nurHoloFilmDrift 6s linear infinite;
+  background: repeating-linear-gradient(
+    104deg,
+    rgba(255, 244, 202, .30)  0%,
+    rgba(255, 211, 90, .30)   2.78%,
+    rgba(255, 142, 53, .29)   5.56%,
+    rgba(255, 82, 111, .28)   8.33%,
+    rgba(255, 88, 190, .29)  11.11%,
+    rgba(193, 96, 255, .28)  13.89%,
+    rgba(103, 126, 255, .28) 16.67%,
+    rgba(60, 211, 255, .29)  19.44%,
+    rgba(64, 242, 213, .29)  22.22%,
+    rgba(102, 240, 145, .28) 25%,
+    rgba(215, 242, 105, .28) 27.78%,
+    rgba(255, 177, 57, .29)  30.56%,
+    rgba(255, 244, 202, .30) 33.33%
+  );
   mix-blend-mode: screen;
-  opacity: .82;
+  opacity: .72;
+  transform: translate3d(calc(var(--nur-holo-global-x) + var(--nur-holo-local-x)), 0, 0);
+  will-change: transform;
 }
 
-/* The rim. These controls read as a two-tone gold-to-magenta edge because that
-   is what the canonical border gradient is; this lays the same wheel over it,
-   masked to a hairline ring so the spectrum reaches the edge too. */
+/* A brighter version of the same wheel is masked to a precise rim. */
 .nur-holo-film::after {
   top: -50%;
   bottom: -50%;
   left: 0;
   width: 300%;
+  background: repeating-linear-gradient(
+    104deg,
+    rgba(255, 250, 225, .96)  0%,
+    rgba(255, 211, 90, .94)   2.78%,
+    rgba(255, 142, 53, .88)   5.56%,
+    rgba(255, 82, 111, .84)   8.33%,
+    rgba(255, 88, 190, .86)  11.11%,
+    rgba(193, 96, 255, .84)  13.89%,
+    rgba(103, 126, 255, .82) 16.67%,
+    rgba(60, 211, 255, .86)  19.44%,
+    rgba(64, 242, 213, .88)  22.22%,
+    rgba(102, 240, 145, .86) 25%,
+    rgba(215, 242, 105, .88) 27.78%,
+    rgba(255, 177, 57, .92)  30.56%,
+    rgba(255, 250, 225, .96) 33.33%
+  );
+  opacity: .54;
+  padding: 1px;
+  transform: translate3d(calc(var(--nur-holo-global-x) + var(--nur-holo-local-x)), 0, 0);
   will-change: transform;
-  animation: nurHoloFilmDrift 6s linear infinite;
-  opacity: .95;
-  padding: 1.5px;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
 }
 
-/* The controls have to clip the film and stack their own content above it. */
-.f4-primary, .f4-signin, .f4-link, .soft-button,
-.send-holo-pill, .thought-send-button, .composer-action,
-.universe-nav-tabs button, .nur-user, .universe-lens-tab,
-.universe-system-node, .scope-chip, .nur-chip {
-  position: relative;
-  overflow: hidden;
+/* The bridge marks every current and future button, including route-native
+   controls rendered after initial hydration. The base is transparent neutral
+   black; rainbow lives in light and edge, never as an opaque coloured block. */
+body.front-v61-active #nur-front-v61 :is(button, a, .scope-option).nur-holo-control[data-nur-holographic-control="true"],
+body.universe-edition #nur-front-v61 :is(button, a, .scope-option).nur-holo-control[data-nur-holographic-control="true"] {
+  isolation: isolate !important;
+  overflow: hidden !important;
+  background:
+    linear-gradient(
+      108deg,
+      rgba(255, 211, 90, .012),
+      rgba(255, 82, 111, .009) 20%,
+      rgba(255, 88, 190, .008) 34%,
+      rgba(103, 126, 255, .0075) 49%,
+      rgba(60, 211, 255, .008) 64%,
+      rgba(102, 240, 145, .009) 80%,
+      rgba(255, 211, 90, .011)
+    )
+    rgba(0, 0, 0, .025) !important;
+  border-color: rgba(255, 222, 153, .17) !important;
+  backdrop-filter: blur(12px) saturate(1.3) contrast(1.06) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(1.3) contrast(1.06) !important;
 }
 
-/* Tilting a real film changes what you see. Hover shifts it faster and hotter. */
-.f4-primary:hover > .nur-holo-film::before,
-.f4-signin:hover > .nur-holo-film::before,
-.f4-link:hover > .nur-holo-film::before,
-.soft-button:hover > .nur-holo-film::before,
-.send-holo-pill:hover > .nur-holo-film::before,
-.thought-send-button:hover > .nur-holo-film::before,
-.universe-nav-tabs button:hover > .nur-holo-film::before,
-.nur-user:hover > .nur-holo-film::before,
-.universe-lens-tab:hover > .nur-holo-film::before,
-.universe-system-node:hover > .nur-holo-film::before {
+/* Compact canonical controls set their own black longhand at higher
+   specificity. Reassert the same clear-glass base for every hydrated control
+   so Privacy and voice do not become two darker exceptions. */
+body.front-v61-active #nur-front-v61 :is(button, a, .scope-option).nur-holo-control[data-nur-holographic-control="true"],
+body.universe-edition #nur-front-v61 :is(button, a, .scope-option).nur-holo-control[data-nur-holographic-control="true"] {
+  background-color: rgba(0, 0, 0, .025) !important;
+}
+
+.nur-holo-control.nur-holo-anchor {
+  position: relative !important;
+}
+
+body.front-v61-active #nur-front-v61 .nur-holo-control:not(.active):not([aria-current="page"]):not([aria-selected="true"]):not([aria-checked="true"]),
+body.universe-edition #nur-front-v61 .nur-holo-control:not(.active):not([aria-current="page"]):not([aria-selected="true"]):not([aria-checked="true"]) {
+  border-color: rgba(255, 222, 153, .17) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 222, 153, .11),
+    0 8px 24px rgba(0, 0, 0, .25),
+    0 0 18px rgba(255, 211, 90, .12) !important;
+}
+
+body.front-v61-active #nur-front-v61 .nur-holo-control:is(
+  .active,
+  .selected,
+  .f4-primary,
+  [aria-current="page"],
+  [aria-selected="true"],
+  [aria-checked="true"]
+),
+body.universe-edition #nur-front-v61 .nur-holo-control:is(
+  .active,
+  .selected,
+  .f4-primary,
+  [aria-current="page"],
+  [aria-selected="true"],
+  [aria-checked="true"]
+) {
+  border-color: rgba(255, 230, 166, .22) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 222, 153, .14),
+    0 9px 28px rgba(0, 0, 0, .28),
+    0 0 24px rgba(255, 211, 90, .18) !important;
+}
+
+body.front-v61-active #nur-front-v61 .nur-holo-control:is(
+  .active,
+  .selected,
+  .f4-primary,
+  [aria-current="page"],
+  [aria-selected="true"],
+  [aria-checked="true"]
+) > .nur-holo-film,
+body.universe-edition #nur-front-v61 .nur-holo-control:is(
+  .active,
+  .selected,
+  .f4-primary,
+  [aria-current="page"],
+  [aria-selected="true"],
+  [aria-checked="true"]
+) > .nur-holo-film {
+  opacity: .09;
+}
+
+body.front-v61-active #nur-front-v61 .nur-holo-control:is(
+  .active,
+  .selected,
+  .f4-primary,
+  [aria-current="page"],
+  [aria-selected="true"],
+  [aria-checked="true"]
+) > .nur-holo-film::before,
+body.universe-edition #nur-front-v61 .nur-holo-control:is(
+  .active,
+  .selected,
+  .f4-primary,
+  [aria-current="page"],
+  [aria-selected="true"],
+  [aria-checked="true"]
+) > .nur-holo-film::before {
+  opacity: .78;
+}
+
+body.front-v61-active #nur-front-v61 .nur-holo-control:is(
+  .active,
+  .selected,
+  .f4-primary,
+  [aria-current="page"],
+  [aria-selected="true"],
+  [aria-checked="true"]
+) > .nur-holo-film::after,
+body.universe-edition #nur-front-v61 .nur-holo-control:is(
+  .active,
+  .selected,
+  .f4-primary,
+  [aria-current="page"],
+  [aria-selected="true"],
+  [aria-checked="true"]
+) > .nur-holo-film::after {
   opacity: 1;
-  animation-duration: 2.6s;
+  filter: brightness(1.18) saturate(1.12);
+}
+
+.nur-holo-control:is(:hover, :focus-visible) > .nur-holo-film {
+  opacity: .085;
+  filter: brightness(1.18) saturate(1.1);
+}
+
+.nur-holo-control:is(:hover, :focus-visible) > .nur-holo-film::before {
+  opacity: .74;
+}
+
+.nur-holo-control:is(:hover, :focus-visible) > .nur-holo-film::after {
+  opacity: .9;
+  filter: brightness(1.12) saturate(1.06);
+}
+
+/* ── 14. System-node crystal ───────────────────────────────────────────────
+   The six controls around the brain are navigation anchors, not promo pills.
+   The shared control film was therefore too loud at this scale and read as a
+   muddy coloured block. Keep their exact coordinate geometry and give only
+   their optical material a quieter, jewellery-like treatment: transparent
+   smoky glass, a complete but diffused prism, and a luminous gold edge. */
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node.nur-holo-control[data-nur-holographic-control="true"] {
+  border-color: rgba(255, 222, 153, .12) !important;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, .036) 0%,
+      rgba(255, 255, 255, .008) 36%,
+      rgba(0, 0, 0, .045) 100%
+    ),
+    radial-gradient(125% 185% at 2% -8%, rgba(255, 211, 90, .032), transparent 46%),
+    radial-gradient(110% 180% at 100% 108%, rgba(60, 211, 255, .016), transparent 50%),
+    rgba(0, 0, 0, .02) !important;
+  box-shadow:
+    inset 0 0 18px rgba(255, 222, 153, .035),
+    0 10px 26px rgba(0, 0, 0, .28),
+    0 0 24px rgba(255, 211, 90, .14) !important;
+  backdrop-filter: blur(14px) saturate(1.16) contrast(1.05) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.16) contrast(1.05) !important;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease !important;
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node > .nur-holo-film {
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  border: 0 !important;
+  opacity: .07;
+  filter: saturate(.86) contrast(.94);
+  background:
+    linear-gradient(118deg, rgba(255, 255, 255, .07), transparent 24%, transparent 73%, rgba(255, 235, 184, .028)),
+    radial-gradient(circle at 14% 20%, rgba(255, 255, 255, .72) 0 .45px, rgba(255, 211, 90, .28) .75px, transparent 1.9px),
+    radial-gradient(circle at 78% 76%, rgba(255, 250, 232, .52) 0 .4px, rgba(112, 246, 214, .18) .7px, transparent 1.8px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 222, 153, .14),
+    inset 8px 0 18px rgba(255, 211, 90, .022),
+    inset -8px 0 18px rgba(60, 211, 255, .018),
+    0 0 20px rgba(255, 211, 90, .12) !important;
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node > .nur-holo-film::before {
+  opacity: .72;
+  filter: blur(5px) saturate(.78) brightness(1.04);
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node > .nur-holo-film::after {
+  opacity: .8;
+  filter: saturate(.72) brightness(.96);
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node > :is(i, span) {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node > span > b {
+  color: rgba(255, 248, 230, .96) !important;
+  text-shadow: 0 1px 12px rgba(255, 222, 153, .08) !important;
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node > span > small {
+  color: rgba(242, 208, 134, .7) !important;
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node.nur-holo-control:is(:hover, :focus-visible) {
+  border-color: rgba(255, 230, 174, .16) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .14),
+    inset 0 0 14px rgba(255, 222, 153, .035),
+    0 12px 30px rgba(0, 0, 0, .32),
+    0 0 26px rgba(255, 211, 90, .17),
+    0 0 22px rgba(60, 211, 255, .025) !important;
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node.nur-holo-control:is(:hover, :focus-visible) > .nur-holo-film {
+  opacity: .085;
+  filter: brightness(1.08) saturate(.92) contrast(1.02);
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node.nur-holo-control:is(:hover, :focus-visible) > .nur-holo-film::before {
+  opacity: .82;
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node.nur-holo-control:is(:hover, :focus-visible) > .nur-holo-film::after {
+  opacity: .9;
+  filter: saturate(1.04) brightness(1.12);
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node.nur-holo-control:is(
+    .active,
+    [aria-selected="true"],
+    [aria-pressed="true"]
+  ) {
+  border-color: rgba(255, 232, 174, .2) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .032), rgba(255, 255, 255, .008) 42%, rgba(0, 0, 0, .024)),
+    radial-gradient(125% 185% at 3% -8%, rgba(255, 211, 90, .034), transparent 48%),
+    radial-gradient(90% 160% at 42% -20%, rgba(255, 82, 111, .012), transparent 54%),
+    radial-gradient(110% 180% at 100% 108%, rgba(60, 211, 255, .018), transparent 52%),
+    rgba(0, 0, 0, .03) !important;
+  box-shadow:
+    inset 0 0 16px rgba(255, 222, 153, .045),
+    0 12px 32px rgba(0, 0, 0, .34),
+    0 0 30px rgba(255, 211, 90, .22),
+    0 0 26px rgba(60, 211, 255, .045) !important;
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node.nur-holo-control:is(
+    .active,
+    [aria-selected="true"],
+    [aria-pressed="true"]
+  ) > .nur-holo-film {
+  opacity: .09;
+  filter: brightness(1.1) saturate(.98) contrast(1.03);
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node.nur-holo-control:is(
+    .active,
+    [aria-selected="true"],
+    [aria-pressed="true"]
+  ) > .nur-holo-film::before {
+  opacity: .86;
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node.nur-holo-control:is(
+    .active,
+    [aria-selected="true"],
+    [aria-pressed="true"]
+  ) > .nur-holo-film::after {
+  opacity: 1;
+  filter: saturate(1.12) brightness(1.18);
+}
+
+/* Entry's primary command remains clear glass, but receives a broader light
+   aura than ordinary controls so the first action reads without a hard rim. */
+body.front-v61-active #nur-front-v61
+  #f4-begin.f4-primary.nur-holo-control[data-nur-holographic-control="true"],
+body.universe-edition #nur-front-v61
+  #f4-begin.f4-primary.nur-holo-control[data-nur-holographic-control="true"] {
+  box-shadow:
+    inset 0 0 15px rgba(255, 222, 153, .045),
+    0 12px 30px rgba(0, 0, 0, .32),
+    0 0 28px rgba(255, 211, 90, .19),
+    0 0 44px rgba(255, 88, 190, .055),
+    0 0 48px rgba(60, 211, 255, .04) !important;
+}
+
+body.front-v61-active #nur-front-v61
+  #f4-begin.f4-primary.nur-holo-control[data-nur-holographic-control="true"]:is(:hover, :focus-visible),
+body.universe-edition #nur-front-v61
+  #f4-begin.f4-primary.nur-holo-control[data-nur-holographic-control="true"]:is(:hover, :focus-visible) {
+  box-shadow:
+    inset 0 0 18px rgba(255, 244, 210, .065),
+    0 14px 34px rgba(0, 0, 0, .34),
+    0 0 36px rgba(255, 211, 90, .24),
+    0 0 52px rgba(255, 88, 190, .07),
+    0 0 56px rgba(60, 211, 255, .055) !important;
+}
+
+/* Add System shares the same material, one step quieter so the six existing
+   systems remain the visual hierarchy. */
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-add-system.nur-holo-control[data-nur-holographic-control="true"] {
+  border-color: rgba(255, 222, 153, .18) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .028), rgba(0, 0, 0, .04)),
+    rgba(0, 0, 0, .02) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .075),
+    0 10px 26px rgba(0, 0, 0, .28),
+    0 0 22px rgba(255, 211, 90, .15) !important;
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-add-system > .nur-holo-film {
+  opacity: .08;
+  filter: saturate(.78) contrast(.96);
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-add-system > .nur-holo-film::before {
+  opacity: .74;
+  filter: blur(5px) saturate(.72);
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-add-system > .nur-holo-film::after {
+  opacity: .9;
+}
+
+/* The small auth switch is a real command, not a low-contrast text fragment. */
+body.front-v61-active #nur-front-v61 .f4-switch
+  button.nur-holo-control[data-switch][data-nur-holographic-control="true"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 132px !important;
+  min-height: 36px !important;
+  margin-inline-start: 7px !important;
+  padding: 0 14px !important;
+  border: 1px solid rgba(255, 222, 153, .2) !important;
+  border-radius: 999px !important;
+  background: rgba(0, 0, 0, .025) !important;
+  background-color: rgba(0, 0, 0, .025) !important;
+  color: rgba(255, 245, 220, .94) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .09),
+    0 0 18px rgba(255, 211, 90, .14) !important;
+  backdrop-filter: blur(10px) saturate(1.14) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(1.14) !important;
+}
+
+/* Editorial italics inside Systems carry a restrained moving champagne light,
+   while inheriting every original font metric and line break. */
+body.universe-edition #nur-front-v61 #page-systems :is(
+  .nur-systems-epigraph,
+  .tiny-link,
+  .soft-button,
+  .world-command,
+  .universe-map-mantra,
+  .universe-composer-label small
+) {
+  background-image: linear-gradient(
+    105deg,
+    #c99531 0%,
+    #fff0b8 28%,
+    #e6af45 50%,
+    #fff7d5 72%,
+    #c99531 100%
+  ) !important;
+  background-size: 220% 100% !important;
+  background-position: 0 50%;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  filter: drop-shadow(0 0 8px rgba(255, 211, 90, .09));
+  animation: nurSystemsItalicGold 8s ease-in-out infinite !important;
+}
+
+@keyframes nurSystemsItalicGold {
+  50% { background-position: 100% 50%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :root:has(#nur-front-v61) {
+    animation: none;
+    --nur-holo-global-x: 0%;
+  }
+
   .nur-holo-film::before,
-  .nur-holo-film::after { animation: none; }
+  .nur-holo-film::after {
+    transform: translate3d(0, 0, 0);
+    will-change: auto;
+  }
 }

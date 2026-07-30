@@ -85,6 +85,10 @@
     rgba(105, 240, 180, .7) 86%,
     rgba(255, 211, 90, .84) 100%
   );
+  --nur-entry-atmosphere:
+    radial-gradient(ellipse 44% 54% at 71% 43%, rgba(255, 222, 150, .018), transparent 72%),
+    radial-gradient(ellipse 35% 46% at 18% 58%, rgba(94, 134, 255, .014), transparent 74%),
+    linear-gradient(180deg, rgba(0, 1, 4, .18), rgba(0, 0, 2, .34));
 
   /* Geometry. */
   --nur-radius-control: 7px;
@@ -186,8 +190,8 @@ body .vignette {
 }
 
 body #space3d {
-  opacity: .96 !important;
-  filter: brightness(1.02) contrast(1.16) saturate(1.18) !important;
+  opacity: 1 !important;
+  filter: brightness(1.06) contrast(1.17) saturate(1.22) !important;
   mix-blend-mode: screen !important;
 }
 
@@ -275,10 +279,7 @@ body.front-v61-active #nur-front-v61 {
   height: 100dvh !important;
   min-height: 0 !important;
   overflow: hidden !important;
-  background:
-    radial-gradient(ellipse 44% 54% at 71% 43%, rgba(255, 222, 150, .018), transparent 72%),
-    radial-gradient(ellipse 35% 46% at 18% 58%, rgba(94, 134, 255, .014), transparent 74%),
-    linear-gradient(180deg, rgba(0, 1, 4, .18), rgba(0, 0, 2, .34)) !important;
+  background: var(--nur-entry-atmosphere) !important;
 }
 
 body.front-v61-active #nur-front-v61 .f4-head {
@@ -500,8 +501,8 @@ body.front-v61-active #nur-front-v61 .f4-orbit {
 }
 
 body.front-v61-active #nur-front-v61 #f4-core {
-  width: min(36vw, 390px) !important;
-  height: min(36vw, 390px) !important;
+  width: min(40vw, 460px) !important;
+  height: min(40vw, 460px) !important;
 }
 
 body.front-v61-active #nur-front-v61 .f4-foot {
@@ -652,8 +653,8 @@ body.front-v61-active #nur-front-v61 .f4-sheet {
   }
 
   body.front-v61-active #nur-front-v61 #f4-core {
-    width: min(58vw, 390px) !important;
-    height: min(58vw, 390px) !important;
+    width: min(64vw, 430px) !important;
+    height: min(64vw, 430px) !important;
   }
 }
 
@@ -735,8 +736,8 @@ body.front-v61-active #nur-front-v61 .f4-sheet {
   }
 
   body.front-v61-active #nur-front-v61 #f4-core {
-    width: min(84vw, 320px) !important;
-    height: min(84vw, 320px) !important;
+    width: min(90vw, 340px) !important;
+    height: min(90vw, 340px) !important;
   }
 
   body.front-v61-active #nur-front-v61 .f4-foot {
@@ -797,7 +798,7 @@ body #nur-front-v61 #front-nur-star {
   cursor: grab !important;
   touch-action: pan-y pinch-zoom !important;
   background:
-    radial-gradient(circle closest-side at 50% 50%, rgba(255, 196, 86, .072), rgba(190, 140, 255, .026) 46%, transparent 100%) !important;
+    radial-gradient(circle closest-side at 50% 50%, rgba(255, 196, 86, .026), rgba(190, 140, 255, .008) 46%, transparent 100%) !important;
   filter: none !important;
   -webkit-mask-image: radial-gradient(circle closest-side at 50% 50%, #000 0 58%, rgba(0,0,0,.92) 69%, rgba(0,0,0,.55) 81%, transparent 100%) !important;
   mask-image: radial-gradient(circle closest-side at 50% 50%, #000 0 58%, rgba(0,0,0,.92) 69%, rgba(0,0,0,.55) 81%, transparent 100%) !important;
@@ -829,6 +830,40 @@ body.universe-edition .universe-map-panel > .universe-master-star > #front-nur-s
   inset: -3% !important;
   width: 106% !important;
   height: 106% !important;
+}
+
+/* Systems receives the same three orbital halos that frame Entry. They are
+ * real `.f4-ring` elements cloned by the bridge, with the exact Entry aspect
+ * ratio and rotations, scaled to the larger Systems brain host. */
+body.universe-edition #nur-front-v61 .universe-master-star > .nur-v197-brain-orbit-halo {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  z-index: 7 !important;
+  display: block !important;
+  width: min(470px, 142%) !important;
+  aspect-ratio: 2.15 !important;
+  border: 1px solid rgba(248, 217, 138, .16) !important;
+  border-radius: 50% !important;
+  box-shadow:
+    inset 0 0 52px rgba(255, 151, 24, .025),
+    0 0 24px rgba(255, 173, 50, .025) !important;
+  transform: translate(-50%, -50%) rotate(-16deg) !important;
+  transform-origin: 50% 50% !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+}
+
+body.universe-edition #nur-front-v61 .universe-master-star > .nur-v197-brain-orbit-halo.two {
+  width: min(350px, 106%) !important;
+  border-color: rgba(255, 222, 150, .12) !important;
+  transform: translate(-50%, -50%) rotate(28deg) !important;
+}
+
+body.universe-edition #nur-front-v61 .universe-master-star > .nur-v197-brain-orbit-halo.three {
+  width: min(430px, 130%) !important;
+  border-color: rgba(255, 190, 122, .11) !important;
+  transform: translate(-50%, -50%) rotate(73deg) !important;
 }
 
 /* Today reuses the one approved renderer. The host moves with the active
@@ -2398,6 +2433,7 @@ body.universe-edition #nur-front-v61 {
   width: 100% !important;
   height: 100dvh !important;
   overflow: hidden !important;
+  background: var(--nur-entry-atmosphere) !important;
 }
 
 body.universe-edition #nur-front-v61 .nur-shell {
@@ -2439,16 +2475,12 @@ body.universe-edition .nur-v178-warmth-film {
 }
 
 body.universe-edition.nur-v197-systems-active #space3d {
-  opacity: .98 !important;
-  filter: brightness(1.04) contrast(1.16) saturate(1.2) !important;
+  opacity: 1 !important;
+  filter: brightness(1.08) contrast(1.18) saturate(1.24) !important;
 }
 
 body.universe-edition.nur-v197-systems-active #nur-front-v61 #page-systems {
-  background:
-    radial-gradient(ellipse 42% 48% at 56% 25%, rgba(255, 211, 90, .014), transparent 76%),
-    radial-gradient(ellipse 34% 42% at 78% 70%, rgba(255, 190, 122, .008), transparent 78%),
-    radial-gradient(ellipse 28% 36% at 88% 34%, rgba(105, 240, 180, .006), transparent 80%),
-    rgba(0, 0, 0, .7) !important;
+  background: transparent !important;
 }
 
 body.universe-edition.nur-v197-systems-active #nur-front-v61 #page-systems :is(
@@ -2466,14 +2498,14 @@ body.universe-edition.nur-v197-systems-active #nur-front-v61 #page-systems :is(
   background:
     linear-gradient(
       118deg,
-      rgba(255, 248, 223, .026),
-      rgba(255, 211, 90, .012) 24%,
-      rgba(255, 190, 122, .009) 48%,
-      rgba(248, 214, 140, .007) 65%,
-      rgba(105, 240, 180, .008) 82%,
+      rgba(255, 248, 223, .018),
+      rgba(255, 211, 90, .009) 20%,
+      rgba(255, 82, 111, .007) 38%,
+      rgba(255, 190, 122, .006) 56%,
+      rgba(105, 240, 180, .006) 78%,
       transparent
     ),
-    rgba(2, 2, 2, .76) !important;
+    rgba(0, 0, 0, .38) !important;
   border-color: rgba(248, 217, 138, .17) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 248, 223, .055),

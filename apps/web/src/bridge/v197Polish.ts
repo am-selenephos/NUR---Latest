@@ -177,19 +177,36 @@ function installEntrySheetState(document: Document): void {
  * untouched and the spectrum sits between them.
  */
 const HOLO_FILM_CLASS = "nur-holo-film";
+const HOLO_CONTROL_CLASS = "nur-holo-control";
+const HOLO_ANCHOR_CLASS = "nur-holo-anchor";
 const HOLO_TARGETS = [
-  ".f4-primary", ".f4-signin", ".f4-link", ".soft-button",
-  ".send-holo-pill", ".thought-send-button", ".composer-action",
-  ".universe-nav-tabs button", ".nur-user", ".universe-lens-tab",
-  ".universe-system-node", ".scope-chip", ".nur-chip",
+  "button:not(.f4-brand)",
+  "a.soft-button", "a.tiny-link", "a.universe-lens-tab", "a.nur-adjunct-button",
+  ".scope-option", ".scope-chip", ".nur-chip",
 ].join(",");
+
+type HolographicFilmController = {
+  observer: MutationObserver;
+  frame: number | null;
+};
+
+const holographicFilmControllers = new WeakMap<Document, HolographicFilmController>();
 
 function installHolographicFilm(document: Document): number {
   const controls = document.querySelectorAll<HTMLElement>(HOLO_TARGETS);
   let added = 0;
   for (const control of controls) {
+    control.classList.add(HOLO_CONTROL_CLASS);
+    control.dataset.nurHolographicControl = "true";
+    if (control.dataset.nurHolographicPosition === undefined) {
+      const position = document.defaultView?.getComputedStyle(control).position;
+      control.dataset.nurHolographicPosition = position ?? "unresolved";
+      control.classList.toggle(HOLO_ANCHOR_CLASS, position === "static");
+    }
     if (control.querySelector(`:scope > .${HOLO_FILM_CLASS}`)) continue;
-    const film = document.createElement("i");
+    // A dedicated inert element avoids canonical `button > i` icon rules and
+    // `button > span` label rules shrinking the optical layer into content.
+    const film = document.createElement("nur-holo-film");
     film.className = HOLO_FILM_CLASS;
     film.setAttribute("aria-hidden", "true");
     // Prepended so it sits under the label and above the control's own fill.
@@ -197,6 +214,34 @@ function installHolographicFilm(document: Document): number {
     added += 1;
   }
   return added;
+}
+
+/**
+ * Canonical hydration and bridge-native routes both add controls after the
+ * first presentation pass. Observe those mounts once per document and batch a
+ * single idempotent film scan into the next frame, so every real control gets
+ * the same material without teaching each product renderer about presentation.
+ */
+function observeHolographicControls(document: Document): void {
+  if (holographicFilmControllers.has(document)) return;
+  const frameWindow = document.defaultView;
+  const root = document.body ?? document.documentElement;
+  if (!frameWindow || !root) return;
+
+  const controller: HolographicFilmController = {
+    observer: null as unknown as MutationObserver,
+    frame: null,
+  };
+  const observer = new frameWindow.MutationObserver(records => {
+    if (!records.some(record => record.addedNodes.length > 0) || controller.frame !== null) return;
+    controller.frame = frameWindow.requestAnimationFrame(() => {
+      controller.frame = null;
+      installHolographicFilm(document);
+    });
+  });
+  controller.observer = observer;
+  observer.observe(root, { childList: true, subtree: true });
+  holographicFilmControllers.set(document, controller);
 }
 
 export function ensureV197EntryPolish(document: Document): HTMLStyleElement {
@@ -209,6 +254,7 @@ export function ensureV197EntryPolish(document: Document): HTMLStyleElement {
   lockV197BrandIdentity(document);
   installV197StarSeals(document);
   installHolographicFilm(document);
+  observeHolographicControls(document);
   ensureV197BlackGalaxy(document);
   ensureV197StarBrain(document);
   return style;
@@ -258,6 +304,7 @@ export function ensureV197PremiumPolish(document: Document): HTMLStyleElement {
   labelCompactTopbarControls(document);
   labelOwnerSignOutControl(document);
   installHolographicFilm(document);
+  observeHolographicControls(document);
   matchUniverseBackgroundToEntry(document);
   ensureV197BlackGalaxy(document);
   ensureV197StarBrain(document);

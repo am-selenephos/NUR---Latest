@@ -18,7 +18,7 @@ async function authenticate(page: Page): Promise<void> {
   ]);
 }
 
-test("required viewport matrix preserves overflow, touch, node, and center contracts", async ({ page }) => {
+test("required viewport matrix preserves overflow, touch, node, and center contracts", async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   await authenticate(page);
 
@@ -58,6 +58,12 @@ test("required viewport matrix preserves overflow, touch, node, and center contr
       ".universe-master-star",
     );
     expect(centerDelta).toBeLessThanOrEqual(1);
+
+    if (viewport.width === 390 && viewport.height === 844) {
+      await frame.locator("#page-systems .universe-map-panel").screenshot({
+        path: testInfo.outputPath("systems-node-crystal-390x844.png"),
+      });
+    }
   }
 });
 

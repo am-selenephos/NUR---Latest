@@ -4,7 +4,8 @@ import { ensureV197AccessibleViewport } from "./v197Accessibility";
 export const V197_STAR_BRAIN_CANVAS_ID = "nur-brain-canvas";
 export const V197_STAR_BRAIN_HOST_ID = "front-nur-star";
 const V197_STAR_BRAIN_SCRIPT_ID = "nur-v43-exact-star-brain-runtime";
-const V43_STAR_BRAIN_RUNTIME_HASH = "680f15dada3042052d34512e3ce0cf3641ef4326576cb2811a479ae6cdeaacbe";
+const V197_UNIVERSE_BRAIN_HALO_CLASS = "nur-v197-brain-orbit-halo";
+const V43_STAR_BRAIN_RUNTIME_HASH = "6c6c70fb566cacb658a693ab9d747c6b42fa02c9b588eb66b5d21968850a9eac";
 
 type V197StarBrainSurface = "entry" | "today" | "universe" | "map";
 
@@ -27,6 +28,37 @@ type V197StarBrainController = {
 
 const starBrainControllers = new WeakMap<Document, V197StarBrainController>();
 const starBrainHosts = new WeakMap<Document, HTMLElement>();
+
+function syncV197UniverseBrainHalos(
+  document: Document,
+  host: HTMLElement,
+  surface: V197StarBrainSurface,
+): void {
+  const selector = `.${V197_UNIVERSE_BRAIN_HALO_CLASS}`;
+  if (surface !== "universe") {
+    document.querySelectorAll(selector).forEach(halo => halo.remove());
+    return;
+  }
+
+  document.querySelectorAll<HTMLElement>(selector).forEach(halo => {
+    if (halo.parentElement !== host) halo.remove();
+  });
+  const variants = ["", "two", "three"] as const;
+  variants.forEach((variant, index) => {
+    const variantSelector = variant
+      ? `:scope > ${selector}.${variant}`
+      : `:scope > ${selector}:not(.two):not(.three)`;
+    if (host.querySelector(variantSelector)) return;
+    const halo = document.createElement("span");
+    halo.className = ["f4-ring", variant, V197_UNIVERSE_BRAIN_HALO_CLASS]
+      .filter(Boolean)
+      .join(" ");
+    halo.dataset.nurHaloIndex = String(index + 1);
+    halo.dataset.nurHaloSource = "entry-f4-ring";
+    halo.setAttribute("aria-hidden", "true");
+    host.prepend(halo);
+  });
+}
 
 function resolveV197StarBrainHost(document: Document): {
   host: HTMLElement;
@@ -69,6 +101,7 @@ export function placeV197StarBrainHost(document: Document): HTMLElement | null {
   const { host: canonicalHost, surface } = resolved;
   canonicalHost.dataset.nurStarBrainSurface = surface;
   removeLegacyMasterStar(canonicalHost, surface);
+  syncV197UniverseBrainHalos(document, canonicalHost, surface);
 
   let brainHost = (document.getElementById(V197_STAR_BRAIN_HOST_ID) as HTMLElement | null)
     ?? starBrainHosts.get(document)
@@ -83,6 +116,11 @@ export function placeV197StarBrainHost(document: Document): HTMLElement | null {
   brainHost.dataset.nurSurface = surface;
   brainHost.dataset.nurDispersal = "radial-circle";
   brainHost.dataset.nurGalaxyPaint = "v197-simple-galaxy-particle-v1";
+  brainHost.dataset.nurRigDepth = "projected-3d";
+  brainHost.dataset.nurEntrySystemsVisualContract = "exact-shared-crisp-v1";
+  brainHost.dataset.nurHaloContract = surface === "entry" || surface === "universe"
+    ? "entry-f4-ring-exact"
+    : "surface-native";
   brainHost.setAttribute("aria-label", surface === "today" ? "Wake the NUR mind" : "Wake the NUR star brain");
   brainHost.setAttribute("role", "button");
   brainHost.tabIndex = 0;
@@ -126,6 +164,8 @@ export function ensureV197BlackGalaxy(document: Document): void {
   const canvas = document.querySelector<HTMLCanvasElement>("#space3d");
   const frameWindow = document.defaultView;
   if (!canvas || !frameWindow) return;
+  canvas.dataset.nurGalaxyRig = "canonical-v197-true-3d";
+  canvas.dataset.nurGalaxyLayers = "far-dust-galaxy-super";
   const context = canvas.getContext("2d") as VeiledContext | null;
   if (!context || context.__v197Veil) return;
 

@@ -206,6 +206,13 @@ describe("Track A V197 premium polish", () => {
     expect(miniHost.querySelectorAll(`.${V197_COMPACT_MINI_STAR_CLASS}`)).toHaveLength(1);
     expect(miniHost.querySelector(".nur-star-module")).toBeNull();
     expect(fullMasterStar.querySelector(".ray")).not.toBeNull();
+    const holographicControls = Array.from(document.querySelectorAll<HTMLElement>("button:not(.f4-brand)"));
+    expect(holographicControls.length).toBeGreaterThan(0);
+    for (const control of holographicControls) {
+      expect(control.classList.contains("nur-holo-control")).toBe(true);
+      expect(control.dataset.nurHolographicControl).toBe("true");
+      expect(control.querySelectorAll(":scope > .nur-holo-film")).toHaveLength(1);
+    }
     expect(document.querySelector("#root")).toBeNull();
   });
 
