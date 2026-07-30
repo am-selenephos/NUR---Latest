@@ -529,6 +529,7 @@ test("dragging a node with the mouse persists position and nothing else", async 
 
   const locator = page.frameLocator("#nur-universe-stage")
     .locator(`[data-map-node="${target}"]`);
+  await locator.scrollIntoViewIfNeeded();
   const box = await locator.boundingBox();
   expect(box, "the node has no box to drag").not.toBeNull();
 
