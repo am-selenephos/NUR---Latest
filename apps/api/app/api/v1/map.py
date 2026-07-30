@@ -19,10 +19,18 @@ from app.living.service import (
 from app.models import (
     AMProject,
     AMProjectTask,
+    Decision,
     GlowAchievement,
     GlowTransaction,
     Goal,
     Insight,
+    MapAnnotation,
+    MapBlocker,
+    MapDecisionOption,
+    MapEdge,
+    MapLayout,
+    MapSuggestion,
+    MapView,
     Objective,
     OmegaClaim,
     Outcome,
@@ -78,7 +86,70 @@ def _stable_layout(node_id: str, kind: str, index: int) -> dict:
     }
 
 
-async def _map_snapshot(db: Scoped, owner_user_id: uuid.UUID) -> dict:
+def _system_signals(snapshot: dict, blockers: list) -> tuple[int, int, int, int]:
+    """The four counts every System state is decided from, and nothing else."""
+    open_blockers = sum(
+        1
+        for row in blockers
+        if row.system_slug == snapshot["slug"] and row.status == "OPEN"
+    )
+    return (
+        snapshot["active_goal_count"],
+        snapshot["progress_percent"],
+        snapshot["progress_sources"]["outcomes_returned"],
+        open_blockers,
+    )
+
+
+def _system_state(snapshot: dict, blockers: list) -> str:
+    """§10's state language, derived only from counts the owner's ledger holds.
+
+    Deliberately not a score. "Creation — Active" is explainable; "Creation 83.7"
+    is fake precision dressed as measurement, and §10 forbids it explicitly. Every
+    branch here is reproducible from four integers and pairs with a sentence in
+    `_system_state_reason` that cites those same integers.
+    """
+    goals, progress, outcomes, open_blockers = _system_signals(snapshot, blockers)
+    if goals == 0 and progress == 0 and outcomes == 0:
+        return "DORMANT"
+    if open_blockers >= 2 or (open_blockers >= 1 and progress == 0):
+        return "AT_RISK"
+    if goals > 0 and progress == 0 and outcomes == 0:
+        return "STALLED"
+    if open_blockers >= 1 and outcomes > 0:
+        return "RECOVERING"
+    if outcomes > 0 and progress >= 60:
+        return "STABLE"
+    if outcomes > 0:
+        return "ACTIVE"
+    if progress > 0:
+        return "BUILDING"
+    return "UNCLEAR"
+
+
+def _system_state_reason(snapshot: dict, blockers: list) -> str:
+    """Why the System is in that state, in the owner's own numbers."""
+    goals, progress, outcomes, open_blockers = _system_signals(snapshot, blockers)
+    parts: list[str] = []
+    parts.append(
+        "No active goal" if goals == 0
+        else f"{goals} active goal{'s' if goals != 1 else ''}"
+    )
+    parts.append(
+        "no returned outcome yet" if outcomes == 0
+        else f"{outcomes} returned outcome{'s' if outcomes != 1 else ''}"
+    )
+    parts.append(f"{progress}% verified progress")
+    parts.append(
+        "no unresolved blocker" if open_blockers == 0
+        else f"{open_blockers} unresolved blocker{'s' if open_blockers != 1 else ''}"
+    )
+    return ". ".join([", ".join(parts[:3]), parts[3]]) + "."
+
+
+async def _map_snapshot(
+    db: Scoped, owner_user_id: uuid.UUID, *, view: MapView | None = None
+) -> dict:
     systems = await all_system_snapshots(db, owner_user_id=owner_user_id)
     goals = (await db.execute(select(Goal).where(
         Goal.owner_user_id == owner_user_id,
@@ -158,6 +229,9 @@ async def _map_snapshot(db: Scoped, owner_user_id: uuid.UUID) -> dict:
         "data": {"total_glow": total_glow, "provenance_label": "OWNER_LEDGER"},
     }]
     edges: list[dict] = []
+    # Proposals are kept out of `edges` on purpose. A candidate must render as a
+    # candidate; merging it into structure is how an inference becomes a fact.
+    candidate_edges: list[dict] = []
     for system in systems:
         node_id = f"system:{system['slug']}"
         nodes.append({
@@ -548,6 +622,170 @@ async def _map_snapshot(db: Scoped, owner_user_id: uuid.UUID) -> dict:
             "data": {"unlocked_at": achievement.unlocked_at},
         })
 
+    # ── Decisions. The canonical `decisions` row carries the question; the
+    # options, trade-offs and reversibility live in `map_decision_options`,
+    # which is the half a decision was missing. An unresolved fork is the one
+    # thing on this map that is waiting on the owner rather than on work. ──
+    decisions = (await db.execute(select(Decision).where(
+        Decision.owner_user_id == owner_user_id,
+    ).order_by(Decision.created_at.desc()).limit(80))).scalars().all()
+    decision_ids = [row.id for row in decisions]
+    options = (await db.execute(select(MapDecisionOption).where(
+        MapDecisionOption.owner_user_id == owner_user_id,
+        MapDecisionOption.decision_id.in_(decision_ids),
+    ).order_by(MapDecisionOption.position))).scalars().all() if decision_ids else []
+    options_by_decision: dict[uuid.UUID, list[MapDecisionOption]] = {}
+    for option in options:
+        options_by_decision.setdefault(option.decision_id, []).append(option)
+    for decision in decisions:
+        node_id = f"decision:{decision.id}"
+        own = options_by_decision.get(decision.id, [])
+        chosen = next((row for row in own if row.chosen_at is not None), None)
+        system_slug = system_slug_by_orbit_id.get(str(decision.orbit_id))
+        parent_id = f"system:{system_slug}" if system_slug else "nur"
+        nodes.append({
+            "id": node_id,
+            "kind": "DECISION",
+            "label": decision.statement,
+            "parent_id": parent_id,
+            "status": "RESOLVED" if chosen else "UNRESOLVED",
+            "data": {
+                "option_count": len(own),
+                "chosen_option_id": str(chosen.id) if chosen else None,
+                "rationale": decision.rationale,
+                "decision_status": decision.status,
+                "provenance_label": "OWNER_DECISION_LEDGER",
+            },
+        })
+        edges.append({
+            "id": f"{parent_id}->{node_id}",
+            "source": parent_id,
+            "target": node_id,
+            "kind": "SYSTEM_TO_DECISION" if system_slug else "MASTER_TO_DECISION",
+        })
+        for option in own:
+            option_node = f"decision-option:{option.id}"
+            nodes.append({
+                "id": option_node,
+                "kind": "DECISION_OPTION",
+                "label": option.label,
+                "parent_id": node_id,
+                "status": "CHOSEN" if option.chosen_at else "OPEN",
+                "data": {
+                    "reversibility": option.reversibility,
+                    "time_horizon": option.time_horizon,
+                    "effort": option.effort,
+                    "benefit_count": len(option.benefits or []),
+                    "cost_count": len(option.costs or []),
+                    "risk_count": len(option.risks or []),
+                    "evidence_count": len(option.evidence or []),
+                },
+            })
+            edges.append({
+                "id": f"{node_id}->{option_node}",
+                "source": node_id,
+                "target": option_node,
+                "kind": "LEADS_TO_OPTION",
+            })
+
+    # ── Addressable blockers. Distinct from the MISSED-action blockers above:
+    # these know what they obstruct, what evidence they rest on, and whether the
+    # owner has agreed they are real. A PROPOSED blocker is not asserted. ──
+    blockers = (await db.execute(select(MapBlocker).where(
+        MapBlocker.owner_user_id == owner_user_id,
+        MapBlocker.status.notin_(["DISMISSED"]),
+    ).order_by(MapBlocker.updated_at.desc()).limit(120))).scalars().all()
+    for blocker in blockers:
+        node_id = f"blocker:{blocker.id}"
+        parent_id = (
+            f"system:{blocker.system_slug}" if blocker.system_slug else "nur"
+        )
+        nodes.append({
+            "id": node_id,
+            "kind": "BLOCKER",
+            "label": blocker.title,
+            "parent_id": parent_id,
+            "status": blocker.status,
+            "data": {
+                "category": blocker.category,
+                "basis": blocker.basis,
+                "confirmed_by_owner": blocker.confirmed_by_owner,
+                "evidence_count": len(blocker.evidence or []),
+                "affects": blocker.affects,
+                "response_count": len(blocker.possible_responses or []),
+                "addressable": True,
+                "provenance_label": f"BLOCKER_{blocker.basis}",
+            },
+        })
+        edges.append({
+            "id": f"{node_id}->{parent_id}",
+            "source": node_id,
+            "target": parent_id,
+            "kind": "BLOCKS",
+        })
+        # What the blocker actually obstructs, drawn from the row rather than
+        # inferred from where it happens to sit on the canvas.
+        for ref in (blocker.affects or []):
+            if not isinstance(ref, dict):
+                continue
+            ref_type, ref_id = ref.get("type"), ref.get("id")
+            if not ref_type or not ref_id:
+                continue
+            edges.append({
+                "id": f"{node_id}->{ref_type}:{ref_id}",
+                "source": node_id,
+                "target": f"{ref_type}:{ref_id}",
+                "kind": "BLOCKS",
+            })
+
+    # ── Semantic edges the owner drew or accepted. Unconfirmed ones are held
+    # back and returned as candidates, because a proposal is not structure. ──
+    semantic = (await db.execute(select(MapEdge).where(
+        MapEdge.owner_user_id == owner_user_id,
+    ).order_by(MapEdge.created_at.desc()).limit(400))).scalars().all()
+    node_ids = {row["id"] for row in nodes}
+    for edge in semantic:
+        source = f"{edge.source_ref_type}:{edge.source_ref_id}"
+        target = f"{edge.target_ref_type}:{edge.target_ref_id}"
+        payload = {
+            "id": f"semantic:{edge.id}",
+            "source": source,
+            "target": target,
+            "kind": edge.edge_type,
+            "semantic": True,
+            "direction": edge.direction,
+            "user_confirmed": edge.user_confirmed,
+            "inference_source": edge.inference_source,
+            "confidence": float(edge.confidence) if edge.confidence is not None else None,
+            "note": edge.note,
+            "resolvable": source in node_ids and target in node_ids,
+        }
+        if edge.user_confirmed:
+            edges.append(payload)
+        else:
+            candidate_edges.append(payload)
+
+    annotation_counts = dict((await db.execute(
+        select(
+            func.concat(
+                MapAnnotation.entity_ref_type, ":", MapAnnotation.entity_ref_id
+            ),
+            func.count(),
+        )
+        .where(MapAnnotation.owner_user_id == owner_user_id)
+        .group_by(MapAnnotation.entity_ref_type, MapAnnotation.entity_ref_id)
+    )).all())
+    for node in nodes:
+        count = annotation_counts.get(node["id"], 0)
+        if count:
+            node["data"]["annotation_count"] = count
+
+    pending = (await db.execute(select(MapSuggestion).where(
+        MapSuggestion.owner_user_id == owner_user_id,
+        MapSuggestion.status == "PENDING",
+        MapSuggestion.suppressed_kind.is_(False),
+    ).order_by(MapSuggestion.created_at.desc()).limit(60))).scalars().all()
+
     system_index = 0
     for index, node in enumerate(nodes):
         layout_index = system_index if node["kind"] == "SYSTEM" else index
@@ -556,6 +794,34 @@ async def _map_snapshot(db: Scoped, owner_user_id: uuid.UUID) -> dict:
         )
         if node["kind"] == "SYSTEM":
             system_index += 1
+
+    # ── Owner-positioned layout wins over the deterministic ring. Dragging a
+    # node changes only where it sits: the override touches x/y/pinned and never
+    # `parent_id`, so position can never silently reassign a System. ──
+    layout_overrides = 0
+    if view is not None:
+        saved = (await db.execute(select(MapLayout).where(
+            MapLayout.owner_user_id == owner_user_id,
+            MapLayout.map_view_id == view.id,
+        ))).scalars().all()
+        by_ref = {
+            f"{row.node_ref_type}:{row.node_ref_id}": row for row in saved
+        }
+        for node in nodes:
+            row = by_ref.get(node["id"]) or (
+                by_ref.get("nur:nur") if node["id"] == "nur" else None
+            )
+            if row is None:
+                continue
+            node["data"]["layout"] = {
+                **node["data"]["layout"],
+                "x": row.x,
+                "y": row.y,
+            }
+            node["data"]["pinned"] = row.pinned
+            node["data"]["collapsed"] = row.collapsed
+            node["data"]["layer"] = row.layer
+            layout_overrides += 1
 
     return {
         "generated_at": dt.datetime.now(dt.UTC),
@@ -576,9 +842,84 @@ async def _map_snapshot(db: Scoped, owner_user_id: uuid.UUID) -> dict:
             "research_sources": len(research_sources),
             "web_signals": len(web_signals),
             "open_predictions": sum(row.status == "OPEN" for row in predictions),
+            "decisions": len(decisions),
+            "unresolved_decisions": sum(
+                1
+                for row in decisions
+                if not any(
+                    option.chosen_at is not None
+                    for option in options_by_decision.get(row.id, [])
+                )
+            ),
+            "blockers": len(blockers),
+            "open_blockers": sum(row.status == "OPEN" for row in blockers),
+            "proposed_blockers": sum(row.status == "PROPOSED" for row in blockers),
+            "semantic_edges": sum(1 for row in semantic if row.user_confirmed),
+            "candidate_edges": len(candidate_edges),
+            "pending_suggestions": len(pending),
+            "layout_overrides": layout_overrides,
         },
         "nodes": nodes,
         "edges": edges,
+        # ── §37: the field the canvas draws System territory from. Driven from
+        # the canonical catalog, never a hardcoded list, so the Map shows exactly
+        # the Systems NUR actually has (see CONFLICT-010). ──
+        "system_regions": [
+            {
+                "slug": row["slug"],
+                "title": row["title"],
+                "node_id": f"system:{row['slug']}",
+                "state": _system_state(row, blockers),
+                "state_reason": _system_state_reason(row, blockers),
+                "progress_percent": row["progress_percent"],
+                "active_goal_count": row["active_goal_count"],
+                "blocker_count": sum(
+                    1
+                    for blocker in blockers
+                    if blocker.system_slug == row["slug"] and blocker.status == "OPEN"
+                ),
+                "next_move": row["next_move"],
+                "layout": _stable_layout(f"system:{row['slug']}", "SYSTEM", index),
+            }
+            for index, row in enumerate(systems)
+        ],
+        # Candidates travel separately from structure the whole way to the canvas.
+        "suggested_changes": {
+            "candidate_edges": candidate_edges,
+            "suggestions": [
+                {
+                    "id": str(row.id),
+                    "suggestion_type": row.suggestion_type,
+                    "source_refs": row.source_refs,
+                    "proposed_payload": row.proposed_payload,
+                    "explanation": row.explanation,
+                    "may_be_wrong_about": row.may_be_wrong_about,
+                    "confidence": (
+                        float(row.confidence) if row.confidence is not None else None
+                    ),
+                    "created_at": row.created_at,
+                    "requires_acceptance": True,
+                }
+                for row in pending
+            ],
+        },
+        "selection_summary": None,
+        "permissions": {
+            "can_edit_layout": True,
+            "can_draw_edges": True,
+            "can_accept_suggestions": True,
+            # Nothing in Map may move an owner's own decision for them.
+            "can_resolve_decisions": True,
+            "nur_may_assert_sensitive_blockers": False,
+        },
+        "staleness": {
+            "view_id": str(view.id) if view is not None else None,
+            "generated_at": dt.datetime.now(dt.UTC),
+            "layout_is_owner_positioned": layout_overrides > 0,
+            "unresolvable_semantic_edges": sum(
+                1 for row in edges if row.get("semantic") and not row.get("resolvable")
+            ),
+        },
         "future_paths": [
             {
                 "system_slug": row["slug"],

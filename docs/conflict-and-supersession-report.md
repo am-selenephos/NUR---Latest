@@ -107,6 +107,31 @@ destroy proven work.
 | affected_tests | `check-v197-integrity.sh` |
 | resolution_status | RESOLVED — repository baseline stands |
 
+---
+
+# NUR Map spec audit — conflicts requiring founder resolution
+
+## CONFLICT-010 — Map spec names seven Systems; the repository has six founder-locked
+
+| field | value |
+|---|---|
+| conflict_id | CONFLICT-010 |
+| older_requirement | `apps/api/app/living/catalog.py` — docstring "Founder-locked definitions for NUR's **six** Star Systems", slugs `ambition`, `rebuild`, `creation`, `growth`, `introspection`, `connection`. `app/services/auth_service.py` `CORE_SYSTEMS` agrees exactly (same six, same names) and seeds one Orbit per System at registration. |
+| newer_requirement | Map spec §3.1 and §41 acceptance criterion 1: **seven** Systems — Quiet Ambition, Rebuild, Study, Money, Body, Connection, Creation. |
+| winner | **not resolved — founder decision required.** |
+| reason | The two lists agree on only four concepts (`ambition`≈Quiet Ambition, `rebuild`, `connection`, `creation`). The spec drops `growth` and `introspection` and adds three Systems that do not exist anywhere in the repository: **Study**, **Money**, **Body**. This is not a labelling difference. `system_slug` is a plain `varchar(48)` carried on `goals`, `objectives`(via goal), `system_actions`, `scheduled_actions`, `system_diagnostics` and `feasibility_assessments`, and every existing owner already has six seeded Orbits keyed to the six slugs. Adding or renaming Systems would (a) require a data migration for every existing owner's rows, (b) require six new founder-authored `SystemDefinition` blocks — each needs `definition`, 6–7 `questions`, a `checklist`, `ignored_prediction` and `followed_prediction`, all of which are founder voice and cannot be invented by an implementer, and (c) contradict the word "Founder-locked" in the file itself. I will not silently rewrite founder-locked content, and I will not fabricate the missing definitions. |
+| affected_surfaces | Map (System regions), Systems page, Today, registration seeding, `/api/v1/map` graph |
+| affected_data | `goals.system_slug`, `system_actions.system_slug`, `scheduled_actions.system_slug`, `system_diagnostics.system_slug`, `feasibility_assessments.system_slug`, seeded `orbits` rows |
+| affected_tests | `app/tests/test_sol_living_system.py` (`SYSTEM_SLUGS` is asserted against the catalog and against `/api/v1/map` node ids) |
+| resolution_status | **OPEN — founder decision.** Implementation taken meanwhile: the Map renders System regions **driven from the canonical catalog** rather than a hardcoded list, so it displays whatever `SYSTEMS` contains and will pick up a seventh automatically the moment the founder adds it. Consequence to be honest about: acceptance criterion 1 ("Seven Systems appear as meaningful regions") currently renders **six** regions, and cannot be met without this decision. |
+
+### Noted while auditing, not a conflict
+
+`_stable_layout` in `app/api/v1/map.py` already distributes System nodes with
+`2 * math.pi / 7` while the catalog holds six, so the existing graph leaves a
+one-seventh gap in the ring. That is consistent with seven having been intended
+at some point, which is why this is recorded rather than assumed either way.
+
 ## Audit notes
 
 - The SOL 5.6 instruction as received is **truncated** mid-sentence in §28.4

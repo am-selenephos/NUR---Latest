@@ -1,11 +1,12 @@
 """Gate 2 cognitive substrate models (owner-bound; RLS enforced in DB)."""
 import datetime as dt
+import decimal
 import uuid
 
 from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, text
 from sqlalchemy.dialects.postgresql import ENUM as PGEnum, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.types import DateTime
+from sqlalchemy.types import DateTime, Numeric
 
 from app.db.base import Base
 from app.models._mixins import uuid_pk, now_utc
@@ -268,4 +269,17 @@ class Prediction(Base):
     status: Mapped[str] = mapped_column(String, default="OPEN", server_default="OPEN")
     outcome_event_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("cognitive_events.id", ondelete="SET NULL"))
     resolved_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    # ── Added by migration 0051 so a prediction is reviewable rather than a bare
+    # sentence. `confidence` is constrained in the database to sit strictly
+    # between 0 and 1: a prediction cannot be stored as certainty. ──
+    assumptions: Mapped[list] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb"), nullable=False
+    )
+    confidence: Mapped[decimal.Decimal | None] = mapped_column(Numeric(4, 3))
+    horizon_days: Mapped[int | None] = mapped_column(Integer)
+    review_by: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    #: CONFIRMED | PARTIALLY_CONFIRMED | CONTRADICTED, set only once an outcome
+    #: has actually been observed — the database requires `resolved_at` with it.
+    resolution: Mapped[str | None] = mapped_column(String(24))
+    learning: Mapped[str | None] = mapped_column(String)
     created_at = _created()

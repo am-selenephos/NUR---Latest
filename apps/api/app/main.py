@@ -94,7 +94,10 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=s.cors_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        # PUT is here for Map's layout write (`PUT /map/views/{id}/layout`), which
+        # replaces a whole node set at once. Without it the browser preflight
+        # fails cross-origin and dragging silently never persists.
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=[
             "content-type",
             "idempotency-key",
@@ -123,6 +126,7 @@ def create_app() -> FastAPI:
     from app.api.v1.feasibility import router as feasibility_router
     from app.api.v1.living import router as living_router
     from app.api.v1.map import router as map_router
+    from app.api.v1.map_workspace import router as map_workspace_router
     from app.api.v1.memory import router as memory_router
     from app.api.v1.notifications import router as notifications_router
     from app.api.v1.projects import router as projects_router
@@ -154,6 +158,9 @@ def create_app() -> FastAPI:
     app.include_router(feasibility_router, prefix="/api/v1")
     app.include_router(living_router, prefix="/api/v1")
     app.include_router(map_router, prefix="/api/v1")
+    # Same `/map` prefix: the composed graph stays in map.py, the workspace's own
+    # persistence (views, layout, semantic edges, candidates) lives beside it.
+    app.include_router(map_workspace_router, prefix="/api/v1")
     app.include_router(memory_router, prefix="/api/v1")
     app.include_router(teach_nur_router, prefix="/api/v1")
     app.include_router(intelligence_router, prefix="/api/v1")

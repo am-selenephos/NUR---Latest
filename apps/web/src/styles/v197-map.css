@@ -1,0 +1,909 @@
+/* Map — systems, paths and possible futures, rendered into the black void.
+ *
+ * Map shares Orbit's visual law (no boxes, no opaque panels, luminous glass
+ * capsules only) but not its subject, so the treatments differ where the meaning
+ * differs:
+ *
+ *   Orbit answers "who is close to me". Its geometry is concentric.
+ *   Map answers "where am I going and what is in the way". Its geometry is
+ *   territory: System regions with soft gravity, and routes that travel.
+ *
+ * Three rules specific to this surface:
+ *
+ * Candidates never look like structure. Anything NUR proposed is dashed, dimmer,
+ * and carries a candidate glyph. A confirmed edge is solid. The difference is
+ * visible without reading a label and without relying on hue, because a
+ * proposal that looks established is the failure this whole surface guards
+ * against.
+ *
+ * Predictions never look settled. A prediction is a translucent echo with a
+ * dotted perimeter. An outcome is crystallised and solid. You can tell a future
+ * from a fact at a glance.
+ *
+ * Blockers obstruct without becoming horror. Restrained coral, a fractured
+ * edge treatment, gravitational darkening — not red alarms, not skulls.
+ *
+ * Meaning is never carried by colour alone: every edge type pairs a hue with a
+ * distinct dash pattern, and every state pairs a hue with a distinct glyph.
+ */
+
+:root {
+  /* Canonical palette, the subset Map uses. */
+  --map-void: #000000;
+  --map-glass: #030307;
+  --map-navy: #06062b;
+  --map-abyss: #101052;
+
+  --map-pearl: #fff8df;
+  --map-champagne: #f8d98a;
+  --map-gold: #ffd35a;
+  --map-gold-deep: #c9942f;
+
+  --map-cyan: #21e8ff;
+  --map-azure: #3d9bff;
+  --map-violet: #843dff;
+  --map-lilac: #c16bff;
+  --map-fuchsia: #ff18c8;
+  --map-rose: #ff3a9e;
+  --map-coral: #ff526f;
+
+  --map-rail: 264px;
+  --map-detail: 376px;
+  --map-gap: 14px;
+  --map-margin: 18px;
+
+  --map-quick: 140ms;
+  --map-settle: 260ms;
+}
+
+#nur-map-root {
+  position: fixed;
+  inset: 0;
+  /* Above `#space3d` (the canonical galaxy canvas, fixed at z-index 280) for the
+   * same reason Orbit is: below it, the canonical galaxy paints over this surface
+   * and the field stops reading as predominantly black. Layering above rather
+   * than hiding keeps the canonical runtime completely untouched, so leaving the
+   * route needs no restore step. Kept below the auth overlay at 1200. */
+  z-index: 320;
+  background: var(--map-void);
+  color: var(--map-pearl);
+  font-family: "Bodoni Moda", Georgia, serif;
+  overflow: hidden;
+}
+
+/* ── shell and the three zones ────────────────────────────────────────────── */
+
+.nur-map-shell {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  padding: var(--map-margin);
+  gap: var(--map-gap);
+  box-sizing: border-box;
+}
+
+.nur-map-zones {
+  display: grid;
+  grid-template-columns: var(--map-rail) minmax(0, 1fr) var(--map-detail);
+  gap: var(--map-gap);
+  min-height: 0;
+}
+
+/* Faint glass fields emerging from the void, never dashboard slabs. The border
+ * is a hairline and the surface is only two steps off pure black. */
+.nur-map-pane {
+  position: relative;
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(6, 6, 43, 0.5), rgba(3, 3, 7, 0.72));
+  border: 1px solid rgba(248, 217, 138, 0.13);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 223, 0.05),
+    0 18px 60px rgba(0, 0, 0, 0.6);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.nur-map-pane-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 14px 22px;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(248, 217, 138, 0.28) transparent;
+}
+
+/* ── header ───────────────────────────────────────────────────────────────── */
+
+.nur-map-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.nur-map-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.nur-map-title h1 {
+  margin: 0;
+  font-size: 27px;
+  letter-spacing: 0.055em;
+  color: var(--map-pearl);
+  text-shadow: 0 0 26px rgba(255, 211, 90, 0.2);
+}
+
+.nur-map-subtitle {
+  margin: 0;
+  font-size: 12.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 248, 223, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nur-map-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ── the capsule: the only control shape in this file ─────────────────────── */
+
+.nur-map-capsule {
+  position: relative;
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  min-height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(248, 217, 138, 0.34);
+  background:
+    radial-gradient(120% 160% at 50% -40%, rgba(255, 211, 90, 0.15), transparent 62%),
+    linear-gradient(180deg, rgba(6, 6, 43, 0.62), rgba(3, 3, 7, 0.9));
+  color: var(--map-pearl);
+  font-family: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.075em;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 223, 0.14),
+    0 0 0 1px rgba(33, 232, 255, 0.05),
+    0 6px 22px rgba(0, 0, 0, 0.55);
+  transition:
+    border-color var(--map-quick) ease,
+    box-shadow var(--map-quick) ease,
+    transform var(--map-quick) ease;
+}
+
+/* The holographic outer trace. A separate layer so it can travel on hover
+ * without moving the label. */
+.nur-map-capsule::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    115deg,
+    transparent 18%,
+    rgba(33, 232, 255, 0.5) 38%,
+    rgba(255, 248, 223, 0.7) 50%,
+    rgba(255, 24, 200, 0.42) 62%,
+    transparent 82%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity var(--map-settle) ease;
+  pointer-events: none;
+}
+
+.nur-map-capsule:hover {
+  border-color: rgba(255, 211, 90, 0.62);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 223, 0.22),
+    0 0 22px rgba(255, 211, 90, 0.18),
+    0 8px 26px rgba(0, 0, 0, 0.6);
+}
+
+.nur-map-capsule:hover::after { opacity: 1; }
+
+.nur-map-capsule[aria-pressed="true"],
+.nur-map-capsule.is-active {
+  border-color: rgba(255, 211, 90, 0.78);
+  background:
+    radial-gradient(120% 170% at 50% -30%, rgba(255, 211, 90, 0.3), transparent 60%),
+    linear-gradient(180deg, rgba(16, 16, 82, 0.7), rgba(3, 3, 7, 0.92));
+  color: #fffdf4;
+}
+
+.nur-map-capsule[aria-pressed="true"]::after { opacity: 0.75; }
+
+.nur-map-capsule:disabled,
+.nur-map-capsule[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.42;
+  border-color: rgba(248, 217, 138, 0.16);
+  transform: none;
+}
+
+.nur-map-capsule:disabled:hover::after,
+.nur-map-capsule[aria-disabled="true"]:hover::after { opacity: 0; }
+
+/* Focus is visible and never removed. A halo, matching the capsule's shape. */
+.nur-map-capsule:focus-visible,
+.nur-map-node:focus-visible,
+.nur-map-row:focus-visible,
+.nur-map-tab:focus-visible,
+.nur-map-search:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.9),
+    0 0 0 4px rgba(33, 232, 255, 0.85),
+    0 0 26px rgba(33, 232, 255, 0.42);
+}
+
+.nur-map-capsule-sm {
+  padding: 5px 11px;
+  min-height: 27px;
+  font-size: 11px;
+}
+
+/* Small sigil control for the canvas: circular, icon-only, still a capsule. */
+.nur-map-sigil {
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+  justify-content: center;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+/* ── search: a capsule, not a boxed control ───────────────────────────────── */
+
+/* Scoped to this root and marked `!important` on three properties only. The
+ * canonical stylesheet carries `body #id :is(input, select, textarea)` rules
+ * whose specificity beats any single class, and Chromium additionally applies
+ * `appearance: searchfield` to `type="search"`, which reintroduces a rectangular
+ * inset border. Without these the search control renders as a grey box in the
+ * middle of a glass surface, which the visual test rejects. */
+#nur-map-root .nur-map-search {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  border: 1px solid rgba(248, 217, 138, 0.3) !important;
+  border-radius: 999px !important;
+  background:
+    linear-gradient(180deg, rgba(6, 6, 43, 0.6), rgba(3, 3, 7, 0.88));
+  color: var(--map-pearl);
+  font-family: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  padding: 8px 15px;
+  min-height: 34px;
+  width: 100%;
+  box-sizing: border-box;
+  box-shadow: inset 0 1px 0 rgba(255, 248, 223, 0.1);
+}
+
+#nur-map-root .nur-map-search::placeholder {
+  color: rgba(255, 248, 223, 0.36);
+}
+
+#nur-map-root .nur-map-search::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ── navigator ────────────────────────────────────────────────────────────── */
+
+.nur-map-nav-group { margin-bottom: 20px; }
+
+.nur-map-nav-label {
+  margin: 0 0 9px;
+  font-size: 10px;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  color: rgba(255, 211, 90, 0.62);
+}
+
+.nur-map-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.nur-map-nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nur-map-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: rgba(255, 248, 223, 0.86);
+  font-family: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--map-quick) ease, border-color var(--map-quick) ease;
+}
+
+.nur-map-row:hover {
+  background: rgba(16, 16, 82, 0.4);
+  border-color: rgba(248, 217, 138, 0.22);
+}
+
+.nur-map-row.is-selected {
+  background:
+    linear-gradient(90deg, rgba(255, 211, 90, 0.16), rgba(16, 16, 82, 0.3));
+  border-color: rgba(255, 211, 90, 0.5);
+}
+
+.nur-map-row-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nur-map-row-meta {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: rgba(255, 248, 223, 0.44);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── canvas ───────────────────────────────────────────────────────────────── */
+
+.nur-map-canvas-wrap {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+}
+
+.nur-map-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.nur-map-canvas-controls {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  max-width: calc(100% - 28px);
+}
+
+.nur-map-canvas-legend {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(248, 217, 138, 0.14);
+  background: linear-gradient(180deg, rgba(6, 6, 43, 0.62), rgba(3, 3, 7, 0.82));
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 248, 223, 0.6);
+  pointer-events: none;
+}
+
+.nur-map-legend-row { display: flex; align-items: center; gap: 7px; }
+
+.nur-map-legend-swatch {
+  width: 22px;
+  height: 0;
+  border-top-width: 2px;
+  border-top-style: solid;
+}
+
+/* System region: soft gravity, not a card and not a planet. */
+.nur-map-region-halo { pointer-events: none; }
+
+.nur-map-region-label {
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  fill: rgba(255, 248, 223, 0.72);
+}
+
+.nur-map-region-state {
+  font-size: 9.5px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  fill: rgba(255, 211, 90, 0.66);
+}
+
+/* Node shapes. Kind is carried by geometry as well as hue, so the map stays
+ * readable in greyscale and to anyone who does not separate these colours. */
+.nur-map-node { cursor: pointer; }
+.nur-map-node-label {
+  font-size: 11px;
+  letter-spacing: 0.045em;
+  fill: rgba(255, 248, 223, 0.84);
+  pointer-events: none;
+}
+
+.nur-map-node.is-dimmed { opacity: 0.24; }
+.nur-map-node.is-selected .nur-map-node-body {
+  stroke: var(--map-gold);
+  stroke-width: 2.2;
+}
+
+/* A candidate node: dashed perimeter and reduced presence. Never solid. */
+.nur-map-node.is-candidate .nur-map-node-body {
+  stroke-dasharray: 3 3;
+  opacity: 0.6;
+}
+
+/* A prediction: translucent future echo with a dotted boundary. */
+.nur-map-node.is-prediction .nur-map-node-body {
+  fill: rgba(132, 61, 255, 0.14);
+  stroke: rgba(193, 107, 255, 0.7);
+  stroke-dasharray: 2 4;
+}
+
+/* An outcome: crystallised and solid. The visual opposite of a prediction. */
+.nur-map-node.is-outcome .nur-map-node-body {
+  fill: rgba(255, 211, 90, 0.24);
+  stroke: var(--map-champagne);
+  stroke-dasharray: none;
+}
+
+/* A blocker: gravitational darkening and restrained coral. Obstructive, not
+ * alarming. */
+.nur-map-node.is-blocker .nur-map-node-body {
+  fill: rgba(255, 82, 111, 0.16);
+  stroke: rgba(255, 82, 111, 0.72);
+}
+
+/* A blocker NUR only proposed carries the candidate dash as well, so an
+ * unconfirmed emotional reading can never look like an established obstacle. */
+.nur-map-node.is-blocker.is-proposed .nur-map-node-body {
+  stroke-dasharray: 4 4;
+  opacity: 0.55;
+}
+
+/* Edges. Hue *and* dash per meaning. */
+.nur-map-edge { fill: none; pointer-events: stroke; cursor: pointer; }
+.nur-map-edge.is-dimmed { opacity: 0.12; }
+
+.nur-map-edge-contains   { stroke: rgba(255, 248, 223, 0.34); stroke-width: 1; }
+.nur-map-edge-depends    { stroke: rgba(33, 232, 255, 0.6);  stroke-width: 1.3; stroke-dasharray: 6 4; }
+.nur-map-edge-supports   { stroke: rgba(255, 211, 90, 0.55); stroke-width: 1.2; }
+.nur-map-edge-enables    { stroke: rgba(248, 217, 138, 0.6); stroke-width: 1.4; stroke-dasharray: 1 5; }
+.nur-map-edge-blocks     { stroke: rgba(255, 82, 111, 0.72); stroke-width: 1.6; stroke-dasharray: 2 3; }
+.nur-map-edge-contradicts{ stroke: rgba(255, 24, 200, 0.66); stroke-width: 1.4; stroke-dasharray: 8 3 2 3; }
+.nur-map-edge-leads      { stroke: rgba(193, 107, 255, 0.62); stroke-width: 1.3; }
+.nur-map-edge-evidence   { stroke: rgba(138, 245, 255, 0.5); stroke-width: 0.9; stroke-dasharray: 2 2; }
+.nur-map-edge-involves   { stroke: rgba(255, 58, 158, 0.55); stroke-width: 1.1; stroke-dasharray: 5 3; }
+.nur-map-edge-predicted  { stroke: rgba(132, 61, 255, 0.5); stroke-width: 1.1; stroke-dasharray: 2 5; }
+
+/* A candidate edge is always dashed, always dimmer, whatever its meaning. */
+.nur-map-edge.is-candidate {
+  stroke-dasharray: 2 6 !important;
+  opacity: 0.5;
+}
+
+/* ── detail panel ─────────────────────────────────────────────────────────── */
+
+.nur-map-detail-header { margin-bottom: 14px; }
+
+.nur-map-detail-kind {
+  margin: 0 0 4px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 211, 90, 0.66);
+}
+
+.nur-map-detail-title {
+  margin: 0 0 8px;
+  font-size: 19px;
+  letter-spacing: 0.02em;
+  color: var(--map-pearl);
+  text-wrap: balance;
+}
+
+.nur-map-tabs {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.nur-map-tab {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 248, 223, 0.58);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: color var(--map-quick) ease, border-color var(--map-quick) ease;
+}
+
+.nur-map-tab:hover { color: var(--map-pearl); }
+
+.nur-map-tab[aria-selected="true"] {
+  color: #fffdf4;
+  border-color: rgba(255, 211, 90, 0.55);
+  background: linear-gradient(180deg, rgba(255, 211, 90, 0.16), transparent);
+}
+
+.nur-map-field { margin-bottom: 15px; }
+
+.nur-map-field-label {
+  margin: 0 0 4px;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 211, 90, 0.58);
+}
+
+.nur-map-field-value {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(255, 248, 223, 0.88);
+}
+
+.nur-map-empty {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: rgba(255, 248, 223, 0.44);
+  font-style: italic;
+}
+
+/* An evidence card. `basis` is stated in words on every one of them. */
+.nur-map-card {
+  border-radius: 15px;
+  border: 1px solid rgba(248, 217, 138, 0.16);
+  background: linear-gradient(180deg, rgba(6, 6, 43, 0.44), rgba(3, 3, 7, 0.66));
+  padding: 11px 13px;
+  margin-bottom: 9px;
+}
+
+.nur-map-card-basis {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+/* Each basis gets a hue *and* a glyph, set in the markup. */
+.nur-map-basis-fact       { color: var(--map-champagne); }
+.nur-map-basis-user       { color: var(--map-gold); }
+.nur-map-basis-inference  { color: var(--map-lilac); }
+.nur-map-basis-external   { color: var(--map-cyan); }
+.nur-map-basis-prediction { color: var(--map-violet); }
+
+.nur-map-card.is-contradicting {
+  border-color: rgba(255, 24, 200, 0.3);
+  background: linear-gradient(180deg, rgba(40, 4, 30, 0.4), rgba(3, 3, 7, 0.7));
+}
+
+/* The doubt section is never optional and never de-emphasised into invisibility. */
+.nur-map-doubt {
+  border-radius: 15px;
+  border: 1px solid rgba(193, 107, 255, 0.3);
+  background: linear-gradient(180deg, rgba(24, 8, 44, 0.5), rgba(3, 3, 7, 0.7));
+  padding: 11px 13px;
+  margin-top: 6px;
+}
+
+.nur-map-doubt-label {
+  margin: 0 0 4px;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--map-lilac);
+}
+
+/* ── paths mode: luminous route lanes ─────────────────────────────────────── */
+
+.nur-map-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.nur-map-lane {
+  border-radius: 20px;
+  border: 1px solid rgba(248, 217, 138, 0.17);
+  background:
+    linear-gradient(100deg, rgba(16, 16, 82, 0.42), rgba(3, 3, 7, 0.76));
+  padding: 15px 17px;
+}
+
+.nur-map-lane-name {
+  margin: 0 0 3px;
+  font-size: 15.5px;
+  color: var(--map-pearl);
+}
+
+.nur-map-lane-strategy {
+  margin: 0 0 12px;
+  font-size: 11.5px;
+  letter-spacing: 0.09em;
+  color: rgba(255, 248, 223, 0.5);
+}
+
+.nur-map-lane-dims {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 10px;
+}
+
+.nur-map-dim-label {
+  font-size: 9.5px;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: rgba(255, 211, 90, 0.55);
+}
+
+.nur-map-dim-value {
+  font-size: 12.5px;
+  color: rgba(255, 248, 223, 0.88);
+  font-variant-numeric: tabular-nums;
+}
+
+/* An unmeasured dimension says so, and looks like it means it. */
+.nur-map-dim-value.is-unmeasured {
+  color: rgba(255, 248, 223, 0.4);
+  font-style: italic;
+}
+
+.nur-map-milestones {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.nur-map-milestone {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(248, 217, 138, 0.2);
+  font-size: 11px;
+  color: rgba(255, 248, 223, 0.7);
+}
+
+.nur-map-milestone.is-done {
+  border-color: rgba(255, 211, 90, 0.5);
+  color: var(--map-champagne);
+  background: rgba(255, 211, 90, 0.1);
+}
+
+/* ── comparison matrix ────────────────────────────────────────────────────── */
+
+.nur-map-matrix-scroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.nur-map-matrix {
+  border-collapse: collapse;
+  min-width: 100%;
+  font-size: 12px;
+}
+
+.nur-map-matrix th,
+.nur-map-matrix td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(248, 217, 138, 0.11);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.nur-map-matrix th {
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 211, 90, 0.6);
+  font-weight: 400;
+}
+
+.nur-map-matrix tbody th {
+  color: rgba(255, 248, 223, 0.66);
+  letter-spacing: 0.1em;
+}
+
+/* ── candidate strip: proposals live visibly apart from structure ─────────── */
+
+.nur-map-candidate {
+  border-radius: 15px;
+  border: 1px dashed rgba(193, 107, 255, 0.42);
+  background: linear-gradient(180deg, rgba(20, 6, 40, 0.44), rgba(3, 3, 7, 0.66));
+  padding: 11px 13px;
+  margin-bottom: 9px;
+}
+
+.nur-map-candidate-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9.5px;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--map-lilac);
+  margin-bottom: 5px;
+}
+
+.nur-map-candidate-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 9px;
+}
+
+/* ── banners ──────────────────────────────────────────────────────────────── */
+
+.nur-map-banner {
+  border-radius: 15px;
+  border: 1px solid rgba(255, 82, 111, 0.4);
+  background: linear-gradient(180deg, rgba(44, 6, 18, 0.5), rgba(3, 3, 7, 0.7));
+  padding: 10px 13px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+  color: rgba(255, 248, 223, 0.86);
+}
+
+.nur-map-banner.is-notice {
+  border-color: rgba(33, 232, 255, 0.34);
+  background: linear-gradient(180deg, rgba(4, 26, 40, 0.5), rgba(3, 3, 7, 0.7));
+}
+
+/* ── mobile: focus-first, bottom sheet ────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .nur-map-zones {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The rail and the detail panel stop being columns. Focus is the default
+   * surface on a phone, per §33 — a shrunken galaxy is not a usable map. */
+  .nur-map-pane.nur-map-nav,
+  .nur-map-pane.nur-map-detail {
+    display: none;
+  }
+
+  .nur-map-shell.is-mobile-detail .nur-map-detail {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* Collapsed height; expands with the sheet state. */
+    max-height: 76vh;
+    border-radius: 22px 22px 0 0;
+    z-index: 8;
+  }
+
+  .nur-map-header {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .nur-map-header-actions { justify-content: flex-start; }
+
+  .nur-map-canvas-legend { display: none; }
+}
+
+/* ── motion ───────────────────────────────────────────────────────────────── */
+
+@keyframes nur-map-travel {
+  from { stroke-dashoffset: 24; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes nur-map-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+/* Only the selected route travels. Animating every edge at once is the thing
+ * §39 forbids, and it makes the map unreadable besides. */
+.nur-map-edge.is-active {
+  animation: nur-map-travel 1.5s linear infinite;
+}
+
+/* An unresolved decision pulses slowly, because it is waiting on the owner. */
+.nur-map-node.is-unresolved .nur-map-node-body {
+  animation: nur-map-pulse 2.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Nothing loops. Selection still changes state, instantly. */
+  .nur-map-edge.is-active,
+  .nur-map-node.is-unresolved .nur-map-node-body {
+    animation: none !important;
+  }
+
+  .nur-map-capsule,
+  .nur-map-row,
+  .nur-map-tab {
+    transition: none !important;
+  }
+
+  .nur-map-capsule:hover { transform: none; }
+}
+
+/* The accessible outline: a real parallel representation, not a hidden label.
+ * Visually collapsed by default and revealed by the Outline control, so the map
+ * is fully operable without vision or drag precision. */
+.nur-map-outline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nur-map-outline ul {
+  list-style: none;
+  margin: 0 0 0 14px;
+  padding: 0 0 0 10px;
+  border-left: 1px solid rgba(248, 217, 138, 0.16);
+}
+
+.nur-map-outline li { margin: 3px 0; }
+
+.nur-map-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

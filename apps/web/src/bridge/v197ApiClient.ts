@@ -654,6 +654,15 @@ export class V197ApiClient {
     });
   }
 
+  /** Added for Map's layout write, which replaces a whole node set at once. */
+  put<T>(path: string, body: unknown): Promise<T> {
+    return this.request<T>(path, {
+      method: "PUT",
+      headers: this.writeHeaders(),
+      body: JSON.stringify(body),
+    });
+  }
+
   async register(payload: { chosen_name: string; email: string; password: string; consent: boolean }): Promise<V197Session> {
     const created = await this.post<V197Session>("/auth/register", payload, false);
     const session = await this.session();

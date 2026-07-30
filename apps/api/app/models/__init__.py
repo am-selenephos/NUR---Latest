@@ -116,3 +116,7 @@ from app.models.group_research import (  # noqa: F401
     ResearchSource, TenderInsight, WebSignalAlert, WebSignalSnapshot,
     WebWatchlist,
 )
+from app.models.map_layer import (  # noqa: F401
+    MapAnnotation, MapBlocker, MapDecisionOption, MapEdge, MapLayout,
+    MapSuggestion, MapView,
+)
