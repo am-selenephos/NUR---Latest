@@ -182,6 +182,21 @@ ensure_env() {
     set_env_value "ALEMBIC_DATABASE_URL" "postgresql+asyncpg://nur_admin:nur_admin_pw@localhost:${pg_port}/nur"
   fi
 
+  # Keep the connection strings pinned to whichever port was actually resolved,
+  # on every boot rather than only inside the two branches above.
+  #
+  # Neither branch runs once .env carries a non-5432 NUR_POSTGRES_PORT from an
+  # earlier boot: the first needs a published container port, and the second
+  # tests `pg_port == 5432`. DATABASE_URL then keeps a stale value indefinitely
+  # while role provisioning targets NUR_POSTGRES_PORT — so the API, Alembic and
+  # bootstrap can end up on *different* Postgres instances. Observed live: the
+  # app on 15432 against a second instance provisioned on 15433, which left the
+  # agent_ops_* boundary owned by a role with no BYPASSRLS and therefore silently
+  # unable to see across owners.
+  set_env_value "NUR_POSTGRES_PORT" "$pg_port"
+  set_env_value "DATABASE_URL" "postgresql+asyncpg://nur_app:nur_app_pw@localhost:${pg_port}/nur"
+  set_env_value "ALEMBIC_DATABASE_URL" "postgresql+asyncpg://nur_admin:nur_admin_pw@localhost:${pg_port}/nur"
+
   local redis_port="${NUR_REDIS_PORT:-6379}"
   local existing_redis_port
   if [[ "${NUR_SERVICE_MODE:-local}" == "local" ]]; then
@@ -199,6 +214,12 @@ ensure_env() {
     set_env_value "NUR_REDIS_PORT" "$redis_port"
     set_env_value "REDIS_URL" "redis://localhost:${redis_port}/0"
   fi
+
+  # Same re-sync for Redis, for the same reason: a stale REDIS_URL would point
+  # the API and the worker at different brokers, so published work would be
+  # queued where nothing is listening.
+  set_env_value "NUR_REDIS_PORT" "$redis_port"
+  set_env_value "REDIS_URL" "redis://localhost:${redis_port}/0"
 
   set_env_value "NUR_ENABLE_OMEGA_RESEARCH" "true"
   set_env_value "VITE_NUR_ENABLE_OMEGA_RESEARCH" "true"
