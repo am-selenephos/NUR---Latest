@@ -535,18 +535,21 @@ export async function renderV197Map(
     },
     /** Non-drag alternative for every drag action (§34). */
     nudge(nodeId: string, dx: number, dy: number) {
-      if (!state.viewId) return;
       const node = state.graph.nodes.find((row) => row.id === nodeId);
-      if (!node) return;
-      const layout = node.data.layout as { x: number; y: number } | undefined;
+      const layout = node?.data.layout as { x: number; y: number } | undefined;
       if (!layout) return;
+      actions.moveTo(nodeId, layout.x + dx, layout.y + dy);
+    },
+    /** Where a drag or a nudge lands. Writes position and nothing else. */
+    moveTo(nodeId: string, x: number, y: number) {
+      if (!state.viewId) return;
       const ref = nodeRefOf(nodeId);
       void mutate(() => api.put(`/map/views/${state.viewId}/layout`, {
         nodes: [{
           node_ref_type: ref.type,
           node_ref_id: ref.id,
-          x: layout.x + dx,
-          y: layout.y + dy,
+          x: Math.round(x * 100) / 100,
+          y: Math.round(y * 100) / 100,
         }],
       }));
     },
@@ -983,7 +986,73 @@ export async function renderV197Map(
         group.append(label);
       }
 
-      group.addEventListener("click", () => actions.select(node.id));
+      // ── drag to reposition ────────────────────────────────────────────────
+      // Position is presentation. This moves the group's transform while the
+      // pointer is down and persists x/y on release; the server refuses to let a
+      // position change System membership or any relationship, so a goal dragged
+      // next to Money is still a Creation goal. A movement threshold keeps a
+      // click from becoming a one-pixel drag, and vice versa.
+      let dragging = false;
+      let moved = false;
+      let originX = 0;
+      let originY = 0;
+      const toCanvas = (event: PointerEvent): { x: number; y: number } | null => {
+        const matrix = canvas.getScreenCTM();
+        if (!matrix) return null;
+        const point = canvas.createSVGPoint();
+        point.x = event.clientX;
+        point.y = event.clientY;
+        const mapped = point.matrixTransform(matrix.inverse());
+        return { x: mapped.x, y: mapped.y };
+      };
+
+      group.addEventListener("pointerdown", (event) => {
+        const pointer = event as PointerEvent;
+        if (pointer.button !== 0) return;
+        const at = toCanvas(pointer);
+        if (!at) return;
+        dragging = true;
+        moved = false;
+        originX = at.x;
+        originY = at.y;
+        group.setPointerCapture(pointer.pointerId);
+      });
+
+      group.addEventListener("pointermove", (event) => {
+        if (!dragging) return;
+        const at = toCanvas(event as PointerEvent);
+        if (!at) return;
+        const dx = at.x - originX;
+        const dy = at.y - originY;
+        if (!moved && Math.hypot(dx, dy) < 4) return;
+        moved = true;
+        group.classList.add("is-dragging");
+        group.setAttribute("transform", `translate(${dx} ${dy})`);
+      });
+
+      const endDrag = (event: Event) => {
+        if (!dragging) return;
+        const pointer = event as PointerEvent;
+        dragging = false;
+        if (group.hasPointerCapture?.(pointer.pointerId)) {
+          group.releasePointerCapture(pointer.pointerId);
+        }
+        group.classList.remove("is-dragging");
+        if (!moved) return;
+        const at = toCanvas(pointer);
+        group.removeAttribute("transform");
+        if (!at) return;
+        // One write per gesture, on release — not per pointermove.
+        actions.moveTo(node.id, layout.x + (at.x - originX), layout.y + (at.y - originY));
+      };
+      group.addEventListener("pointerup", endDrag);
+      group.addEventListener("pointercancel", endDrag);
+
+      group.addEventListener("click", () => {
+        // A completed drag is not a selection.
+        if (moved) { moved = false; return; }
+        actions.select(node.id);
+      });
       group.addEventListener("dblclick", () => actions.focus(node.id));
       group.addEventListener("keydown", (event) => {
         const key = (event as KeyboardEvent).key;

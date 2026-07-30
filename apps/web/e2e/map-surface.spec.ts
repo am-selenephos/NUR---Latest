@@ -396,6 +396,74 @@ test("layout persists and a moved node keeps its System", async () => {
   expect(result.ownerPositioned).toBe(true);
 });
 
+test("dragging a node with the mouse persists position and nothing else", async () => {
+  const page = sharedPage;
+  const frame = await openMap(page);
+  await frame.click('[data-map-mode="universe"]');
+
+  const target = await frame.evaluate(() => {
+    const node = document.querySelector('[data-map-node="system:creation"]')
+      ?? document.querySelector('[data-map-node^="system:"]');
+    return (node as SVGElement | null)?.dataset.mapNode ?? null;
+  });
+  expect(target, "no System node to drag").not.toBeNull();
+
+  const before = await frame.evaluate(async (id) => {
+    const views = await (await fetch("/api/v1/map/views", { credentials: "include" })).json();
+    const graph = await (await fetch(`/api/v1/map/views/${views.default_view_id}/graph`, {
+      credentials: "include",
+    })).json();
+    const node = graph.nodes.find((row: { id: string }) => row.id === id);
+    return { x: node.data.layout.x, y: node.data.layout.y, parent: node.parent_id };
+  }, target as string);
+
+  const locator = page.frameLocator("#nur-universe-stage")
+    .locator(`[data-map-node="${target}"]`);
+  const box = await locator.boundingBox();
+  expect(box, "the node has no box to drag").not.toBeNull();
+
+  // A real pointer gesture: press, move well past the 4px threshold, release.
+  const startX = box!.x + box!.width / 2;
+  const startY = box!.y + box!.height / 2;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + 90, startY + 60, { steps: 12 });
+  await page.mouse.up();
+
+  // Wait for the release to reach the server rather than assuming it has.
+  await expect.poll(
+    async () => frame.evaluate(async (id) => {
+      const views = await (await fetch("/api/v1/map/views", { credentials: "include" })).json();
+      const graph = await (await fetch(`/api/v1/map/views/${views.default_view_id}/graph`, {
+        credentials: "include",
+      })).json();
+      const node = graph.nodes.find((row: { id: string }) => row.id === id);
+      return node.data.layout.x as number;
+    }, target as string),
+    { timeout: 15_000, message: "the drag never reached the server" },
+  ).not.toBe(before.x);
+
+  const persisted = await frame.evaluate(async (id) => {
+    const views = await (await fetch("/api/v1/map/views", { credentials: "include" })).json();
+    const graph = await (await fetch(`/api/v1/map/views/${views.default_view_id}/graph`, {
+      credentials: "include",
+    })).json();
+    const node = graph.nodes.find((row: { id: string }) => row.id === id);
+    return {
+      x: node.data.layout.x,
+      y: node.data.layout.y,
+      parent: node.parent_id,
+      ownerPositioned: graph.staleness.layout_is_owner_positioned,
+    };
+  }, target as string);
+
+  // The node actually moved, and it moved roughly where it was dragged.
+  expect(persisted.x).not.toBe(before.x);
+  expect(persisted.ownerPositioned).toBe(true);
+  // §15: the gesture changed position and nothing else.
+  expect(persisted.parent).toBe(before.parent);
+});
+
 test("a node is reachable and movable by keyboard alone", async () => {
   const frame = await openMap(sharedPage);
   await frame.click('[data-map-mode="universe"]');

@@ -907,3 +907,12 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* A node being dragged lifts slightly and keeps its halo, so the gesture reads
+ * as picking something up rather than as the node having changed state. */
+.nur-map-node.is-dragging { cursor: grabbing; }
+.nur-map-node.is-dragging .nur-map-node-body {
+  stroke: var(--map-gold);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 10px rgba(255, 211, 90, 0.4));
+}
