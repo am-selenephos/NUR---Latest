@@ -86,6 +86,15 @@ def _stable_layout(node_id: str, kind: str, index: int) -> dict:
     }
 
 
+def _layout_of(nodes: list[dict], node_id: str) -> dict | None:
+    """The final layout of a node, after any owner override has been applied."""
+    for node in nodes:
+        if node["id"] == node_id:
+            layout = node["data"].get("layout")
+            return dict(layout) if isinstance(layout, dict) else None
+    return None
+
+
 def _system_signals(snapshot: dict, blockers: list) -> tuple[int, int, int, int]:
     """The four counts every System state is decided from, and nothing else."""
     open_blockers = sum(
@@ -879,7 +888,12 @@ async def _map_snapshot(
                     if blocker.system_slug == row["slug"] and blocker.status == "OPEN"
                 ),
                 "next_move": row["next_move"],
-                "layout": _stable_layout(f"system:{row['slug']}", "SYSTEM", index),
+                # Read back from the node rather than recomputed, so a System the
+                # owner dragged keeps its region under it. Recomputing here left
+                # the halo and label behind at the ring position while the node
+                # moved away.
+                "layout": _layout_of(nodes, f"system:{row['slug']}")
+                or _stable_layout(f"system:{row['slug']}", "SYSTEM", index),
             }
             for index, row in enumerate(systems)
         ],

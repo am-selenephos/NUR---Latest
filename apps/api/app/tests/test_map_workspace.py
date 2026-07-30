@@ -177,6 +177,33 @@ async def test_dragging_a_node_never_changes_its_system(client, owner):
 
 
 @pytest.mark.asyncio
+async def test_a_moved_system_keeps_its_region_under_it(client, owner):
+    """The region halo is drawn from `system_regions`, the node from `nodes`.
+
+    Recomputing the region's position left the halo and its label behind at the
+    ring position while the node moved away, so the two are read from the same
+    place now.
+    """
+    view_id = await _default_view(client)
+    await client.put(
+        f"{API}/map/views/{view_id}/layout",
+        json={"nodes": [
+            {"node_ref_type": "system", "node_ref_id": "creation", "x": 123.0, "y": -45.0}
+        ]},
+        headers=await _csrf(client),
+    )
+    graph = (await client.get(f"{API}/map/views/{view_id}/graph")).json()
+    node = next(row for row in graph["nodes"] if row["id"] == "system:creation")
+    region = next(row for row in graph["system_regions"] if row["slug"] == "creation")
+    assert node["data"]["layout"]["x"] == 123.0
+    assert (region["layout"]["x"], region["layout"]["y"]) == (123.0, -45.0)
+    # An untouched System still sits on the computed ring.
+    other = next(row for row in graph["system_regions"] if row["slug"] != "creation")
+    other_node = next(row for row in graph["nodes"] if row["id"] == f"system:{other['slug']}")
+    assert other["layout"]["x"] == other_node["data"]["layout"]["x"]
+
+
+@pytest.mark.asyncio
 async def test_layout_is_rejected_for_an_unknown_object_kind(client, owner):
     view_id = await _default_view(client)
     response = await client.put(
