@@ -185,6 +185,51 @@ def upgrade() -> None:
         op.execute(f"REVOKE ALL ON FUNCTION {signature} FROM PUBLIC")
         op.execute(f"GRANT EXECUTE ON FUNCTION {signature} TO {APP_ROLE}")
 
+    _warn_if_the_definer_cannot_bypass_rls()
+
+
+def _warn_if_the_definer_cannot_bypass_rls() -> None:
+    """A boundary whose definer cannot bypass RLS does nothing, silently.
+
+    SECURITY DEFINER runs the body as the function's owner, so these functions
+    only see across owners if that owner holds BYPASSRLS. Without it every one of
+    them still exists, still has its grant, still returns successfully — and
+    matches zero rows. Dispatch publishes nothing and recovery reclaims nothing,
+    with no error anywhere. That is the exact failure this boundary was built to
+    end, so it must not be the boundary's own failure mode.
+
+    Verified against a real environment: a stale Postgres container held the port
+    the app connects to while role provisioning ran against a second instance, so
+    the grant landed on a database nothing used and the boundary was inert with
+    every migration reporting success.
+
+    A warning rather than a hard failure, matching this codebase's existing
+    treatment of a missing role privilege (see 0034's nur_email_lookup notice):
+    the schema is correct and re-running the migration after the grant is not
+    required — only `ALTER ROLE ... BYPASSRLS`, which needs a real superuser and
+    therefore cannot be done from here.
+    """
+    import warnings
+
+    bind = op.get_bind()
+    can_bypass = bind.exec_driver_sql(
+        "SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user"
+    ).scalar()
+    if can_bypass:
+        return
+
+    owner = bind.exec_driver_sql("SELECT current_user").scalar()
+    warnings.warn(
+        f"{owner} does not hold BYPASSRLS, so the agent_ops_* boundary cannot see "
+        f"across owners: the Agency Plane dispatcher will publish nothing and "
+        f"recovery will reclaim nothing, silently, because every agentic table has "
+        f"FORCE ROW LEVEL SECURITY. Fix with: ALTER ROLE {owner} BYPASSRLS; "
+        f"(requires a superuser connection to THIS database — check that role "
+        f"provisioning targeted the same host and port as DATABASE_URL).",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+
 
 def downgrade() -> None:
     for signature in SIGNATURES:
