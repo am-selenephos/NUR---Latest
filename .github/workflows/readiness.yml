@@ -25,6 +25,13 @@ jobs:
       - run: npm run web:typecheck
       - run: npm run web:test
       - run: npm run web:build
+      - name: Upload exact built NUR web bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: nur-web-dist-${{ github.sha }}
+          path: apps/web/dist/
+          if-no-files-found: error
+          retention-days: 1
       - run: npm run web:e2e:mocked
       - name: Upload Playwright failure artifacts
         if: failure()
