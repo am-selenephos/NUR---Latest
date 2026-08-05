@@ -5,7 +5,6 @@ Produces a ``ContextManifest`` documenting included and excluded sources.
 """
 from __future__ import annotations
 
-import uuid
 from typing import Any
 
 from app.brain.schemas import ContextManifest, ContextSource

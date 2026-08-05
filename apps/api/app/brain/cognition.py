@@ -6,7 +6,6 @@ dispatches to ``BrainProviderAdapter.generate_structured()``, optionally runs
 """
 from __future__ import annotations
 
-import uuid
 from typing import Any
 
 from app.ai.schemas import AIStreamSink
@@ -15,7 +14,7 @@ from app.brain.profiles import get_profile
 from app.brain.prompts import build_system_prompt, build_user_prompt
 from app.brain.provider import BrainProviderAdapter
 from app.brain.router import route
-from app.brain.schemas import CognitiveResult, CognitiveTaskPacket, BrainProfileKey
+from app.brain.schemas import BrainProfileKey, CognitiveResult, CognitiveTaskPacket
 from app.brain.tracing import BrainTrace
 
 

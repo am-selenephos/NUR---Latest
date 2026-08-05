@@ -14,18 +14,14 @@ this adapter layers Brain-specific concerns on top.
 from __future__ import annotations
 
 import asyncio
-import json
 import time
-import uuid
 from typing import Any
 
-from app.ai.errors import AIOutputValidationError, AIProviderDisabled, AIProviderError
-from app.ai.provider import get_ai_provider
+from app.ai.errors import AIProviderDisabled, AIProviderError
 from app.ai.schemas import AIStreamSink
 from app.brain.profiles import BrainProfile
 from app.brain.schemas import CognitiveResult, CognitiveTaskPacket, BrainProfileKey
 from app.brain.tracing import BrainTrace
-from app.core.config import get_settings
 
 
 class BrainProviderAdapter:
@@ -54,7 +50,6 @@ class BrainProviderAdapter:
         Raises ``AIProviderError`` on transient failure.
         Raises ``AIOutputValidationError`` if the response is malformed.
         """
-        s = get_settings()
         import app.cognition.intelligence_kernel as ik_mod
         provider = ik_mod.get_ai_provider()
         trace.record_step("provider_dispatch", provider=provider.name, profile=profile.key)

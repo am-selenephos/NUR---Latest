@@ -10,15 +10,13 @@ import hashlib
 import json
 import uuid
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.audit import model_run_metadata, safe_error_metadata
 from app.ai.budget import assert_daily_ai_budget
-from app.ai.errors import AIOutputValidationError, AIProviderDisabled
-from app.ai.schemas import AIProviderResult, AIStreamSink, EvidenceRef, TalkProviderRequest
+from app.ai.errors import AIOutputValidationError
+from app.ai.schemas import AIStreamSink
 from app.brain.cognition import run_brain_step
-from app.brain.schemas import CognitiveResult
 from app.brain.synthesizer import synthesize_talk_output
 from app.cognition.evaluation_service import persist_model_evaluation
 from app.cognition.evidence_packet import build_evidence_packet
@@ -26,13 +24,12 @@ from app.cognition.hybrid_retrieval import retrieve_hybrid
 from app.cognition.memory_candidate_service import persist_memory_candidates
 from app.cognition.prediction_service import persist_predictions
 from app.cognition.retrieval_policy import assert_owned_orbit
-from app.cognition.schemas import EvidencePacket, TalkKernelResult, VerificationResult
+from app.cognition.schemas import TalkKernelResult
 from app.cognition.verifier import verify_talk_output
 from app.core.config import get_settings
 from app.mind.context import build_cognitive_task_packet
 from app.mind.metacognition import run_metacognitive_review
 from app.models import CognitiveEvent, ModelRun, ModelRunSource
-from app.omega.schemas import OmegaTalkSummary
 from app.omega.workspace_service import build_workspace_frame, mark_frame_used, talk_summary
 from app.services.glow_service import award_glow_if_eligible
 

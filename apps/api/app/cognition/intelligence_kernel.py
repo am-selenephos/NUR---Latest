@@ -1,33 +1,24 @@
-import asyncio
-import hashlib
-import json
+from __future__ import annotations
+
 import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.audit import model_run_metadata, safe_error_metadata
-from app.ai.budget import assert_daily_ai_budget
-from app.ai.errors import AIOutputValidationError, AIProviderDisabled
 from app.ai.provider import get_ai_provider
-from app.ai.schemas import AIProviderResult, AIStreamSink, EvidenceRef, NURTalkOutput, TalkProviderRequest
-from app.cognition.evaluation_service import persist_model_evaluation
-from app.cognition.evidence_packet import build_evidence_packet
-from app.cognition.hybrid_retrieval import retrieve_hybrid
-from app.cognition.memory_candidate_service import persist_memory_candidates
-from app.cognition.prediction_service import persist_predictions
-from app.cognition.retrieval_policy import assert_owned_orbit
+from app.ai.schemas import AIStreamSink, EvidenceRef, NURTalkOutput
 from app.cognition.schemas import EvidencePacket, TalkKernelResult, VerificationResult
-from app.cognition.task_router import route_task
-from app.cognition.verifier import verify_talk_output
-from app.core.config import get_settings
+from app.mind.cognitive_loop import run_mind_cognitive_loop
 from app.models import CognitiveEvent, ModelRun, ModelRunSource
 from app.omega.schemas import OmegaTalkSummary
-from app.services.glow_service import award_glow_if_eligible
-from app.omega.workspace_service import build_workspace_frame, mark_frame_used, talk_summary
 
-
-from app.mind.cognitive_loop import run_mind_cognitive_loop
+__all__ = [
+    "get_ai_provider",
+    "run_talk_kernel",
+    "TalkProviderFailure",
+    "TalkRunCancelled",
+    "TalkRunConflict",
+]
 
 
 async def run_talk_kernel(

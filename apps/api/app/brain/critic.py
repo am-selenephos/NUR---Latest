@@ -5,8 +5,7 @@ and evidence.  Produces a critic verdict ("PASS", "WARN", "BLOCK") and verificat
 """
 from __future__ import annotations
 
-from app.brain.schemas import CognitiveResult, CognitiveTaskPacket, BrainProfileKey
-from app.brain.profiles import CRITIC, get_profile
+from app.brain.schemas import CognitiveResult, CognitiveTaskPacket
 
 
 class BrainCritic:

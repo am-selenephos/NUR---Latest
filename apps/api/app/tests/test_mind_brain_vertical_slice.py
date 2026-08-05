@@ -15,12 +15,9 @@ Tests:
 import pytest
 
 from app.brain.critic import BrainCritic
-from app.brain.profiles import get_profile
-from app.brain.router import classify_stakes, route
+from app.brain.router import classify_stakes
 from app.brain.schemas import BrainProfileKey, CognitiveResult, CognitiveClaim
 from app.brain.synthesizer import synthesize_talk_output
-from app.mind.constitution import NUR_CONSTITUTION_V1
-from app.mind.context import build_cognitive_task_packet
 from app.mind.identity import load_identity
 from app.mind.metacognition import run_metacognitive_review
 from app.mind.self_model import get_self_capabilities
@@ -80,7 +77,7 @@ def test_brain_router_profile_selection():
 
 
 def test_brain_critic_verification():
-    from app.brain.schemas import IdentitySnapshot, SelfCapabilities, ContextManifest, CognitiveTaskPacket
+    from app.brain.schemas import SelfCapabilities, ContextManifest, CognitiveTaskPacket
 
     packet = CognitiveTaskPacket(
         owner_user_id=import_uuid(),

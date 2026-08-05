@@ -6,7 +6,7 @@ and language.  Every decision is recorded in a ``RouteDecision``.
 """
 from __future__ import annotations
 
-from app.brain.profiles import BALANCED, CRITIC, DEEP, FAST, BrainProfile, get_profile
+from app.brain.profiles import BrainProfile, get_profile
 from app.brain.schemas import BrainProfileKey, CognitiveTaskPacket, RouteDecision
 
 # ── Task-class → default profile mapping ────────────────────────────────────
