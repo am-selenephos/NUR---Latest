@@ -63,14 +63,20 @@ def upgrade() -> None:
                 bind.execute(sa.text(
                     f"CREATE ROLE {LOOKUP_ROLE} NOLOGIN BYPASSRLS"
                 ))
+            exists = True
+        except Exception:
+            exists = False
+
+    if exists:
+        try:
+            with bind.begin_nested():
                 bind.execute(sa.text(f"GRANT {LOOKUP_ROLE} TO CURRENT_USER"))
                 bind.execute(sa.text(
                     f"GRANT USAGE, CREATE ON SCHEMA public TO {LOOKUP_ROLE}"
                 ))
                 bind.execute(sa.text(f"GRANT SELECT ON users TO {LOOKUP_ROLE}"))
-            exists = True
         except Exception:
-            exists = False
+            pass
 
     if not exists:
         # Refusing outright was worse than the bug: it makes the whole chain

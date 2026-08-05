@@ -73,6 +73,8 @@ def migration_db():
     _psql(f"CREATE DATABASE {MIG_DB} OWNER nur_admin")
     _psql("ALTER SCHEMA public OWNER TO nur_admin", db=MIG_DB)
     _psql("GRANT USAGE ON SCHEMA public TO nur_app", db=MIG_DB)
+    _psql("GRANT ALL ON SCHEMA public TO nur_email_lookup", db=MIG_DB)
+    _psql("GRANT nur_email_lookup TO nur_admin", db=MIG_DB)
     # Before 0042's unique index existed, so the duplicate-APPROVED-rows shape
     # below can actually be seeded — exactly the shape that made the index
     # necessary in the first place.

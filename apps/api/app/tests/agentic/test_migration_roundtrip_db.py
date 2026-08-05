@@ -68,6 +68,8 @@ def roundtrip_db():
     _psql(f"CREATE DATABASE {RT_DB} OWNER nur_admin")
     _psql("ALTER SCHEMA public OWNER TO nur_admin", db=RT_DB)
     _psql("GRANT USAGE ON SCHEMA public TO nur_app", db=RT_DB)
+    _psql("GRANT ALL ON SCHEMA public TO nur_email_lookup", db=RT_DB)
+    _psql("GRANT nur_email_lookup TO nur_admin", db=RT_DB)
     yield
     _psql(f"DROP DATABASE IF EXISTS {RT_DB} WITH (FORCE)")
 

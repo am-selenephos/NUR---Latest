@@ -164,9 +164,17 @@ async def run_mind_cognitive_loop(
             },
         )
 
-    # 7-8. Brain Cognition Step & Critic
+    # 7-11. Brain Cognition Step, Critic, Metacognition & Verification
     try:
         cognitive_result, brain_trace = await run_brain_step(packet, event_sink=event_sink)
+        # 9. Metacognitive review checkpoint
+        metacog_review = run_metacognitive_review(packet, cognitive_result, depth=1)
+        # 10. Synthesize owner-facing Talk output
+        talk_output = synthesize_talk_output(cognitive_result)
+        # 11. Verify Talk output
+        verification = verify_talk_output(talk_output, evidence, provider_available=True)
+        if metacog_review.verdict == "BLOCK" or verification.verdict == "BLOCK":
+            raise AIOutputValidationError("Output failed Mind/Brain verification checkpoint.")
     except asyncio.CancelledError:
         model_run.status = "CANCELLED"
         model_run.error = {"kind": "cancelled", "detail": "The owner cancelled this model run."}
@@ -196,17 +204,6 @@ async def run_mind_cognitive_loop(
                 },
             )
         raise TalkProviderFailure.from_model_run(model_run) from exc
-
-    # 9. Metacognitive review checkpoint
-    metacog_review = run_metacognitive_review(packet, cognitive_result, depth=1)
-
-    # 10. Synthesize owner-facing Talk output
-    talk_output = synthesize_talk_output(cognitive_result)
-
-    # 11. Verify Talk output
-    verification = verify_talk_output(talk_output, evidence, provider_available=True)
-    if metacog_review.verdict == "BLOCK" or verification.verdict == "BLOCK":
-        raise AIOutputValidationError("Output failed Mind/Brain verification checkpoint.")
 
     # 12-15. Persistence & trace completion
     model_run.status = "COMPLETED"

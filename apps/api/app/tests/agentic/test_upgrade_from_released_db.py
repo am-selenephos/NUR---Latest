@@ -73,6 +73,8 @@ def staged_db():
     _psql(f"CREATE DATABASE {UP_DB} OWNER nur_admin")
     _psql("ALTER SCHEMA public OWNER TO nur_admin", db=UP_DB)
     _psql("GRANT USAGE ON SCHEMA public TO nur_app", db=UP_DB)
+    _psql("GRANT ALL ON SCHEMA public TO nur_email_lookup", db=UP_DB)
+    _psql("GRANT nur_email_lookup TO nur_admin", db=UP_DB)
     yield
     _psql(f"DROP DATABASE IF EXISTS {UP_DB} WITH (FORCE)")
 

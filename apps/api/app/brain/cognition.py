@@ -39,17 +39,6 @@ async def run_brain_step(
     trace.route_reason = decision.reason
     trace.record_step("route_selected", profile=profile.key, stakes=decision.stakes_level, reason=decision.reason)
 
-    if event_sink is not None:
-        await event_sink(
-            "brain.routed",
-            {
-                "task_id": str(packet.task_id),
-                "profile": profile.key,
-                "stakes": decision.stakes_level,
-                "reason": decision.reason,
-            },
-        )
-
     # 2. Build prompts
     system_prompt = build_system_prompt(packet, profile.key)
     user_prompt = build_user_prompt(packet)
