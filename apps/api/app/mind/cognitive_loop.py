@@ -5,6 +5,7 @@ Agency Spine and database RLS model.
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import uuid
@@ -166,17 +167,35 @@ async def run_mind_cognitive_loop(
     # 7-8. Brain Cognition Step & Critic
     try:
         cognitive_result, brain_trace = await run_brain_step(packet, event_sink=event_sink)
-    except AIProviderDisabled as exc:
-        model_run.status = "ERROR"
-        model_run.error = {"kind": "disabled", "detail": str(exc)}
-        await db.flush()
+    except asyncio.CancelledError:
+        model_run.status = "CANCELLED"
+        model_run.error = {"kind": "cancelled", "detail": "The owner cancelled this model run."}
+        model_run.response_metadata = {"available": False, "reason": "Cancelled by owner."}
+        await db.commit()
         raise
     except Exception as exc:
+        from app.cognition.intelligence_kernel import TalkProviderFailure
         error = safe_error_metadata(exc)
+        model_run.provider = s.ai_provider
         model_run.status = "ERROR"
+        model_run.response_metadata = {
+            "available": False,
+            "reason": error["public_message"],
+            "raw_response_id": None,
+        }
         model_run.error = error
         await db.flush()
-        raise
+        if event_sink is not None:
+            await event_sink(
+                "talk.failed",
+                {
+                    "request_id": str(request_id) if request_id else None,
+                    "model_run_id": str(model_run.id),
+                    "code": error["code"],
+                    "retryable": error["retryable"],
+                },
+            )
+        raise TalkProviderFailure.from_model_run(model_run) from exc
 
     # 9. Metacognitive review checkpoint
     metacog_review = run_metacognitive_review(packet, cognitive_result, depth=1)
@@ -229,7 +248,7 @@ async def run_mind_cognitive_loop(
     await persist_model_evaluation(db, owner_user_id=owner_user_id, model_run_id=model_run.id, verification=verification)
 
     if memory_mode == "REVIEW":
-        await persist_memory_candidates(
+        memory_candidates = await persist_memory_candidates(
             db,
             owner_user_id=owner_user_id,
             orbit_id=orbit_id,
@@ -241,6 +260,16 @@ async def run_mind_cognitive_loop(
             evidence_sources=[{"kind": ref.kind, "id": ref.id, "rank": ref.rank} for ref in retrieval],
             output=talk_output,
         )
+        if event_sink is not None:
+            for candidate in memory_candidates:
+                await event_sink(
+                    "memory.candidate",
+                    {
+                        "candidate_id": str(candidate.id),
+                        "status": candidate.status,
+                        "requires_owner_approval": True,
+                    },
+                )
 
     await persist_predictions(
         db,

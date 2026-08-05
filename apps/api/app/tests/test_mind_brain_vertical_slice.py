@@ -156,6 +156,53 @@ def test_synthesizer_output_conversion():
     assert talk_out.next_move == "Action move"
 
 
+@pytest.mark.asyncio
+async def test_agency_workflow_proposal_compilation(client, super_engine):
+    import uuid
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from app.db.rls import set_user_context
+    from app.brain.schemas import WorkflowProposal, WorkflowStep
+    from app.mind.agency_bridge import submit_workflow_proposal
+    from app.tests.conftest import register_user
+
+    res, email, password = await register_user(client)
+    owner_user_id = uuid.UUID(res.json()["id"])
+
+    async with AsyncSession(super_engine) as db:
+        await set_user_context(db, owner_user_id)
+
+        from app.models.agentic import AgentPolicy
+        db.add(AgentPolicy(
+            owner_user_id=owner_user_id,
+            initiative_level="SUGGEST",
+            max_risk_class="R1_PRIVATE_DRAFT",
+            permitted_tools=["create_draft_plan"],
+            auto_run_tools=[],
+        ))
+        await db.flush()
+
+        proposal = WorkflowProposal(
+            task_id=import_uuid(),
+            title="Test durable workflow",
+            rationale="Proposed durable action requires policy check and approval.",
+            steps=[
+                WorkflowStep(title="Record note", description="Create draft plan", tool_key="create_draft_plan", requires_approval=True)
+            ],
+        )
+
+        workflow, compile_res = await submit_workflow_proposal(
+            db,
+            owner_user_id=owner_user_id,
+            proposal=proposal,
+        )
+
+        assert compile_res.ok is True
+        assert workflow is not None
+        assert workflow.title == "Test durable workflow"
+        # Execution cannot occur before approval: state must be BLOCKED_ON_APPROVAL
+        assert workflow.state == "BLOCKED_ON_APPROVAL"
+
+
 def import_uuid():
     import uuid
     return uuid.uuid4()

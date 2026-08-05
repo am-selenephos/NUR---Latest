@@ -55,13 +55,9 @@ class BrainProviderAdapter:
         Raises ``AIOutputValidationError`` if the response is malformed.
         """
         s = get_settings()
-        provider = get_ai_provider()
+        import app.cognition.intelligence_kernel as ik_mod
+        provider = ik_mod.get_ai_provider()
         trace.record_step("provider_dispatch", provider=provider.name, profile=profile.key)
-
-        if provider.name == "disabled":
-            trace.record_step("provider_disabled")
-            raise AIProviderDisabled("AI provider is disabled.")
-
         from app.ai.schemas import TalkProviderRequest, EvidenceRef
 
         # Build a TalkProviderRequest that carries the Brain-enriched prompts
