@@ -95,7 +95,11 @@ def database():
       BEGIN
         CREATE ROLE nur_app LOGIN NOSUPERUSER NOCREATEROLE NOCREATEDB NOBYPASSRLS;
       EXCEPTION WHEN duplicate_object THEN NULL; END;
+      BEGIN
+        CREATE ROLE nur_email_lookup NOLOGIN NOSUPERUSER NOCREATEROLE NOCREATEDB BYPASSRLS;
+      EXCEPTION WHEN duplicate_object THEN NULL; END;
     END $$;
+    GRANT nur_email_lookup TO nur_admin;
     ALTER ROLE nur_admin PASSWORD '{ADMIN_PW}';
     ALTER ROLE nur_app PASSWORD '{APP_PW}';
     -- nur_admin is the migration role: every FORCE-RLS agentic table applies its
@@ -111,6 +115,8 @@ def database():
     # retrieval is the live path, so tests do not require a pgvector extension.
     _psql("ALTER SCHEMA public OWNER TO nur_admin", db=TEST_DB)
     _psql("GRANT USAGE ON SCHEMA public TO nur_app", db=TEST_DB)
+    _psql("GRANT ALL ON SCHEMA public TO nur_email_lookup", db=TEST_DB)
+    _psql("GRANT nur_email_lookup TO nur_admin", db=TEST_DB)
 
     proc = subprocess.run([sys.executable, "-m", "alembic.config", "upgrade", "head"], cwd=API_DIR,
                           capture_output=True, text=True,
