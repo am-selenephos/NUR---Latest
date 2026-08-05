@@ -70,11 +70,19 @@ def upgrade() -> None:
     if exists:
         try:
             with bind.begin_nested():
-                bind.execute(sa.text(f"GRANT {LOOKUP_ROLE} TO CURRENT_USER"))
                 bind.execute(sa.text(
                     f"GRANT USAGE, CREATE ON SCHEMA public TO {LOOKUP_ROLE}"
                 ))
+        except Exception:
+            pass
+        try:
+            with bind.begin_nested():
                 bind.execute(sa.text(f"GRANT SELECT ON users TO {LOOKUP_ROLE}"))
+        except Exception:
+            pass
+        try:
+            with bind.begin_nested():
+                bind.execute(sa.text(f"GRANT {LOOKUP_ROLE} TO CURRENT_USER"))
         except Exception:
             pass
 
