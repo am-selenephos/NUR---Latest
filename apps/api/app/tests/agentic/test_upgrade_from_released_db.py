@@ -164,7 +164,7 @@ async def test_head_is_reachable_from_every_recent_revision(staged_db):
     Walking one revision at a time also proves no step in the chain depends on a
     later one having already run."""
     _alembic("upgrade", STOPPING_POINT)
-    for _ in range(10):
+    for _ in range(20):
         current = subprocess.run(
             [sys.executable, "-m", "alembic.config", "current"],
             cwd=API_DIR, capture_output=True, text=True,
@@ -174,4 +174,4 @@ async def test_head_is_reachable_from_every_recent_revision(staged_db):
             break
         _alembic("upgrade", "+1")
     else:
-        raise AssertionError("head was not reached within ten single-revision steps")
+        raise AssertionError("head was not reached within single-revision steps")

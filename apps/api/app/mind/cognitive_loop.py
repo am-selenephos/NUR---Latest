@@ -2,6 +2,8 @@
 
 Integrates Mind plane continuity and Brain plane provider cognition above the existing
 Agency Spine and database RLS model.
+
+Directive §8.1: scope resolution occurs before retrieval and before provider invocation.
 """
 from __future__ import annotations
 
@@ -23,12 +25,12 @@ from app.cognition.evidence_packet import build_evidence_packet
 from app.cognition.hybrid_retrieval import retrieve_hybrid
 from app.cognition.memory_candidate_service import persist_memory_candidates
 from app.cognition.prediction_service import persist_predictions
-from app.cognition.retrieval_policy import assert_owned_orbit
 from app.cognition.schemas import TalkKernelResult
 from app.cognition.verifier import verify_talk_output
 from app.core.config import get_settings
 from app.mind.context import build_cognitive_task_packet
 from app.mind.metacognition import run_metacognitive_review
+from app.mind.scope import ScopeResolutionError, resolve_scope
 from app.models import CognitiveEvent, ModelRun, ModelRunSource
 from app.omega.workspace_service import build_workspace_frame, mark_frame_used, talk_summary
 from app.services.glow_service import award_glow_if_eligible
@@ -39,8 +41,8 @@ async def run_mind_cognitive_loop(
     *,
     owner_user_id: uuid.UUID,
     user_line: str,
-    orbit_id: uuid.UUID | None,
-    locale: str,
+    orbit_id: uuid.UUID | None = None,
+    locale: str = "en",
     writing_preference: str = "default",
     memory_mode: str = "EPHEMERAL",
     requested_mode: str | None = None,
@@ -49,13 +51,43 @@ async def run_mind_cognitive_loop(
 ) -> TalkKernelResult:
     """Execute the full 22-step Mind + Brain cognitive loop."""
 
-    # 1. Assert owner orbit & privacy boundary
-    await assert_owned_orbit(db, owner_user_id=owner_user_id, orbit_id=orbit_id)
+    # 1. Resolve scope BEFORE retrieval (§8.1)
+    task_class = requested_mode or "talk"
+    try:
+        scope_envelope = await resolve_scope(
+            db,
+            owner_user_id=owner_user_id,
+            surface=task_class,
+            orbit_id=orbit_id,
+            memory_mode=memory_mode,
+        )
+    except ScopeResolutionError as exc:
+        if event_sink is not None:
+            await event_sink(
+                "talk.failed",
+                {
+                    "request_id": str(request_id) if request_id else None,
+                    "code": "scope_resolution_failed",
+                    "retryable": False,
+                    "reason": exc.reason,
+                },
+            )
+        raise PermissionError(exc.reason) from exc
+
+    if event_sink is not None:
+        await event_sink(
+            "talk.scope.resolved",
+            {
+                "request_id": str(request_id) if request_id else None,
+                "scope_id": str(scope_envelope.scope_id),
+                "sharing_boundary": scope_envelope.sharing_boundary,
+            },
+        )
+
+    # 2. Assert daily AI budget
     await assert_daily_ai_budget(db, owner_user_id=owner_user_id)
 
-    task_class = requested_mode or "talk"
-
-    # 2. Persist turn event
+    # 3. Persist turn event
     turn = CognitiveEvent(
         owner_user_id=owner_user_id,
         orbit_id=orbit_id,
@@ -66,13 +98,14 @@ async def run_mind_cognitive_loop(
             "locale": locale,
             "writing_preference": writing_preference,
             "memory_mode": memory_mode,
+            "scope_envelope_id": str(scope_envelope.scope_id),
         },
         source_ref="talk",
     )
     db.add(turn)
     await db.flush()
 
-    # 3. Build workspace frame
+    # 4. Build workspace frame
     frame = await build_workspace_frame(
         db,
         owner_user_id=owner_user_id,
@@ -82,7 +115,7 @@ async def run_mind_cognitive_loop(
         trigger_event_id=turn.id,
     )
 
-    # 4. Scoped hybrid retrieval
+    # 5. Scoped hybrid retrieval (scope resolved in step 1)
     retrieval = await retrieve_hybrid(
         db,
         owner_user_id=owner_user_id,
@@ -93,7 +126,7 @@ async def run_mind_cognitive_loop(
     evidence = build_evidence_packet(orbit_id=orbit_id, retrieval=retrieval)
     retrieval_dicts = [r.model_dump() for r in retrieval]
 
-    # 5. Assemble CognitiveTaskPacket (Mind context)
+    # 6. Assemble CognitiveTaskPacket (Mind context) — with scope envelope
     packet = await build_cognitive_task_packet(
         db,
         owner_user_id=owner_user_id,
@@ -104,9 +137,10 @@ async def run_mind_cognitive_loop(
         writing_preference=writing_preference,
         retrieved_refs=retrieval_dicts,
         workspace_frame=frame,
+        scope_envelope=scope_envelope,
     )
 
-    # 6. Initialize ModelRun trace record
+    # 7. Initialize ModelRun trace record
     s = get_settings()
     evidence_payload = evidence.model_dump(mode="json")
     evidence_digest = hashlib.sha256(
@@ -123,6 +157,7 @@ async def run_mind_cognitive_loop(
     run_metadata["task_packet_id"] = str(packet.task_id)
     run_metadata["identity_version"] = packet.identity.version
     run_metadata["evidence_digest"] = evidence_digest
+    run_metadata["scope_envelope_id"] = str(scope_envelope.scope_id)
 
     model_run = ModelRun(
         owner_user_id=owner_user_id,
@@ -161,14 +196,14 @@ async def run_mind_cognitive_loop(
             },
         )
 
-    # 7-11. Brain Cognition Step, Critic, Metacognition & Verification
+    # 8-12. Brain Cognition Step, Critic, Metacognition & Verification
     try:
         cognitive_result, brain_trace = await run_brain_step(packet, event_sink=event_sink)
-        # 9. Metacognitive review checkpoint
+        # 10. Metacognitive review checkpoint
         metacog_review = run_metacognitive_review(packet, cognitive_result, depth=1)
-        # 10. Synthesize owner-facing Talk output
+        # 11. Synthesize owner-facing Talk output
         talk_output = synthesize_talk_output(cognitive_result)
-        # 11. Verify Talk output
+        # 12. Verify Talk output
         verification = verify_talk_output(talk_output, evidence, provider_available=True)
         if metacog_review.verdict == "BLOCK" or verification.verdict == "BLOCK":
             raise AIOutputValidationError("Output failed Mind/Brain verification checkpoint.")
@@ -202,7 +237,7 @@ async def run_mind_cognitive_loop(
             )
         raise TalkProviderFailure.from_model_run(model_run) from exc
 
-    # 12-15. Persistence & trace completion
+    # 13-16. Persistence & trace completion
     model_run.status = "COMPLETED"
     model_run.run_metadata.update(brain_trace.to_metadata())
     model_run.run_metadata["metacognitive_review"] = {
@@ -230,6 +265,7 @@ async def run_mind_cognitive_loop(
             "verification": verification.model_dump(),
             "metacognition": metacog_review.decision_summary,
             "omega": omega.model_dump(mode="json"),
+            "scope_envelope_id": str(scope_envelope.scope_id),
         },
         source_ref=f"model_run:{model_run.id}",
         parent_event_id=turn.id,
@@ -272,6 +308,25 @@ async def run_mind_cognitive_loop(
         source_event_id=response_event.id,
         output=talk_output,
     )
+
+    # If the CognitiveResult contains a workflow proposal, submit to Agency
+    if cognitive_result.workflow_proposal is not None:
+        from app.mind.agency_bridge import submit_workflow_proposal
+        workflow, compile_res = await submit_workflow_proposal(
+            db,
+            owner_user_id=owner_user_id,
+            proposal=cognitive_result.workflow_proposal,
+            orbit_id=orbit_id,
+        )
+        if workflow is not None and event_sink is not None:
+            await event_sink(
+                "workflow.proposed",
+                {
+                    "workflow_id": str(workflow.id),
+                    "state": workflow.state,
+                    "requires_approval": workflow.state == "BLOCKED_ON_APPROVAL",
+                },
+            )
 
     if talk_output.next_move and verification.verdict in {"PASS", "WARN"}:
         await award_glow_if_eligible(

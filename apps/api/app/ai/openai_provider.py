@@ -1,5 +1,6 @@
 import asyncio
 import json
+from typing import Any
 
 from app.ai.errors import (
     AIOutputValidationError,
@@ -24,8 +25,8 @@ AUTH_STATUS_CODES = {401, 403}
 class OpenAITalkProvider:
     name = "openai"
 
-    def __init__(self) -> None:
-        s = get_settings()
+    def __init__(self, settings: Any = None) -> None:
+        s = settings or get_settings()
         if s.openai_api_key is None or not s.openai_model:
             raise AIProviderMisconfigured("OpenAI provider is missing OPENAI_API_KEY or NUR_OPENAI_MODEL.")
         try:
@@ -61,7 +62,7 @@ class OpenAITalkProvider:
             )
         return AIProviderResult(
             provider=self.name,
-            model=self._settings.openai_model,
+            model=request.model or self._settings.openai_model,
             available=True,
             output=output,
             usage=getattr(response, "usage", None).model_dump() if getattr(response, "usage", None) else {},
@@ -70,10 +71,14 @@ class OpenAITalkProvider:
 
     def _payload(self, request: TalkProviderRequest) -> dict:
         evidence = [r.model_dump() for r in request.retrieval]
-        payload = {
-            "model": self._settings.openai_model,
+        chosen_model = request.model or self._settings.openai_model
+        system_content = request.system_prompt if request.system_prompt is not None else TALK_SYSTEM_PROMPT
+        format_spec = request.output_schema if request.output_schema is not None else talk_json_schema()
+
+        payload: dict[str, Any] = {
+            "model": chosen_model,
             "input": [
-                {"role": "system", "content": TALK_SYSTEM_PROMPT},
+                {"role": "system", "content": system_content},
                 {
                     "role": "user",
                     "content": talk_user_prompt(
@@ -86,10 +91,18 @@ class OpenAITalkProvider:
                     ),
                 },
             ],
-            "text": {"format": talk_json_schema()},
+            "text": {"format": format_spec},
         }
-        if _supports_reasoning_effort(self._settings.openai_model):
-            payload["reasoning"] = {"effort": self._settings.openai_reasoning_effort}
+
+        chosen_effort = request.reasoning_effort or self._settings.openai_reasoning_effort
+        if _supports_reasoning_effort(chosen_model):
+            payload["reasoning"] = {"effort": chosen_effort}
+        elif request.temperature is not None:
+            payload["temperature"] = request.temperature
+
+        if request.max_output_tokens is not None:
+            payload["max_output_tokens"] = request.max_output_tokens
+
         return payload
 
     async def _stream_response(self, payload: dict, event_sink: AIStreamSink):

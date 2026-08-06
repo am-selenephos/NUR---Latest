@@ -1,15 +1,15 @@
-"""NUR Brain Critic — independent verification runtime for high-stakes or workflow runs.
+"""NUR Brain Evidence Validator — deterministic verification runtime for high-stakes or workflow runs.
 
-Runs an independent critic review over a ``CognitiveResult`` against the input ``CognitiveTaskPacket``
-and evidence.  Produces a critic verdict ("PASS", "WARN", "BLOCK") and verification notes.
+Runs deterministic verification over a ``CognitiveResult`` against the input ``CognitiveTaskPacket``
+and evidence. Produces a verification verdict ("PASS", "WARN", "BLOCK") and verification notes.
 """
 from __future__ import annotations
 
 from app.brain.schemas import CognitiveResult, CognitiveTaskPacket
 
 
-class BrainCritic:
-    """Independent critic runtime."""
+class DeterministicEvidenceValidator:
+    """Deterministic evidence validation runtime."""
 
     def verify_result(
         self,
@@ -47,3 +47,6 @@ class BrainCritic:
             "critic_verdict": verdict,
             "critic_notes": notes,
         })
+
+
+BrainCritic = DeterministicEvidenceValidator

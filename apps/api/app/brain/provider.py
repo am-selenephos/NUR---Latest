@@ -68,7 +68,6 @@ class BrainProviderAdapter:
             orbit_id=str(packet.orbit_id) if packet.orbit_id else None,
             retrieval=evidence_refs,
             omega_context={
-                "brain_system_prompt": system_prompt,
                 "brain_profile": profile.key,
                 "brain_run_id": str(trace.brain_run_id),
                 **packet.omega_context,
@@ -76,6 +75,12 @@ class BrainProviderAdapter:
             locale=packet.locale,
             writing_preference=packet.writing_preference,
             mode=packet.task_class,
+            system_prompt=system_prompt,
+            reasoning_effort=profile.reasoning_effort,
+            max_output_tokens=profile.max_output_tokens,
+            temperature=profile.temperature,
+            model=profile.model,
+            output_schema=output_schema,
         )
 
         t0 = time.monotonic()
@@ -110,13 +115,38 @@ class BrainProviderAdapter:
 
         # Convert AIProviderResult.output (NURTalkOutput) → CognitiveResult
         output = result.output
-        from app.brain.schemas import CognitiveClaim
+        from app.brain.schemas import CognitiveClaim, WorkflowProposal, WorkflowStep
 
         claims: list[CognitiveClaim] = []
         for obs in output.observed:
             claims.append(CognitiveClaim(claim_text=obs, claim_kind="observed", source_refs=output.source_refs))
         for inf in output.inferred:
             claims.append(CognitiveClaim(claim_text=inf, claim_kind="inferred", source_refs=output.source_refs))
+
+        # Check if output contains proposed durable actions
+        proposed_actions: list[str] = []
+        if output.next_move and any(
+            kw in output.next_move.lower()
+            for kw in ["create", "delete", "update", "publish", "send", "save", "archive", "schedule"]
+        ):
+            proposed_actions.append(output.next_move)
+
+        workflow_proposal: WorkflowProposal | None = None
+        if proposed_actions:
+            workflow_proposal = WorkflowProposal(
+                task_id=packet.task_id,
+                title=f"Execute: {proposed_actions[0][:60]}",
+                rationale=f"Generated from next_move proposed action: {proposed_actions[0]}",
+                steps=[
+                    WorkflowStep(
+                        title=proposed_actions[0][:60],
+                        description=proposed_actions[0],
+                        tool_key="create_draft_plan",
+                        requires_approval=True,
+                    )
+                ],
+                requires_owner_approval=True,
+            )
 
         cognitive_result = CognitiveResult(
             task_id=packet.task_id,
@@ -129,6 +159,8 @@ class BrainProviderAdapter:
             memory_candidates=output.memory_candidates,
             source_refs=output.source_refs,
             decision_summary=f"Profile {profile.key}; {len(claims)} claims; {len(output.uncertainty)} uncertainties.",
+            workflow_proposal=workflow_proposal,
+            proposed_actions=proposed_actions,
         )
 
         trace.record_step("result_constructed", claim_count=len(claims))

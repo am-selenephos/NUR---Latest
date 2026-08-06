@@ -23,6 +23,62 @@ class BrainProfileKey(StrEnum):
     CRITIC = "critic"
 
 
+# ── Typed uncertainty (§3 — uncertainty is typed) ───────────────────────────
+
+class UncertaintyKind(StrEnum):
+    """Distinct uncertainty types per directive §3.
+
+    Each kind drives different UI treatment and different remediation paths.
+    """
+    UNKNOWN = "unknown"
+    INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+    STALE_EVIDENCE = "stale_evidence"
+    DISAGREEMENT = "disagreement"
+    MODEL_LIMITATION = "model_limitation"
+    CONFLICTING_OWNER_STATE = "conflicting_owner_state"
+
+
+# ── ScopeEnvelope (§8.1 — scope before retrieval) ──────────────────────────
+
+class ScopeEnvelope(BaseModel):
+    """First-class scope contract resolved before any retrieval or provider call.
+
+    Directive §8.1: "Scope resolution occurs before retrieval and before
+    provider invocation."  No memory, research, connector, project, or social
+    context is fetched until an explicit ScopeEnvelope exists.
+    """
+    scope_id: uuid.UUID = Field(default_factory=uuid.uuid4)
+    owner_user_id: uuid.UUID
+    surface: str = "talk"  # "talk", "journal", "plan", "research", "today", etc.
+
+    # Record-class boundaries
+    allowed_record_classes: list[str] = Field(default_factory=list)
+    allowed_entity_ids: list[str] = Field(default_factory=list)
+    excluded_record_classes: list[str] = Field(default_factory=list)
+
+    # Sharing and connector boundaries
+    sharing_boundary: str = "PRIVATE"  # "PRIVATE", "ORBIT", "PROJECT", "CAPSULE", "COMMUNITY"
+    connector_boundary: str | None = None
+
+    # Memory and retention policies
+    memory_read_policy: str = "SCOPED"  # "SCOPED", "FULL_PRIVATE", "NONE"
+    memory_write_policy: str = "EPHEMERAL"  # "EPHEMERAL", "REVIEW", "AUTO_APPROVED"
+    retention_policy: str = "DEFAULT"
+
+    # Privacy
+    sensitivity_ceiling: str = "NORMAL"  # "LOW", "NORMAL", "ELEVATED", "HIGH"
+
+    # Orbit/Project/Capsule scope
+    orbit_id: uuid.UUID | None = None
+    project_id: uuid.UUID | None = None
+    capsule_id: uuid.UUID | None = None
+    community_id: uuid.UUID | None = None
+
+    # Audit
+    reason: str = ""
+    policy_versions: dict[str, str] = Field(default_factory=dict)
+
+
 # ── CognitiveTaskPacket (Mind → Brain) ──────────────────────────────────────
 
 class IdentitySnapshot(BaseModel):
@@ -73,6 +129,7 @@ class CognitiveTaskPacket(BaseModel):
     task_id: uuid.UUID = Field(default_factory=uuid.uuid4)
     owner_user_id: uuid.UUID
     orbit_id: uuid.UUID | None = None
+    scope_envelope_id: uuid.UUID | None = None  # lineage to the governing ScopeEnvelope
     task_class: str  # "talk", "challenge", "reflect", "summarize", "plan", "research"
     user_input: str
     locale: str = "en"
@@ -107,14 +164,36 @@ class CognitiveClaim(BaseModel):
     claim_kind: str = "inferred"  # "observed", "inferred", "hypothesis"
     source_refs: list[str] = Field(default_factory=list)
     confidence: float = 0.5
+    uncertainty_kind: UncertaintyKind | None = None
 
+
+# ── WorkflowProposal (Brain → Mind → Agency) ───────────────────────────────
+
+class WorkflowStep(BaseModel):
+    """A single proposed workflow step for Agency approval."""
+    title: str
+    description: str
+    tool_key: str = "create_draft_plan"
+    requires_approval: bool = True
+    estimated_cost_cents: float = 0.0
+
+
+class WorkflowProposal(BaseModel):
+    """When the Brain determines the task requires multi-step execution,
+    it proposes a workflow. The Mind validates; Agency approves/rejects."""
+    proposal_id: uuid.UUID = Field(default_factory=uuid.uuid4)
+    task_id: uuid.UUID
+    title: str
+    rationale: str
+    steps: list[WorkflowStep] = Field(default_factory=list)
+    total_estimated_cost_cents: float = 0.0
+    requires_owner_approval: bool = True
+
+
+# ── CognitiveResult ─────────────────────────────────────────────────────────
 
 class CognitiveResult(BaseModel):
-    """Complete Brain output for one cognitive task.
-
-    The Mind interprets this into owner-facing response + state updates.
-    No chain-of-thought is stored — only the ``decision_summary``.
-    """
+    """Brain output for a single cognitive step.  Strictly typed."""
     task_id: uuid.UUID
     profile_used: BrainProfileKey
     direct_response: str
@@ -128,25 +207,5 @@ class CognitiveResult(BaseModel):
     critic_verdict: str | None = None
     critic_notes: list[str] = Field(default_factory=list)
     cost_estimate_cents: float = 0.0
-
-
-# ── WorkflowProposal (Brain → Mind → Agency) ───────────────────────────────
-
-class WorkflowStep(BaseModel):
-    """A single proposed workflow step for Agency approval."""
-    title: str
-    description: str
-    requires_approval: bool = True
-    estimated_cost_cents: float = 0.0
-
-
-class WorkflowProposal(BaseModel):
-    """When the Brain determines the task requires multi-step execution,
-    it proposes a workflow.  The Mind validates; Agency approves/rejects."""
-    proposal_id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    task_id: uuid.UUID
-    title: str
-    rationale: str
-    steps: list[WorkflowStep] = Field(default_factory=list)
-    total_estimated_cost_cents: float = 0.0
-    requires_owner_approval: bool = True
+    workflow_proposal: WorkflowProposal | None = None
+    proposed_actions: list[str] = Field(default_factory=list)

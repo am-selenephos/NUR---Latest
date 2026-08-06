@@ -21,6 +21,12 @@ class TalkProviderRequest(BaseModel):
     locale: str = "en"
     writing_preference: str = "default"
     mode: Literal["talk", "challenge", "reflect", "summarize"] = "talk"
+    system_prompt: str | None = None
+    reasoning_effort: str | None = None
+    max_output_tokens: int | None = None
+    temperature: float | None = None
+    model: str | None = None
+    output_schema: dict[str, Any] | None = None
 
 
 class NURTalkOutput(BaseModel):

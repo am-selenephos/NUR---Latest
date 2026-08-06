@@ -1,7 +1,8 @@
 """Brain tracing — structured trace recording for Brain runs.
 
-Every Brain run gets a deterministic trace ID chain:
-  brain_run_id → model_run_id → task_id → request_id
+Every Brain run gets a deterministic trace ID chain (§4.3):
+  request_id → scope_envelope_id → turn_event_id → cognitive_task_id
+    → brain_run_id → model_run_id
 
 No chain-of-thought is persisted.  Only structured decision summaries,
 profile choices, evidence coverage, and cost are recorded.
@@ -15,11 +16,21 @@ from typing import Any
 
 @dataclass
 class BrainTrace:
-    """Accumulates structured trace data during a Brain run."""
+    """Accumulates structured trace data during a Brain run.
+
+    Carries canonical lineage identifiers for end-to-end traceability.
+    """
     brain_run_id: uuid.UUID = field(default_factory=uuid.uuid4)
     task_id: uuid.UUID | None = None
     model_run_id: uuid.UUID | None = None
     request_id: uuid.UUID | None = None
+
+    # Canonical lineage identifiers (§4.3)
+    scope_envelope_id: uuid.UUID | None = None
+    conversation_id: uuid.UUID | None = None
+    turn_event_id: uuid.UUID | None = None
+    cognitive_task_id: uuid.UUID | None = None
+
     profile_key: str = ""
     route_reason: str = ""
     steps: list[dict[str, Any]] = field(default_factory=list)
@@ -39,6 +50,10 @@ class BrainTrace:
             "task_id": str(self.task_id) if self.task_id else None,
             "model_run_id": str(self.model_run_id) if self.model_run_id else None,
             "request_id": str(self.request_id) if self.request_id else None,
+            "scope_envelope_id": str(self.scope_envelope_id) if self.scope_envelope_id else None,
+            "conversation_id": str(self.conversation_id) if self.conversation_id else None,
+            "turn_event_id": str(self.turn_event_id) if self.turn_event_id else None,
+            "cognitive_task_id": str(self.cognitive_task_id) if self.cognitive_task_id else None,
             "profile_key": self.profile_key,
             "route_reason": self.route_reason,
             "steps": self.steps,

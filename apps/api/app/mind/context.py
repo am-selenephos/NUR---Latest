@@ -1,7 +1,10 @@
 """NUR Mind Context — compiles CognitiveTaskPacket from Mind state.
 
-Takes request parameters, retrieved evidence, workspace frame, identity, and self-model,
-and returns a frozen ``CognitiveTaskPacket`` ready for the Brain provider boundary.
+Takes request parameters, retrieved evidence, workspace frame, identity, self-model,
+and a resolved ``ScopeEnvelope``, and returns a frozen ``CognitiveTaskPacket`` ready
+for the Brain provider boundary.
+
+Directive §8.1: the ScopeEnvelope must be resolved before context construction.
 """
 from __future__ import annotations
 
@@ -10,7 +13,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.brain.schemas import CognitiveTaskPacket
+from app.brain.schemas import CognitiveTaskPacket, ScopeEnvelope
 from app.mind.identity import load_identity
 from app.mind.self_model import get_self_capabilities
 from app.mind.working_memory import build_context_manifest
@@ -29,8 +32,13 @@ async def build_cognitive_task_packet(
     workspace_frame: Any | None = None,
     withheld_items: list[dict[str, Any]] | None = None,
     token_budget: int = 4096,
+    scope_envelope: ScopeEnvelope | None = None,
 ) -> CognitiveTaskPacket:
-    """Build a complete, frozen ``CognitiveTaskPacket`` for a Brain run."""
+    """Build a complete, frozen ``CognitiveTaskPacket`` for a Brain run.
+
+    When a ``scope_envelope`` is provided, its ``scope_id`` is recorded in the
+    packet for lineage tracing and its scope statement is used in the context manifest.
+    """
     identity = load_identity()
     self_capabilities = await get_self_capabilities(db, owner_user_id)
 
@@ -39,6 +47,10 @@ async def build_cognitive_task_packet(
     active_beliefs: list[str] = []
     active_hypotheses: list[str] = []
     risk_flags: list[str] = []
+
+    # Use scope envelope's data when available
+    if scope_envelope is not None:
+        scope_statement = scope_envelope.reason or scope_statement
 
     if workspace_frame is not None:
         scope_statement = getattr(workspace_frame, "scope_statement", scope_statement)
@@ -63,6 +75,7 @@ async def build_cognitive_task_packet(
         task_id=uuid.uuid4(),
         owner_user_id=owner_user_id,
         orbit_id=orbit_id,
+        scope_envelope_id=scope_envelope.scope_id if scope_envelope else None,
         task_class=task_class,
         user_input=user_input,
         locale=locale,

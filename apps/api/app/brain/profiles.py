@@ -24,6 +24,7 @@ class BrainProfile:
     max_specialist_calls: int      # 0 = no sub-calls allowed
     requires_structured_output: bool
     cost_weight: float             # relative cost multiplier for budget checks
+    model: str | None = None
 
     def provider_overrides(self) -> dict[str, Any]:
         """Return provider-specific kwargs overlay."""
