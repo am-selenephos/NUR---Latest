@@ -1,6 +1,6 @@
-"""NUR Mind Capabilities package (Kernel).
+"""NUR Mind Capabilities package.
 
-Exposes schemas, registry, resolver, and standard first-party capability definitions.
+Exposes schemas, registry, resolver, hydrator, dispatcher, and standard first-party capability definitions.
 """
 from __future__ import annotations
 
@@ -21,6 +21,13 @@ from app.mind.capabilities.resolver import (
     CapabilityResolver,
     ResolutionFallbackMode,
 )
+from app.mind.capabilities.hydrator import (
+    ContextHydrator,
+    HydratedCapabilityContext,
+)
+from app.mind.capabilities.dispatcher import (
+    WorkerDispatcher,
+)
 
 __all__ = [
     "CapabilitySpec",
@@ -34,4 +41,7 @@ __all__ = [
     "CapabilityResolution",
     "CapabilityResolver",
     "ResolutionFallbackMode",
+    "ContextHydrator",
+    "HydratedCapabilityContext",
+    "WorkerDispatcher",
 ]

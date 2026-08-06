@@ -17,6 +17,10 @@ from app.brain.schemas import WorkflowProposal
 from app.models.agentic import AgentWorkflow, AgentStep, AgentApproval
 
 
+class AgencyBridgeError(ValueError):
+    """Raised when a WorkflowProposal fails structural or tool validation."""
+
+
 async def submit_workflow_proposal(
     db: AsyncSession,
     *,
@@ -28,16 +32,33 @@ async def submit_workflow_proposal(
     """Compile a ``WorkflowProposal`` through existing Agency compiler and persist rows."""
     proposed_steps: list[ProposedStep] = []
     for idx, step in enumerate(proposal.steps):
-        step_key = f"step_{idx + 1}"
-        tool_key = getattr(step, "tool_key", None) or "create_draft_plan"
+        step_key = getattr(step, "key", "") or f"step_{idx + 1}"
+        tool_key = getattr(step, "tool_key", None)
+        if not tool_key or not str(tool_key).strip():
+            raise AgencyBridgeError(f"Workflow step '{step_key}' is missing required 'tool_key'. Zero silent fallback.")
+        tool_key = str(tool_key).strip()
+
+        # Build input_refs preserving explicit arguments
+        input_refs: dict = {}
+        if getattr(step, "arguments", None):
+            input_refs = dict(step.arguments)
+        else:
+            if step.title:
+                input_refs["title"] = step.title
+            if step.description:
+                input_refs["description"] = step.description
+
+        dependencies = tuple(getattr(step, "dependencies", ()) or ())
+        rationale = getattr(step, "description", "") or getattr(step, "title", "")
+
         proposed_steps.append(
             ProposedStep(
                 key=step_key,
                 role="SPECIALIST",
                 tool_key=tool_key,
-                depends_on=(),
-                input_refs={"title": step.title, "description": step.description},
-                rationale=step.description,
+                depends_on=dependencies,
+                input_refs=input_refs,
+                rationale=rationale,
             )
         )
 

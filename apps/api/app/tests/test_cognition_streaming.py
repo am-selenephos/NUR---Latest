@@ -100,7 +100,13 @@ async def test_semantic_sse_persists_and_replays_idempotently(client, monkeypatc
     assert response.headers["content-type"].startswith("text/event-stream")
     events = sse_events(response.text)
     names = [name for name, _ in events]
-    assert names[:4] == ["stream.open", "talk.scope.resolved", "talk.accepted", "provider.created"]
+    assert names[:5] == [
+        "stream.open",
+        "talk.scope.resolved",
+        "talk.capability.resolved",
+        "talk.accepted",
+        "provider.created",
+    ]
     assert [data["delta"] for name, data in events if name == "response.text.delta"] == [
         "Real semantic ",
         "stream.",

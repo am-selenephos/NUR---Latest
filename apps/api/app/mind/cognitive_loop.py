@@ -20,6 +20,7 @@ from app.ai.errors import AIOutputValidationError
 from app.ai.schemas import AIStreamSink
 from app.brain.cognition import run_brain_step
 from app.brain.synthesizer import synthesize_talk_output
+from app.brain.tracing import BrainTrace
 from app.cognition.evaluation_service import persist_model_evaluation
 from app.cognition.evidence_packet import build_evidence_packet
 from app.cognition.hybrid_retrieval import retrieve_hybrid
@@ -28,6 +29,9 @@ from app.cognition.prediction_service import persist_predictions
 from app.cognition.schemas import TalkKernelResult
 from app.cognition.verifier import verify_talk_output
 from app.core.config import get_settings
+from app.mind.capabilities.dispatcher import WorkerDispatcher
+from app.mind.capabilities.hydrator import ContextHydrator
+from app.mind.capabilities.resolver import CapabilityResolver, ResolutionFallbackMode
 from app.mind.context import build_cognitive_task_packet
 from app.mind.metacognition import run_metacognitive_review
 from app.mind.scope import ScopeResolutionError, resolve_scope
@@ -105,26 +109,81 @@ async def run_mind_cognitive_loop(
     db.add(turn)
     await db.flush()
 
-    # 4. Build workspace frame
-    frame = await build_workspace_frame(
-        db,
-        owner_user_id=owner_user_id,
-        task_mode=task_class,
-        active_question=user_line,
-        orbit_id=orbit_id,
-        trigger_event_id=turn.id,
+    # 3.1 Resolve capability & intent routing
+    resolver = CapabilityResolver()
+    resolution = resolver.resolve(
+        user_line,
+        surface=scope_envelope.surface,
+        sensitivity=scope_envelope.sensitivity_ceiling,
+        mode_hint=requested_mode,
     )
 
-    # 5. Scoped hybrid retrieval (scope resolved in step 1)
-    retrieval = await retrieve_hybrid(
-        db,
-        owner_user_id=owner_user_id,
-        query=user_line,
-        orbit_id=orbit_id,
-        limit=6,
-    )
-    evidence = build_evidence_packet(orbit_id=orbit_id, retrieval=retrieval)
-    retrieval_dicts = [r.model_dump() for r in retrieval]
+    if resolution.fallback_mode == ResolutionFallbackMode.REFUSE_SCOPE:
+        if event_sink is not None:
+            await event_sink(
+                "talk.failed",
+                {
+                    "request_id": str(request_id) if request_id else None,
+                    "code": "scope_refusal",
+                    "retryable": False,
+                    "reason": resolution.abstention_reason or "Prohibited scope operation.",
+                },
+            )
+        raise PermissionError(resolution.abstention_reason or "Prohibited scope operation.")
+
+    if event_sink is not None:
+        await event_sink(
+            "talk.capability.resolved",
+            {
+                "request_id": str(request_id) if request_id else None,
+                "capability_id": resolution.selected_capability.capability_id if resolution.selected_capability else None,
+                "confidence_score": resolution.confidence_score,
+                "abstained": resolution.abstained,
+                "reason": resolution.abstention_reason,
+            },
+        )
+
+    # 4 & 5. Progressive Context Hydration (recipe-driven)
+    if resolution.selected_capability is not None:
+        hydrated_ctx = await ContextHydrator.hydrate(
+            db,
+            owner_user_id=owner_user_id,
+            scope_envelope=scope_envelope,
+            capability=resolution.selected_capability,
+            query=user_line,
+            orbit_id=orbit_id,
+            trigger_event_id=turn.id,
+        )
+        frame = hydrated_ctx.workspace_frame or await build_workspace_frame(
+            db,
+            owner_user_id=owner_user_id,
+            task_mode=task_class,
+            active_question=user_line,
+            orbit_id=orbit_id,
+            trigger_event_id=turn.id,
+        )
+        retrieval_refs = hydrated_ctx.retrieval_refs
+        retrieval_dicts = hydrated_ctx.retrieved_evidence
+    else:
+        hydrated_ctx = None
+        frame = await build_workspace_frame(
+            db,
+            owner_user_id=owner_user_id,
+            task_mode=task_class,
+            active_question=user_line,
+            orbit_id=orbit_id,
+            trigger_event_id=turn.id,
+        )
+        retrieval_refs = await retrieve_hybrid(
+            db,
+            owner_user_id=owner_user_id,
+            query=user_line,
+            orbit_id=orbit_id,
+            limit=6,
+        )
+        retrieval_dicts = [r.model_dump() for r in retrieval_refs]
+
+    evidence = build_evidence_packet(orbit_id=orbit_id, retrieval=retrieval_refs)
 
     # 6. Assemble CognitiveTaskPacket (Mind context) — with scope envelope
     packet = await build_cognitive_task_packet(
@@ -158,6 +217,8 @@ async def run_mind_cognitive_loop(
     run_metadata["identity_version"] = packet.identity.version
     run_metadata["evidence_digest"] = evidence_digest
     run_metadata["scope_envelope_id"] = str(scope_envelope.scope_id)
+    if resolution.selected_capability is not None:
+        run_metadata["capability_id"] = resolution.selected_capability.capability_id
 
     model_run = ModelRun(
         owner_user_id=owner_user_id,
@@ -174,7 +235,7 @@ async def run_mind_cognitive_loop(
     db.add(model_run)
     await db.flush()
 
-    for ref in retrieval:
+    for ref in retrieval_refs:
         db.add(
             ModelRunSource(
                 owner_user_id=owner_user_id,
@@ -198,7 +259,35 @@ async def run_mind_cognitive_loop(
 
     # 8-12. Brain Cognition Step, Critic, Metacognition & Verification
     try:
-        cognitive_result, brain_trace = await run_brain_step(packet, event_sink=event_sink)
+        # Check if specialized capability worker handles execution
+        worker_result = None
+        if resolution.selected_capability is not None and hydrated_ctx is not None:
+            worker_result = await WorkerDispatcher.dispatch(
+                db,
+                owner_user_id=owner_user_id,
+                capability=resolution.selected_capability,
+                hydrated_context=hydrated_ctx,
+                query=user_line,
+                task_id=packet.task_id,
+                extracted_parameters=resolution.extracted_parameters,
+            )
+
+        if worker_result is not None:
+            cognitive_result = worker_result
+            brain_trace = BrainTrace(
+                brain_run_id=uuid.uuid4(),
+                task_id=packet.task_id,
+                model_run_id=model_run.id,
+                request_id=request_id,
+                scope_envelope_id=scope_envelope.scope_id,
+                turn_event_id=turn.id,
+                cognitive_task_id=packet.task_id,
+                profile_key=str(worker_result.profile_used.value),
+                route_reason=worker_result.decision_summary,
+            )
+        else:
+            cognitive_result, brain_trace = await run_brain_step(packet, event_sink=event_sink)
+
         # 10. Metacognitive review checkpoint
         metacog_review = run_metacognitive_review(packet, cognitive_result, depth=1)
         # 11. Synthesize owner-facing Talk output
@@ -287,7 +376,7 @@ async def run_mind_cognitive_loop(
             model_run_id=model_run.id,
             request_id=request_id,
             evidence_digest=evidence_digest,
-            evidence_sources=[{"kind": ref.kind, "id": ref.id, "rank": ref.rank} for ref in retrieval],
+            evidence_sources=[{"kind": ref.kind, "id": ref.id, "rank": ref.rank} for ref in retrieval_refs],
             output=talk_output,
         )
         if event_sink is not None:
