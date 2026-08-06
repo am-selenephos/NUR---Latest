@@ -169,13 +169,24 @@ class CognitiveClaim(BaseModel):
 
 # ── WorkflowProposal (Brain → Mind → Agency) ───────────────────────────────
 
-class WorkflowStep(BaseModel):
+class WorkflowStepProposal(BaseModel):
     """A single proposed workflow step for Agency approval."""
+    key: str = ""
     title: str
     description: str
-    tool_key: str = "create_draft_plan"
+    tool_key: str
+    tool_version: str = "1"
+    risk_class: str = "R1_PRIVATE_DRAFT"
     requires_approval: bool = True
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    dependencies: list[str] = Field(default_factory=list)
     estimated_cost_cents: float = 0.0
+    timeout_seconds: int = 30
+    idempotency_key: str | None = None
+
+
+# Backward-compatible alias
+WorkflowStep = WorkflowStepProposal
 
 
 class WorkflowProposal(BaseModel):
@@ -185,7 +196,7 @@ class WorkflowProposal(BaseModel):
     task_id: uuid.UUID
     title: str
     rationale: str
-    steps: list[WorkflowStep] = Field(default_factory=list)
+    steps: list[WorkflowStepProposal] = Field(default_factory=list)
     total_estimated_cost_cents: float = 0.0
     requires_owner_approval: bool = True
 
