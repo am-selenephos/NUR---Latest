@@ -142,6 +142,10 @@ class BrainProviderAdapter:
                         title=proposed_actions[0][:60],
                         description=proposed_actions[0],
                         tool_key="create_draft_plan",
+                        arguments={
+                            "title": proposed_actions[0][:60],
+                            "steps": [proposed_actions[0]],
+                        },
                         requires_approval=True,
                     )
                 ],

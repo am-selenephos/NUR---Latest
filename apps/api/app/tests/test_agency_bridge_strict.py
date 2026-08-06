@@ -68,16 +68,7 @@ async def test_agency_bridge_rejects_unknown_tool_via_compiler(client: AsyncClie
     async with AsyncSession(super_engine) as db:
         await set_user_context(db, owner_user_id)
 
-        db.add(AgentPolicy(
-            owner_user_id=owner_user_id,
-            initiative_level="SUGGEST",
-            max_risk_class="R2_DURABLE_PRIVATE",
-            permitted_tools=["create_draft_plan"],
-            auto_run_tools=[],
-        ))
-        await db.flush()
-
-        # Step referencing unknown tool key
+        # Step referencing unknown tool key must raise AgencyBridgeError
         proposal = WorkflowProposal(
             task_id=uuid.uuid4(),
             title="Unknown tool step",
@@ -88,18 +79,48 @@ async def test_agency_bridge_rejects_unknown_tool_via_compiler(client: AsyncClie
                     title="Unknown action",
                     description="Calls non-existent tool",
                     tool_key="non_existent_tool_12345",
+                    arguments={"title": "test"},
                     requires_approval=True,
                 )
             ],
         )
 
-        workflow, compile_res = await submit_workflow_proposal(
-            db, owner_user_id=owner_user_id, proposal=proposal
+        with pytest.raises(AgencyBridgeError) as exc_info:
+            await submit_workflow_proposal(db, owner_user_id=owner_user_id, proposal=proposal)
+
+        assert "Unregistered Agency tool" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_agency_bridge_rejects_invalid_arguments_schema(client: AsyncClient, super_engine):
+    res, email, password = await register_user(client)
+    owner_user_id = uuid.UUID(res.json()["id"])
+
+    async with AsyncSession(super_engine) as db:
+        await set_user_context(db, owner_user_id)
+
+        # Passing unknown field 'objective' must fail validation
+        proposal = WorkflowProposal(
+            task_id=uuid.uuid4(),
+            title="Invalid args workflow",
+            rationale="Testing invalid args",
+            steps=[
+                WorkflowStepProposal(
+                    key="step_1",
+                    title="Draft plan with invalid objective",
+                    description="Calls create_draft_plan with extra field",
+                    tool_key="create_draft_plan",
+                    arguments={"title": "Plan", "objective": "Invalid field"},
+                    requires_approval=True,
+                )
+            ],
         )
 
-        assert compile_res.ok is False
-        assert workflow is None
-        assert any("UNKNOWN_TOOL" in err.code or "no contract registered" in err.message for err in compile_res.errors)
+        with pytest.raises(AgencyBridgeError) as exc_info:
+            await submit_workflow_proposal(db, owner_user_id=owner_user_id, proposal=proposal)
+
+        assert "Argument validation failed" in str(exc_info.value)
+        assert "unknown field 'objective'" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -130,6 +151,7 @@ async def test_agency_bridge_rejects_cyclic_dependencies(client: AsyncClient, su
                     title="Step 1",
                     description="Depends on step 2",
                     tool_key="create_draft_plan",
+                    arguments={"title": "Step 1", "steps": ["Task 1"]},
                     dependencies=["step_2"],
                     requires_approval=True,
                 ),
@@ -138,6 +160,7 @@ async def test_agency_bridge_rejects_cyclic_dependencies(client: AsyncClient, su
                     title="Step 2",
                     description="Depends on step 1",
                     tool_key="create_draft_plan",
+                    arguments={"title": "Step 2", "steps": ["Task 2"]},
                     dependencies=["step_1"],
                     requires_approval=True,
                 ),
@@ -180,7 +203,7 @@ async def test_agency_bridge_strict_arguments_and_approval(client: AsyncClient, 
                     title="Draft custom plan",
                     description="Create a draft plan with specific title",
                     tool_key="create_draft_plan",
-                    arguments={"title": "Q3 Engineering Roadmap", "objective": "Ship Capability Runtime"},
+                    arguments={"title": "Q3 Engineering Roadmap", "steps": ["Ship Capability Runtime"]},
                     requires_approval=True,
                     estimated_cost_cents=2.0,
                 )
@@ -203,7 +226,7 @@ async def test_agency_bridge_strict_arguments_and_approval(client: AsyncClient, 
         assert len(db_steps) == 1
         assert db_steps[0].tool_key == "create_draft_plan"
         assert db_steps[0].input_refs["title"] == "Q3 Engineering Roadmap"
-        assert db_steps[0].input_refs["objective"] == "Ship Capability Runtime"
+        assert db_steps[0].input_refs["steps"] == ["Ship Capability Runtime"]
 
         stmt_app = select(AgentApproval).where(AgentApproval.workflow_id == workflow.id)
         db_approvals = (await db.execute(stmt_app)).scalars().all()
@@ -211,3 +234,5 @@ async def test_agency_bridge_strict_arguments_and_approval(client: AsyncClient, 
         assert db_approvals[0].tool_key == "create_draft_plan"
         assert db_approvals[0].decision == "PENDING"
         assert db_approvals[0].argument_digest is not None
+        assert db_approvals[0].redacted_arguments["title"] == "Q3 Engineering Roadmap"
+

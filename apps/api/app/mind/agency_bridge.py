@@ -12,13 +12,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agentic.compiler import ProposedStep, compile_plan, CompileResult
 from app.agentic.enums import StepState
+from app.agentic.input_schemas import validate_arguments
+from app.agentic.orchestrator import argument_digest
 from app.agentic.policy_store import load_policy
+from app.agentic.redaction import contains_secret, redact_arguments
+from app.agentic.registry import UnknownToolError, spec as get_tool_spec
 from app.brain.schemas import WorkflowProposal
 from app.models.agentic import AgentWorkflow, AgentStep, AgentApproval
 
 
 class AgencyBridgeError(ValueError):
-    """Raised when a WorkflowProposal fails structural or tool validation."""
+    """Raised when a WorkflowProposal fails structural, tool, or argument contract validation."""
+
+
+_RISK_RANK = {
+    "R0_READ_ONLY": 0,
+    "R1_PRIVATE_DRAFT": 1,
+    "R2_DURABLE_ACTION": 2,
+}
 
 
 async def submit_workflow_proposal(
@@ -38,15 +49,47 @@ async def submit_workflow_proposal(
             raise AgencyBridgeError(f"Workflow step '{step_key}' is missing required 'tool_key'. Zero silent fallback.")
         tool_key = str(tool_key).strip()
 
-        # Build input_refs preserving explicit arguments
+        # 1. Validate tool registration in Agency registry
+        try:
+            tool_spec = get_tool_spec(tool_key)
+        except UnknownToolError:
+            raise AgencyBridgeError(f"Unregistered Agency tool '{tool_key}' in step '{step_key}'.")
+
+        tool_version = getattr(step, "tool_version", None) or tool_spec.contract.version
+        if str(tool_version) != str(tool_spec.contract.version):
+            raise AgencyBridgeError(
+                f"Tool version mismatch for '{tool_key}' in step '{step_key}': "
+                f"expected {tool_spec.contract.version}, got {tool_version}"
+            )
+
+        # 2. Build and validate input_refs against authoritative Agency input schemas
         input_refs: dict = {}
         if getattr(step, "arguments", None):
             input_refs = dict(step.arguments)
         else:
-            if step.title:
+            from app.agentic.input_schemas import INPUT_SCHEMAS
+            expected_fields = INPUT_SCHEMAS.get(tool_key, {})
+            if "title" in expected_fields and step.title:
                 input_refs["title"] = step.title
-            if step.description:
+            if "description" in expected_fields and step.description:
                 input_refs["description"] = step.description
+            if "steps" in expected_fields and "steps" not in input_refs:
+                input_refs["steps"] = [step.description] if step.description else [step.title]
+            if "candidate_text" in expected_fields and "candidate_text" not in input_refs:
+                input_refs["candidate_text"] = step.description or step.title
+            if "question" in expected_fields and "question" not in input_refs:
+                input_refs["question"] = step.title or step.description
+
+        # Reject secrets
+        if contains_secret(input_refs):
+            raise AgencyBridgeError(f"Step '{step_key}' arguments contain forbidden secret keys.")
+
+        # Authoritative schema validation (rejects extra keys like 'objective', missing required, bad types)
+        problems = validate_arguments(tool_key, input_refs)
+        if problems:
+            raise AgencyBridgeError(
+                f"Argument validation failed for tool '{tool_key}' in step '{step_key}': {', '.join(problems)}"
+            )
 
         dependencies = tuple(getattr(step, "dependencies", ()) or ())
         rationale = getattr(step, "description", "") or getattr(step, "title", "")
@@ -72,6 +115,16 @@ async def submit_workflow_proposal(
     requires_approval = any(s.approval_required for s in compile_result.steps)
     initial_state = "BLOCKED_ON_APPROVAL" if requires_approval else "READY"
 
+    # Derive truthful max_risk_class from compiled steps
+    highest_risk = "R0_READ_ONLY"
+    max_rank = 0
+    for s in compile_result.steps:
+        r = s.risk_class
+        rank = _RISK_RANK.get(r, 0)
+        if rank > max_rank:
+            max_rank = rank
+            highest_risk = r
+
     workflow = AgentWorkflow(
         owner_user_id=owner_user_id,
         kind="COGNITIVE_WORKFLOW",
@@ -85,9 +138,9 @@ async def submit_workflow_proposal(
         scope="PRIVATE",
         orbit_id=orbit_id,
         project_id=project_id,
-        budget_cents=int(proposal.total_estimated_cost_cents),
+        budget_cents=int(round(proposal.total_estimated_cost_cents)),
         cost_cents=0,
-        max_risk_class="R1_PRIVATE_DRAFT",
+        max_risk_class=highest_risk,
     )
     db.add(workflow)
     await db.flush()
@@ -113,8 +166,17 @@ async def submit_workflow_proposal(
         await db.flush()
 
         if compiled_step.approval_required:
-            from app.agentic.orchestrator import argument_digest
-            digest_str = argument_digest(compiled_step.tool_key, compiled_step.tool_version, compiled_step.input_refs)
+            redacted_arguments = redact_arguments(compiled_step.input_refs, drop_private_text=False)
+            digest_str = argument_digest(
+                compiled_step.tool_key,
+                compiled_step.tool_version,
+                redacted_arguments,
+            )
+            step_rationale = (
+                compiled_step.input_refs.get("title")
+                or compiled_step.input_refs.get("description")
+                or compiled_step.key
+            )
             db_approval = AgentApproval(
                 owner_user_id=owner_user_id,
                 workflow_id=workflow.id,
@@ -124,8 +186,8 @@ async def submit_workflow_proposal(
                 argument_digest=digest_str,
                 plan_version=1,
                 call_version="1",
-                redacted_arguments=compiled_step.input_refs,
-                rationale=compiled_step.input_refs.get("description", compiled_step.key),
+                redacted_arguments=redacted_arguments,
+                rationale=str(step_rationale),
                 risk_class=compiled_step.risk_class,
                 decision="PENDING",
             )
@@ -133,3 +195,4 @@ async def submit_workflow_proposal(
 
     await db.flush()
     return workflow, compile_result
+

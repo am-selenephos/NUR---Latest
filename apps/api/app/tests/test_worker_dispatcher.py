@@ -85,7 +85,7 @@ async def test_worker_dispatcher_read_only_worker():
     )
     manifest = ContextManifest(scope_statement="Private", token_budget=2000)
     ctx = HydratedCapabilityContext(
-        capability_id="capability:read_only_test",
+        capability_id="capability:project_status_report",
         scope_envelope=scope,
         manifest=manifest,
         retrieval_refs=[EvidenceRef(kind="note", id="note-1", excerpt="Summary note", rank=1.0)],
@@ -95,10 +95,10 @@ async def test_worker_dispatcher_read_only_worker():
     )
 
     spec = CapabilitySpec(
-        capability_id="capability:read_only_test",
-        name="Read Only Test",
-        description="Read only test worker",
-        intent_signatures=["test read only"],
+        capability_id="capability:project_status_report",
+        name="Project Status Report",
+        description="Read only project status worker",
+        intent_signatures=["project status"],
         execution_mode=ExecutionMode.READ_ONLY_WORKER,
         required_tools=[],
     )
@@ -109,14 +109,14 @@ async def test_worker_dispatcher_read_only_worker():
         owner_user_id=owner_id,
         capability=spec,
         hydrated_context=ctx,
-        query="Give me a summary",
+        query="Give me a summary of project status",
         task_id=task_id,
     )
 
     assert result is not None
     assert result.task_id == task_id
     assert result.profile_used == BrainProfileKey.FAST
-    assert "Complete Task PR-2" in result.direct_response
+    assert "Active Plans: 1" in result.direct_response
     assert "Cognitive Runtime PR" in result.direct_response
     assert len(result.claims) == 1
     assert result.workflow_proposal is None
@@ -167,4 +167,7 @@ async def test_worker_dispatcher_workflow_proposal_worker():
     step = result.workflow_proposal.steps[0]
     assert step.tool_key == "create_draft_plan"
     assert step.requires_approval is True
-    assert step.arguments["objective"] == "Let's draft a plan to release the new cognitive runtime"
+    assert step.arguments["title"] == "Release the new cognitive runtime"
+    assert "steps" in step.arguments
+    assert "objective" not in step.arguments
+

@@ -5,18 +5,29 @@ ContextHydrationRecipe while strictly respecting owner ScopeEnvelope boundaries.
 """
 from __future__ import annotations
 
+import enum
 import uuid
 from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.schemas import EvidenceRef
 from app.brain.schemas import ContextManifest, ScopeEnvelope
 from app.cognition.hybrid_retrieval import retrieve_hybrid
-from app.mind.capabilities.schemas import CapabilitySpec
+from app.mind.capabilities.schemas import CapabilitySpec, HydrationFailurePolicy
 from app.mind.working_memory import build_context_manifest
+from app.models.cognition import CognitiveEvent, Plan
 from app.models import OmegaWorkspaceFrame
 from app.omega.workspace_service import build_workspace_frame
+
+
+class SourceStatus(enum.StrEnum):
+    INCLUDED = "INCLUDED"
+    EXCLUDED = "EXCLUDED"
+    FAILED = "FAILED"
+    DEGRADED = "DEGRADED"
+    SKIPPED = "SKIPPED"
 
 
 class HydratedCapabilityContext(BaseModel):
@@ -30,6 +41,7 @@ class HydratedCapabilityContext(BaseModel):
     active_plans: list[dict[str, Any]] = Field(default_factory=list)
     timeline_events: list[dict[str, Any]] = Field(default_factory=list)
     today_state: dict[str, Any] | None = None
+    source_statuses: dict[str, str] = Field(default_factory=dict)
     estimated_tokens: int = 0
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -56,77 +68,150 @@ class ContextHydrator:
             raise PermissionError("Cross-owner scope violation: ScopeEnvelope owner does not match caller.")
 
         recipe = capability.hydration_recipe
+        source_statuses: dict[str, str] = {}
+
+        def handle_source_failure(source_key: str, exc: Exception) -> None:
+            is_required = source_key in recipe.required_source_keys
+            if is_required or recipe.failure_policy == HydrationFailurePolicy.FAIL_ALL:
+                raise RuntimeError(
+                    f"Context hydration failed for required source '{source_key}': {exc}"
+                ) from exc
+            source_statuses[source_key] = SourceStatus.DEGRADED.value
 
         # 1. Workspace Frame
         frame: OmegaWorkspaceFrame | None = None
-        if recipe.include_workspace_frame:
-            frame = await build_workspace_frame(
-                db,
-                owner_user_id=owner_user_id,
-                task_mode=scope_envelope.surface,
-                active_question=query,
-                orbit_id=orbit_id,
-                trigger_event_id=trigger_event_id,
-            )
+        should_fetch_frame = (
+            "workspace_frame" in recipe.source_keys or recipe.include_workspace_frame
+        )
+        if should_fetch_frame:
+            try:
+                frame = await build_workspace_frame(
+                    db,
+                    owner_user_id=owner_user_id,
+                    task_mode=scope_envelope.surface,
+                    active_question=query,
+                    orbit_id=orbit_id,
+                    trigger_event_id=trigger_event_id,
+                )
+                source_statuses["workspace_frame"] = SourceStatus.INCLUDED.value
+            except Exception as exc:
+                frame = None
+                handle_source_failure("workspace_frame", exc)
+        else:
+            source_statuses["workspace_frame"] = SourceStatus.SKIPPED.value
 
         # 2. Hybrid Retrieval
         retrieval_refs: list[EvidenceRef] = []
         retrieval_dicts: list[dict[str, Any]] = []
-        if recipe.hybrid_retrieval_limit > 0:
-            retrieval_refs = await retrieve_hybrid(
-                db,
-                owner_user_id=owner_user_id,
-                query=query,
-                orbit_id=orbit_id,
-                limit=recipe.hybrid_retrieval_limit,
-            )
-            # Deduplicate references by kind + id
-            seen_refs: set[str] = set()
-            deduped_refs: list[EvidenceRef] = []
-            for r in retrieval_refs:
-                ref_key = f"{r.kind}:{r.id}"
-                if ref_key not in seen_refs:
-                    seen_refs.add(ref_key)
-                    deduped_refs.append(r)
-            retrieval_refs = deduped_refs
-            retrieval_dicts = [r.model_dump() for r in retrieval_refs]
+        should_fetch_retrieval = (
+            "hybrid_retrieval" in recipe.source_keys or recipe.hybrid_retrieval_limit > 0
+        )
+        limit = recipe.hybrid_retrieval_limit if recipe.hybrid_retrieval_limit > 0 else 6
+        if should_fetch_retrieval and recipe.hybrid_retrieval_limit > 0:
+            try:
+                retrieval_refs = await retrieve_hybrid(
+                    db,
+                    owner_user_id=owner_user_id,
+                    query=query,
+                    orbit_id=orbit_id,
+                    limit=limit,
+                )
+                # Deduplicate references by kind + id
+                seen_refs: set[str] = set()
+                deduped_refs: list[EvidenceRef] = []
+                for r in retrieval_refs:
+                    ref_key = f"{r.kind}:{r.id}"
+                    if ref_key not in seen_refs:
+                        seen_refs.add(ref_key)
+                        deduped_refs.append(r)
+                retrieval_refs = deduped_refs
+                retrieval_dicts = [r.model_dump() for r in retrieval_refs]
+                source_statuses["hybrid_retrieval"] = SourceStatus.INCLUDED.value
+            except Exception as exc:
+                retrieval_refs = []
+                retrieval_dicts = []
+                handle_source_failure("hybrid_retrieval", exc)
+        else:
+            source_statuses["hybrid_retrieval"] = SourceStatus.SKIPPED.value
 
-        # 3. Active Plans
+        # 3. Active Plans (Read-only direct domain query; no agentic handler imports)
         active_plans: list[dict[str, Any]] = []
-        if recipe.fetch_active_plans:
+        should_fetch_plans = "active_plans" in recipe.source_keys or recipe.fetch_active_plans
+        if should_fetch_plans and recipe.fetch_active_plans:
             try:
-                from app.agentic.handlers import get_plan
-                plan_res = await get_plan(db, owner_user_id=owner_user_id)
-                if isinstance(plan_res, dict) and plan_res.get("found"):
-                    active_plans = plan_res.get("plans", [])
-            except Exception:
+                stmt = (
+                    select(Plan)
+                    .where(Plan.owner_user_id == owner_user_id, Plan.status == "ACTIVE")
+                    .order_by(Plan.created_at.desc())
+                    .limit(10)
+                )
+                res = await db.execute(stmt)
+                plan_rows = res.scalars().all()
+                active_plans = [
+                    {"id": str(p.id), "title": p.title, "status": p.status}
+                    for p in plan_rows
+                ]
+                source_statuses["active_plans"] = SourceStatus.INCLUDED.value
+            except Exception as exc:
                 active_plans = []
+                handle_source_failure("active_plans", exc)
+        else:
+            source_statuses["active_plans"] = SourceStatus.SKIPPED.value
 
-        # 4. Timeline window
+        # 4. Timeline window (Read-only direct domain query)
         timeline_events: list[dict[str, Any]] = []
-        if recipe.fetch_timeline_window_days > 0:
+        should_fetch_timeline = "timeline" in recipe.source_keys or recipe.fetch_timeline_window_days > 0
+        if should_fetch_timeline and recipe.fetch_timeline_window_days > 0:
             try:
-                from app.agentic.handlers import get_timeline
-                t_res = await get_timeline(db, owner_user_id=owner_user_id, limit=50)
-                if isinstance(t_res, dict):
-                    timeline_events = t_res.get("events", [])
-            except Exception:
+                stmt = (
+                    select(CognitiveEvent)
+                    .where(CognitiveEvent.owner_user_id == owner_user_id)
+                    .order_by(CognitiveEvent.created_at.desc())
+                    .limit(50)
+                )
+                res = await db.execute(stmt)
+                event_rows = res.scalars().all()
+                timeline_events = [
+                    {"id": str(e.id), "kind": str(e.event_kind), "content": e.content_text}
+                    for e in event_rows
+                ]
+                source_statuses["timeline"] = SourceStatus.INCLUDED.value
+            except Exception as exc:
                 timeline_events = []
+                handle_source_failure("timeline", exc)
+        else:
+            source_statuses["timeline"] = SourceStatus.SKIPPED.value
 
-        # 5. Today state if required by tool
+        # 5. Today state
         today_state: dict[str, Any] | None = None
-        if "get_today_state" in capability.required_tools:
+        should_fetch_today = "today_state" in recipe.source_keys
+        if should_fetch_today:
             try:
-                from app.agentic.handlers import get_today_state
-                today_state = await get_today_state(db, owner_user_id=owner_user_id)
-            except Exception:
+                stmt = (
+                    select(CognitiveEvent)
+                    .where(CognitiveEvent.owner_user_id == owner_user_id)
+                    .order_by(CognitiveEvent.created_at.desc())
+                    .limit(1)
+                )
+                res = await db.execute(stmt)
+                last_ev = res.scalars().first()
+                today_state = {
+                    "active": True,
+                    "last_event": last_ev.content_text if last_ev else None,
+                }
+                source_statuses["today_state"] = SourceStatus.INCLUDED.value
+            except Exception as exc:
                 today_state = None
+                handle_source_failure("today_state", exc)
+        else:
+            source_statuses["today_state"] = SourceStatus.SKIPPED.value
 
         # 6. Build Manifest & Token Budget enforcement
+        budget = min(recipe.max_total_tokens, recipe.max_context_tokens) if recipe.max_context_tokens > 0 else recipe.max_total_tokens
         manifest, filtered_evidence = build_context_manifest(
             retrieved_refs=retrieval_dicts,
             scope_statement=f"Owner {scope_envelope.sharing_boundary} scope",
-            token_budget=recipe.max_context_tokens,
+            token_budget=budget,
         )
 
         return HydratedCapabilityContext(
@@ -139,5 +224,7 @@ class ContextHydrator:
             active_plans=active_plans,
             timeline_events=timeline_events,
             today_state=today_state,
+            source_statuses=source_statuses,
             estimated_tokens=manifest.token_used,
         )
+

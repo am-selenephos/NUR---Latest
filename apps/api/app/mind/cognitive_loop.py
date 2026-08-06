@@ -272,8 +272,11 @@ async def run_mind_cognitive_loop(
                 extracted_parameters=resolution.extracted_parameters,
             )
 
+        is_deterministic_worker = worker_result is not None
         if worker_result is not None:
             cognitive_result = worker_result
+            model_run.provider = "DETERMINISTIC_WORKER"
+            model_run.model = None
             brain_trace = BrainTrace(
                 brain_run_id=uuid.uuid4(),
                 task_id=packet.task_id,
@@ -292,8 +295,10 @@ async def run_mind_cognitive_loop(
         metacog_review = run_metacognitive_review(packet, cognitive_result, depth=1)
         # 11. Synthesize owner-facing Talk output
         talk_output = synthesize_talk_output(cognitive_result)
-        # 12. Verify Talk output
-        verification = verify_talk_output(talk_output, evidence, provider_available=True)
+        # 12. Verify Talk output (truthful provider_available flag)
+        verification = verify_talk_output(
+            talk_output, evidence, provider_available=not is_deterministic_worker
+        )
         if metacog_review.verdict == "BLOCK" or verification.verdict == "BLOCK":
             raise AIOutputValidationError("Output failed Mind/Brain verification checkpoint.")
     except asyncio.CancelledError:
@@ -328,16 +333,53 @@ async def run_mind_cognitive_loop(
 
     # 13-16. Persistence & trace completion
     model_run.status = "COMPLETED"
-    model_run.run_metadata.update(brain_trace.to_metadata())
-    model_run.run_metadata["metacognitive_review"] = {
+    updated_run_meta = dict(model_run.run_metadata or {})
+    updated_run_meta.update(brain_trace.to_metadata())
+    updated_run_meta["provider_invoked"] = not is_deterministic_worker
+    updated_run_meta["execution_provenance"] = "DETERMINISTIC_WORKER" if is_deterministic_worker else "MODEL_PROVIDER"
+    updated_run_meta["metacognitive_review"] = {
         "verdict": metacog_review.verdict,
         "summary": metacog_review.decision_summary,
     }
+    model_run.run_metadata = updated_run_meta
     model_run.response_metadata = {
-        "available": True,
-        "reason": None,
+        "available": not is_deterministic_worker,
+        "reason": None if not is_deterministic_worker else "Executed via deterministic Mind capability worker.",
         "brain_profile": brain_trace.profile_key,
     }
+
+    # If the CognitiveResult contains a workflow proposal, submit to Agency
+    if cognitive_result.workflow_proposal is not None:
+        from app.mind.agency_bridge import submit_workflow_proposal
+        workflow, compile_res = await submit_workflow_proposal(
+            db,
+            owner_user_id=owner_user_id,
+            proposal=cognitive_result.workflow_proposal,
+            orbit_id=orbit_id,
+        )
+        if workflow is not None and event_sink is not None:
+            await event_sink(
+                "workflow.proposed",
+                {
+                    "workflow_id": str(workflow.id),
+                    "state": workflow.state,
+                    "requires_approval": workflow.state == "BLOCKED_ON_APPROVAL",
+                },
+            )
+        elif workflow is None:
+            refusal_reasons = [err.message for err in compile_res.errors] if compile_res.errors else ["Agency compiler refused workflow proposal."]
+            if event_sink is not None:
+                await event_sink(
+                    "workflow.refused",
+                    {
+                        "task_id": str(packet.task_id),
+                        "reasons": refusal_reasons,
+                    },
+                )
+            talk_output.direct_response = (
+                f"A workflow was proposed for '{cognitive_result.workflow_proposal.title}', "
+                f"but Agency policy refused compilation: {'; '.join(refusal_reasons)}"
+            )
 
     omega = await talk_summary(db, owner_user_id=owner_user_id, workspace_frame_id=frame.id)
     response_event = CognitiveEvent(
@@ -347,8 +389,8 @@ async def run_mind_cognitive_loop(
         content_text=talk_output.direct_response,
         structured_payload={
             "talk_output": talk_output.model_dump(),
-            "provider": s.ai_provider,
-            "provider_available": True,
+            "provider": "DETERMINISTIC_WORKER" if is_deterministic_worker else s.ai_provider,
+            "provider_available": not is_deterministic_worker,
             "model_run_id": str(model_run.id),
             "memory_mode": memory_mode,
             "verification": verification.model_dump(),
@@ -398,24 +440,6 @@ async def run_mind_cognitive_loop(
         output=talk_output,
     )
 
-    # If the CognitiveResult contains a workflow proposal, submit to Agency
-    if cognitive_result.workflow_proposal is not None:
-        from app.mind.agency_bridge import submit_workflow_proposal
-        workflow, compile_res = await submit_workflow_proposal(
-            db,
-            owner_user_id=owner_user_id,
-            proposal=cognitive_result.workflow_proposal,
-            orbit_id=orbit_id,
-        )
-        if workflow is not None and event_sink is not None:
-            await event_sink(
-                "workflow.proposed",
-                {
-                    "workflow_id": str(workflow.id),
-                    "state": workflow.state,
-                    "requires_approval": workflow.state == "BLOCKED_ON_APPROVAL",
-                },
-            )
 
     if talk_output.next_move and verification.verdict in {"PASS", "WARN"}:
         await award_glow_if_eligible(

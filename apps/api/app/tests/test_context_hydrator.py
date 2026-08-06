@@ -43,26 +43,39 @@ async def test_context_hydrator_honors_recipe():
         EvidenceRef(kind="note", id="note-1", excerpt="Important note excerpt", rank=0.9),
     ]
 
-    mock_plans = {
-        "found": True,
-        "plans": [{"id": str(uuid.uuid4()), "title": "Launch Project", "status": "ACTIVE"}],
-    }
+    from unittest.mock import MagicMock
+    from types import SimpleNamespace
 
-    mock_timeline = {
-        "count": 1,
-        "events": [{"title": "Completed task 1"}],
-    }
+    plan_mock = SimpleNamespace(
+        id=uuid.uuid4(),
+        title="Launch Project",
+        status="ACTIVE",
+        orbit_id=None,
+        target_date=None,
+        steps=[],
+    )
+    event_mock = SimpleNamespace(
+        id=uuid.uuid4(),
+        event_kind="NOTE_CREATED",
+        content_text="Completed task 1",
+        created_at=None,
+        orbit_id=None,
+    )
 
-    mock_today = {
-        "phase": "Focused Work",
-        "focus": "Ship PR-2",
-    }
+    def mock_execute_side_effect(stmt, *args, **kwargs):
+        res = MagicMock()
+        stmt_str = str(stmt)
+        if "plans" in stmt_str.lower():
+            res.scalars.return_value.all.return_value = [plan_mock]
+        elif "cognitive_events" in stmt_str.lower():
+            res.scalars.return_value.all.return_value = [event_mock]
+        else:
+            res.scalars.return_value.all.return_value = []
+        return res
 
-    with patch("app.mind.capabilities.hydrator.retrieve_hybrid", new=AsyncMock(return_value=mock_evidence)), \
-         patch("app.agentic.handlers.get_plan", new=AsyncMock(return_value=mock_plans)), \
-         patch("app.agentic.handlers.get_timeline", new=AsyncMock(return_value=mock_timeline)), \
-         patch("app.agentic.handlers.get_today_state", new=AsyncMock(return_value=mock_today)):
+    db_mock.execute = AsyncMock(side_effect=mock_execute_side_effect)
 
+    with patch("app.mind.capabilities.hydrator.retrieve_hybrid", new=AsyncMock(return_value=mock_evidence)):
         hydrated = await ContextHydrator.hydrate(
             db_mock,
             owner_user_id=owner_id,
@@ -76,10 +89,10 @@ async def test_context_hydrator_honors_recipe():
         assert len(hydrated.active_plans) == 1
         assert hydrated.active_plans[0]["title"] == "Launch Project"
         assert len(hydrated.timeline_events) == 1
-        assert hydrated.today_state["focus"] == "Ship PR-2"
         assert hydrated.workspace_frame is None
         assert hydrated.manifest.token_budget == 1000
         assert hydrated.estimated_tokens > 0
+
 
 
 @pytest.mark.asyncio
