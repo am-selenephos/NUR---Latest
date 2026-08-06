@@ -1,12 +1,19 @@
 """NUR Capability Registry — in-memory validated catalog of first-party capabilities.
 
-Enforces tool contract validation, prevents duplicate registration, and provides
-scope/surface filtering.
+Enforces tool contract validation, prevents duplicate registration, enforces seal lifecycle,
+and provides scope/surface filtering.
 """
 from __future__ import annotations
 
 from app.agentic.registry import spec as get_tool_spec, UnknownToolError
-from app.mind.capabilities.schemas import CapabilitySpec
+from app.mind.capabilities.schemas import (
+    CapabilitySpec,
+    KNOWN_CONTEXT_SOURCE_KEYS,
+)
+
+
+class RegistrySealedError(RuntimeError):
+    """Raised when attempting to register a capability in a sealed registry."""
 
 
 class DuplicateCapabilityError(RuntimeError):
@@ -22,14 +29,40 @@ class CapabilityRegistry:
 
     def __init__(self) -> None:
         self._specs: dict[str, CapabilitySpec] = {}
+        self._sealed: bool = False
+
+    @property
+    def is_sealed(self) -> bool:
+        """Whether this registry has been sealed to prevent runtime mutation."""
+        return self._sealed
+
+    def seal(self) -> CapabilityRegistry:
+        """Seal registry to forbid further registrations."""
+        self._sealed = True
+        return self
 
     def register(self, capability: CapabilitySpec) -> None:
-        """Register a CapabilitySpec with strict validation of required tools."""
+        """Register a CapabilitySpec with strict validation of required tools and context sources."""
+        if self._sealed:
+            raise RegistrySealedError("Cannot register capability on a sealed registry.")
+
         if capability.capability_id in self._specs:
             raise DuplicateCapabilityError(f"Duplicate capability registered: {capability.capability_id}")
 
+        # Validate context sources namespace vs Agency tools namespace
+        recipe = capability.hydration_recipe
+        for sk in list(recipe.source_keys) + list(recipe.required_source_keys) + list(recipe.optional_source_keys):
+            if sk not in KNOWN_CONTEXT_SOURCE_KEYS:
+                raise InvalidCapabilitySpecError(
+                    f"Capability '{capability.capability_id}' references unknown context source '{sk}'"
+                )
+
         # Verify that all declared required tools exist in the Agency registry
         for tool_key in capability.required_tools:
+            if tool_key in KNOWN_CONTEXT_SOURCE_KEYS:
+                raise InvalidCapabilitySpecError(
+                    f"Capability '{capability.capability_id}' declared context source key '{tool_key}' as an Agency tool"
+                )
             try:
                 get_tool_spec(tool_key)
             except UnknownToolError as exc:
@@ -45,16 +78,16 @@ class CapabilityRegistry:
             raise KeyError(f"Unknown capability: {capability_id}")
         return self._specs[capability_id]
 
-    def all(self) -> list[CapabilitySpec]:
-        """Return all registered capabilities."""
-        return list(self._specs.values())
+    def all(self) -> tuple[CapabilitySpec, ...]:
+        """Return all registered capabilities as an immutable tuple."""
+        return tuple(self._specs.values())
 
-    def filter_by_surface_and_scope(self, surface: str, sensitivity: str) -> list[CapabilitySpec]:
+    def filter_by_surface_and_scope(self, surface: str, sensitivity: str) -> tuple[CapabilitySpec, ...]:
         """Filter enabled capabilities by allowed surface and sensitivity ceiling."""
-        return [
+        return tuple(
             cap for cap in self._specs.values()
             if cap.enabled and surface in cap.allowed_surfaces and self._sensitivity_allowed(cap.sensitivity_ceiling, sensitivity)
-        ]
+        )
 
     @staticmethod
     def _sensitivity_allowed(cap_ceiling: str, current_sensitivity: str) -> bool:
@@ -66,7 +99,7 @@ _DEFAULT_REGISTRY: CapabilityRegistry | None = None
 
 
 def get_default_registry() -> CapabilityRegistry:
-    """Return the global default capability registry with standard capabilities loaded."""
+    """Return the global default capability registry with standard capabilities loaded and sealed."""
     global _DEFAULT_REGISTRY
     if _DEFAULT_REGISTRY is None:
         reg = CapabilityRegistry()
@@ -75,5 +108,6 @@ def get_default_registry() -> CapabilityRegistry:
 
         reg.register(CONTEXTUAL_ANSWER_SPEC)
         reg.register(PLAN_FROM_CONVERSATION_SPEC)
+        reg.seal()
         _DEFAULT_REGISTRY = reg
     return _DEFAULT_REGISTRY

@@ -1,11 +1,17 @@
 """Tests for CapabilityRegistry and CapabilitySpec contracts."""
 import pytest
+from pydantic import ValidationError
 
-from app.mind.capabilities.schemas import CapabilitySpec, ExecutionMode
+from app.mind.capabilities.schemas import (
+    CapabilitySpec,
+    ContextHydrationRecipe,
+    ExecutionMode,
+)
 from app.mind.capabilities.registry import (
     CapabilityRegistry,
     DuplicateCapabilityError,
     InvalidCapabilitySpecError,
+    RegistrySealedError,
     get_default_registry,
 )
 from app.agentic.tools import ALL_TOOLS
@@ -20,16 +26,90 @@ def test_registry_valid_capability():
         capability_id="capability:custom_test",
         name="Custom Test",
         description="A test capability",
-        intent_signatures=["test intent", "run custom test"],
-        allowed_surfaces=["talk"],
+        intent_signatures=("test intent", "run custom test"),
+        allowed_surfaces=("talk",),
         sensitivity_ceiling="NORMAL",
         execution_mode=ExecutionMode.READ_ONLY_WORKER,
-        required_tools=["get_plan"],  # Valid R0 tool from app.agentic.tools
+        required_tools=("get_plan",),  # Valid R0 tool from app.agentic.tools
         worker_role="SPECIALIST",
     )
     reg.register(spec)
     assert reg.get("capability:custom_test") == spec
     assert spec in reg.all()
+
+
+def test_default_registry_is_sealed():
+    """Default registry must be sealed on initial creation to prevent runtime corruption."""
+    reg = get_default_registry()
+    assert reg.is_sealed is True
+
+
+def test_post_seal_registration_fails():
+    """Registering any capability on a sealed registry must raise RegistrySealedError."""
+    reg = CapabilityRegistry()
+    reg.seal()
+    spec = CapabilitySpec(
+        capability_id="capability:after_seal",
+        name="After Seal",
+        description="Should fail",
+        intent_signatures=("after seal",),
+        allowed_surfaces=("talk",),
+        sensitivity_ceiling="NORMAL",
+        execution_mode=ExecutionMode.COGNITIVE_SYNTHESIS,
+        required_tools=(),
+    )
+    with pytest.raises(RegistrySealedError) as exc_info:
+        reg.register(spec)
+    assert "Cannot register capability on a sealed registry" in str(exc_info.value)
+
+
+def test_returned_specs_cannot_be_mutated():
+    """CapabilitySpec instances are frozen/immutable to guarantee contract integrity."""
+    spec = CONTEXTUAL_ANSWER_SPEC
+    with pytest.raises((ValidationError, TypeError)):
+        spec.enabled = False  # type: ignore[misc]
+
+    with pytest.raises((ValidationError, TypeError)):
+        spec.name = "Mutated Name"  # type: ignore[misc]
+
+
+def test_unknown_context_source_key_rejected():
+    """CapabilitySpec referencing unknown context source keys must be rejected."""
+    reg = CapabilityRegistry()
+    spec = CapabilitySpec(
+        capability_id="capability:unknown_source",
+        name="Unknown Source Test",
+        description="Attempts to use unknown context source",
+        intent_signatures=("test source",),
+        allowed_surfaces=("talk",),
+        sensitivity_ceiling="NORMAL",
+        execution_mode=ExecutionMode.COGNITIVE_SYNTHESIS,
+        required_tools=(),
+        hydration_recipe=ContextHydrationRecipe(
+            source_keys=("non_existent_source_database",),
+        ),
+    )
+    with pytest.raises(InvalidCapabilitySpecError) as exc_info:
+        reg.register(spec)
+    assert "references unknown context source 'non_existent_source_database'" in str(exc_info.value)
+
+
+def test_context_sources_and_agency_tools_are_distinct_namespaces():
+    """Attempting to declare a context source key as an Agency tool must be rejected."""
+    reg = CapabilityRegistry()
+    spec = CapabilitySpec(
+        capability_id="capability:namespace_confusion",
+        name="Namespace Confusion",
+        description="Declares context source as an Agency tool",
+        intent_signatures=("confuse namespace",),
+        allowed_surfaces=("talk",),
+        sensitivity_ceiling="NORMAL",
+        execution_mode=ExecutionMode.WORKFLOW_PROPOSAL,
+        required_tools=("workspace_frame",),  # context source, NOT an Agency tool
+    )
+    with pytest.raises(InvalidCapabilitySpecError) as exc_info:
+        reg.register(spec)
+    assert "declared context source key 'workspace_frame' as an Agency tool" in str(exc_info.value)
 
 
 def test_registry_rejects_unknown_tool():
@@ -38,11 +118,11 @@ def test_registry_rejects_unknown_tool():
         capability_id="capability:malicious_tool",
         name="Malicious Tool",
         description="Attempts to invoke undeclared tool",
-        intent_signatures=["steal secrets"],
-        allowed_surfaces=["talk"],
+        intent_signatures=("steal secrets",),
+        allowed_surfaces=("talk",),
         sensitivity_ceiling="NORMAL",
         execution_mode=ExecutionMode.READ_ONLY_WORKER,
-        required_tools=["shell_exec_nonexistent"],
+        required_tools=("shell_exec_nonexistent",),
         worker_role="SPECIALIST",
     )
     with pytest.raises(InvalidCapabilitySpecError) as exc_info:
@@ -56,21 +136,21 @@ def test_registry_rejects_duplicate_id():
         capability_id="capability:dup",
         name="Dup 1",
         description="First instance",
-        intent_signatures=["intent 1"],
-        allowed_surfaces=["talk"],
+        intent_signatures=("intent 1",),
+        allowed_surfaces=("talk",),
         sensitivity_ceiling="NORMAL",
         execution_mode=ExecutionMode.COGNITIVE_SYNTHESIS,
-        required_tools=[],
+        required_tools=(),
     )
     spec2 = CapabilitySpec(
         capability_id="capability:dup",
         name="Dup 2",
         description="Second instance",
-        intent_signatures=["intent 2"],
-        allowed_surfaces=["talk"],
+        intent_signatures=("intent 2",),
+        allowed_surfaces=("talk",),
         sensitivity_ceiling="NORMAL",
         execution_mode=ExecutionMode.COGNITIVE_SYNTHESIS,
-        required_tools=[],
+        required_tools=(),
     )
     reg.register(spec1)
     with pytest.raises(DuplicateCapabilityError) as exc_info:
@@ -90,31 +170,31 @@ def test_registry_surface_and_sensitivity_filtering():
         capability_id="capability:talk_normal",
         name="Talk Normal",
         description="",
-        intent_signatures=["talk"],
-        allowed_surfaces=["talk"],
+        intent_signatures=("talk",),
+        allowed_surfaces=("talk",),
         sensitivity_ceiling="NORMAL",
         execution_mode=ExecutionMode.COGNITIVE_SYNTHESIS,
-        required_tools=[],
+        required_tools=(),
     )
     spec_talk_high = CapabilitySpec(
         capability_id="capability:talk_high",
         name="Talk High",
         description="",
-        intent_signatures=["talk high"],
-        allowed_surfaces=["talk"],
+        intent_signatures=("talk high",),
+        allowed_surfaces=("talk",),
         sensitivity_ceiling="HIGH",
         execution_mode=ExecutionMode.COGNITIVE_SYNTHESIS,
-        required_tools=[],
+        required_tools=(),
     )
     spec_today_only = CapabilitySpec(
         capability_id="capability:today_only",
         name="Today Only",
         description="",
-        intent_signatures=["today"],
-        allowed_surfaces=["today"],
+        intent_signatures=("today",),
+        allowed_surfaces=("today",),
         sensitivity_ceiling="NORMAL",
         execution_mode=ExecutionMode.READ_ONLY_WORKER,
-        required_tools=["get_today_state"],
+        required_tools=("get_today_state",),
     )
 
     reg.register(spec_talk_normal)
@@ -143,11 +223,11 @@ def test_registry_disabled_capability_not_returned():
         capability_id="capability:disabled_test",
         name="Disabled Test",
         description="",
-        intent_signatures=["disabled"],
-        allowed_surfaces=["talk"],
+        intent_signatures=("disabled",),
+        allowed_surfaces=("talk",),
         sensitivity_ceiling="NORMAL",
         execution_mode=ExecutionMode.COGNITIVE_SYNTHESIS,
-        required_tools=[],
+        required_tools=(),
         enabled=False,
     )
     reg.register(disabled_spec)
@@ -183,7 +263,7 @@ def test_structural_registry_separation():
 def test_contextual_answer_spec_contract():
     assert CONTEXTUAL_ANSWER_SPEC.capability_id == "capability:contextual_answer"
     assert CONTEXTUAL_ANSWER_SPEC.execution_mode == ExecutionMode.COGNITIVE_SYNTHESIS
-    assert CONTEXTUAL_ANSWER_SPEC.required_tools == []
+    assert CONTEXTUAL_ANSWER_SPEC.required_tools == ()
     assert CONTEXTUAL_ANSWER_SPEC.min_confidence_threshold >= 0.82
     assert CONTEXTUAL_ANSWER_SPEC.enabled is True
 
