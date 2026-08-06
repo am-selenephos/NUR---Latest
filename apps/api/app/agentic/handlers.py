@@ -94,7 +94,8 @@ async def get_timeline(
     """Timeline events in a bounded window."""
     from app.domain_reads.timeline import read_timeline
 
-    return await read_timeline(db, owner_user_id=owner_user_id, limit=limit)
+    bounded_limit = min(max(1, limit), 200)
+    return await read_timeline(db, owner_user_id=owner_user_id, limit=bounded_limit)
 
 
 async def search_approved_memory(

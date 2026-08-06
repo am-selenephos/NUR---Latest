@@ -76,7 +76,7 @@ async def test_worker_dispatcher_cognitive_synthesis_returns_none():
 @pytest.mark.asyncio
 async def test_worker_dispatcher_read_only_worker():
     from app.mind.capabilities.dispatcher import register_read_only_worker
-    from app.brain.schemas import CognitiveClaim
+    from app.brain.schemas import BrainProfileKey, CognitiveClaim, CognitiveResult
 
     async def _custom_worker(cap, ctx, q, tid):
         plans = ctx.active_plans or []

@@ -137,7 +137,7 @@ class BrainProviderAdapter:
             source_refs=output.source_refs,
             decision_summary=f"Profile {profile.key}; {len(claims)} claims; {len(output.uncertainty)} uncertainties.",
             workflow_proposal=workflow_proposal,
-            proposed_actions=proposed_actions,
+            proposed_actions=[],
         )
 
         trace.record_step("result_constructed", claim_count=len(claims))
