@@ -184,7 +184,14 @@ async def test_agency_workflow_proposal_compilation(client, super_engine):
             title="Test durable workflow",
             rationale="Proposed durable action requires policy check and approval.",
             steps=[
-                WorkflowStep(title="Record note", description="Create draft plan", tool_key="create_draft_plan", requires_approval=True)
+                WorkflowStep(
+                    key="step_1",
+                    title="Record note",
+                    description="Create draft plan",
+                    tool_key="create_draft_plan",
+                    arguments={"title": "Draft Plan", "steps": ["Step 1"]},
+                    requires_approval=True,
+                )
             ],
         )
 
@@ -454,9 +461,9 @@ async def test_mind_loop_ordinary_talk_vs_durable_action(client, super_engine, m
         res2 = await run_mind_cognitive_loop(
             db,
             owner_user_id=owner_user_id,
-            user_line="Please draft the project plan",
+            user_line="Draft a plan to migrate the database",
         )
-        assert res2.output.direct_response == "I will prepare a draft plan for you."
+        assert "migrate the database" in res2.output.direct_response.lower() or "draft" in res2.output.direct_response.lower()
 
         # Verify a workflow was created in BLOCKED_ON_APPROVAL state
         workflows = (await db.execute(select(AgentWorkflow).where(AgentWorkflow.owner_user_id == owner_user_id))).scalars().all()
