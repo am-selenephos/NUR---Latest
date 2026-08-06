@@ -127,8 +127,18 @@ class WorkerDispatcher:
             if raw_target.lower().startswith(prefix):
                 raw_target = raw_target[len(prefix):]
                 break
-        clean_target = raw_target.strip().capitalize() if raw_target.strip() else "New Plan"
+        clean_target = raw_target.strip().capitalize() if raw_target.strip() else ""
         title = params.get("title") or (clean_target[:80] + "..." if len(clean_target) > 80 else clean_target)
+
+        if not title:
+            return CognitiveResult(
+                task_id=task_id,
+                profile_used=BrainProfileKey.BALANCED,
+                direct_response="I can help you create a draft plan. What would you like to plan or achieve?",
+                workflow_proposal=None,
+                decision_summary="No title or actionable intent provided for draft plan proposal.",
+                cost_estimate_cents=0,
+            )
 
         # Extract steps from params or structured query lines
         steps: list[str] = []
@@ -142,7 +152,7 @@ class WorkerDispatcher:
                     step_text = line_clean.lstrip("-*0123456789. ")
                     if step_text:
                         extracted_steps.append(step_text)
-            steps = extracted_steps if extracted_steps else [f"Initial milestone for {title}"]
+            steps = extracted_steps
 
         # Preview vs Persist distinction (§9):
         # "plan this out", "show me a plan", "outline a plan" -> preview only (no workflow proposal persisted)

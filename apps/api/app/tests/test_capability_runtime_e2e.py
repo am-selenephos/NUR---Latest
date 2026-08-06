@@ -14,7 +14,7 @@ import hashlib
 import json
 import uuid
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agentic.orchestrator import argument_digest
@@ -199,3 +199,208 @@ async def test_capability_runtime_e2e_policy_compile_refusal(client, super_engin
             await db.execute(select(AgentWorkflow).where(AgentWorkflow.owner_user_id == owner_user_id))
         ).scalars().all()
         assert len(workflows) == 0
+
+
+@pytest.mark.asyncio
+async def test_capability_runtime_e2e_full_approval_and_handler_execution(client, super_engine):
+    """Prove full end-to-end lifecycle: Talk -> Proposal -> Decision -> Execution -> Plan/PlanStep rows -> Idempotency."""
+    from app.agentic.handlers import bind_all_handlers
+    bind_all_handlers()
+
+    res, _, _ = await register_user(client)
+    owner_user_id = uuid.UUID(res.json()["id"])
+
+    # 1. Setup policy permitting create_draft_plan (requires approval)
+    async with AsyncSession(super_engine) as db:
+        await set_user_context(db, owner_user_id)
+        db.add(AgentPolicy(
+            owner_user_id=owner_user_id,
+            initiative_level="SUGGEST",
+            max_risk_class="R1_PRIVATE_DRAFT",
+            permitted_tools=["create_draft_plan"],
+            auto_run_tools=[],
+        ))
+        await db.commit()
+
+    events = []
+    async def event_sink(event_type, payload):
+        events.append((event_type, payload))
+
+    # 2. Talk: "Let's draft a plan to deploy kernel\n- Run migrations\n- Verify tests"
+    async with AsyncSession(super_engine) as db:
+        await set_user_context(db, owner_user_id)
+        result = await run_mind_cognitive_loop(
+            db,
+            owner_user_id=owner_user_id,
+            user_line="Let's draft a plan to deploy kernel\n- Run migrations\n- Verify tests",
+            event_sink=event_sink,
+        )
+
+        # 3. CapabilityResolver selects plan_from_conversation
+        event_dict = {e[0]: e[1] for e in events}
+        assert event_dict["talk.capability.resolved"]["capability_id"] == "capability:plan_from_conversation"
+        assert event_dict["workflow.proposed"]["requires_approval"] is True
+
+        # 4. Agency compiler accepts, AgentWorkflow and AgentStep persisted
+        workflows = (
+            await db.execute(select(AgentWorkflow).where(AgentWorkflow.owner_user_id == owner_user_id))
+        ).scalars().all()
+        assert len(workflows) == 1
+        wf = workflows[0]
+        assert wf.state == "BLOCKED_ON_APPROVAL"
+
+        steps = (
+            await db.execute(select(AgentStep).where(AgentStep.workflow_id == wf.id))
+        ).scalars().all()
+        assert len(steps) == 1
+        step = steps[0]
+        assert step.tool_key == "create_draft_plan"
+        assert step.state == "READY"
+
+        step_id = step.id
+        wf_id = wf.id
+
+        # 5. Queue ready step for worker
+        from app.agentic.orchestrator import queue_ready_dependants
+        queued_rows = await queue_ready_dependants(db, owner_user_id=owner_user_id, workflow_id=wf_id)
+        assert len(queued_rows) == 1
+        await db.commit()
+
+    # 6. Worker Pass 1: Attempts execution, encounters policy requiring approval, transitions to WAITING_APPROVAL
+    from app.agentic.observability import new_trace
+    from app.agentic.runtime import run_step
+    trace = new_trace()
+    async with AsyncSession(super_engine) as db:
+        await set_user_context(db, owner_user_id)
+        outcome1 = await run_step(
+            db,
+            owner_user_id=owner_user_id,
+            step_id=step_id,
+            worker="production-test-worker-pass-1",
+            trace=trace,
+        )
+        await db.commit()
+
+    assert outcome1["executed"] is False
+    assert outcome1["step_state"] == "WAITING_APPROVAL"
+
+    # 7. Read exact approval digest, plan_version, and call_version
+    async with AsyncSession(super_engine) as db:
+        await set_user_context(db, owner_user_id)
+        appr = (
+            await db.execute(
+                select(AgentApproval).where(
+                    AgentApproval.step_id == step_id,
+                    AgentApproval.decision == "PENDING",
+                )
+            )
+        ).scalar_one()
+
+        seen_digest = appr.argument_digest
+        seen_plan_version = int(appr.plan_version)
+        seen_call_version = appr.call_version
+
+        # 8. Call real decisions.decide(..., decision="APPROVE")
+        from app.agentic.decisions import decide
+        decision_res = await decide(
+            db,
+            owner_user_id=owner_user_id,
+            approval_id=appr.id,
+            decision="APPROVE",
+            seen_digest=seen_digest,
+            seen_plan_version=seen_plan_version,
+            seen_call_version=seen_call_version,
+            note="Approved by owner for kernel deployment",
+        )
+        await db.commit()
+
+    # 9. Confirm step is now QUEUED and outbox intent exists
+    assert decision_res.decision == "APPROVED"
+    assert decision_res.step_state == "QUEUED"
+    assert decision_res.outbox_intent_id is not None
+
+    async with AsyncSession(super_engine) as db:
+        await set_user_context(db, owner_user_id)
+        outbox_row = (
+            await db.execute(
+                text("SELECT id, state, dispatch_key FROM agent_dispatch_outbox WHERE id = :id"),
+                {"id": decision_res.outbox_intent_id},
+            )
+        ).mappings().first()
+        assert outbox_row is not None
+
+        # 10. Worker Pass 2: Executes through actual Agency runtime with approved consent
+        outcome2 = await run_step(
+            db,
+            owner_user_id=owner_user_id,
+            step_id=step_id,
+            worker="production-test-worker-pass-2",
+            trace=trace,
+        )
+        await db.commit()
+
+    assert outcome2["executed"] is True
+    assert outcome2["step_state"] == "SUCCEEDED"
+
+    # 11. Verify Plan and PlanStep rows exist in DB with truthful content
+    async with AsyncSession(super_engine) as db:
+        await set_user_context(db, owner_user_id)
+        from app.models.cognition import Plan, PlanStep
+        plans = (
+            await db.execute(select(Plan).where(Plan.owner_user_id == owner_user_id))
+        ).scalars().all()
+        assert len(plans) == 1
+        plan = plans[0]
+        assert plan.title == "Deploy kernel"
+        assert plan.status == "DRAFT"
+
+        plan_steps = (
+            await db.execute(
+                select(PlanStep).where(PlanStep.plan_id == plan.id).order_by(PlanStep.position.asc())
+            )
+        ).scalars().all()
+        assert len(plan_steps) == 2
+        assert plan_steps[0].title == "Run migrations"
+        assert plan_steps[1].title == "Verify tests"
+
+        # 12. Verify AgentStep SUCCEEDED
+        reloaded_step = (
+            await db.execute(select(AgentStep).where(AgentStep.id == step_id))
+        ).scalar_one()
+        assert reloaded_step.state == "SUCCEEDED"
+
+        # 13. Verify workflow reaches correct aggregate state
+        reloaded_wf = (
+            await db.execute(select(AgentWorkflow).where(AgentWorkflow.id == wf_id))
+        ).scalar_one()
+        assert reloaded_wf.state == "SUCCEEDED"
+
+        # 14. Verify Agency event ledger contains approval and execution events
+        ledger_events = (
+            await db.execute(
+                text("SELECT event_type FROM agent_run_events WHERE workflow_id = :wf ORDER BY created_at ASC"),
+                {"wf": wf_id},
+            )
+        ).scalars().all()
+        assert "STEP_AWAITING_APPROVAL" in ledger_events
+        assert "APPROVAL_APPROVED" in ledger_events
+        assert "STEP_EXECUTED" in ledger_events
+        assert "STEP_VERIFIED" in ledger_events
+
+        # 15. Verify no second Plan is created on retry/idempotent delivery
+        retry_outcome = await run_step(
+            db,
+            owner_user_id=owner_user_id,
+            step_id=step_id,
+            worker="production-test-retry-worker",
+            trace=trace,
+        )
+        assert retry_outcome["executed"] is False
+
+        plans_after_retry = (
+            await db.execute(select(Plan).where(Plan.owner_user_id == owner_user_id))
+        ).scalars().all()
+        assert len(plans_after_retry) == 1
+
+
+

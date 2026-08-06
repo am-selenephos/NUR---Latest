@@ -205,10 +205,10 @@ async def test_agency_bridge_strict_arguments_and_approval(client: AsyncClient, 
                     tool_key="create_draft_plan",
                     arguments={"title": "Q3 Engineering Roadmap", "steps": ["Ship Capability Runtime"]},
                     requires_approval=True,
-                    estimated_cost_cents=2.0,
+                    estimated_cost_cents=2,
                 )
             ],
-            total_estimated_cost_cents=2.0,
+            total_estimated_cost_cents=2,
         )
 
         workflow, compile_res = await submit_workflow_proposal(
@@ -235,4 +235,68 @@ async def test_agency_bridge_strict_arguments_and_approval(client: AsyncClient, 
         assert db_approvals[0].decision == "PENDING"
         assert db_approvals[0].argument_digest is not None
         assert db_approvals[0].redacted_arguments["title"] == "Q3 Engineering Roadmap"
+
+
+@pytest.mark.asyncio
+async def test_agency_step_dependency_state_persists_blocked(client: AsyncClient, super_engine):
+    """Prove that when step B depends on step A (which is auto-run/no approval), B persists BLOCKED."""
+    res, email, password = await register_user(client)
+    owner_user_id = uuid.UUID(res.json()["id"])
+
+    async with AsyncSession(super_engine) as db:
+        await set_user_context(db, owner_user_id)
+
+        # Policy allows create_draft_plan to auto-run (no approval)
+        db.add(AgentPolicy(
+            owner_user_id=owner_user_id,
+            initiative_level="DELEGATED",
+            max_risk_class="R1_PRIVATE_DRAFT",
+            permitted_tools=["create_draft_plan"],
+            auto_run_tools=["create_draft_plan"],
+        ))
+        await db.flush()
+
+        # Step A is root (READY). Step B depends on A (BLOCKED on dependency).
+        proposal = WorkflowProposal(
+            task_id=uuid.uuid4(),
+            title="Dependency chain workflow",
+            rationale="Test dependency blocking",
+            steps=[
+                WorkflowStepProposal(
+                    key="step_a",
+                    title="Root step",
+                    description="Creates initial plan",
+                    tool_key="create_draft_plan",
+                    arguments={"title": "Step A Plan", "steps": ["Task A"]},
+                    requires_approval=False,
+                ),
+                WorkflowStepProposal(
+                    key="step_b",
+                    title="Dependent step",
+                    description="Creates follow-up plan",
+                    tool_key="create_draft_plan",
+                    arguments={"title": "Step B Plan", "steps": ["Task B"]},
+                    dependencies=["step_a"],
+                    requires_approval=False,
+                ),
+            ],
+        )
+
+        workflow, compile_res = await submit_workflow_proposal(
+            db, owner_user_id=owner_user_id, proposal=proposal
+        )
+
+        assert compile_res.ok is True
+        assert workflow is not None
+
+        from sqlalchemy import select
+        stmt = select(AgentStep).where(AgentStep.workflow_id == workflow.id)
+        db_steps = {s.key: s for s in (await db.execute(stmt)).scalars().all()}
+        assert "step_a" in db_steps
+        assert "step_b" in db_steps
+        # Step A is root: READY
+        assert db_steps["step_a"].state == "READY"
+        # Step B depends on A: MUST persist BLOCKED by compiler authority
+        assert db_steps["step_b"].state == "BLOCKED"
+
 
