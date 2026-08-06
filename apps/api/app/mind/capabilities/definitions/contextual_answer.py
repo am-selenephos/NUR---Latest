@@ -4,13 +4,18 @@ Direct conversational cognitive synthesis using scoped context and memory.
 """
 from __future__ import annotations
 
-from app.mind.capabilities.schemas import CapabilitySpec, ContextHydrationRecipe, ExecutionMode
+from app.mind.capabilities.schemas import (
+    CapabilitySpec,
+    ContextHydrationRecipe,
+    ExecutionMode,
+    HydrationFailurePolicy,
+)
 
 CONTEXTUAL_ANSWER_SPEC = CapabilitySpec(
     capability_id="capability:contextual_answer",
     name="Contextual Answer",
     description="Synthesize direct answers using scoped context and memory without side effects.",
-    intent_signatures=[
+    intent_signatures=(
         "explain",
         "what is",
         "how do I",
@@ -19,15 +24,20 @@ CONTEXTUAL_ANSWER_SPEC = CapabilitySpec(
         "answer my question",
         "summarize what we discussed",
         "what does this mean",
-    ],
-    allowed_surfaces=["talk", "research", "reflection"],
+    ),
+    allowed_surfaces=("talk", "research", "reflection"),
     sensitivity_ceiling="HIGH",
     execution_mode=ExecutionMode.COGNITIVE_SYNTHESIS,
-    required_tools=[],
+    required_tools=(),
     worker_role="SYNTHESIZER",
     hydration_recipe=ContextHydrationRecipe(
+        source_keys=("workspace_frame", "hybrid_retrieval"),
+        required_source_keys=(),
+        optional_source_keys=("workspace_frame", "hybrid_retrieval"),
+        failure_policy=HydrationFailurePolicy.FAIL_REQUIRED_DEGRADE_OPTIONAL,
         include_workspace_frame=True,
         hybrid_retrieval_limit=6,
+        max_total_tokens=4000,
         max_context_tokens=4000,
     ),
     min_confidence_threshold=0.82,

@@ -1,12 +1,12 @@
 """NUR Capability Runtime — Capability Schemas.
 
-Defines the declarative specification for cognitive capabilities in the Mind plane.
+Defines the declarative, immutable specification for cognitive capabilities in the Mind plane.
 """
 from __future__ import annotations
 
 import enum
 from typing import Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ExecutionMode(enum.StrEnum):
@@ -16,12 +16,42 @@ class ExecutionMode(enum.StrEnum):
     HYBRID = "HYBRID"
 
 
+class HydrationFailurePolicy(enum.StrEnum):
+    FAIL_REQUIRED_DEGRADE_OPTIONAL = "FAIL_REQUIRED_DEGRADE_OPTIONAL"
+    FAIL_ANY = "FAIL_ANY"
+    BEST_EFFORT = "BEST_EFFORT"
+
+
+KNOWN_CONTEXT_SOURCE_KEYS = frozenset({
+    "workspace_frame",
+    "hybrid_retrieval",
+    "personal_memory",
+    "active_plans",
+    "timeline",
+    "today_state",
+    "orbit_context",
+    "beliefs",
+})
+
+
 class ContextHydrationRecipe(BaseModel):
-    """Declarative specification of data layers required by a capability."""
+    """Declarative, immutable specification of data layers required by a capability."""
+    model_config = ConfigDict(frozen=True)
+
+    source_keys: tuple[str, ...] = Field(default_factory=tuple)
+    required_source_keys: tuple[str, ...] = Field(default_factory=tuple)
+    optional_source_keys: tuple[str, ...] = Field(default_factory=tuple)
+    max_items_per_source: dict[str, int] = Field(default_factory=dict)
+    max_total_tokens: int = 4000
+    failure_policy: HydrationFailurePolicy = HydrationFailurePolicy.FAIL_REQUIRED_DEGRADE_OPTIONAL
+
+    # Filtering & extraction boundaries
     include_workspace_frame: bool = True
     hybrid_retrieval_limit: int = 6
-    required_record_classes: list[str] = Field(default_factory=list)
-    required_entity_types: list[str] = Field(default_factory=list)
+    required_record_classes: tuple[str, ...] = Field(default_factory=tuple)
+    excluded_record_classes: tuple[str, ...] = Field(default_factory=tuple)
+    required_entity_types: tuple[str, ...] = Field(default_factory=tuple)
+    allowed_entity_ids: tuple[str, ...] = Field(default_factory=tuple)
     fetch_orbit_context: bool = False
     fetch_active_plans: bool = False
     fetch_timeline_window_days: int = 0
@@ -30,14 +60,16 @@ class ContextHydrationRecipe(BaseModel):
 
 class CapabilitySpec(BaseModel):
     """Specification of a discrete cognitive capability."""
+    model_config = ConfigDict(frozen=True)
+
     capability_id: str = Field(..., description="Unique slug, e.g., 'capability:plan_from_conversation'")
     name: str
     description: str
-    intent_signatures: list[str] = Field(
+    intent_signatures: tuple[str, ...] = Field(
         ..., description="Exemplar phrases used for semantic similarity matching"
     )
-    allowed_surfaces: list[str] = Field(
-        default_factory=lambda: ["talk"],
+    allowed_surfaces: tuple[str, ...] = Field(
+        default=("talk",),
         description="Surfaces where this capability is permitted ('talk', 'plan', 'research', etc.)"
     )
     sensitivity_ceiling: str = Field(
@@ -45,8 +77,8 @@ class CapabilitySpec(BaseModel):
         description="Maximum sensitivity allowed ('LOW', 'NORMAL', 'ELEVATED', 'HIGH')"
     )
     execution_mode: ExecutionMode
-    required_tools: list[str] = Field(
-        default_factory=list,
+    required_tools: tuple[str, ...] = Field(
+        default_factory=tuple,
         description="Tool keys from app.agentic.tools.ALL_TOOLS required during execution"
     )
     worker_role: str = Field(default="SPECIALIST")

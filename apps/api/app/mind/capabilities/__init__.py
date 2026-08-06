@@ -8,11 +8,14 @@ from app.mind.capabilities.schemas import (
     CapabilitySpec,
     ContextHydrationRecipe,
     ExecutionMode,
+    HydrationFailurePolicy,
+    KNOWN_CONTEXT_SOURCE_KEYS,
 )
 from app.mind.capabilities.registry import (
     CapabilityRegistry,
     DuplicateCapabilityError,
     InvalidCapabilitySpecError,
+    RegistrySealedError,
     get_default_registry,
 )
 from app.mind.capabilities.resolver import (
@@ -33,9 +36,12 @@ __all__ = [
     "CapabilitySpec",
     "ContextHydrationRecipe",
     "ExecutionMode",
+    "HydrationFailurePolicy",
+    "KNOWN_CONTEXT_SOURCE_KEYS",
     "CapabilityRegistry",
     "DuplicateCapabilityError",
     "InvalidCapabilitySpecError",
+    "RegistrySealedError",
     "get_default_registry",
     "AbstentionReasonCode",
     "CapabilityResolution",
