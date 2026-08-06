@@ -75,6 +75,23 @@ async def test_worker_dispatcher_cognitive_synthesis_returns_none():
 
 @pytest.mark.asyncio
 async def test_worker_dispatcher_read_only_worker():
+    from app.mind.capabilities.dispatcher import register_read_only_worker
+    from app.brain.schemas import CognitiveClaim
+
+    async def _custom_worker(cap, ctx, q, tid):
+        plans = ctx.active_plans or []
+        return CognitiveResult(
+            task_id=tid,
+            profile_used=BrainProfileKey.FAST,
+            direct_response=f"Active Plans: {len(plans)} - Cognitive Runtime PR",
+            workflow_proposal=None,
+            decision_summary="Test worker summary",
+            claims=[CognitiveClaim(claim_text=f"Active plans: {len(plans)}", claim_kind="observed", confidence=1.0)],
+            cost_estimate_cents=0,
+        )
+
+    register_read_only_worker("capability:test_read_only_worker", _custom_worker)
+
     db_mock = AsyncMock()
     owner_id = uuid.uuid4()
     scope = ScopeEnvelope(
@@ -85,7 +102,7 @@ async def test_worker_dispatcher_read_only_worker():
     )
     manifest = ContextManifest(scope_statement="Private", token_budget=2000)
     ctx = HydratedCapabilityContext(
-        capability_id="capability:project_status_report",
+        capability_id="capability:test_read_only_worker",
         scope_envelope=scope,
         manifest=manifest,
         retrieval_refs=[EvidenceRef(kind="note", id="note-1", excerpt="Summary note", rank=1.0)],
@@ -95,10 +112,10 @@ async def test_worker_dispatcher_read_only_worker():
     )
 
     spec = CapabilitySpec(
-        capability_id="capability:project_status_report",
-        name="Project Status Report",
-        description="Read only project status worker",
-        intent_signatures=["project status"],
+        capability_id="capability:test_read_only_worker",
+        name="Test Worker",
+        description="Read only test worker",
+        intent_signatures=["test status"],
         execution_mode=ExecutionMode.READ_ONLY_WORKER,
         required_tools=[],
     )

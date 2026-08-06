@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import enum
 from typing import Any
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ExecutionMode(enum.StrEnum):
@@ -22,6 +22,12 @@ class HydrationFailurePolicy(enum.StrEnum):
     BEST_EFFORT = "BEST_EFFORT"
 
 
+class HydrationStatus(enum.StrEnum):
+    SUCCESS = "SUCCESS"
+    DEGRADED = "DEGRADED"
+    FAILED = "FAILED"
+
+
 KNOWN_CONTEXT_SOURCE_KEYS = frozenset({
     "workspace_frame",
     "hybrid_retrieval",
@@ -34,14 +40,49 @@ KNOWN_CONTEXT_SOURCE_KEYS = frozenset({
 })
 
 
+class HydrationIssue(BaseModel):
+    """Audit record of an issue encountered during context hydration."""
+    model_config = ConfigDict(frozen=True)
+
+    issue_type: str
+    source_key: str
+    message: str
+    fatal: bool = False
+
+
+class HydrationSourceResult(BaseModel):
+    """Status and token accounting for a single hydration source."""
+    model_config = ConfigDict(frozen=True)
+
+    source_key: str
+    status: str
+    count: int = 0
+    estimated_tokens: int = 0
+    error_message: str | None = None
+
+
+class HydrationReport(BaseModel):
+    """Complete audit summary of context hydration execution."""
+    model_config = ConfigDict(frozen=True)
+
+    status: HydrationStatus
+    total_tokens_used: int = 0
+    per_source: tuple[HydrationSourceResult, ...] = Field(default_factory=tuple)
+    issues: tuple[HydrationIssue, ...] = Field(default_factory=tuple)
+    included_sources: tuple[str, ...] = Field(default_factory=tuple)
+    excluded_sources: tuple[str, ...] = Field(default_factory=tuple)
+    degraded_sources: tuple[str, ...] = Field(default_factory=tuple)
+    truncated_sources: tuple[str, ...] = Field(default_factory=tuple)
+
+
 class ContextHydrationRecipe(BaseModel):
-    """Declarative, immutable specification of data layers required by a capability."""
+    """Declarative, deeply immutable specification of data layers required by a capability."""
     model_config = ConfigDict(frozen=True)
 
     source_keys: tuple[str, ...] = Field(default_factory=tuple)
     required_source_keys: tuple[str, ...] = Field(default_factory=tuple)
     optional_source_keys: tuple[str, ...] = Field(default_factory=tuple)
-    max_items_per_source: dict[str, int] = Field(default_factory=dict)
+    max_items_per_source: tuple[tuple[str, int], ...] = Field(default_factory=tuple)
     max_total_tokens: int = 4000
     failure_policy: HydrationFailurePolicy = HydrationFailurePolicy.FAIL_REQUIRED_DEGRADE_OPTIONAL
 
@@ -56,6 +97,19 @@ class ContextHydrationRecipe(BaseModel):
     fetch_active_plans: bool = False
     fetch_timeline_window_days: int = 0
     max_context_tokens: int = 4000
+
+    @field_validator("max_items_per_source", mode="before")
+    @classmethod
+    def _coerce_max_items(cls, v: Any) -> tuple[tuple[str, int], ...]:
+        if isinstance(v, dict):
+            return tuple(sorted((str(k), int(val)) for k, val in v.items()))
+        if isinstance(v, (list, tuple)):
+            return tuple((str(k), int(val)) for k, val in v)
+        return tuple()
+
+    @property
+    def items_per_source_map(self) -> dict[str, int]:
+        return dict(self.max_items_per_source)
 
 
 class CapabilitySpec(BaseModel):
@@ -83,11 +137,9 @@ class CapabilitySpec(BaseModel):
     )
     worker_role: str = Field(default="SPECIALIST")
     hydration_recipe: ContextHydrationRecipe = Field(default_factory=ContextHydrationRecipe)
-    input_schema: dict[str, Any] = Field(default_factory=dict)
-    output_schema: dict[str, Any] = Field(default_factory=dict)
     min_confidence_threshold: float = Field(default=0.82, ge=0.0, le=1.0)
     timeout_seconds: int = Field(default=30, gt=0)
-    estimated_cost_cents: float = Field(default=0.0, ge=0.0)
+    estimated_cost_cents: int = Field(default=0, ge=0)
     abstention_prompt: str = Field(
         default="I notice you may want a plan, but I need more details before drafting one."
     )

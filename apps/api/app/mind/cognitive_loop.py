@@ -291,11 +291,52 @@ async def run_mind_cognitive_loop(
         else:
             cognitive_result, brain_trace = await run_brain_step(packet, event_sink=event_sink)
 
-        # 10. Metacognitive review checkpoint
-        metacog_review = run_metacognitive_review(packet, cognitive_result, depth=1)
-        # 11. Synthesize owner-facing Talk output
+        # If the CognitiveResult contains a workflow proposal, submit to Agency
+        agency_refusal_reasons: list[str] | None = None
+        if cognitive_result.workflow_proposal is not None:
+            from app.mind.agency_bridge import submit_workflow_proposal
+            workflow, compile_res = await submit_workflow_proposal(
+                db,
+                owner_user_id=owner_user_id,
+                proposal=cognitive_result.workflow_proposal,
+                orbit_id=orbit_id,
+            )
+            if workflow is not None and event_sink is not None:
+                await event_sink(
+                    "workflow.proposed",
+                    {
+                        "workflow_id": str(workflow.id),
+                        "state": workflow.state,
+                        "requires_approval": workflow.state == "BLOCKED_ON_APPROVAL",
+                    },
+                )
+            elif workflow is None:
+                agency_refusal_reasons = (
+                    [err.message for err in compile_res.errors]
+                    if compile_res.errors
+                    else ["Agency compiler refused workflow proposal."]
+                )
+                if event_sink is not None:
+                    await event_sink(
+                        "workflow.refused",
+                        {
+                            "task_id": str(packet.task_id),
+                            "reasons": agency_refusal_reasons,
+                        },
+                    )
+
+        # 10. Synthesize owner-facing Talk output
         talk_output = synthesize_talk_output(cognitive_result)
-        # 12. Verify Talk output (truthful provider_available flag)
+        if agency_refusal_reasons:
+            talk_output.direct_response = (
+                f"A workflow was proposed for '{cognitive_result.workflow_proposal.title}', "
+                f"but Agency policy refused compilation: {'; '.join(agency_refusal_reasons)}"
+            )
+
+        # 11. Metacognitive review checkpoint
+        metacog_review = run_metacognitive_review(packet, cognitive_result, depth=1)
+
+        # 12. Verify final Talk output (truthful provider_available flag, executed against final response text)
         verification = verify_talk_output(
             talk_output, evidence, provider_available=not is_deterministic_worker
         )
@@ -347,39 +388,6 @@ async def run_mind_cognitive_loop(
         "reason": None if not is_deterministic_worker else "Executed via deterministic Mind capability worker.",
         "brain_profile": brain_trace.profile_key,
     }
-
-    # If the CognitiveResult contains a workflow proposal, submit to Agency
-    if cognitive_result.workflow_proposal is not None:
-        from app.mind.agency_bridge import submit_workflow_proposal
-        workflow, compile_res = await submit_workflow_proposal(
-            db,
-            owner_user_id=owner_user_id,
-            proposal=cognitive_result.workflow_proposal,
-            orbit_id=orbit_id,
-        )
-        if workflow is not None and event_sink is not None:
-            await event_sink(
-                "workflow.proposed",
-                {
-                    "workflow_id": str(workflow.id),
-                    "state": workflow.state,
-                    "requires_approval": workflow.state == "BLOCKED_ON_APPROVAL",
-                },
-            )
-        elif workflow is None:
-            refusal_reasons = [err.message for err in compile_res.errors] if compile_res.errors else ["Agency compiler refused workflow proposal."]
-            if event_sink is not None:
-                await event_sink(
-                    "workflow.refused",
-                    {
-                        "task_id": str(packet.task_id),
-                        "reasons": refusal_reasons,
-                    },
-                )
-            talk_output.direct_response = (
-                f"A workflow was proposed for '{cognitive_result.workflow_proposal.title}', "
-                f"but Agency policy refused compilation: {'; '.join(refusal_reasons)}"
-            )
 
     omega = await talk_summary(db, owner_user_id=owner_user_id, workspace_frame_id=frame.id)
     response_event = CognitiveEvent(

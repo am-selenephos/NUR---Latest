@@ -46,7 +46,7 @@ PLAN_FROM_CONVERSATION_SPEC = CapabilitySpec(
     ),
     min_confidence_threshold=0.82,
     timeout_seconds=30,
-    estimated_cost_cents=1.5,
+    estimated_cost_cents=2,
     abstention_prompt="I notice you may want a plan, but I need more details before drafting one.",
     enabled=True,
 )

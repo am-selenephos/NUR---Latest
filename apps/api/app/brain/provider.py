@@ -123,34 +123,7 @@ class BrainProviderAdapter:
         for inf in output.inferred:
             claims.append(CognitiveClaim(claim_text=inf, claim_kind="inferred", source_refs=output.source_refs))
 
-        # Check if output contains proposed durable actions
-        proposed_actions: list[str] = []
-        if output.next_move and any(
-            kw in output.next_move.lower()
-            for kw in ["create", "delete", "update", "publish", "send", "save", "archive", "schedule"]
-        ):
-            proposed_actions.append(output.next_move)
-
         workflow_proposal: WorkflowProposal | None = None
-        if proposed_actions:
-            workflow_proposal = WorkflowProposal(
-                task_id=packet.task_id,
-                title=f"Execute: {proposed_actions[0][:60]}",
-                rationale=f"Generated from next_move proposed action: {proposed_actions[0]}",
-                steps=[
-                    WorkflowStep(
-                        title=proposed_actions[0][:60],
-                        description=proposed_actions[0],
-                        tool_key="create_draft_plan",
-                        arguments={
-                            "title": proposed_actions[0][:60],
-                            "steps": [proposed_actions[0]],
-                        },
-                        requires_approval=True,
-                    )
-                ],
-                requires_owner_approval=True,
-            )
 
         cognitive_result = CognitiveResult(
             task_id=packet.task_id,

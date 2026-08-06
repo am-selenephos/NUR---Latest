@@ -180,7 +180,7 @@ class WorkflowStepProposal(BaseModel):
     requires_approval: bool = True
     arguments: dict[str, Any] = Field(default_factory=dict)
     dependencies: list[str] = Field(default_factory=list)
-    estimated_cost_cents: float = 0.0
+    estimated_cost_cents: int = 0
     timeout_seconds: int = 30
     idempotency_key: str | None = None
 
@@ -197,7 +197,7 @@ class WorkflowProposal(BaseModel):
     title: str
     rationale: str
     steps: list[WorkflowStepProposal] = Field(default_factory=list)
-    total_estimated_cost_cents: float = 0.0
+    total_estimated_cost_cents: int = 0
     requires_owner_approval: bool = True
 
 
@@ -217,6 +217,6 @@ class CognitiveResult(BaseModel):
     decision_summary: str = ""
     critic_verdict: str | None = None
     critic_notes: list[str] = Field(default_factory=list)
-    cost_estimate_cents: float = 0.0
+    cost_estimate_cents: int = 0
     workflow_proposal: WorkflowProposal | None = None
     proposed_actions: list[str] = Field(default_factory=list)

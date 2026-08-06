@@ -42,7 +42,7 @@ CONTEXTUAL_ANSWER_SPEC = CapabilitySpec(
     ),
     min_confidence_threshold=0.82,
     timeout_seconds=30,
-    estimated_cost_cents=0.0,
+    estimated_cost_cents=0,
     abstention_prompt="I will provide a direct conversational response based on available context.",
     enabled=True,
 )

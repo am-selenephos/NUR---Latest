@@ -43,7 +43,13 @@ async def submit_workflow_proposal(
     """Compile a ``WorkflowProposal`` through existing Agency compiler and persist rows."""
     proposed_steps: list[ProposedStep] = []
     for idx, step in enumerate(proposal.steps):
-        step_key = getattr(step, "key", "") or f"step_{idx + 1}"
+        step_key = getattr(step, "key", None)
+        if not step_key or not str(step_key).strip():
+            raise AgencyBridgeError(
+                f"Workflow step at index {idx} is missing required explicit 'key'. Keys cannot be fabricated."
+            )
+        step_key = str(step_key).strip()
+
         tool_key = getattr(step, "tool_key", None)
         if not tool_key or not str(tool_key).strip():
             raise AgencyBridgeError(f"Workflow step '{step_key}' is missing required 'tool_key'. Zero silent fallback.")
@@ -63,22 +69,11 @@ async def submit_workflow_proposal(
             )
 
         # 2. Build and validate input_refs against authoritative Agency input schemas
-        input_refs: dict = {}
-        if getattr(step, "arguments", None):
-            input_refs = dict(step.arguments)
-        else:
-            from app.agentic.input_schemas import INPUT_SCHEMAS
-            expected_fields = INPUT_SCHEMAS.get(tool_key, {})
-            if "title" in expected_fields and step.title:
-                input_refs["title"] = step.title
-            if "description" in expected_fields and step.description:
-                input_refs["description"] = step.description
-            if "steps" in expected_fields and "steps" not in input_refs:
-                input_refs["steps"] = [step.description] if step.description else [step.title]
-            if "candidate_text" in expected_fields and "candidate_text" not in input_refs:
-                input_refs["candidate_text"] = step.description or step.title
-            if "question" in expected_fields and "question" not in input_refs:
-                input_refs["question"] = step.title or step.description
+        if step.arguments is None:
+            raise AgencyBridgeError(
+                f"Workflow step '{step_key}' is missing required 'arguments'. Arguments cannot be fabricated."
+            )
+        input_refs = dict(step.arguments)
 
         # Reject secrets
         if contains_secret(input_refs):
@@ -138,7 +133,7 @@ async def submit_workflow_proposal(
         scope="PRIVATE",
         orbit_id=orbit_id,
         project_id=project_id,
-        budget_cents=int(round(proposal.total_estimated_cost_cents)),
+        budget_cents=proposal.total_estimated_cost_cents,
         cost_cents=0,
         max_risk_class=highest_risk,
     )
@@ -146,7 +141,6 @@ async def submit_workflow_proposal(
     await db.flush()
 
     for compiled_step in compile_result.steps:
-        step_state = StepState.BLOCKED if compiled_step.approval_required else StepState.READY
         db_step = AgentStep(
             owner_user_id=owner_user_id,
             workflow_id=workflow.id,
@@ -158,7 +152,7 @@ async def submit_workflow_proposal(
             risk_class=compiled_step.risk_class,
             requested_capabilities=list(compiled_step.requested_capabilities),
             depends_on=list(compiled_step.depends_on),
-            state=step_state.value,
+            state=compiled_step.state.value,
             input_refs=compiled_step.input_refs,
             timeout_seconds=compiled_step.timeout_seconds,
         )

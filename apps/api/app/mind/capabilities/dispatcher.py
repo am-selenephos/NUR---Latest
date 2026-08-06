@@ -215,38 +215,3 @@ class WorkerDispatcher:
         )
 
 
-async def _handle_project_status_report(
-    capability: CapabilitySpec,
-    hydrated_context: HydratedCapabilityContext,
-    query: str,
-    task_id: uuid.UUID,
-) -> CognitiveResult:
-    plans = hydrated_context.active_plans or []
-    events = hydrated_context.timeline_events or []
-    plan_lines = [f"- {p.get('title', 'Untitled')}" for p in plans]
-    body = (
-        f"### Project Status Report\n\n"
-        f"**Active Plans: {len(plans)}**\n"
-        f"{chr(10).join(plan_lines) if plan_lines else 'No active plans.'}\n\n"
-        f"**Recent Timeline Events: {len(events)}**\n"
-    )
-    return CognitiveResult(
-        task_id=task_id,
-        profile_used=BrainProfileKey.FAST,
-        direct_response=body,
-        workflow_proposal=None,
-        decision_summary=f"Deterministic status report generated from {len(plans)} plans and {len(events)} events.",
-        claims=[
-            CognitiveClaim(
-                claim_text=f"Active plans: {len(plans)}",
-                claim_kind="observed",
-                confidence=1.0,
-            )
-        ],
-        cost_estimate_cents=0.0,
-    )
-
-
-register_read_only_worker("capability:project_status_report", _handle_project_status_report)
-
-

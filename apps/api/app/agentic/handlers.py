@@ -91,43 +91,10 @@ async def get_timeline(
     *,
     limit: int = 50,
 ) -> dict[str, Any]:
-    """Timeline events in a bounded window.
+    """Timeline events in a bounded window."""
+    from app.domain_reads.timeline import read_timeline
 
-    The limit is clamped rather than trusted. A planner asking for everything
-    would otherwise pull an owner's entire history into a model's context, which
-    is both a cost problem and a minimisation problem.
-    """
-    from app.models.intelligence import TimelineEvent
-
-    bounded = max(1, min(int(limit), 200))
-    rows = (
-        await db.execute(
-            select(TimelineEvent)
-            .where(TimelineEvent.owner_user_id == owner_user_id)
-            .order_by(TimelineEvent.created_at.desc())
-            .limit(bounded)
-        )
-    ).scalars().all()
-
-    return {
-        "count": len(rows),
-        "limit": bounded,
-        "events": [
-            {
-                "id": str(row.id),
-                "event_type": row.event_type,
-                "title": row.title,
-                "time_kind": row.time_kind,
-                "status": row.status,
-                "importance": row.importance,
-                "system_slug": row.system_slug,
-                "occurred_at": row.occurred_at.isoformat() if row.occurred_at else None,
-                "scheduled_for": row.scheduled_for.isoformat() if row.scheduled_for else None,
-            }
-            for row in rows
-        ],
-        "provenance_label": "Owner timeline ledger",
-    }
+    return await read_timeline(db, owner_user_id=owner_user_id, limit=limit)
 
 
 async def search_approved_memory(
@@ -175,44 +142,19 @@ def _owned(statement, model, owner_user_id):
 
 
 async def get_today_state(db: AsyncSession, owner_user_id: uuid.UUID) -> dict[str, Any]:
-    """The owner's current day. Delegates to the same snapshot the Today route
-    serves, so the tool and the screen cannot disagree."""
-    from app.api.v1.living import today_snapshot
+    """The owner's current day. Delegates to canonical today domain read service."""
+    from app.domain_reads.today import read_today_state
 
-    return await today_snapshot(db, owner_user_id=owner_user_id)
+    return await read_today_state(db, owner_user_id=owner_user_id)
 
 
 async def get_plan(
     db: AsyncSession, owner_user_id: uuid.UUID, *, plan_id: str | None = None
 ) -> dict[str, Any]:
-    from app.models.cognition import Plan, PlanStep
+    """Owner-scoped plan reader. Delegates to canonical plans domain read service."""
+    from app.domain_reads.plans import read_plans
 
-    statement = _owned(select(Plan), Plan, owner_user_id)
-    if plan_id:
-        statement = statement.where(Plan.id == uuid.UUID(plan_id))
-    plans = (await db.execute(statement.limit(20))).scalars().all()
-    if plan_id and not plans:
-        return {"found": False, "plan_id": plan_id}
-
-    out = []
-    for plan in plans:
-        steps = (
-            await db.execute(
-                select(PlanStep).where(PlanStep.plan_id == plan.id).order_by(PlanStep.position)
-            )
-        ).scalars().all()
-        out.append(
-            {
-                "id": str(plan.id),
-                "title": plan.title,
-                "status": plan.status,
-                "steps": [
-                    {"id": str(s.id), "title": s.title, "position": s.position, "done": s.done}
-                    for s in steps
-                ],
-            }
-        )
-    return {"found": True, "count": len(out), "plans": out}
+    return await read_plans(db, owner_user_id=owner_user_id, plan_id=plan_id)
 
 
 async def get_system_snapshot(
