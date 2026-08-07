@@ -311,3 +311,51 @@ async def test_context_hydrator_failure_policy_enforcement():
                 query="test query",
             )
         assert "Context hydration failed for required source 'active_plans'" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_context_hydrator_strict_hard_token_budget():
+    """Verify total_tokens_used <= max_context_tokens invariant and truncation behavior."""
+    owner_id = uuid.uuid4()
+    scope = ScopeEnvelope(
+        owner_user_id=owner_id,
+        surface="talk",
+        sensitivity_ceiling="NORMAL",
+        sharing_boundary="PRIVATE",
+    )
+
+    # Budget of 50 tokens: enough for first item, but second will exceed
+    recipe = ContextHydrationRecipe(
+        source_keys=("hybrid_retrieval",),
+        optional_source_keys=("hybrid_retrieval",),
+        include_workspace_frame=False,
+        hybrid_retrieval_limit=10,
+        max_context_tokens=50,
+        max_total_tokens=50,
+    )
+    spec = CapabilitySpec(
+        capability_id="test:hard_budget",
+        name="Hard Budget Test",
+        description="",
+        intent_signatures=["test"],
+        execution_mode=ExecutionMode.COGNITIVE_SYNTHESIS,
+        hydration_recipe=recipe,
+    )
+
+    db_mock = AsyncMock()
+    refs = [
+        EvidenceRef(kind="note", id="note-1", excerpt="Short text 123", rank=0.9),  # ~4 tokens
+        EvidenceRef(kind="note", id="note-2", excerpt="Very long excerpt " * 50, rank=0.8),  # ~225 tokens
+    ]
+
+    with patch("app.mind.capabilities.hydrator.retrieve_hybrid", new=AsyncMock(return_value=refs)):
+        hydrated = await ContextHydrator.hydrate(
+            db_mock,
+            owner_user_id=owner_id,
+            scope_envelope=scope,
+            capability=spec,
+            query="test query",
+        )
+        assert hydrated.hydration_report is not None
+        assert hydrated.hydration_report.total_tokens_used <= 50
+        assert "hybrid_retrieval" in hydrated.hydration_report.truncated_sources

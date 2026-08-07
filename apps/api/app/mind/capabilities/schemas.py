@@ -31,12 +31,10 @@ class HydrationStatus(enum.StrEnum):
 KNOWN_CONTEXT_SOURCE_KEYS = frozenset({
     "workspace_frame",
     "hybrid_retrieval",
-    "personal_memory",
     "active_plans",
     "timeline",
     "today_state",
     "orbit_context",
-    "beliefs",
 })
 
 
@@ -91,7 +89,6 @@ class ContextHydrationRecipe(BaseModel):
     hybrid_retrieval_limit: int = 6
     required_record_classes: tuple[str, ...] = Field(default_factory=tuple)
     excluded_record_classes: tuple[str, ...] = Field(default_factory=tuple)
-    required_entity_types: tuple[str, ...] = Field(default_factory=tuple)
     allowed_entity_ids: tuple[str, ...] = Field(default_factory=tuple)
     fetch_orbit_context: bool = False
     fetch_active_plans: bool = False

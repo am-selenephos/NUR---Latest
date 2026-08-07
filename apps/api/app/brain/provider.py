@@ -115,7 +115,7 @@ class BrainProviderAdapter:
 
         # Convert AIProviderResult.output (NURTalkOutput) → CognitiveResult
         output = result.output
-        from app.brain.schemas import CognitiveClaim, WorkflowProposal, WorkflowStep
+        from app.brain.schemas import CognitiveClaim, WorkflowProposal
 
         claims: list[CognitiveClaim] = []
         for obs in output.observed:

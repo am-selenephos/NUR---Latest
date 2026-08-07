@@ -10,8 +10,6 @@ Validates complete flow:
   7. Preview vs Persist semantics
   8. Policy compile refusal handling & truthfulness
 """
-import hashlib
-import json
 import uuid
 import pytest
 from sqlalchemy import select, text
@@ -229,12 +227,13 @@ async def test_capability_runtime_e2e_full_approval_and_handler_execution(client
     # 2. Talk: "Let's draft a plan to deploy kernel\n- Run migrations\n- Verify tests"
     async with AsyncSession(super_engine) as db:
         await set_user_context(db, owner_user_id)
-        result = await run_mind_cognitive_loop(
+        response_event = await run_mind_cognitive_loop(
             db,
             owner_user_id=owner_user_id,
             user_line="Let's draft a plan to deploy kernel\n- Run migrations\n- Verify tests",
             event_sink=event_sink,
         )
+        assert response_event.event_kind == "MODEL_RESPONSE"
 
         # 3. CapabilityResolver selects plan_from_conversation
         event_dict = {e[0]: e[1] for e in events}

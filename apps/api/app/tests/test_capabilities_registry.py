@@ -87,11 +87,57 @@ def test_unknown_context_source_key_rejected():
         required_tools=(),
         hydration_recipe=ContextHydrationRecipe(
             source_keys=("non_existent_source_database",),
+            optional_source_keys=("non_existent_source_database",),
         ),
     )
     with pytest.raises(InvalidCapabilitySpecError) as exc_info:
         reg.register(spec)
     assert "references unknown context source 'non_existent_source_database'" in str(exc_info.value)
+
+
+def test_registry_rejects_unclassified_source_keys():
+    """Declaring source_keys without classifying into required or optional must fail."""
+    reg = CapabilityRegistry()
+    spec = CapabilitySpec(
+        capability_id="capability:unclassified_sources",
+        name="Unclassified Test",
+        description="Fails classification completeness",
+        intent_signatures=("test",),
+        allowed_surfaces=("talk",),
+        sensitivity_ceiling="NORMAL",
+        execution_mode=ExecutionMode.COGNITIVE_SYNTHESIS,
+        required_tools=(),
+        hydration_recipe=ContextHydrationRecipe(
+            source_keys=("workspace_frame", "hybrid_retrieval"),
+            optional_source_keys=("workspace_frame",),
+        ),
+    )
+    with pytest.raises(InvalidCapabilitySpecError) as exc_info:
+        reg.register(spec)
+    assert "does not match required" in str(exc_info.value)
+
+
+def test_registry_rejects_overlapping_required_and_optional():
+    """Declaring the same source key in both required and optional must fail."""
+    reg = CapabilityRegistry()
+    spec = CapabilitySpec(
+        capability_id="capability:overlapping_sources",
+        name="Overlapping Test",
+        description="Fails classification disjointness",
+        intent_signatures=("test",),
+        allowed_surfaces=("talk",),
+        sensitivity_ceiling="NORMAL",
+        execution_mode=ExecutionMode.COGNITIVE_SYNTHESIS,
+        required_tools=(),
+        hydration_recipe=ContextHydrationRecipe(
+            source_keys=("workspace_frame",),
+            required_source_keys=("workspace_frame",),
+            optional_source_keys=("workspace_frame",),
+        ),
+    )
+    with pytest.raises(InvalidCapabilitySpecError) as exc_info:
+        reg.register(spec)
+    assert "overlapping required and optional source keys" in str(exc_info.value)
 
 
 def test_context_sources_and_agency_tools_are_distinct_namespaces():

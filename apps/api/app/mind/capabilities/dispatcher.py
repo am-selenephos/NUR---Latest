@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -8,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.brain.schemas import (
     BrainProfileKey,
-    CognitiveClaim,
     CognitiveResult,
     WorkflowProposal,
     WorkflowStepProposal,

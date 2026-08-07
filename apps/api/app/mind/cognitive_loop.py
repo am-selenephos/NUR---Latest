@@ -333,12 +333,22 @@ async def run_mind_cognitive_loop(
                 f"but Agency policy refused compilation: {'; '.join(agency_refusal_reasons)}"
             )
 
-        # 11. Metacognitive review checkpoint
+    # 11. Metacognitive review checkpoint
         metacog_review = run_metacognitive_review(packet, cognitive_result, depth=1)
 
-        # 12. Verify final Talk output (truthful provider_available flag, executed against final response text)
+        # Provider truth semantics
+        provider_configured = (s.ai_provider != "disabled") and (s.openai_api_key is not None)
+        provider_available = provider_configured
+        provider_invoked = not is_deterministic_worker
+        provider_degraded = False
+        provider_fallback = False
+        provider_latency_ms = brain_trace.wall_time_ms if not is_deterministic_worker else 0
+        provider_model_used = s.openai_model if (not is_deterministic_worker and s.openai_model) else ("deterministic_worker" if is_deterministic_worker else "none")
+        provider_tokens_used = (brain_trace.total_input_tokens + brain_trace.total_output_tokens) if not is_deterministic_worker else 0
+
+        # 12. Verify final Talk output
         verification = verify_talk_output(
-            talk_output, evidence, provider_available=not is_deterministic_worker
+            talk_output, evidence, provider_available=provider_available
         )
         if metacog_review.verdict == "BLOCK" or verification.verdict == "BLOCK":
             raise AIOutputValidationError("Output failed Mind/Brain verification checkpoint.")
@@ -376,7 +386,14 @@ async def run_mind_cognitive_loop(
     model_run.status = "COMPLETED"
     updated_run_meta = dict(model_run.run_metadata or {})
     updated_run_meta.update(brain_trace.to_metadata())
-    updated_run_meta["provider_invoked"] = not is_deterministic_worker
+    updated_run_meta["provider_configured"] = provider_configured
+    updated_run_meta["provider_available"] = provider_available
+    updated_run_meta["provider_invoked"] = provider_invoked
+    updated_run_meta["provider_degraded"] = provider_degraded
+    updated_run_meta["provider_fallback"] = provider_fallback
+    updated_run_meta["provider_latency_ms"] = provider_latency_ms
+    updated_run_meta["provider_model_used"] = provider_model_used
+    updated_run_meta["provider_tokens_used"] = provider_tokens_used
     updated_run_meta["execution_provenance"] = "DETERMINISTIC_WORKER" if is_deterministic_worker else "MODEL_PROVIDER"
     updated_run_meta["metacognitive_review"] = {
         "verdict": metacog_review.verdict,
@@ -384,7 +401,7 @@ async def run_mind_cognitive_loop(
     }
     model_run.run_metadata = updated_run_meta
     model_run.response_metadata = {
-        "available": not is_deterministic_worker,
+        "available": provider_available,
         "reason": None if not is_deterministic_worker else "Executed via deterministic Mind capability worker.",
         "brain_profile": brain_trace.profile_key,
     }
@@ -398,7 +415,14 @@ async def run_mind_cognitive_loop(
         structured_payload={
             "talk_output": talk_output.model_dump(),
             "provider": "DETERMINISTIC_WORKER" if is_deterministic_worker else s.ai_provider,
-            "provider_available": not is_deterministic_worker,
+            "provider_configured": provider_configured,
+            "provider_available": provider_available,
+            "provider_invoked": provider_invoked,
+            "provider_degraded": provider_degraded,
+            "provider_fallback": provider_fallback,
+            "provider_latency_ms": provider_latency_ms,
+            "provider_model_used": provider_model_used,
+            "provider_tokens_used": provider_tokens_used,
             "model_run_id": str(model_run.id),
             "memory_mode": memory_mode,
             "verification": verification.model_dump(),

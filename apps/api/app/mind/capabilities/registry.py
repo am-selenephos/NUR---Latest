@@ -49,9 +49,28 @@ class CapabilityRegistry:
         if capability.capability_id in self._specs:
             raise DuplicateCapabilityError(f"Duplicate capability registered: {capability.capability_id}")
 
-        # Validate context sources namespace vs Agency tools namespace
+        # Validate context sources classification and namespace
         recipe = capability.hydration_recipe
-        for sk in list(recipe.source_keys) + list(recipe.required_source_keys) + list(recipe.optional_source_keys):
+        req_set = set(recipe.required_source_keys)
+        opt_set = set(recipe.optional_source_keys)
+        src_set = set(recipe.source_keys)
+
+        # Invariant 1: source_keys must equal required UNION optional (no undeclared or unclassified sources)
+        if src_set != (req_set | opt_set):
+            raise InvalidCapabilitySpecError(
+                f"Capability '{capability.capability_id}' source_keys ({src_set}) does not match "
+                f"required ({req_set}) union optional ({opt_set})"
+            )
+
+        # Invariant 2: required and optional must be disjoint (empty intersection)
+        if req_set & opt_set:
+            raise InvalidCapabilitySpecError(
+                f"Capability '{capability.capability_id}' has overlapping required and optional source keys: "
+                f"{req_set & opt_set}"
+            )
+
+        # Invariant 3: every declared source must map to an implemented V1 context loader
+        for sk in src_set:
             if sk not in KNOWN_CONTEXT_SOURCE_KEYS:
                 raise InvalidCapabilitySpecError(
                     f"Capability '{capability.capability_id}' references unknown context source '{sk}'"
