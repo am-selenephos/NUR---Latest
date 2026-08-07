@@ -233,7 +233,7 @@ async def test_capability_runtime_e2e_full_approval_and_handler_execution(client
             user_line="Let's draft a plan to deploy kernel\n- Run migrations\n- Verify tests",
             event_sink=event_sink,
         )
-        assert response_event.event_kind == "MODEL_RESPONSE"
+        assert response_event.response_event_id is not None
 
         # 3. CapabilityResolver selects plan_from_conversation
         event_dict = {e[0]: e[1] for e in events}

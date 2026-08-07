@@ -337,8 +337,10 @@ async def run_mind_cognitive_loop(
         metacog_review = run_metacognitive_review(packet, cognitive_result, depth=1)
 
         # Provider truth semantics
-        provider_configured = (s.ai_provider != "disabled") and (s.openai_api_key is not None)
-        provider_available = provider_configured
+        import app.cognition.intelligence_kernel as ik_mod
+        active_provider = ik_mod.get_ai_provider()
+        provider_available = getattr(active_provider, "name", "") != "disabled"
+        provider_configured = (s.ai_provider != "disabled")
         provider_invoked = not is_deterministic_worker
         provider_degraded = False
         provider_fallback = False
@@ -500,9 +502,9 @@ async def run_mind_cognitive_loop(
         turn_event_id=turn.id,
         response_event_id=response_event.id,
         model_run_id=model_run.id,
-        provider=s.ai_provider,
-        provider_available=True,
-        provider_reason=None,
+        provider="DETERMINISTIC_WORKER" if is_deterministic_worker else getattr(active_provider, "name", s.ai_provider),
+        provider_available=provider_available,
+        provider_reason=None if provider_available else "AI provider is disabled.",
         output=talk_output,
         evidence=evidence,
         verification=verification,
