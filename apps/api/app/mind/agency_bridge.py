@@ -24,6 +24,36 @@ class AgencyBridgeError(ValueError):
     """Raised when a WorkflowProposal fails structural, tool, or argument contract validation."""
 
 
+SAFE_REFUSAL_CODES: frozenset[str] = frozenset({
+    "POLICY_DENIED",
+    "UNKNOWN_TOOL",
+    "RISK_EXCEEDS_POLICY",
+    "INVALID_DEPENDENCY",
+    "INVALID_ARGUMENTS",
+    "COMPILATION_REFUSED",
+})
+
+
+def map_compile_error_to_safe_code(code: str) -> str:
+    """Map Agency compiler error codes into bounded, safe refusal reason codes."""
+    mapping = {
+        "POLICY_DENIED": "POLICY_DENIED",
+        "UNKNOWN_TOOL": "UNKNOWN_TOOL",
+        "RISK_EXCEEDS_POLICY": "RISK_EXCEEDS_POLICY",
+        "DANGLING_DEPENDENCY": "INVALID_DEPENDENCY",
+        "SELF_DEPENDENCY": "INVALID_DEPENDENCY",
+        "CYCLIC_PLAN": "INVALID_DEPENDENCY",
+        "VERIFIER_WITHOUT_SUBJECT": "INVALID_DEPENDENCY",
+        "EMPTY_PLAN": "INVALID_ARGUMENTS",
+        "DUPLICATE_STEP_KEY": "INVALID_ARGUMENTS",
+        "INVALID_ARGUMENTS": "INVALID_ARGUMENTS",
+        "VERIFIER_MUTATES": "POLICY_DENIED",
+        "SELF_VERIFICATION": "POLICY_DENIED",
+    }
+    safe_code = mapping.get(code, "COMPILATION_REFUSED")
+    return safe_code if safe_code in SAFE_REFUSAL_CODES else "COMPILATION_REFUSED"
+
+
 _RISK_RANK = {
     "R0_READ_ONLY": 0,
     "R1_PRIVATE_DRAFT": 1,

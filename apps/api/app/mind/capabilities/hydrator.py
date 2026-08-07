@@ -551,8 +551,11 @@ class ContextHydrator:
             if res.status in (SourceStatus.INCLUDED.value, SourceStatus.TRUNCATED.value)
         )
 
-        # STRICT HARD BUDGET INVARIANT
-        assert total_tokens_used <= effective_total_budget, f"Token overspend: {total_tokens_used} > {effective_total_budget}"
+        # STRICT HARD BUDGET RUNTIME GUARD
+        if total_tokens_used > effective_total_budget:
+            raise RuntimeError(
+                f"Context hydration failed: total tokens used exceeds effective budget ({total_tokens_used} > {effective_total_budget})"
+            )
 
         included_sources = [k for k, v in source_statuses.items() if v in (SourceStatus.INCLUDED.value, SourceStatus.TRUNCATED.value)]
         excluded_sources = [k for k, v in source_statuses.items() if v == SourceStatus.SKIPPED.value]

@@ -359,3 +359,104 @@ async def test_context_hydrator_strict_hard_token_budget():
         assert hydrated.hydration_report is not None
         assert hydrated.hydration_report.total_tokens_used <= 50
         assert "hybrid_retrieval" in hydrated.hydration_report.truncated_sources
+
+
+@pytest.mark.parametrize("budget", [0, 50, 200, 4000])
+@pytest.mark.asyncio
+async def test_context_hydrator_token_budget_invariants(budget):
+    """Test token budget invariants across multiple budget levels (0, 50, 200, 4000)."""
+    owner_id = uuid.uuid4()
+    scope = ScopeEnvelope(
+        owner_user_id=owner_id,
+        surface="talk",
+        sensitivity_ceiling="NORMAL",
+        sharing_boundary="PRIVATE",
+    )
+
+    recipe = ContextHydrationRecipe(
+        source_keys=("hybrid_retrieval", "timeline", "active_plans"),
+        optional_source_keys=("hybrid_retrieval", "timeline", "active_plans"),
+        include_workspace_frame=False,
+        hybrid_retrieval_limit=5,
+        fetch_active_plans=True,
+        fetch_timeline_window_days=7,
+        max_context_tokens=budget,
+        max_total_tokens=budget,
+    )
+    spec = CapabilitySpec(
+        capability_id=f"test:budget_{budget}",
+        name=f"Budget {budget} Test",
+        description="",
+        intent_signatures=["test"],
+        execution_mode=ExecutionMode.COGNITIVE_SYNTHESIS,
+        hydration_recipe=recipe,
+    )
+
+    db_mock = AsyncMock()
+    refs = [
+        EvidenceRef(kind="note", id=f"note-{i}", excerpt="Some sample text for test " * 5, rank=0.9 - i * 0.1)
+        for i in range(5)
+    ]
+    mock_plans = [{"title": f"Plan {i}", "steps": ["s1", "s2"]} for i in range(3)]
+    mock_events = [{"title": f"Event {i}", "timestamp": "2026-08-06"} for i in range(5)]
+
+    with patch("app.mind.capabilities.hydrator.retrieve_hybrid", new=AsyncMock(return_value=refs)), \
+         patch("app.mind.capabilities.hydrator.read_plans", new=AsyncMock(return_value={"found": True, "plans": mock_plans})), \
+         patch("app.mind.capabilities.hydrator.read_timeline", new=AsyncMock(return_value={"count": 5, "events": mock_events})):
+        hydrated = await ContextHydrator.hydrate(
+            db_mock,
+            owner_user_id=owner_id,
+            scope_envelope=scope,
+            capability=spec,
+            query="test query",
+        )
+        assert hydrated.hydration_report is not None
+        assert hydrated.hydration_report.total_tokens_used <= budget
+        if budget == 0:
+            assert hydrated.hydration_report.total_tokens_used == 0
+            assert len(hydrated.retrieval_refs) == 0
+            assert len(hydrated.active_plans) == 0
+            assert len(hydrated.timeline_events) == 0
+
+
+@pytest.mark.asyncio
+async def test_context_hydrator_required_source_budget_exhaustion_fails():
+    """When a required source cannot fit in the remaining token budget, hydration must fail with RuntimeError."""
+    owner_id = uuid.uuid4()
+    scope = ScopeEnvelope(
+        owner_user_id=owner_id,
+        surface="talk",
+        sensitivity_ceiling="NORMAL",
+        sharing_boundary="PRIVATE",
+    )
+
+    recipe = ContextHydrationRecipe(
+        source_keys=("active_plans",),
+        required_source_keys=("active_plans",),
+        failure_policy=HydrationFailurePolicy.FAIL_REQUIRED_DEGRADE_OPTIONAL,
+        include_workspace_frame=False,
+        max_context_tokens=1,  # 1 token is insufficient to fit any plan
+        max_total_tokens=1,
+    )
+    spec = CapabilitySpec(
+        capability_id="test:required_budget_fail",
+        name="Required Budget Fail",
+        description="",
+        intent_signatures=["test"],
+        execution_mode=ExecutionMode.COGNITIVE_SYNTHESIS,
+        hydration_recipe=recipe,
+    )
+
+    db_mock = AsyncMock()
+    mock_plans = [{"title": "Plan 1", "steps": ["Step 1", "Step 2", "Step 3"]}]
+
+    with patch("app.mind.capabilities.hydrator.read_plans", new=AsyncMock(return_value={"found": True, "plans": mock_plans})):
+        with pytest.raises(RuntimeError) as exc_info:
+            await ContextHydrator.hydrate(
+                db_mock,
+                owner_user_id=owner_id,
+                scope_envelope=scope,
+                capability=spec,
+                query="test query",
+            )
+        assert "cannot fit in token budget" in str(exc_info.value)

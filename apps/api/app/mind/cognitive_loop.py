@@ -258,6 +258,18 @@ async def run_mind_cognitive_loop(
         )
 
     # 8-12. Brain Cognition Step, Critic, Metacognition & Verification
+    from app.mind.capabilities.schemas import ExecutionMode
+    is_deterministic_worker = (
+        resolution.selected_capability is not None
+        and resolution.selected_capability.execution_mode in (
+            ExecutionMode.READ_ONLY_WORKER,
+            ExecutionMode.WORKFLOW_PROPOSAL,
+        )
+    )
+    provider_invoked = False
+    if is_deterministic_worker:
+        model_run.provider = "DETERMINISTIC_WORKER"
+        model_run.model = None
     try:
         # Check if specialized capability worker handles execution
         worker_result = None
@@ -272,7 +284,6 @@ async def run_mind_cognitive_loop(
                 extracted_parameters=resolution.extracted_parameters,
             )
 
-        is_deterministic_worker = worker_result is not None
         if worker_result is not None:
             cognitive_result = worker_result
             model_run.provider = "DETERMINISTIC_WORKER"
@@ -289,6 +300,8 @@ async def run_mind_cognitive_loop(
                 route_reason=worker_result.decision_summary,
             )
         else:
+            is_deterministic_worker = False
+            provider_invoked = True
             cognitive_result, brain_trace = await run_brain_step(packet, event_sink=event_sink)
 
         # If the CognitiveResult contains a workflow proposal, submit to Agency
@@ -311,17 +324,20 @@ async def run_mind_cognitive_loop(
                     },
                 )
             elif workflow is None:
-                agency_refusal_reasons = (
-                    [err.message for err in compile_res.errors]
+                from app.mind.agency_bridge import map_compile_error_to_safe_code
+                safe_reason_codes = (
+                    [map_compile_error_to_safe_code(err.code) for err in compile_res.errors]
                     if compile_res.errors
-                    else ["Agency compiler refused workflow proposal."]
+                    else ["COMPILATION_REFUSED"]
                 )
+                agency_refusal_reasons = safe_reason_codes
                 if event_sink is not None:
                     await event_sink(
                         "workflow.refused",
                         {
                             "task_id": str(packet.task_id),
-                            "reasons": agency_refusal_reasons,
+                            "reason_codes": safe_reason_codes,
+                            "retryable": False,
                         },
                     )
 
@@ -330,22 +346,22 @@ async def run_mind_cognitive_loop(
         if agency_refusal_reasons:
             talk_output.direct_response = (
                 f"A workflow was proposed for '{cognitive_result.workflow_proposal.title}', "
-                f"but Agency policy refused compilation: {'; '.join(agency_refusal_reasons)}"
+                "but Agency policy refused compilation."
             )
 
-    # 11. Metacognitive review checkpoint
+        # 11. Metacognitive review checkpoint
         metacog_review = run_metacognitive_review(packet, cognitive_result, depth=1)
 
         # Provider truth semantics
+        s = get_settings()
         import app.cognition.intelligence_kernel as ik_mod
         active_provider = ik_mod.get_ai_provider()
         provider_available = getattr(active_provider, "name", "") != "disabled"
         provider_configured = (s.ai_provider != "disabled")
-        provider_invoked = not is_deterministic_worker
         provider_degraded = False
         provider_fallback = False
         provider_latency_ms = brain_trace.wall_time_ms if not is_deterministic_worker else 0
-        provider_model_used = s.openai_model if (not is_deterministic_worker and s.openai_model) else ("deterministic_worker" if is_deterministic_worker else "none")
+        provider_model_used = (s.openai_model or None) if not is_deterministic_worker else None
         provider_tokens_used = (brain_trace.total_input_tokens + brain_trace.total_output_tokens) if not is_deterministic_worker else 0
 
         # 12. Verify final Talk output
@@ -361,28 +377,77 @@ async def run_mind_cognitive_loop(
         await db.commit()
         raise
     except Exception as exc:
-        from app.cognition.intelligence_kernel import TalkProviderFailure
-        error = safe_error_metadata(exc)
-        model_run.provider = s.ai_provider
+        s = get_settings()
+        import app.cognition.intelligence_kernel as ik_mod
+        active_provider = ik_mod.get_ai_provider()
+        provider_available = getattr(active_provider, "name", "") != "disabled"
+        provider_configured = (s.ai_provider != "disabled")
+
+        if not provider_invoked:
+            error = {
+                "error": exc.__class__.__name__,
+                "code": "worker_error" if is_deterministic_worker else "mind_error",
+                "public_message": f"Mind capability execution failed: {type(exc).__name__}",
+                "http_status": 500,
+                "retryable": False,
+                "detail": str(exc)[:500],
+            }
+        else:
+            error = safe_error_metadata(exc)
+
         model_run.status = "ERROR"
-        model_run.response_metadata = {
-            "available": False,
-            "reason": error["public_message"],
-            "raw_response_id": None,
-        }
         model_run.error = error
-        await db.flush()
-        if event_sink is not None:
-            await event_sink(
-                "talk.failed",
-                {
-                    "request_id": str(request_id) if request_id else None,
-                    "model_run_id": str(model_run.id),
-                    "code": error["code"],
-                    "retryable": error["retryable"],
-                },
-            )
-        raise TalkProviderFailure.from_model_run(model_run) from exc
+
+        updated_run_meta = dict(model_run.run_metadata or {})
+        updated_run_meta["provider_configured"] = provider_configured
+        updated_run_meta["provider_available"] = provider_available
+        updated_run_meta["provider_invoked"] = provider_invoked
+        updated_run_meta["execution_provenance"] = "DETERMINISTIC_WORKER" if is_deterministic_worker else "MODEL_PROVIDER"
+        updated_run_meta["model_used"] = (s.openai_model or None) if not is_deterministic_worker else None
+        updated_run_meta["provider_model_used"] = (s.openai_model or None) if not is_deterministic_worker else None
+        updated_run_meta["error_category"] = error.get("code") or "mind_error"
+        model_run.run_metadata = updated_run_meta
+
+        if not provider_invoked:
+            model_run.provider = "DETERMINISTIC_WORKER" if is_deterministic_worker else (model_run.provider or "MIND_RUNTIME")
+            model_run.model = None
+            model_run.response_metadata = {
+                "available": provider_available,
+                "reason": error["public_message"],
+                "raw_response_id": None,
+            }
+            await db.flush()
+            if event_sink is not None:
+                await event_sink(
+                    "talk.failed",
+                    {
+                        "request_id": str(request_id) if request_id else None,
+                        "model_run_id": str(model_run.id),
+                        "code": error["code"],
+                        "retryable": error["retryable"],
+                    },
+                )
+            raise
+        else:
+            from app.cognition.intelligence_kernel import TalkProviderFailure
+            model_run.provider = s.ai_provider
+            model_run.response_metadata = {
+                "available": False,
+                "reason": error["public_message"],
+                "raw_response_id": None,
+            }
+            await db.flush()
+            if event_sink is not None:
+                await event_sink(
+                    "talk.failed",
+                    {
+                        "request_id": str(request_id) if request_id else None,
+                        "model_run_id": str(model_run.id),
+                        "code": error["code"],
+                        "retryable": error["retryable"],
+                    },
+                )
+            raise TalkProviderFailure.from_model_run(model_run) from exc
 
     # 13-16. Persistence & trace completion
     model_run.status = "COMPLETED"
@@ -395,6 +460,7 @@ async def run_mind_cognitive_loop(
     updated_run_meta["provider_fallback"] = provider_fallback
     updated_run_meta["provider_latency_ms"] = provider_latency_ms
     updated_run_meta["provider_model_used"] = provider_model_used
+    updated_run_meta["model_used"] = provider_model_used
     updated_run_meta["provider_tokens_used"] = provider_tokens_used
     updated_run_meta["execution_provenance"] = "DETERMINISTIC_WORKER" if is_deterministic_worker else "MODEL_PROVIDER"
     updated_run_meta["metacognitive_review"] = {
@@ -424,6 +490,8 @@ async def run_mind_cognitive_loop(
             "provider_fallback": provider_fallback,
             "provider_latency_ms": provider_latency_ms,
             "provider_model_used": provider_model_used,
+            "model_used": provider_model_used,
+            "execution_provenance": "DETERMINISTIC_WORKER" if is_deterministic_worker else "MODEL_PROVIDER",
             "provider_tokens_used": provider_tokens_used,
             "model_run_id": str(model_run.id),
             "memory_mode": memory_mode,

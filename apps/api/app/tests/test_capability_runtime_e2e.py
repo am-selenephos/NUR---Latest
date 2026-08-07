@@ -10,13 +10,17 @@ Validates complete flow:
   7. Preview vs Persist semantics
   8. Policy compile refusal handling & truthfulness
 """
+from unittest.mock import patch
 import uuid
 import pytest
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agentic.orchestrator import argument_digest
+from app.cognition.intelligence_kernel import TalkProviderFailure
+from app.core.config import get_settings
 from app.db.rls import set_user_context
+from app.mind.capabilities.dispatcher import WorkerDispatcher
 from app.mind.cognitive_loop import run_mind_cognitive_loop
 from app.models import ModelRun
 from app.models.agentic import AgentApproval, AgentPolicy, AgentStep, AgentWorkflow
@@ -190,7 +194,14 @@ async def test_capability_runtime_e2e_policy_compile_refusal(client, super_engin
         # 2. Check refusal event and truthful message
         event_types = [e[0] for e in events]
         assert "workflow.refused" in event_types
+        refusal_event = next(e for e in events if e[0] == "workflow.refused")
+        assert refusal_event[1]["reason_codes"] == ["POLICY_DENIED"]
+        assert refusal_event[1]["retryable"] is False
+        assert "task_id" in refusal_event[1]
+        assert "errors" not in refusal_event[1]
+        assert "exception" not in refusal_event[1]
         assert "Agency policy refused compilation" in result.output.direct_response
+        assert "create_draft_plan" not in result.output.direct_response  # Internal tool name not leaked in refusal
 
         # 3. Verify NO workflow created in DB
         workflows = (
@@ -402,4 +413,95 @@ async def test_capability_runtime_e2e_full_approval_and_handler_execution(client
         assert len(plans_after_retry) == 1
 
 
+@pytest.mark.asyncio
+async def test_capability_runtime_deterministic_provenance_and_configured_unused_provider(client, super_engine, monkeypatch):
+    """Verify provider truth: when provider is configured, provider_available is True, but provider_invoked is False and model_used is None."""
+    res, _, _ = await register_user(client)
+    owner_user_id = uuid.UUID(res.json()["id"])
 
+    # Simulate provider being configured
+    s = get_settings()
+    monkeypatch.setattr(s, "ai_provider", "mock")
+    monkeypatch.setattr(s, "openai_model", "gpt-4o")
+
+    class MockProvider:
+        name = "mock"
+
+    monkeypatch.setattr("app.cognition.intelligence_kernel.get_ai_provider", lambda: MockProvider())
+
+    async with AsyncSession(super_engine) as db:
+        await set_user_context(db, owner_user_id)
+        db.add(AgentPolicy(
+            owner_user_id=owner_user_id,
+            initiative_level="SUGGEST",
+            max_risk_class="R1_PRIVATE_DRAFT",
+            permitted_tools=["create_draft_plan"],
+            auto_run_tools=[],
+        ))
+        await db.commit()
+
+    async with AsyncSession(super_engine) as db:
+        await set_user_context(db, owner_user_id)
+        result = await run_mind_cognitive_loop(
+            db,
+            owner_user_id=owner_user_id,
+            user_line="Let's draft a plan to deploy the kernel\n- Step 1\n- Step 2",
+        )
+        assert "drafted a plan proposal" in result.output.direct_response
+
+        model_run = (
+            await db.execute(select(ModelRun).where(ModelRun.owner_user_id == owner_user_id))
+        ).scalars().first()
+        assert model_run is not None
+        assert model_run.status == "COMPLETED"
+        assert model_run.provider == "DETERMINISTIC_WORKER"
+        assert model_run.model is None
+        assert model_run.run_metadata["provider_configured"] is True
+        assert model_run.run_metadata["provider_available"] is True
+        assert model_run.run_metadata["provider_invoked"] is False
+        assert model_run.run_metadata["model_used"] is None
+        assert model_run.run_metadata["provider_model_used"] is None
+        assert model_run.run_metadata["execution_provenance"] == "DETERMINISTIC_WORKER"
+        assert model_run.response_metadata["available"] is True
+
+
+@pytest.mark.asyncio
+async def test_capability_runtime_deterministic_worker_failure_is_not_talk_provider_failure(client, super_engine):
+    """Verify deterministic worker exception does not overwrite provider to ai_provider and does not raise TalkProviderFailure."""
+    res, _, _ = await register_user(client)
+    owner_user_id = uuid.UUID(res.json()["id"])
+
+    events = []
+    async def event_sink(event_type, payload):
+        events.append((event_type, payload))
+
+    async def faulty_dispatch(*args, **kwargs):
+        raise ValueError("Deterministic worker internal validation crash")
+
+    with patch.object(WorkerDispatcher, "dispatch", side_effect=faulty_dispatch):
+        async with AsyncSession(super_engine) as db:
+            await set_user_context(db, owner_user_id)
+            with pytest.raises(ValueError) as exc_info:
+                await run_mind_cognitive_loop(
+                    db,
+                    owner_user_id=owner_user_id,
+                    user_line="Let's draft a plan to deploy the kernel\n- Step 1",
+                    event_sink=event_sink,
+                )
+            assert not isinstance(exc_info.value, TalkProviderFailure)
+            assert "Deterministic worker internal validation crash" in str(exc_info.value)
+
+            model_run = (
+                await db.execute(select(ModelRun).where(ModelRun.owner_user_id == owner_user_id))
+            ).scalars().first()
+            assert model_run is not None
+            assert model_run.status == "ERROR"
+            assert model_run.provider == "DETERMINISTIC_WORKER"
+            assert model_run.model is None
+            assert model_run.run_metadata["provider_invoked"] is False
+            assert model_run.run_metadata["execution_provenance"] == "DETERMINISTIC_WORKER"
+            assert model_run.run_metadata["model_used"] is None
+            assert model_run.run_metadata["error_category"] == "worker_error"
+
+            event_types = [e[0] for e in events]
+            assert "talk.failed" in event_types

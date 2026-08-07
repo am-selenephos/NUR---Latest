@@ -300,3 +300,64 @@ async def test_agency_step_dependency_state_persists_blocked(client: AsyncClient
         assert db_steps["step_b"].state == "BLOCKED"
 
 
+def test_safe_refusal_code_mapping():
+    """Prove that internal compiler errors are mapped to bounded safe codes without leakage."""
+    from app.mind.agency_bridge import SAFE_REFUSAL_CODES, map_compile_error_to_safe_code
+
+    # Direct mappings
+    assert map_compile_error_to_safe_code("POLICY_DENIED") == "POLICY_DENIED"
+    assert map_compile_error_to_safe_code("UNKNOWN_TOOL") == "UNKNOWN_TOOL"
+    assert map_compile_error_to_safe_code("RISK_EXCEEDS_POLICY") == "RISK_EXCEEDS_POLICY"
+    assert map_compile_error_to_safe_code("DANGLING_DEPENDENCY") == "INVALID_DEPENDENCY"
+    assert map_compile_error_to_safe_code("SELF_DEPENDENCY") == "INVALID_DEPENDENCY"
+    assert map_compile_error_to_safe_code("CYCLIC_PLAN") == "INVALID_DEPENDENCY"
+    assert map_compile_error_to_safe_code("VERIFIER_WITHOUT_SUBJECT") == "INVALID_DEPENDENCY"
+    assert map_compile_error_to_safe_code("EMPTY_PLAN") == "INVALID_ARGUMENTS"
+    assert map_compile_error_to_safe_code("DUPLICATE_STEP_KEY") == "INVALID_ARGUMENTS"
+    assert map_compile_error_to_safe_code("VERIFIER_MUTATES") == "POLICY_DENIED"
+    assert map_compile_error_to_safe_code("SELF_VERIFICATION") == "POLICY_DENIED"
+
+    # Any unknown/arbitrary error falls back to safe COMPILATION_REFUSED
+    assert map_compile_error_to_safe_code("INTERNAL_DB_CRASH") == "COMPILATION_REFUSED"
+    assert map_compile_error_to_safe_code("UNEXPECTED_EXCEPTION") == "COMPILATION_REFUSED"
+
+    # All outputs must belong to the closed SAFE_REFUSAL_CODES set
+    for code in [
+        "POLICY_DENIED", "UNKNOWN_TOOL", "RISK_EXCEEDS_POLICY", "DANGLING_DEPENDENCY",
+        "SELF_DEPENDENCY", "CYCLIC_PLAN", "VERIFIER_WITHOUT_SUBJECT", "EMPTY_PLAN",
+        "DUPLICATE_STEP_KEY", "VERIFIER_MUTATES", "SELF_VERIFICATION", "FOO_BAR",
+    ]:
+        res = map_compile_error_to_safe_code(code)
+        assert res in SAFE_REFUSAL_CODES
+
+
+def test_workflow_refused_serialization_privacy():
+    """Prove that workflow.refused payload does not expose stack traces, SQL, or raw exception strings."""
+    import json
+    from app.mind.agency_bridge import map_compile_error_to_safe_code
+
+    raw_errors = [
+        {"code": "POLICY_DENIED", "message": "SELECT * FROM agent_policy WHERE id=1 -- secret leak", "step_key": "step_1"},
+        {"code": "CYCLIC_PLAN", "message": "Traceback (most recent call last):\nFile 'foo.py' line 12", "step_key": "step_2"},
+    ]
+
+    safe_codes = [map_compile_error_to_safe_code(e["code"]) for e in raw_errors]
+
+    event_payload = {
+        "task_id": str(uuid.uuid4()),
+        "reason_codes": safe_codes,
+        "retryable": False,
+    }
+
+    serialized = json.dumps(event_payload)
+    deserialized = json.loads(serialized)
+
+    assert deserialized["reason_codes"] == ["POLICY_DENIED", "INVALID_DEPENDENCY"]
+    assert deserialized["retryable"] is False
+    assert "SELECT" not in serialized
+    assert "Traceback" not in serialized
+    assert "secret" not in serialized
+    assert "message" not in serialized
+    assert "errors" not in deserialized
+
+
