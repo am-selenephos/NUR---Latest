@@ -51,8 +51,6 @@ class EntityType(StrEnum):
     ATTENTION_ITEM = "attention_item"
     MODEL_CHECKPOINT = "model_checkpoint"
     CURRICULUM = "curriculum"
-    LEARNING_EXPERIMENT = "learning_experiment"
-    MODEL_CANDIDATE = "model_candidate"
 
 
 # ── WhyChangedRecord Pydantic model ───────────────────────────────────────
