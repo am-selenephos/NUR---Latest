@@ -505,11 +505,15 @@ async def test_persist_user_correction_atomic_signal_linkage(client, app_engine)
 
 
 async def test_user_correction_cascade_deletes_learning_signal(client, app_engine):
-    """Verify that deleting a UserCorrection cascades and removes its LearningSignalRecord."""
+    """Verify that deleting a UserCorrection cascades cleanly and removes its LearningSignalRecord without errors or orphaned rows."""
+    from app.models import UserCorrection
+
     ra, _, _ = await register_user(client)
     uid_a = uuid.UUID(ra.json()["id"])
 
     session_maker = async_sessionmaker(app_engine, expire_on_commit=False, class_=AsyncSession)
+
+    # 1. Create correction and corresponding learning signal, commit to DB
     async with session_maker() as db_session:
         await db_session.execute(text(SET_USER), {"uid": str(uid_a)})
 
@@ -521,25 +525,131 @@ async def test_user_correction_cascade_deletes_learning_signal(client, app_engin
             correction_text="Test cascade delete behavior",
             reason="cascade verification",
         )
-        await db_session.flush()
+        await db_session.commit()
+        corr_id = corr.id
 
-        # Confirm signal exists
+    # 2. Confirm signal exists in independent session
+    async with session_maker() as db_session:
+        await db_session.execute(text(SET_USER), {"uid": str(uid_a)})
         stmt = select(LearningSignalRecord).where(
             LearningSignalRecord.owner_user_id == uid_a,
-            LearningSignalRecord.source_correction_id == corr.id,
+            LearningSignalRecord.source_correction_id == corr_id,
         )
         sig = (await db_session.execute(stmt)).scalar_one_or_none()
         assert sig is not None
 
         # Delete the UserCorrection directly
-        from app.models import UserCorrection
-        corr_to_del = await db_session.get(UserCorrection, corr.id)
+        corr_to_del = await db_session.get(UserCorrection, corr_id)
         assert corr_to_del is not None
         await db_session.delete(corr_to_del)
-        await db_session.flush()
+        await db_session.commit()
 
-        # Confirm signal was deleted via ON DELETE CASCADE
+    # 3. Confirm in fresh session that signal was deleted via ON DELETE CASCADE without NOT NULL violations
+    async with session_maker() as db_session:
+        await db_session.execute(text(SET_USER), {"uid": str(uid_a)})
         sig_after = (await db_session.execute(stmt)).scalar_one_or_none()
         assert sig_after is None
+
+        # Verify no orphaned learning_signals rows remain for this user
+        all_sigs = (await db_session.execute(select(LearningSignalRecord).where(LearningSignalRecord.owner_user_id == uid_a))).scalars().all()
+        assert len(all_sigs) == 0
+
+
+async def test_concurrent_learning_signal_idempotency_race(client, app_engine):
+    """Prove concurrent idempotency across two independent DB sessions racing on source_correction_id and idempotency_key."""
+    import asyncio
+    from app.models import UserCorrection
+    from app.learning.hardness.signals import persist_learning_signal
+
+    ra, _, _ = await register_user(client)
+    uid_a = uuid.UUID(ra.json()["id"])
+    session_maker = async_sessionmaker(app_engine, expire_on_commit=False, class_=AsyncSession)
+
+    # 1. Race on (owner_user_id, source_correction_id)
+    # First create a UserCorrection
+    async with session_maker() as s_setup:
+        await s_setup.execute(text(SET_USER), {"uid": str(uid_a)})
+        corr = UserCorrection(
+            owner_user_id=uid_a,
+            correction_text="Race test correction",
+            reason="concurrency",
+        )
+        s_setup.add(corr)
+        await s_setup.commit()
+        corr_id = corr.id
+
+    # Open two independent DB sessions and race persist_learning_signal simultaneously
+    async def worker_corr(sess_id: int):
+        async with session_maker() as session:
+            await session.execute(text(SET_USER), {"uid": str(uid_a)})
+            sig = await persist_learning_signal(
+                session,
+                owner_user_id=uid_a,
+                signal_kind=LearningSignalKind.OWNER_CORRECTION,
+                task_class="concurrency_race",
+                summary="Concurrent correction race",
+                source_correction_id=corr_id,
+                structured_payload={"worker": sess_id},
+            )
+            await session.commit()
+            # Verify session is clean and still usable
+            alive = (await session.execute(text("SELECT 1"))).scalar()
+            assert alive == 1
+            return sig
+
+    sig1, sig2 = await asyncio.gather(worker_corr(1), worker_corr(2))
+
+    # Verify both returned the exact same canonical record ID
+    assert sig1.id == sig2.id
+    assert sig1.source_correction_id == corr_id
+    assert sig2.source_correction_id == corr_id
+
+    # Verify in DB there is exactly 1 row
+    async with session_maker() as s_verify:
+        await s_verify.execute(text(SET_USER), {"uid": str(uid_a)})
+        stmt = select(LearningSignalRecord).where(
+            LearningSignalRecord.owner_user_id == uid_a,
+            LearningSignalRecord.source_correction_id == corr_id,
+        )
+        rows = (await s_verify.execute(stmt)).scalars().all()
+        assert len(rows) == 1
+        assert rows[0].id == sig1.id
+
+    # 2. Race on (owner_user_id, idempotency_key)
+    idem_key = f"race_key_{uuid.uuid4()}"
+
+    async def worker_idem(sess_id: int):
+        async with session_maker() as session:
+            await session.execute(text(SET_USER), {"uid": str(uid_a)})
+            sig = await persist_learning_signal(
+                session,
+                owner_user_id=uid_a,
+                signal_kind=LearningSignalKind.OWNER_CORRECTION,
+                task_class="concurrency_race_idem",
+                summary="Concurrent idempotency key race",
+                idempotency_key=idem_key,
+                structured_payload={"worker": sess_id},
+            )
+            await session.commit()
+            # Verify session is clean and still usable
+            alive = (await session.execute(text("SELECT 1"))).scalar()
+            assert alive == 1
+            return sig
+
+    sig_idem1, sig_idem2 = await asyncio.gather(worker_idem(1), worker_idem(2))
+
+    assert sig_idem1.id == sig_idem2.id
+    assert sig_idem1.idempotency_key == idem_key
+
+    # Verify in DB there is exactly 1 row
+    async with session_maker() as s_verify2:
+        await s_verify2.execute(text(SET_USER), {"uid": str(uid_a)})
+        stmt = select(LearningSignalRecord).where(
+            LearningSignalRecord.owner_user_id == uid_a,
+            LearningSignalRecord.idempotency_key == idem_key,
+        )
+        rows = (await s_verify2.execute(stmt)).scalars().all()
+        assert len(rows) == 1
+        assert rows[0].id == sig_idem1.id
 
 

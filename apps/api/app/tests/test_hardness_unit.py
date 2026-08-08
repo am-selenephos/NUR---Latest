@@ -498,3 +498,209 @@ def test_dry_run_artifacts_contain_honest_non_training_truth():
     assert artifact.spend_cents == 0
     assert artifact.trainer_type == TrainerType.DRY_RUN
 
+
+def test_structural_only_evaluation_gates_and_critical_false():
+    """Verify that in STRUCTURAL_ONLY evaluation mode, all_structural_gates_passed may be True, but all_critical_gates_passed is False."""
+    from app.learning.hardness.evaluation import TournamentEvaluator
+    from app.learning.hardness.schemas import GateStatus
+    from app.models.hardness import TrainingExperimentRecord, CurriculumSnapshotRecord
+
+    u = uuid.uuid4()
+    exp = TrainingExperimentRecord(
+        id=uuid.uuid4(),
+        owner_user_id=u,
+        base_checkpoint_id="base_v1",
+        curriculum_id=uuid.uuid4(),
+        curriculum_hash="chash",
+        intervention="SFT",
+        hypothesis="test",
+        trainer_type="DRY_RUN",
+    )
+    curr = CurriculumSnapshotRecord(
+        id=exp.curriculum_id,
+        owner_user_id=u,
+        selector_policy_version="hardness-selector-v1",
+        target_capabilities=["cognition"],
+        intervention="SFT",
+        dataset_hash="dhash",
+        dataset_manifest={"items": [{"id": str(uuid.uuid4()), "learning_scope": "OWNER_LOCAL"}]},
+        privacy_manifest_hash="privhash",
+        provenance_manifest_hash="provhash",
+        ordered_candidate_ids=["c1"],
+        train_ids=["c1"],
+        validation_ids=[],
+        heldout_ids=["c1"],
+    )
+    art = CandidateArtifact(
+        candidate_checkpoint_id="cand_v1",
+        base_checkpoint_id="base_v1",
+        experiment_id=exp.id,
+        curriculum_hash="chash",
+        trainer_type=TrainerType.DRY_RUN,
+        artifact_hash="ahash",
+    )
+
+    evaluator = TournamentEvaluator()
+    eval_result = evaluator.evaluate(experiment=exp, curriculum=curr, artifact=art)
+
+    assert eval_result.verdict == "STRUCTURAL_ONLY"
+    assert eval_result.real_model_evaluated is False
+    assert eval_result.all_structural_gates_passed is True
+    assert eval_result.all_critical_gates_passed is False, "Empirical critical gates did not run, so all_critical_gates_passed must be False"
+
+    # Verify structural gates are PASS and empirical benchmark gates are NOT_RUN
+    gate_dict = {g.gate_name: g for g in eval_result.critical_gates}
+    assert gate_dict["gate_owner_binding"].status == GateStatus.PASS
+    assert gate_dict["gate_no_external_provider_invocation"].status == GateStatus.PASS
+    assert gate_dict["gate_manifest_present"].status == GateStatus.PASS
+    assert gate_dict["gate_scope_isolation"].status == GateStatus.PASS
+
+    assert gate_dict["gate_privacy_benchmark"].status == GateStatus.NOT_RUN
+    assert gate_dict["gate_scope_behavioral_benchmark"].status == GateStatus.NOT_RUN
+    assert gate_dict["gate_agency_approval_boundary"].status == GateStatus.NOT_RUN
+    assert gate_dict["gate_confidence_calibration"].status == GateStatus.NOT_RUN
+
+
+def test_structural_scope_gate_fails_when_scope_missing_or_invalid():
+    """Verify that absent or non-OWNER_LOCAL scope fails the structural scope isolation gate."""
+    from app.learning.hardness.evaluation import TournamentEvaluator
+    from app.learning.hardness.schemas import GateStatus
+    from app.models.hardness import TrainingExperimentRecord, CurriculumSnapshotRecord
+
+    u = uuid.uuid4()
+    exp = TrainingExperimentRecord(
+        id=uuid.uuid4(),
+        owner_user_id=u,
+        base_checkpoint_id="base_v1",
+        curriculum_id=uuid.uuid4(),
+        curriculum_hash="chash",
+        intervention="SFT",
+        hypothesis="test",
+        trainer_type="DRY_RUN",
+    )
+    # Manifest missing learning_scope entirely
+    curr_missing_scope = CurriculumSnapshotRecord(
+        id=exp.curriculum_id,
+        owner_user_id=u,
+        selector_policy_version="hardness-selector-v1",
+        target_capabilities=["cognition"],
+        intervention="SFT",
+        dataset_hash="dhash",
+        dataset_manifest={"items": [{"id": str(uuid.uuid4())}]},  # missing learning_scope
+        privacy_manifest_hash="privhash",
+        provenance_manifest_hash="provhash",
+        ordered_candidate_ids=["c1"],
+        train_ids=["c1"],
+        validation_ids=[],
+        heldout_ids=["c1"],
+    )
+    art = CandidateArtifact(
+        candidate_checkpoint_id="cand_v1",
+        base_checkpoint_id="base_v1",
+        experiment_id=exp.id,
+        curriculum_hash="chash",
+        trainer_type=TrainerType.DRY_RUN,
+        artifact_hash="ahash",
+    )
+
+    evaluator = TournamentEvaluator()
+    eval_result = evaluator.evaluate(experiment=exp, curriculum=curr_missing_scope, artifact=art)
+    assert eval_result.all_structural_gates_passed is False
+    assert eval_result.verdict == "FAIL"
+    scope_gate = next(g for g in eval_result.critical_gates if g.gate_name == "gate_scope_isolation")
+    assert scope_gate.status == GateStatus.FAIL
+    assert scope_gate.passed is False
+
+
+def test_uncalibrated_uncertainty_constant_value_and_presence():
+    """Verify that UNCALIBRATED_UNCERTAINTY_BP equals 10000 (100% uncertainty)."""
+    from app.learning.hardness.promotion import UNCALIBRATED_UNCERTAINTY_BP
+    assert UNCALIBRATED_UNCERTAINTY_BP == 10000
+
+
+async def test_mock_trainer_call_count_zero_on_default_no_change(client, app_engine):
+    """Verify that default NO_CHANGE intervention invokes trainer zero times and produces zero experiments."""
+    from unittest.mock import AsyncMock
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+    from app.learning.hardness.pipeline import process_learning_signal
+    from app.learning.hardness.schemas import LearningSignalKind
+    from app.learning.hardness.signals import persist_learning_signal
+    from app.learning.hardness.trainers.base import BaseTrainer
+    from app.tests.conftest import register_user
+
+    res, _, _ = await register_user(client)
+    u = uuid.UUID(res.json()["id"])
+
+    session_maker = async_sessionmaker(app_engine, expire_on_commit=False, class_=AsyncSession)
+    set_user_sql = "SELECT set_config('app.current_user_id', :uid, true)"
+
+    mock_trainer = AsyncMock(spec=BaseTrainer)
+
+    async with session_maker() as db:
+        await db.execute(text(set_user_sql), {"uid": str(u)})
+        sig = await persist_learning_signal(
+            db,
+            owner_user_id=u,
+            signal_kind=LearningSignalKind.OWNER_CORRECTION,
+            task_class="trainer_call_check",
+            summary="Testing zero trainer invocations",
+            structured_payload={"failure_signature": "sig1", "desired_behavior": "des1"},
+        )
+
+        result = await process_learning_signal(
+            db,
+            signal=sig,
+            trainer=mock_trainer,
+            # default intervention is NO_CHANGE
+        )
+
+        assert result.curriculum_id is not None
+        assert result.experiment_id is None
+        assert result.proposal_id is None
+        assert result.recommendation is None
+        assert mock_trainer.execute_training.call_count == 0
+
+
+async def test_explicit_sft_invokes_trainer_and_reports_honest_dry_run(client, app_engine):
+    """Verify explicit SFT intervention creates DryRun experiment with zero spend and no external calls."""
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+    from app.learning.hardness.pipeline import process_learning_signal
+    from app.learning.hardness.schemas import LearningSignalKind, LearningIntervention, PromotionRecommendation
+    from app.learning.hardness.signals import persist_learning_signal
+    from app.tests.conftest import register_user
+
+    res, _, _ = await register_user(client)
+    u = uuid.UUID(res.json()["id"])
+
+    session_maker = async_sessionmaker(app_engine, expire_on_commit=False, class_=AsyncSession)
+    set_user_sql = "SELECT set_config('app.current_user_id', :uid, true)"
+
+    async with session_maker() as db:
+        await db.execute(text(set_user_sql), {"uid": str(u)})
+        sig = await persist_learning_signal(
+            db,
+            owner_user_id=u,
+            signal_kind=LearningSignalKind.OWNER_CORRECTION,
+            task_class="sft_check",
+            summary="Testing SFT DryRun",
+            structured_payload={"failure_signature": "sig_sft", "desired_behavior": "des_sft"},
+        )
+
+        result = await process_learning_signal(
+            db,
+            signal=sig,
+            intervention=LearningIntervention.SFT,
+        )
+
+        assert result.experiment_id is not None
+        assert result.artifact is not None
+        assert result.artifact.real_training_performed is False
+        assert result.artifact.external_provider_invoked is False
+        assert result.artifact.spend_cents == 0
+        assert result.recommendation == PromotionRecommendation.DRY_RUN_VALIDATED
+        assert result.eval_result.verdict == "STRUCTURAL_ONLY"
+        assert result.eval_result.all_structural_gates_passed is True
+        assert result.eval_result.all_critical_gates_passed is False
+

@@ -126,11 +126,13 @@ class TournamentEvaluator:
 
             items = curriculum.dataset_manifest.get("items") if isinstance(curriculum.dataset_manifest, dict) else []
             if items:
-                scopes = [it.get("learning_scope") for it in items if isinstance(it, dict)]
-                scope_structural_passed = len(scopes) > 0 and all(s == "OWNER_LOCAL" for s in scopes)
-            else:
-                top_scope = curriculum.dataset_manifest.get("learning_scope") if isinstance(curriculum.dataset_manifest, dict) else None
+                scopes = [it.get("learning_scope") for it in items if isinstance(it, dict) and it.get("learning_scope") is not None]
+                scope_structural_passed = (len(scopes) == len(items)) and len(scopes) > 0 and all(s == "OWNER_LOCAL" for s in scopes)
+            elif isinstance(curriculum.dataset_manifest, dict) and "learning_scope" in curriculum.dataset_manifest and curriculum.dataset_manifest["learning_scope"] is not None:
+                top_scope = curriculum.dataset_manifest.get("learning_scope")
                 scope_structural_passed = (top_scope == "OWNER_LOCAL")
+            else:
+                scope_structural_passed = False
 
             # 1. Runnable Structural Gates
             gates.append(
