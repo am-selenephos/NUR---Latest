@@ -53,6 +53,19 @@ class RiskAssessmentStatus(str, Enum):
     ASSESSED = "ASSESSED"
 
 
+class GateStatus(str, Enum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+    NOT_RUN = "NOT_RUN"
+
+
+class TournamentVerdict(str, Enum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+    STRUCTURAL_ONLY = "STRUCTURAL_ONLY"
+
+
 class HardnessSliceStatus(str, Enum):
     REJECTED = "REJECTED"
     DEFERRED = "DEFERRED"
@@ -94,6 +107,8 @@ class LearningSignalCreate(BaseModel):
     owner_user_id: uuid.UUID
     orbit_id: uuid.UUID | None = None
     source_event_id: uuid.UUID | None = None
+    source_correction_id: uuid.UUID | None = None
+    idempotency_key: str | None = None
     signal_kind: LearningSignalKind
     capability_id: str | None = None
     task_class: str
@@ -108,6 +123,8 @@ class LearningSignalOut(BaseModel):
     owner_user_id: uuid.UUID
     orbit_id: uuid.UUID | None = None
     source_event_id: uuid.UUID | None = None
+    source_correction_id: uuid.UUID | None = None
+    idempotency_key: str | None = None
     signal_kind: LearningSignalKind
     capability_id: str | None = None
     task_class: str
@@ -297,7 +314,8 @@ class CandidateArtifact(BaseModel):
 
 class CriticalGateResult(BaseModel):
     gate_name: str
-    passed: bool
+    status: GateStatus = GateStatus.PASS
+    passed: bool = True
     details: str
 
 

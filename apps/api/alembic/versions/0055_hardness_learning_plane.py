@@ -33,6 +33,8 @@ CREATE TABLE learning_signals (
     owner_user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     orbit_id uuid REFERENCES orbits(id) ON DELETE SET NULL,
     source_event_id uuid REFERENCES cognitive_events(id) ON DELETE SET NULL,
+    source_correction_id uuid REFERENCES user_corrections(id) ON DELETE SET NULL,
+    idempotency_key varchar(128),
     signal_kind varchar(48) NOT NULL,
     capability_id varchar(64),
     task_class varchar(64) NOT NULL,
@@ -49,6 +51,8 @@ CREATE TABLE learning_signals (
 );
 CREATE INDEX ix_learning_signals_owner_kind ON learning_signals (owner_user_id, signal_kind);
 CREATE INDEX ix_learning_signals_owner_created ON learning_signals (owner_user_id, created_at DESC);
+CREATE UNIQUE INDEX uq_learning_signals_owner_correction ON learning_signals (owner_user_id, source_correction_id) WHERE source_correction_id IS NOT NULL;
+CREATE UNIQUE INDEX uq_learning_signals_owner_idempotency ON learning_signals (owner_user_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
 
 CREATE TABLE learning_candidates (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

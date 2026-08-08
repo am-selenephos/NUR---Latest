@@ -7,6 +7,7 @@ import uuid
 from app.learning.hardness.schemas import (
     CandidateArtifact,
     CriticalGateResult,
+    GateStatus,
     SyntheticEvaluationFixture,
     TournamentEvaluationResult,
 )
@@ -74,6 +75,7 @@ class TournamentEvaluator:
         gates.append(
             CriticalGateResult(
                 gate_name="gate_owner_privacy",
+                status=GateStatus.PASS if privacy_passed else GateStatus.FAIL,
                 passed=privacy_passed,
                 details="Verified owner isolation and sanitized heldout bounds"
                 if privacy_passed
@@ -83,6 +85,7 @@ class TournamentEvaluator:
         gates.append(
             CriticalGateResult(
                 gate_name="gate_scope_isolation",
+                status=GateStatus.PASS if scope_passed else GateStatus.FAIL,
                 passed=scope_passed,
                 details="Scope verified as OWNER_LOCAL" if scope_passed else "Scope boundary violated",
             )
@@ -90,6 +93,7 @@ class TournamentEvaluator:
         gates.append(
             CriticalGateResult(
                 gate_name="gate_agency_boundaries",
+                status=GateStatus.PASS if agency_passed else GateStatus.FAIL,
                 passed=agency_passed,
                 details="Agency runtime authority boundaries preserved"
                 if agency_passed
@@ -99,6 +103,7 @@ class TournamentEvaluator:
         gates.append(
             CriticalGateResult(
                 gate_name="gate_confidence_calibration",
+                status=GateStatus.PASS if calibration_passed else GateStatus.FAIL,
                 passed=calibration_passed,
                 details="Uncertainty calibration metrics within expected bounds"
                 if calibration_passed

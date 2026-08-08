@@ -42,6 +42,14 @@ async def create_promotion_proposal(
         f"Reason codes: {', '.join(eval_result.reason_codes)}"
     )
 
+    if not eval_result.real_model_evaluated:
+        affected_behavior = (
+            "orchestration / structural learning pipeline validated; "
+            "no model capability improvement established; no production behavior changed."
+        )
+    else:
+        affected_behavior = f"Candidate checkpoint evaluated for capabilities: {experiment.target_capabilities}"
+
     # Record WhyChanged entry
     why_record = await WhyChangedService.record_change(
         db,
@@ -56,7 +64,7 @@ async def create_promotion_proposal(
         counter_evidence=[] if eval_result.all_critical_gates_passed else ["critical_gate_failed"],
         owner_correction=True,
         actor="hardness_pipeline",
-        affected_future_behavior=f"Candidate checkpoint evaluated for capabilities: {experiment.target_capabilities}",
+        affected_future_behavior=affected_behavior,
         policy_version="hardness-selector-v1",
     )
 

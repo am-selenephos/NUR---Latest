@@ -35,6 +35,10 @@ def _created() -> Mapped[dt.datetime]:
 
 class LearningSignalRecord(Base):
     __tablename__ = "learning_signals"
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "source_correction_id", name="uq_learning_signals_owner_correction"),
+        UniqueConstraint("owner_user_id", "idempotency_key", name="uq_learning_signals_owner_idempotency"),
+    )
 
     id = uuid_pk()
     owner_user_id = _owner()
@@ -46,6 +50,11 @@ class LearningSignalRecord(Base):
         UUID(as_uuid=True),
         ForeignKey("cognitive_events.id", ondelete="SET NULL"),
     )
+    source_correction_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("user_corrections.id", ondelete="SET NULL"),
+    )
+    idempotency_key: Mapped[str | None] = mapped_column(String(128))
     signal_kind: Mapped[str] = mapped_column(String(48), nullable=False)
     capability_id: Mapped[str | None] = mapped_column(String(64))
     task_class: Mapped[str] = mapped_column(String(64), nullable=False)
