@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.learning.hardness.candidates import (
     apply_selector_judgment,
+    assess_candidate_risks,
     ingest_candidate_from_signal,
 )
 from app.learning.hardness.curriculum import CurriculumBuilder
@@ -21,6 +22,7 @@ from app.learning.hardness.schemas import (
     CandidateArtifact,
     LearningIntervention,
     PromotionRecommendation,
+    SelectionStatus,
     SelectorJudgment,
     TournamentEvaluationResult,
     TrainerType,
@@ -36,14 +38,14 @@ class SliceExecutionResult(BaseModel):
     candidate_id: uuid.UUID
     candidate_fingerprint: str
     judgment: SelectorJudgment
-    curriculum_id: uuid.UUID
-    dataset_hash: str
-    experiment_id: uuid.UUID
-    artifact: CandidateArtifact
-    eval_result: TournamentEvaluationResult
-    proposal_id: uuid.UUID
-    recommendation: PromotionRecommendation
-    why_changed_ref: str | None
+    curriculum_id: uuid.UUID | None = None
+    dataset_hash: str | None = None
+    experiment_id: uuid.UUID | None = None
+    artifact: CandidateArtifact | None = None
+    eval_result: TournamentEvaluationResult | None = None
+    proposal_id: uuid.UUID | None = None
+    recommendation: PromotionRecommendation | None = None
+    why_changed_ref: str | None = None
 
 
 async def run_owner_correction_hardness_slice(
@@ -79,18 +81,35 @@ async def run_owner_correction_hardness_slice(
         task_class=task_class,
     )
 
-    # Step 2: Ingest and deduplicate candidate
+    # Step 2: Ingest and deduplicate candidate, then perform deterministic risk screening
     candidate = await ingest_candidate_from_signal(
         db,
         signal=signal,
         failure_signature=reason or "Owner corrected response",
         desired_behavior=correction_text,
     )
+    assess_candidate_risks(candidate)
 
     # Step 3: Curriculum judgment
     selector = CurriculumSelector()
     judgment = selector.evaluate_candidate(candidate)
     await apply_selector_judgment(db, candidate_id=candidate.id, judgment=judgment)
+
+    if judgment.status != SelectionStatus.SELECTED:
+        return SliceExecutionResult(
+            signal_id=signal.id,
+            candidate_id=candidate.id,
+            candidate_fingerprint=candidate.fingerprint,
+            judgment=judgment,
+            curriculum_id=None,
+            dataset_hash=None,
+            experiment_id=None,
+            artifact=None,
+            eval_result=None,
+            proposal_id=None,
+            recommendation=PromotionRecommendation.REJECTED if judgment.status == SelectionStatus.REJECTED else None,
+            why_changed_ref=None,
+        )
 
     # Step 4: Curriculum Snapshot creation with disjoint partitions
     curriculum = await CurriculumBuilder.create_and_persist(

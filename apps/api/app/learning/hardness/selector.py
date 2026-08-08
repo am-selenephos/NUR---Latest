@@ -4,6 +4,7 @@ from __future__ import annotations
 from app.learning.hardness.schemas import (
     LearningCandidateOut,
     LearningScope,
+    RiskAssessmentStatus,
     SelectionStatus,
     SelectorJudgment,
 )
@@ -31,6 +32,26 @@ class CurriculumSelector:
         """Run hardness-selector-v1 evaluation against a candidate."""
         reason_codes: list[str] = []
         hard_gates_passed = True
+
+        risk_status = getattr(candidate, "risk_status", RiskAssessmentStatus.UNASSESSED.value)
+        if isinstance(risk_status, RiskAssessmentStatus):
+            risk_status = risk_status.value
+
+        # Candidates with UNASSESSED risk status cannot be selected; they are deferred for deterministic screening
+        if risk_status == RiskAssessmentStatus.UNASSESSED.value:
+            return SelectorJudgment(
+                candidate_id=candidate.id,
+                fingerprint=candidate.fingerprint,
+                status=SelectionStatus.DEFERRED,
+                selection_score=0,
+                learning_value=0,
+                risk_penalty=0,
+                redundancy_penalty=0,
+                policy_version=self.policy_version,
+                rationale="Candidate deferred pending deterministic risk assessment (risk_status=UNASSESSED)",
+                reason_codes=["RISK_UNASSESSED_DEFERRED"],
+                hard_gates_passed=True,
+            )
 
         scope = getattr(candidate, "learning_scope", LearningScope.OWNER_LOCAL.value)
         p_risk = getattr(candidate, "poisoning_risk", 0) or 0

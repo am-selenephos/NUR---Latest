@@ -71,6 +71,7 @@ CREATE TABLE learning_candidates (
     contamination_risk integer NOT NULL DEFAULT 0,
     learning_scope varchar(32) NOT NULL DEFAULT 'OWNER_LOCAL',
     status varchar(24) NOT NULL DEFAULT 'CANDIDATE',
+    risk_status varchar(24) NOT NULL DEFAULT 'UNASSESSED',
     selection_score integer,
     learning_value integer,
     risk_penalty integer,
@@ -86,6 +87,9 @@ CREATE TABLE learning_candidates (
     CONSTRAINT uq_learning_candidates_owner_fingerprint UNIQUE (owner_user_id, fingerprint),
     CONSTRAINT ck_learning_candidates_status CHECK (
         status IN ('CANDIDATE', 'SELECTED', 'REJECTED', 'DEFERRED')
+    ),
+    CONSTRAINT ck_learning_candidates_risk_status CHECK (
+        risk_status IN ('UNASSESSED', 'ASSESSED')
     ),
     CONSTRAINT ck_learning_candidates_scope CHECK (
         learning_scope IN ('OWNER_LOCAL', 'PRIVATE_MODEL', 'GLOBAL_PRODUCT')
@@ -119,6 +123,7 @@ CREATE TABLE curriculum_snapshots (
     privacy_manifest_hash varchar(64) NOT NULL,
     provenance_manifest_hash varchar(64) NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT uq_curriculum_snapshots_owner_id UNIQUE (owner_user_id, id),
     CONSTRAINT ck_curriculum_intervention CHECK (
         intervention IN (
             'NO_CHANGE', 'MEMORY_UPDATE', 'RETRIEVAL_POLICY', 'ROUTER_POLICY',
@@ -134,7 +139,7 @@ CREATE TABLE training_experiments (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     base_checkpoint_id varchar(64) NOT NULL,
-    curriculum_id uuid NOT NULL REFERENCES curriculum_snapshots(id) ON DELETE CASCADE,
+    curriculum_id uuid NOT NULL,
     curriculum_hash varchar(64) NOT NULL,
     intervention varchar(32) NOT NULL,
     target_capabilities jsonb NOT NULL DEFAULT '[]'::jsonb,
@@ -147,6 +152,8 @@ CREATE TABLE training_experiments (
     candidate_artifact_hash varchar(64),
     candidate_metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
     created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT uq_training_experiments_owner_id UNIQUE (owner_user_id, id),
+    CONSTRAINT fk_training_experiments_curriculum_owner FOREIGN KEY (owner_user_id, curriculum_id) REFERENCES curriculum_snapshots(owner_user_id, id) ON DELETE CASCADE,
     CONSTRAINT ck_training_experiments_status CHECK (
         status IN ('CREATED', 'TRAINING', 'COMPLETED', 'FAILED', 'ABORTED')
     ),
@@ -159,7 +166,7 @@ CREATE INDEX ix_training_experiments_owner ON training_experiments (owner_user_i
 CREATE TABLE learning_promotion_proposals (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    experiment_id uuid NOT NULL REFERENCES training_experiments(id) ON DELETE CASCADE,
+    experiment_id uuid NOT NULL,
     candidate_checkpoint_id varchar(64) NOT NULL,
     base_checkpoint_id varchar(64) NOT NULL,
     target_metric_delta double precision NOT NULL,
@@ -171,8 +178,9 @@ CREATE TABLE learning_promotion_proposals (
     rationale text NOT NULL,
     why_changed_ref varchar(128),
     created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_promotion_proposals_experiment_owner FOREIGN KEY (owner_user_id, experiment_id) REFERENCES training_experiments(owner_user_id, id) ON DELETE CASCADE,
     CONSTRAINT ck_promotion_recommendation CHECK (
-        recommendation IN ('PROMOTION_CANDIDATE', 'REJECTED')
+        recommendation IN ('PROMOTION_CANDIDATE', 'REJECTED', 'DRY_RUN_VALIDATED', 'INSUFFICIENT_EVIDENCE')
     ),
     CONSTRAINT ck_promotion_uncertainty CHECK (uncertainty_score BETWEEN 0 AND 10000)
 );

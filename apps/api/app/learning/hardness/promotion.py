@@ -21,24 +21,28 @@ async def create_promotion_proposal(
     eval_result: TournamentEvaluationResult,
 ) -> LearningPromotionProposalRecord:
     """Create an immutable promotion proposal backed by tournament evaluation and WhyChanged audit trail."""
-    recommendation = (
-        PromotionRecommendation.PROMOTION_CANDIDATE
-        if eval_result.verdict == "PASS"
-        else PromotionRecommendation.REJECTED
-    )
+    if eval_result.verdict == "PASS":
+        if eval_result.real_model_evaluated:
+            recommendation = PromotionRecommendation.PROMOTION_CANDIDATE
+            change_class = ChangeClass.PROPOSED
+        else:
+            recommendation = PromotionRecommendation.DRY_RUN_VALIDATED
+            change_class = ChangeClass.EXPERIMENT_VALIDATED
+    else:
+        recommendation = PromotionRecommendation.REJECTED
+        change_class = ChangeClass.DEMOTED
 
+    mode_label = "Real Model" if eval_result.real_model_evaluated else f"Dry-Run ({eval_result.evaluation_mode})"
     rationale = (
-        f"Evaluation verdict: {eval_result.verdict}. "
+        f"Evaluation mode: {mode_label}. Verdict: {eval_result.verdict}. "
         f"Target delta: +{eval_result.target_metric_delta * 100:.2f}%, "
         f"General regression: {eval_result.general_regression_delta * 100:.2f}%. "
         f"Critical gates passed: {eval_result.all_critical_gates_passed}. "
+        f"Recommendation: {recommendation.value}. "
         f"Reason codes: {', '.join(eval_result.reason_codes)}"
     )
 
     # Record WhyChanged entry
-    change_class = (
-        ChangeClass.PROMOTED if recommendation == PromotionRecommendation.PROMOTION_CANDIDATE else ChangeClass.DEMOTED
-    )
     why_record = await WhyChangedService.record_change(
         db,
         owner_user_id=owner_user_id,
@@ -52,7 +56,7 @@ async def create_promotion_proposal(
         counter_evidence=[] if eval_result.all_critical_gates_passed else ["critical_gate_failed"],
         owner_correction=True,
         actor="hardness_pipeline",
-        affected_future_behavior=f"Candidate checkpoint proposed for capabilities: {experiment.target_capabilities}",
+        affected_future_behavior=f"Candidate checkpoint evaluated for capabilities: {experiment.target_capabilities}",
         policy_version="hardness-selector-v1",
     )
 

@@ -17,6 +17,10 @@ from app.learning.hardness.selector import SELECTOR_POLICY_VERSION
 from app.models.hardness import CurriculumSnapshotRecord, LearningCandidateRecord
 
 
+class NoEligibleLearningCandidates(Exception):
+    """Raised when attempting to build a curriculum snapshot without any SELECTED candidates."""
+
+
 def partition_candidate_ids(candidate_ids: Sequence[str]) -> tuple[list[str], list[str], list[str]]:
     """Partition a list of unique candidate IDs deterministically into train (70%), validation (15%), and heldout (15%).
 
@@ -65,13 +69,22 @@ class CurriculumBuilder:
         selector_policy_version: str = SELECTOR_POLICY_VERSION,
     ) -> CurriculumSnapshotCreate:
         """Construct the immutable curriculum snapshot payload with cryptographic hashes."""
-        # Filter for SELECTED candidates (or all provided if already filtered)
+        # Enforce owner isolation across all candidates
+        for c in candidates:
+            if c.owner_user_id != owner_user_id:
+                raise ValueError(
+                    f"Cross-owner candidate {c.id} (owner={c.owner_user_id}) cannot be included in curriculum for owner {owner_user_id}."
+                )
+
+        # Strictly filter for SELECTED candidates only
         valid_candidates = [
             c for c in candidates
-            if c.status == SelectionStatus.SELECTED.value or len(candidates) == 1
+            if c.status == SelectionStatus.SELECTED.value
         ]
         if not valid_candidates:
-            valid_candidates = list(candidates)
+            raise NoEligibleLearningCandidates(
+                "No candidates with status=SELECTED are available for curriculum construction."
+            )
 
         # Deterministic sorting by fingerprint
         sorted_candidates = sorted(valid_candidates, key=lambda c: c.fingerprint)

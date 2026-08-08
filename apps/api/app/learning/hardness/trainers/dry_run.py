@@ -29,12 +29,13 @@ class DryRunTrainer(BaseTrainer):
             "trainer_type": TrainerType.DRY_RUN.value,
         }
         artifact_hash = sha256_hex(artifact_payload)
-
         metrics_summary = {
-            "simulated_training_loss": 0.124,
-            "simulated_eval_loss": 0.145,
+            "mode": "DRY_RUN_STRUCTURAL",
             "candidate_checkpoint_id": candidate_checkpoint_id,
             "curriculum_item_count": len(curriculum.ordered_candidate_ids),
+            "real_training_performed": False,
+            "external_provider_invoked": False,
+            "spend_cents": 0,
         }
 
         return CandidateArtifact(

@@ -48,6 +48,19 @@ class SelectionStatus(str, Enum):
     DEFERRED = "DEFERRED"
 
 
+class RiskAssessmentStatus(str, Enum):
+    UNASSESSED = "UNASSESSED"
+    ASSESSED = "ASSESSED"
+
+
+class HardnessSliceStatus(str, Enum):
+    REJECTED = "REJECTED"
+    DEFERRED = "DEFERRED"
+    SELECTED = "SELECTED"
+    DRY_RUN_VALIDATED = "DRY_RUN_VALIDATED"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+
+
 class TrainerType(str, Enum):
     DRY_RUN = "DRY_RUN"
 
@@ -55,6 +68,8 @@ class TrainerType(str, Enum):
 class PromotionRecommendation(str, Enum):
     PROMOTION_CANDIDATE = "PROMOTION_CANDIDATE"
     REJECTED = "REJECTED"
+    DRY_RUN_VALIDATED = "DRY_RUN_VALIDATED"
+    INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
 
 
 class ExperimentStatus(str, Enum):
@@ -124,6 +139,7 @@ class LearningCandidateCreate(BaseModel):
     desired_behavior: str | None = None
     scores: LearningCandidateScores = Field(default_factory=LearningCandidateScores)
     learning_scope: LearningScope = LearningScope.OWNER_LOCAL
+    risk_status: RiskAssessmentStatus = RiskAssessmentStatus.UNASSESSED
     source_refs: list[str] = Field(default_factory=list)
 
 
@@ -152,6 +168,7 @@ class LearningCandidateOut(BaseModel):
 
     learning_scope: LearningScope
     status: SelectionStatus
+    risk_status: RiskAssessmentStatus = RiskAssessmentStatus.UNASSESSED
     selection_score: int | None = None
     learning_value: int | None = None
     risk_penalty: int | None = None
@@ -164,6 +181,15 @@ class LearningCandidateOut(BaseModel):
     last_seen_at: dt.datetime
     created_at: dt.datetime
     updated_at: dt.datetime
+
+
+class SyntheticEvaluationFixture(BaseModel):
+    target_delta: float = 0.10
+    regression_delta: float = 0.005
+    privacy_passed: bool = True
+    scope_passed: bool = True
+    agency_passed: bool = True
+    calibration_passed: bool = True
 
 
 class SelectorJudgment(BaseModel):

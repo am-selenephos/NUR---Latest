@@ -3,13 +3,18 @@ from __future__ import annotations
 
 from app.learning.hardness.candidates import (
     apply_selector_judgment,
+    assess_candidate_risks,
     ingest_candidate_from_signal,
 )
 from app.learning.hardness.curriculum import (
     CurriculumBuilder,
+    NoEligibleLearningCandidates,
     partition_candidate_ids,
 )
-from app.learning.hardness.evaluation import TournamentEvaluator
+from app.learning.hardness.evaluation import (
+    DryRunEvaluationAdapter,
+    TournamentEvaluator,
+)
 from app.learning.hardness.experiments import (
     complete_experiment_with_artifact,
     create_training_experiment,
@@ -30,6 +35,7 @@ from app.learning.hardness.schemas import (
     CurriculumSnapshotCreate,
     CurriculumSnapshotOut,
     ExperimentStatus,
+    HardnessSliceStatus,
     LearningCandidateCreate,
     LearningCandidateOut,
     LearningCandidateScores,
@@ -41,8 +47,10 @@ from app.learning.hardness.schemas import (
     PromotionProposalCreate,
     PromotionProposalOut,
     PromotionRecommendation,
+    RiskAssessmentStatus,
     SelectionStatus,
     SelectorJudgment,
+    SyntheticEvaluationFixture,
     TournamentEvaluationResult,
     TrainerType,
 )
@@ -64,28 +72,33 @@ __all__ = [
     "CurriculumSelector",
     "CurriculumSnapshotCreate",
     "CurriculumSnapshotOut",
+    "DryRunEvaluationAdapter",
     "DryRunTrainer",
     "ExperimentStatus",
+    "HardnessSliceStatus",
     "LearningCandidateCreate",
     "LearningCandidateOut",
     "LearningCandidateScores",
     "LearningIntervention",
-    "LearningPromotionProposalRecord",
     "LearningScope",
     "LearningSignalCreate",
     "LearningSignalKind",
     "LearningSignalOut",
+    "NoEligibleLearningCandidates",
     "PromotionProposalCreate",
     "PromotionProposalOut",
     "PromotionRecommendation",
+    "RiskAssessmentStatus",
     "SELECTOR_POLICY_VERSION",
     "SelectionStatus",
     "SelectorJudgment",
     "SliceExecutionResult",
+    "SyntheticEvaluationFixture",
     "TournamentEvaluationResult",
     "TournamentEvaluator",
     "TrainerType",
     "apply_selector_judgment",
+    "assess_candidate_risks",
     "canonical_json_dumps",
     "complete_experiment_with_artifact",
     "compute_candidate_fingerprint",

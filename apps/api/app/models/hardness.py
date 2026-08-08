@@ -7,7 +7,7 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, text
+from sqlalchemy import Boolean, Float, ForeignKey, ForeignKeyConstraint, Integer, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import DateTime
@@ -95,6 +95,12 @@ class LearningCandidateRecord(Base):
         server_default="CANDIDATE",
         nullable=False,
     )
+    risk_status: Mapped[str] = mapped_column(
+        String(24),
+        default="UNASSESSED",
+        server_default="UNASSESSED",
+        nullable=False,
+    )
 
     selection_score: Mapped[int | None] = mapped_column(Integer)
     learning_value: Mapped[int | None] = mapped_column(Integer)
@@ -133,6 +139,9 @@ class LearningCandidateRecord(Base):
 
 class CurriculumSnapshotRecord(Base):
     __tablename__ = "curriculum_snapshots"
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "id", name="uq_curriculum_snapshots_owner_id"),
+    )
 
     id = uuid_pk()
     owner_user_id = _owner()
@@ -182,13 +191,21 @@ class CurriculumSnapshotRecord(Base):
 
 class TrainingExperimentRecord(Base):
     __tablename__ = "training_experiments"
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "id", name="uq_training_experiments_owner_id"),
+        ForeignKeyConstraint(
+            ["owner_user_id", "curriculum_id"],
+            ["curriculum_snapshots.owner_user_id", "curriculum_snapshots.id"],
+            name="fk_training_experiments_curriculum_owner",
+            ondelete="CASCADE",
+        ),
+    )
 
     id = uuid_pk()
     owner_user_id = _owner()
     base_checkpoint_id: Mapped[str] = mapped_column(String(64), nullable=False)
     curriculum_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("curriculum_snapshots.id", ondelete="CASCADE"),
         nullable=False,
     )
     curriculum_hash: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -242,12 +259,19 @@ class TrainingExperimentRecord(Base):
 
 class LearningPromotionProposalRecord(Base):
     __tablename__ = "learning_promotion_proposals"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["owner_user_id", "experiment_id"],
+            ["training_experiments.owner_user_id", "training_experiments.id"],
+            name="fk_promotion_proposals_experiment_owner",
+            ondelete="CASCADE",
+        ),
+    )
 
     id = uuid_pk()
     owner_user_id = _owner()
     experiment_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("training_experiments.id", ondelete="CASCADE"),
         nullable=False,
     )
     candidate_checkpoint_id: Mapped[str] = mapped_column(String(64), nullable=False)

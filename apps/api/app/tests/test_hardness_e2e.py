@@ -71,7 +71,8 @@ async def test_owner_correction_hardness_slice_e2e(client, app_engine):
         assert result1.curriculum_id is not None
         assert result1.experiment_id is not None
         assert result1.eval_result.verdict == "PASS"
-        assert result1.recommendation == PromotionRecommendation.PROMOTION_CANDIDATE
+        assert result1.eval_result.real_model_evaluated is False
+        assert result1.recommendation == PromotionRecommendation.DRY_RUN_VALIDATED
         assert result1.why_changed_ref is not None
 
         # 4. Verify candidate deduplication & recurrence increment on repeated correction
@@ -121,7 +122,7 @@ async def test_owner_correction_hardness_slice_e2e(client, app_engine):
             LearningPromotionProposalRecord.id == result1.proposal_id
         )
         prop_row = (await db.execute(prop_stmt)).scalar_one()
-        assert prop_row.recommendation == "PROMOTION_CANDIDATE"
+        assert prop_row.recommendation == "DRY_RUN_VALIDATED"
         assert prop_row.critical_gates_passed is True
         assert prop_row.why_changed_ref.startswith("why_changed:")
 

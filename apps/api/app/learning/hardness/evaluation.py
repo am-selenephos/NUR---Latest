@@ -7,13 +7,18 @@ import uuid
 from app.learning.hardness.schemas import (
     CandidateArtifact,
     CriticalGateResult,
+    SyntheticEvaluationFixture,
     TournamentEvaluationResult,
 )
 from app.models.hardness import CurriculumSnapshotRecord, TrainingExperimentRecord
 
 
 class TournamentEvaluator:
-    """Evaluates candidate artifacts against base checkpoints with non-negotiable critical gates."""
+    """Evaluates candidate artifacts against base checkpoints with non-negotiable critical gates.
+
+    Does NOT fabricate simulated neural deltas in production paths. In DryRun mode,
+    metrics report exact 0.0 delta and real_model_evaluated=False unless a SyntheticEvaluationFixture is explicitly provided.
+    """
 
     def __init__(
         self,
@@ -29,68 +34,105 @@ class TournamentEvaluator:
         experiment: TrainingExperimentRecord,
         curriculum: CurriculumSnapshotRecord,
         artifact: CandidateArtifact,
-        simulated_target_delta: float = 0.12,
-        simulated_regression_delta: float = 0.002,
-        privacy_override: bool = True,
-        scope_override: bool = True,
-        agency_override: bool = True,
-        calibration_override: bool = True,
+        fixture: SyntheticEvaluationFixture | None = None,
     ) -> TournamentEvaluationResult:
-        """Run tournament evaluation."""
+        """Run tournament evaluation with zero fabricated metrics by default."""
         reason_codes: list[str] = []
         gates: list[CriticalGateResult] = []
 
-        # 1. Evaluate individual critical gates
-        p_gate = CriticalGateResult(
-            gate_name="gate_owner_privacy",
-            passed=privacy_override,
-            details="Verified zero cross-owner leakage and sanitized heldout benchmarks" if privacy_override else "Owner privacy check failed",
-        )
-        gates.append(p_gate)
+        if fixture is not None:
+            # Synthetic evaluation fixture explicitly passed (e.g. in test suites)
+            privacy_passed = fixture.privacy_passed
+            scope_passed = fixture.scope_passed
+            agency_passed = fixture.agency_passed
+            calibration_passed = fixture.calibration_passed
+            target_metric_base = 0.720
+            target_metric_candidate = target_metric_base + fixture.target_delta
+            target_metric_delta = fixture.target_delta
+            general_regression_delta = fixture.regression_delta
+            evaluation_mode = "SYNTHETIC_FIXTURE"
+        else:
+            # Production DryRun evaluation: verify structural safety invariants honestly
+            privacy_passed = (
+                curriculum.owner_user_id == experiment.owner_user_id
+                and bool(curriculum.privacy_manifest_hash)
+            )
+            scope_passed = (
+                curriculum.dataset_manifest.get("items", [{}])[0].get("learning_scope", "OWNER_LOCAL") == "OWNER_LOCAL"
+                if curriculum.dataset_manifest.get("items")
+                else True
+            )
+            agency_passed = not artifact.external_provider_invoked
+            calibration_passed = True
+            target_metric_base = 0.0
+            target_metric_candidate = 0.0
+            target_metric_delta = 0.0
+            general_regression_delta = 0.0
+            evaluation_mode = "DRY_RUN_SYNTHETIC"
 
-        s_gate = CriticalGateResult(
-            gate_name="gate_scope_isolation",
-            passed=scope_override,
-            details="Scope verified as OWNER_LOCAL" if scope_override else "Scope boundary violated",
+        # 1. Critical Gates Verification
+        gates.append(
+            CriticalGateResult(
+                gate_name="gate_owner_privacy",
+                passed=privacy_passed,
+                details="Verified owner isolation and sanitized heldout bounds"
+                if privacy_passed
+                else "Owner privacy check failed",
+            )
         )
-        gates.append(s_gate)
-
-        a_gate = CriticalGateResult(
-            gate_name="gate_agency_boundaries",
-            passed=agency_override,
-            details="Agency runtime authority boundaries preserved" if agency_override else "Agency boundary violation",
+        gates.append(
+            CriticalGateResult(
+                gate_name="gate_scope_isolation",
+                passed=scope_passed,
+                details="Scope verified as OWNER_LOCAL" if scope_passed else "Scope boundary violated",
+            )
         )
-        gates.append(a_gate)
-
-        c_gate = CriticalGateResult(
-            gate_name="gate_confidence_calibration",
-            passed=calibration_override,
-            details="Uncertainty calibration metrics within expected bounds" if calibration_override else "Calibration check failed",
+        gates.append(
+            CriticalGateResult(
+                gate_name="gate_agency_boundaries",
+                passed=agency_passed,
+                details="Agency runtime authority boundaries preserved"
+                if agency_passed
+                else "Agency boundary violation",
+            )
         )
-        gates.append(c_gate)
+        gates.append(
+            CriticalGateResult(
+                gate_name="gate_confidence_calibration",
+                passed=calibration_passed,
+                details="Uncertainty calibration metrics within expected bounds"
+                if calibration_passed
+                else "Calibration check failed",
+            )
+        )
 
         all_critical_gates_passed = all(g.passed for g in gates)
         if not all_critical_gates_passed:
             reason_codes.append("CRITICAL_GATE_FAILURE")
 
-        # 2. Metric comparisons
-        target_metric_base = 0.720
-        target_metric_candidate = target_metric_base + simulated_target_delta
-        target_metric_delta = simulated_target_delta
-        general_regression_delta = simulated_regression_delta
+        # 2. Metric evaluation & Verdict
+        if fixture is not None:
+            if target_metric_delta < self.min_target_delta:
+                reason_codes.append("TARGET_METRIC_IMPROVEMENT_INSUFFICIENT")
+            if general_regression_delta > self.max_regression_delta:
+                reason_codes.append("GENERAL_REGRESSION_EXCEEDED")
 
-        if target_metric_delta < self.min_target_delta:
-            reason_codes.append("TARGET_METRIC_IMPROVEMENT_INSUFFICIENT")
-
-        if general_regression_delta > self.max_regression_delta:
-            reason_codes.append("GENERAL_REGRESSION_EXCEEDED")
-
-        # 3. Overall Verdict
-        if all_critical_gates_passed and target_metric_delta >= self.min_target_delta and general_regression_delta <= self.max_regression_delta:
-            verdict = "PASS"
-            reason_codes.append("TOURNAMENT_WINNER")
+            if (
+                all_critical_gates_passed
+                and target_metric_delta >= self.min_target_delta
+                and general_regression_delta <= self.max_regression_delta
+            ):
+                verdict = "PASS"
+                reason_codes.append("TOURNAMENT_WINNER")
+            else:
+                verdict = "FAIL"
         else:
-            verdict = "FAIL"
+            # In DryRun without fixture, verdict PASS indicates structural validation passed
+            if all_critical_gates_passed:
+                verdict = "PASS"
+                reason_codes.append("DRY_RUN_STRUCTURAL_GATES_PASSED")
+            else:
+                verdict = "FAIL"
 
         return TournamentEvaluationResult(
             evaluation_id=uuid.uuid4(),
@@ -101,13 +143,38 @@ class TournamentEvaluator:
             target_metric_candidate=target_metric_candidate,
             target_metric_delta=target_metric_delta,
             general_regression_delta=general_regression_delta,
-            privacy_passed=privacy_override,
-            scope_isolation_passed=scope_override,
-            agency_approval_passed=agency_override,
-            calibration_passed=calibration_override,
+            privacy_passed=privacy_passed,
+            scope_isolation_passed=scope_passed,
+            agency_approval_passed=agency_passed,
+            calibration_passed=calibration_passed,
             critical_gates=gates,
             all_critical_gates_passed=all_critical_gates_passed,
+            evaluation_mode=evaluation_mode,
+            real_model_evaluated=False,
             verdict=verdict,
             reason_codes=reason_codes,
             evaluated_at=dt.datetime.now(dt.UTC),
+        )
+
+
+class DryRunEvaluationAdapter:
+    """Adapter for executing non-training dry-run evaluations without fabricating neural metrics."""
+
+    def __init__(self, evaluator: TournamentEvaluator | None = None):
+        self.evaluator = evaluator or TournamentEvaluator()
+
+    def evaluate(
+        self,
+        *,
+        experiment: TrainingExperimentRecord,
+        curriculum: CurriculumSnapshotRecord,
+        artifact: CandidateArtifact,
+        fixture: SyntheticEvaluationFixture | None = None,
+    ) -> TournamentEvaluationResult:
+        """Run dry-run evaluation ensuring real_model_evaluated is False."""
+        return self.evaluator.evaluate(
+            experiment=experiment,
+            curriculum=curriculum,
+            artifact=artifact,
+            fixture=fixture,
         )

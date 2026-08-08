@@ -12,10 +12,68 @@ from app.learning.hardness.schemas import (
     LearningCandidateScores,
     LearningScope,
     LearningSignalKind,
+    RiskAssessmentStatus,
     SelectionStatus,
     SelectorJudgment,
 )
 from app.models.hardness import LearningCandidateRecord, LearningSignalRecord
+
+
+def assess_candidate_risks(
+    candidate: LearningCandidateRecord,
+    *,
+    force_reassess: bool = False,
+) -> None:
+    """Perform deterministic safety, privacy, and contamination screening on a candidate.
+
+    Computes bounded basis-point risks based on explicit structural rules (no heuristic LLM calls)
+    and transitions risk_status from UNASSESSED to ASSESSED.
+    """
+    if candidate.risk_status == RiskAssessmentStatus.ASSESSED.value and not force_reassess:
+        return
+
+    text_to_scan = f"{candidate.failure_signature or ''} {candidate.desired_behavior or ''}"
+    lowered = text_to_scan.lower()
+
+    # 1. Deterministic Poisoning / Injection Screening
+    p_risk = 500  # Baseline safe risk for verified owner interaction
+    suspicious_patterns = [
+        "ignore previous instructions",
+        "system prompt",
+        "exfiltrate",
+        "<script>",
+        "javascript:",
+        "drop table",
+        "select * from users",
+        "rm -rf /",
+        "--format-leak",
+        "eval(",
+        "exec(",
+    ]
+    for pat in suspicious_patterns:
+        if pat in lowered:
+            p_risk += 3000
+
+    # 2. Deterministic Privacy / PII Screening
+    priv_risk = 500
+    import re
+
+    if re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", text_to_scan):
+        priv_risk += 1500
+    if re.search(r"\b(sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{20,}|bearer\s+[a-zA-Z0-9._-]{20,})\b", text_to_scan, re.IGNORECASE):
+        priv_risk += 4000
+    if re.search(r"\b\d{3}-\d{2}-\d{4}\b|\b(?:\d{4}-){3}\d{4}\b", text_to_scan):
+        priv_risk += 4000
+
+    # 3. Deterministic Contamination Screening
+    c_risk = 200
+    if "heldout_test_set" in lowered or "benchmark_gold_standard" in lowered:
+        c_risk += 5000
+
+    candidate.poisoning_risk = min(10000, p_risk)
+    candidate.privacy_risk = min(10000, priv_risk)
+    candidate.contamination_risk = min(10000, c_risk)
+    candidate.risk_status = RiskAssessmentStatus.ASSESSED.value
 
 
 async def ingest_candidate_from_signal(
@@ -70,9 +128,9 @@ async def ingest_candidate_from_signal(
                 counterexample_value=8000,
                 transferability_score=5000,
                 recency_score=9500,
-                poisoning_risk=500,
-                privacy_risk=1000,
-                contamination_risk=500,
+                poisoning_risk=0,
+                privacy_risk=0,
+                contamination_risk=0,
             )
         else:
             scores = LearningCandidateScores(
@@ -83,9 +141,9 @@ async def ingest_candidate_from_signal(
                 counterexample_value=5000,
                 transferability_score=5000,
                 recency_score=9000,
-                poisoning_risk=1000,
-                privacy_risk=1000,
-                contamination_risk=1000,
+                poisoning_risk=0,
+                privacy_risk=0,
+                contamination_risk=0,
             )
 
     record = LearningCandidateRecord(
@@ -108,6 +166,7 @@ async def ingest_candidate_from_signal(
         contamination_risk=scores.contamination_risk,
         learning_scope=learning_scope.value,
         status=SelectionStatus.CANDIDATE.value,
+        risk_status=RiskAssessmentStatus.UNASSESSED.value,
         source_refs=[source_ref],
         recurrence_count=1,
         last_seen_at=now,
