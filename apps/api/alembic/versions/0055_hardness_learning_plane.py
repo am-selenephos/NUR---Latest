@@ -46,7 +46,7 @@ CREATE TABLE learning_signals (
     CONSTRAINT fk_learning_signals_user_corrections_owner
         FOREIGN KEY (owner_user_id, source_correction_id)
         REFERENCES user_corrections(owner_user_id, id)
-        ON DELETE SET NULL,
+        ON DELETE CASCADE,
     CONSTRAINT ck_learning_signals_kind CHECK (
         signal_kind IN (
             'OWNER_CORRECTION', 'VERIFIED_FAILURE', 'TOOL_FAILURE',

@@ -92,7 +92,8 @@ class TournamentEvaluator:
                 )
             )
 
-            all_critical_gates_passed = all(g.passed for g in gates)
+            all_critical_gates_passed = all(g.passed and g.status == GateStatus.PASS for g in gates)
+            all_structural_gates_passed = all_critical_gates_passed
             if not all_critical_gates_passed:
                 reason_codes.append("CRITICAL_GATE_FAILURE")
 
@@ -116,7 +117,12 @@ class TournamentEvaluator:
             # Production DryRun evaluation: verify structural safety invariants honestly
             owner_binding_passed = (curriculum.owner_user_id == experiment.owner_user_id)
             no_external_invoked = (artifact.external_provider_invoked is False and artifact.spend_cents == 0)
-            manifest_present = bool(curriculum.dataset_manifest and curriculum.privacy_manifest_hash and curriculum.dataset_hash)
+            manifest_present = bool(
+                curriculum.dataset_manifest
+                and curriculum.privacy_manifest_hash
+                and curriculum.provenance_manifest_hash
+                and curriculum.dataset_hash
+            )
 
             items = curriculum.dataset_manifest.get("items") if isinstance(curriculum.dataset_manifest, dict) else []
             if items:
@@ -124,7 +130,7 @@ class TournamentEvaluator:
                 scope_structural_passed = len(scopes) > 0 and all(s == "OWNER_LOCAL" for s in scopes)
             else:
                 top_scope = curriculum.dataset_manifest.get("learning_scope") if isinstance(curriculum.dataset_manifest, dict) else None
-                scope_structural_passed = (top_scope == "OWNER_LOCAL") if top_scope else True
+                scope_structural_passed = (top_scope == "OWNER_LOCAL")
 
             # 1. Runnable Structural Gates
             gates.append(
@@ -154,7 +160,7 @@ class TournamentEvaluator:
                     passed=manifest_present,
                     details="Dataset, privacy, and provenance manifest hashes verified"
                     if manifest_present
-                    else "Dataset manifest or privacy hash missing",
+                    else "Dataset manifest or privacy/provenance hash missing",
                 )
             )
             gates.append(
@@ -208,7 +214,8 @@ class TournamentEvaluator:
                 and manifest_present
                 and scope_structural_passed
             )
-            all_critical_gates_passed = all_structural_passed
+            all_structural_gates_passed = all_structural_passed
+            all_critical_gates_passed = False  # Empirical critical gates did not run in structural dry run
             if not all_structural_passed:
                 reason_codes.append("CRITICAL_GATE_FAILURE")
 
@@ -248,6 +255,7 @@ class TournamentEvaluator:
             agency_approval_passed=agency_passed,
             calibration_passed=calibration_passed,
             critical_gates=gates,
+            all_structural_gates_passed=all_structural_gates_passed,
             all_critical_gates_passed=all_critical_gates_passed,
             evaluation_mode=evaluation_mode,
             real_model_evaluated=real_model_evaluated,

@@ -382,6 +382,8 @@ def test_tournament_evaluator_honest_dry_run_and_fixture():
     )
     assert res_dryrun.verdict == "STRUCTURAL_ONLY"
     assert res_dryrun.real_model_evaluated is False
+    assert res_dryrun.all_structural_gates_passed is True
+    assert res_dryrun.all_critical_gates_passed is False
     assert res_dryrun.target_metric_delta == 0.0
     assert res_dryrun.evaluation_mode == "DRY_RUN_SYNTHETIC"
     assert "DRY_RUN_STRUCTURAL_GATES_PASSED" in res_dryrun.reason_codes

@@ -380,7 +380,7 @@ async def test_owner_bound_composite_foreign_keys(client, app_engine):
                 {"id": str(uuid.uuid4()), "uid_b": uid_b, "corr_a_id": str(corr_a.id)},
             )
             await conn.commit()
-        assert "fk_learning_signals_source_correction_owner" in str(exc_info.value).lower() or "foreign key" in str(exc_info.value).lower()
+        assert "fk_learning_signals_user_corrections_owner" in str(exc_info.value).lower() or "foreign key" in str(exc_info.value).lower()
 
 
 async def test_learning_signal_idempotency_and_recurrence(client, app_engine):
@@ -502,5 +502,44 @@ async def test_persist_user_correction_atomic_signal_linkage(client, app_engine)
         assert "Prefer async generators" in sig.summary
         assert sig.source_correction_id == corr.id
         await db_session.commit()
+
+
+async def test_user_correction_cascade_deletes_learning_signal(client, app_engine):
+    """Verify that deleting a UserCorrection cascades and removes its LearningSignalRecord."""
+    ra, _, _ = await register_user(client)
+    uid_a = uuid.UUID(ra.json()["id"])
+
+    session_maker = async_sessionmaker(app_engine, expire_on_commit=False, class_=AsyncSession)
+    async with session_maker() as db_session:
+        await db_session.execute(text(SET_USER), {"uid": str(uid_a)})
+
+        corr = await persist_user_correction(
+            db_session,
+            owner_user_id=uid_a,
+            orbit_id=None,
+            target_event_id=None,
+            correction_text="Test cascade delete behavior",
+            reason="cascade verification",
+        )
+        await db_session.flush()
+
+        # Confirm signal exists
+        stmt = select(LearningSignalRecord).where(
+            LearningSignalRecord.owner_user_id == uid_a,
+            LearningSignalRecord.source_correction_id == corr.id,
+        )
+        sig = (await db_session.execute(stmt)).scalar_one_or_none()
+        assert sig is not None
+
+        # Delete the UserCorrection directly
+        from app.models import UserCorrection
+        corr_to_del = await db_session.get(UserCorrection, corr.id)
+        assert corr_to_del is not None
+        await db_session.delete(corr_to_del)
+        await db_session.flush()
+
+        # Confirm signal was deleted via ON DELETE CASCADE
+        sig_after = (await db_session.execute(stmt)).scalar_one_or_none()
+        assert sig_after is None
 
 

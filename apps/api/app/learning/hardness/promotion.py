@@ -6,11 +6,14 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.learning.hardness.schemas import (
+    GateStatus,
     PromotionRecommendation,
     TournamentEvaluationResult,
 )
 from app.mind.why_changed import ChangeClass, EntityType, WhyChangedService
 from app.models.hardness import LearningPromotionProposalRecord, TrainingExperimentRecord
+
+UNCALIBRATED_UNCERTAINTY_BP = 10000
 
 
 async def create_promotion_proposal(
@@ -33,25 +36,47 @@ async def create_promotion_proposal(
         change_class = ChangeClass.UPDATED
     else:
         recommendation = PromotionRecommendation.REJECTED
-        change_class = ChangeClass.DEMOTED
+        change_class = ChangeClass.UPDATED
 
     mode_label = "Real Model" if eval_result.real_model_evaluated else f"Dry-Run ({eval_result.evaluation_mode})"
+    if not eval_result.real_model_evaluated:
+        uncertainty_score = UNCALIBRATED_UNCERTAINTY_BP
+        uncertainty_text = "uncertainty not empirically calibrated in structural DryRun (10000 bp)"
+    else:
+        uncertainty_score = 0
+        uncertainty_text = "empirically calibrated"
+
     rationale = (
         f"Evaluation mode: {mode_label}. Verdict: {eval_result.verdict}. "
         f"Target delta: +{eval_result.target_metric_delta * 100:.2f}%, "
         f"General regression: {eval_result.general_regression_delta * 100:.2f}%. "
-        f"Critical gates passed: {eval_result.all_critical_gates_passed}. "
+        f"Structural gates passed: {eval_result.all_structural_gates_passed}. "
+        f"Critical empirical gates passed: {eval_result.all_critical_gates_passed}. "
+        f"Uncertainty: {uncertainty_text}. "
         f"Recommendation: {recommendation.value}. "
         f"Reason codes: {', '.join(eval_result.reason_codes)}"
     )
 
     if not eval_result.real_model_evaluated:
         affected_behavior = (
-            "orchestration / structural learning pipeline validated; "
-            "no model capability improvement established; no production behavior changed."
+            "structural orchestration validated; "
+            "empirical model/privacy/calibration/Agency evaluation not performed; "
+            "no capability improvement established; "
+            "no production behavior changed."
         )
     else:
         affected_behavior = f"Candidate checkpoint evaluated for capabilities: {experiment.target_capabilities}"
+
+    supporting_evidence = [
+        f"gate:{g.gate_name}={g.status.value}"
+        for g in eval_result.critical_gates
+        if g.status == GateStatus.PASS
+    ]
+    counter_evidence = [
+        f"gate:{g.gate_name}={g.status.value}"
+        for g in eval_result.critical_gates
+        if g.status != GateStatus.PASS
+    ]
 
     # Record WhyChanged entry
     why_record = await WhyChangedService.record_change(
@@ -63,8 +88,8 @@ async def create_promotion_proposal(
         trigger=f"Tournament evaluation for experiment {experiment.id}",
         previous_version=experiment.base_checkpoint_id,
         new_version=eval_result.candidate_checkpoint_id,
-        supporting_evidence=[f"gate:{g.gate_name}={g.passed}" for g in eval_result.critical_gates],
-        counter_evidence=[] if eval_result.all_critical_gates_passed else ["critical_gate_failed"],
+        supporting_evidence=supporting_evidence,
+        counter_evidence=counter_evidence,
         owner_correction=True,
         actor="hardness_pipeline",
         affected_future_behavior=affected_behavior,
@@ -81,7 +106,7 @@ async def create_promotion_proposal(
         critical_gates_passed=eval_result.all_critical_gates_passed,
         evaluation_summary=eval_result.model_dump(mode="json"),
         recommendation=recommendation.value,
-        uncertainty_score=1500,  # 15% calibrated uncertainty
+        uncertainty_score=uncertainty_score,
         rationale=rationale,
         why_changed_ref=f"why_changed:{why_record.id}",
     )

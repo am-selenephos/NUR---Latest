@@ -5,6 +5,7 @@ import datetime as dt
 import uuid
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.learning.hardness.fingerprint import compute_candidate_fingerprint
@@ -146,34 +147,61 @@ async def ingest_candidate_from_signal(
                 contamination_risk=0,
             )
 
-    record = LearningCandidateRecord(
-        owner_user_id=signal.owner_user_id,
-        fingerprint=fingerprint,
-        signal_kind=signal.signal_kind,
-        capability_id=signal.capability_id,
-        task_class=signal.task_class,
-        failure_signature=failure_signature,
-        desired_behavior=desired_behavior,
-        novelty_score=scores.novelty_score,
-        recurrence_score=scores.recurrence_score,
-        impact_score=scores.impact_score,
-        uncertainty_score=scores.uncertainty_score,
-        counterexample_value=scores.counterexample_value,
-        transferability_score=scores.transferability_score,
-        recency_score=scores.recency_score,
-        poisoning_risk=scores.poisoning_risk,
-        privacy_risk=scores.privacy_risk,
-        contamination_risk=scores.contamination_risk,
-        learning_scope=learning_scope.value,
-        status=SelectionStatus.CANDIDATE.value,
-        risk_status=RiskAssessmentStatus.UNASSESSED.value,
-        source_refs=[source_ref],
-        recurrence_count=1,
-        last_seen_at=now,
+    insert_stmt = (
+        pg_insert(LearningCandidateRecord)
+        .values(
+            owner_user_id=signal.owner_user_id,
+            fingerprint=fingerprint,
+            signal_kind=signal.signal_kind,
+            capability_id=signal.capability_id,
+            task_class=signal.task_class,
+            failure_signature=failure_signature,
+            desired_behavior=desired_behavior,
+            novelty_score=scores.novelty_score,
+            recurrence_score=scores.recurrence_score,
+            impact_score=scores.impact_score,
+            uncertainty_score=scores.uncertainty_score,
+            counterexample_value=scores.counterexample_value,
+            transferability_score=scores.transferability_score,
+            recency_score=scores.recency_score,
+            poisoning_risk=scores.poisoning_risk,
+            privacy_risk=scores.privacy_risk,
+            contamination_risk=scores.contamination_risk,
+            learning_scope=learning_scope.value,
+            status=SelectionStatus.CANDIDATE.value,
+            risk_status=RiskAssessmentStatus.UNASSESSED.value,
+            source_refs=[source_ref],
+            recurrence_count=1,
+            last_seen_at=now,
+        )
+        .on_conflict_do_nothing()
+        .returning(LearningCandidateRecord.id)
     )
-    db.add(record)
-    await db.flush()
-    return record
+    res = await db.execute(insert_stmt)
+    inserted_id = res.scalar_one_or_none()
+
+    if inserted_id is not None:
+        rec = await db.get(LearningCandidateRecord, inserted_id)
+        if rec is not None:
+            return rec
+
+    # Concurrent insert won the race or existing record found
+    res = await db.execute(stmt)
+    existing = res.scalars().first()
+    if existing:
+        if source_ref not in existing.source_refs:
+            existing.recurrence_count += 1
+            existing.last_seen_at = now
+            existing.updated_at = now
+            existing.recurrence_score = min(10000, 2000 + existing.recurrence_count * 1500)
+            existing.recency_score = 9000
+            existing.source_refs = list(existing.source_refs) + [source_ref]
+            await db.flush()
+        return existing
+
+    raise RuntimeError(
+        f"Failed to ingest or fetch learning candidate for fingerprint {fingerprint}."
+    )
 
 
 async def apply_selector_judgment(

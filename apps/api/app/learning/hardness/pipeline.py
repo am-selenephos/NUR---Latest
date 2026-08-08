@@ -33,6 +33,7 @@ from app.learning.hardness.schemas import (
 from app.learning.hardness.selector import CurriculumSelector
 from app.learning.hardness.trainers.base import BaseTrainer
 from app.learning.hardness.trainers.dry_run import DryRunTrainer
+from app.mind.why_changed import ChangeClass, EntityType, WhyChangedService
 from app.models.hardness import LearningSignalRecord
 
 
@@ -58,7 +59,7 @@ async def process_learning_signal(
     base_checkpoint_id: str = "base_v1",
     capability_id: str = "general_cognition",
     task_class: str = "owner_guidance",
-    intervention: LearningIntervention = LearningIntervention.SFT,
+    intervention: LearningIntervention = LearningIntervention.NO_CHANGE,
     trainer: BaseTrainer | None = None,
     evaluator: TournamentEvaluator | None = None,
     fixture: SyntheticEvaluationFixture | None = None,
@@ -121,28 +122,26 @@ async def process_learning_signal(
         intervention=intervention,
     )
 
-    # Step 4: Intervention gating
-    if intervention == LearningIntervention.NO_CHANGE:
-        return SliceExecutionResult(
-            signal_id=signal_record.id,
-            candidate_id=candidate.id,
-            candidate_fingerprint=candidate.fingerprint,
-            judgment=judgment,
-            curriculum_id=curriculum.id,
-            dataset_hash=curriculum.dataset_hash,
-            experiment_id=None,
-            artifact=None,
-            eval_result=None,
-            proposal_id=None,
-            recommendation=PromotionRecommendation.DRY_RUN_VALIDATED,
-            why_changed_ref=None,
-        )
-
+    # Step 4: Intervention gating — weights are not the default response
     if intervention not in (
         LearningIntervention.SFT,
         LearningIntervention.PREFERENCE_TRAINING,
         LearningIntervention.RL,
     ):
+        why_record = await WhyChangedService.record_change(
+            db,
+            owner_user_id=owner_user_id,
+            entity_type=EntityType.CURRICULUM,
+            entity_id=str(curriculum.id),
+            change_class=ChangeClass.CREATED,
+            trigger=f"Curriculum snapshot {curriculum.id} created for signal {signal_record.id}",
+            supporting_evidence=[f"candidate:{candidate.id}:status={candidate.status}"],
+            counter_evidence=[],
+            owner_correction=True,
+            actor="hardness_pipeline",
+            affected_future_behavior="no-op learning intervention selected; no training experiment or weight changes executed.",
+            policy_version="hardness-selector-v1",
+        )
         return SliceExecutionResult(
             signal_id=signal_record.id,
             candidate_id=candidate.id,
@@ -154,8 +153,8 @@ async def process_learning_signal(
             artifact=None,
             eval_result=None,
             proposal_id=None,
-            recommendation=PromotionRecommendation.DRY_RUN_VALIDATED,
-            why_changed_ref=None,
+            recommendation=None,
+            why_changed_ref=f"why_changed:{why_record.id}",
         )
 
     # Step 5: Plan falsifiable training experiment
@@ -222,7 +221,7 @@ async def run_owner_correction_hardness_slice(
     base_checkpoint_id: str = "base_v1",
     capability_id: str = "general_cognition",
     task_class: str = "owner_guidance",
-    intervention: LearningIntervention = LearningIntervention.SFT,
+    intervention: LearningIntervention = LearningIntervention.NO_CHANGE,
     trainer: BaseTrainer | None = None,
     evaluator: TournamentEvaluator | None = None,
     fixture: SyntheticEvaluationFixture | None = None,

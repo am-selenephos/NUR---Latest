@@ -333,10 +333,11 @@ class TournamentEvaluationResult(BaseModel):
     agency_approval_passed: bool
     calibration_passed: bool
     critical_gates: list[CriticalGateResult]
-    all_critical_gates_passed: bool
+    all_structural_gates_passed: bool = True
+    all_critical_gates_passed: bool = False
     evaluation_mode: str = "DRY_RUN_SYNTHETIC"
     real_model_evaluated: bool = False
-    verdict: str  # PASS / FAIL
+    verdict: str  # PASS / FAIL / STRUCTURAL_ONLY
     reason_codes: list[str]
     evaluated_at: dt.datetime = Field(default_factory=lambda: dt.datetime.now(dt.UTC))
 

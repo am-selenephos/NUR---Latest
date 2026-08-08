@@ -42,7 +42,7 @@ class LearningSignalRecord(Base):
             ["owner_user_id", "source_correction_id"],
             ["user_corrections.owner_user_id", "user_corrections.id"],
             name="fk_learning_signals_user_corrections_owner",
-            ondelete="SET NULL",
+            ondelete="CASCADE",
         ),
     )
 
