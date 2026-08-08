@@ -49,6 +49,8 @@ class EntityType(StrEnum):
     REVIEW_STRATEGY = "review_strategy"
     PREDICTION = "prediction"
     ATTENTION_ITEM = "attention_item"
+    MODEL_CHECKPOINT = "model_checkpoint"
+    CURRICULUM = "curriculum"
 
 
 # ── WhyChangedRecord Pydantic model ───────────────────────────────────────

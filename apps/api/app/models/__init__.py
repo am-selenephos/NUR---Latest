@@ -124,3 +124,10 @@ from app.models.timeline_layer import (  # noqa: F401
     TimelineExternalLink, TimelinePhase, TimelinePreference, TimelineRecurrence,
     TimelineReschedule, TimelineReview,
 )
+from app.models.hardness import (  # noqa: F401
+    CurriculumSnapshotRecord,
+    LearningCandidateRecord,
+    LearningPromotionProposalRecord,
+    LearningSignalRecord,
+    TrainingExperimentRecord,
+)

@@ -1,0 +1,384 @@
+"""Unit tests for Hardness / Self-Directed Learning Plane V1."""
+from __future__ import annotations
+
+import uuid
+import pytest
+from pydantic import ValidationError
+
+from app.learning.hardness.curriculum import (
+    partition_candidate_ids,
+)
+from app.learning.hardness.evaluation import TournamentEvaluator
+from app.learning.hardness.fingerprint import (
+    canonical_json_dumps,
+    compute_candidate_fingerprint,
+    sha256_hex,
+)
+from app.learning.hardness.schemas import (
+    CandidateArtifact,
+    LearningCandidateScores,
+    SelectionStatus,
+    TrainerType,
+)
+from app.learning.hardness.selector import (
+    CurriculumSelector,
+    MAX_POISONING_RISK_BP,
+    MAX_PRIVACY_RISK_BP,
+    SELECT_THRESHOLD_BP,
+)
+from app.learning.hardness.trainers.dry_run import DryRunTrainer
+from app.models.hardness import (
+    CurriculumSnapshotRecord,
+    LearningCandidateRecord,
+    TrainingExperimentRecord,
+)
+
+
+def test_canonical_json_and_sha256_deterministic():
+    data1 = {"b": 2, "a": 1, "nested": {"z": True, "y": None}}
+    data2 = {"nested": {"y": None, "z": True}, "a": 1, "b": 2}
+    assert canonical_json_dumps(data1) == canonical_json_dumps(data2)
+    assert sha256_hex(data1) == sha256_hex(data2)
+    assert len(sha256_hex(data1)) == 64
+
+
+def test_candidate_fingerprint_normalization():
+    u = uuid.uuid4()
+    fp1 = compute_candidate_fingerprint(
+        owner_user_id=u,
+        signal_kind="owner_correction",
+        task_class="GENERAL_COGNITION",
+        failure_signature="  wrong date  ",
+        desired_behavior="Correct date 2026-08-08\n",
+    )
+    fp2 = compute_candidate_fingerprint(
+        owner_user_id=u,
+        signal_kind="OWNER_CORRECTION",
+        task_class="general_cognition",
+        failure_signature="wrong date",
+        desired_behavior="Correct date 2026-08-08",
+    )
+    assert fp1 == fp2
+
+
+def test_scores_basis_points_bounds():
+    # Valid bounds 0 - 10000
+    scores = LearningCandidateScores(novelty_score=10000, recurrence_score=0)
+    assert scores.novelty_score == 10000
+
+    # Invalid negative
+    with pytest.raises(ValidationError):
+        LearningCandidateScores(novelty_score=-1)
+
+    # Invalid > 10000
+    with pytest.raises(ValidationError):
+        LearningCandidateScores(novelty_score=10001)
+
+
+def test_partition_candidate_ids_disjointness():
+    # Test empty
+    assert partition_candidate_ids([]) == ([], [], [])
+
+    # Test single
+    t, v, h = partition_candidate_ids(["c1"])
+    assert t == ["c1"]
+    assert v == []
+    assert h == []
+
+    # Test multi-item disjointness
+    ids = [f"cand_{i:03d}" for i in range(20)]
+    train, val, heldout = partition_candidate_ids(ids)
+
+    st, sv, sh = set(train), set(val), set(heldout)
+    assert st.isdisjoint(sv)
+    assert st.isdisjoint(sh)
+    assert sv.isdisjoint(sh)
+    assert st | sv | sh == set(ids)
+    assert len(train) >= 1
+    assert len(val) >= 1
+    assert len(heldout) >= 1
+
+
+def test_curriculum_selector_hard_safety_gates():
+    selector = CurriculumSelector()
+    u = uuid.uuid4()
+
+    # 1. Poisoning gate rejection
+    cand_poisoned = LearningCandidateRecord(
+        id=uuid.uuid4(),
+        owner_user_id=u,
+        fingerprint="fp_poison",
+        signal_kind="OWNER_CORRECTION",
+        task_class="test",
+        learning_scope="OWNER_LOCAL",
+        poisoning_risk=MAX_POISONING_RISK_BP + 1,  # 5001 bp
+        privacy_risk=500,
+        contamination_risk=500,
+        recurrence_count=1,
+    )
+    judgment = selector.evaluate_candidate(cand_poisoned)
+    assert not judgment.hard_gates_passed
+    assert judgment.status == SelectionStatus.REJECTED
+    assert "GATE_POISONING_RISK_EXCEEDED" in judgment.reason_codes
+
+    # 2. Privacy gate rejection
+    cand_privacy = LearningCandidateRecord(
+        id=uuid.uuid4(),
+        owner_user_id=u,
+        fingerprint="fp_privacy",
+        signal_kind="OWNER_CORRECTION",
+        task_class="test",
+        learning_scope="OWNER_LOCAL",
+        poisoning_risk=500,
+        privacy_risk=MAX_PRIVACY_RISK_BP + 1,  # 4001 bp
+        contamination_risk=500,
+        recurrence_count=1,
+    )
+    judgment_priv = selector.evaluate_candidate(cand_privacy)
+    assert not judgment_priv.hard_gates_passed
+    assert judgment_priv.status == SelectionStatus.REJECTED
+    assert "GATE_PRIVACY_RISK_EXCEEDED" in judgment_priv.reason_codes
+
+    # 3. Scope gate rejection
+    cand_scope = LearningCandidateRecord(
+        id=uuid.uuid4(),
+        owner_user_id=u,
+        fingerprint="fp_scope",
+        signal_kind="OWNER_CORRECTION",
+        task_class="test",
+        learning_scope="GLOBAL_PRODUCT",  # Non-local scope in V1
+        poisoning_risk=500,
+        privacy_risk=500,
+        contamination_risk=500,
+        recurrence_count=1,
+    )
+    judgment_scope = selector.evaluate_candidate(cand_scope)
+    assert not judgment_scope.hard_gates_passed
+    assert judgment_scope.status == SelectionStatus.REJECTED
+    assert "GATE_SCOPE_NOT_LOCAL" in judgment_scope.reason_codes
+
+
+def test_curriculum_selector_positive_selection():
+    selector = CurriculumSelector()
+    u = uuid.uuid4()
+
+    # High quality candidate
+    cand = LearningCandidateRecord(
+        id=uuid.uuid4(),
+        owner_user_id=u,
+        fingerprint="fp_good",
+        signal_kind="OWNER_CORRECTION",
+        task_class="test",
+        learning_scope="OWNER_LOCAL",
+        novelty_score=7000,
+        recurrence_score=5000,
+        impact_score=8000,
+        uncertainty_score=3000,
+        counterexample_value=8500,
+        transferability_score=6000,
+        recency_score=9500,
+        poisoning_risk=200,
+        privacy_risk=300,
+        contamination_risk=100,
+        recurrence_count=1,
+    )
+    judgment = selector.evaluate_candidate(cand)
+    assert judgment.hard_gates_passed
+    assert judgment.selection_score >= SELECT_THRESHOLD_BP
+    assert judgment.status == SelectionStatus.SELECTED
+    assert "SCORE_SELECTED" in judgment.reason_codes
+
+
+@pytest.mark.asyncio
+async def test_dry_run_trainer_deterministic():
+    u = uuid.uuid4()
+    curriculum = CurriculumSnapshotRecord(
+        id=uuid.uuid4(),
+        owner_user_id=u,
+        selector_policy_version="hardness-selector-v1",
+        target_capabilities=["general_cognition"],
+        intervention="NO_CHANGE",
+        dataset_hash="a" * 64,
+        dataset_manifest={"items": []},
+        ordered_candidate_ids=["c1", "c2"],
+        train_ids=["c1"],
+        validation_ids=["c2"],
+        heldout_ids=[],
+        privacy_manifest_hash="p" * 64,
+        provenance_manifest_hash="r" * 64,
+    )
+    experiment = TrainingExperimentRecord(
+        id=uuid.uuid4(),
+        owner_user_id=u,
+        base_checkpoint_id="base_v1",
+        curriculum_id=curriculum.id,
+        curriculum_hash=curriculum.dataset_hash,
+        intervention="NO_CHANGE",
+        target_capabilities=["general_cognition"],
+        hypothesis="Testing hypothesis",
+        trainer_type="DRY_RUN",
+        status="CREATED",
+    )
+
+    trainer = DryRunTrainer()
+    artifact = await trainer.execute_training(experiment, curriculum)
+
+    assert artifact.candidate_checkpoint_id.startswith("cand_")
+    assert artifact.base_checkpoint_id == "base_v1"
+    assert artifact.trainer_type == TrainerType.DRY_RUN
+    assert len(artifact.artifact_hash) == 64
+
+
+def test_tournament_evaluator_critical_gates():
+    evaluator = TournamentEvaluator()
+    u = uuid.uuid4()
+    curriculum = CurriculumSnapshotRecord(
+        id=uuid.uuid4(),
+        owner_user_id=u,
+        selector_policy_version="hardness-selector-v1",
+        target_capabilities=["general_cognition"],
+        intervention="NO_CHANGE",
+        dataset_hash="a" * 64,
+        dataset_manifest={},
+        ordered_candidate_ids=[],
+        train_ids=[],
+        validation_ids=[],
+        heldout_ids=[],
+        privacy_manifest_hash="p" * 64,
+        provenance_manifest_hash="r" * 64,
+    )
+    exp = TrainingExperimentRecord(
+        id=uuid.uuid4(),
+        owner_user_id=u,
+        base_checkpoint_id="base_v1",
+        curriculum_id=curriculum.id,
+        curriculum_hash=curriculum.dataset_hash,
+        intervention="NO_CHANGE",
+        target_capabilities=["general_cognition"],
+        hypothesis="test",
+        trainer_type="DRY_RUN",
+        status="CREATED",
+    )
+    artifact = CandidateArtifact(
+        candidate_checkpoint_id="cand_123",
+        base_checkpoint_id="base_v1",
+        experiment_id=exp.id,
+        curriculum_hash=curriculum.dataset_hash,
+        trainer_type=TrainerType.DRY_RUN,
+        artifact_hash="h" * 64,
+    )
+
+    # 1. Passing case
+    res_pass = evaluator.evaluate(
+        experiment=exp,
+        curriculum=curriculum,
+        artifact=artifact,
+        simulated_target_delta=0.10,
+        simulated_regression_delta=0.005,
+    )
+    assert res_pass.verdict == "PASS"
+    assert res_pass.all_critical_gates_passed
+    assert "TOURNAMENT_WINNER" in res_pass.reason_codes
+
+    # 2. Critical privacy failure
+    res_fail_priv = evaluator.evaluate(
+        experiment=exp,
+        curriculum=curriculum,
+        artifact=artifact,
+        simulated_target_delta=0.10,
+        simulated_regression_delta=0.005,
+        privacy_override=False,
+    )
+    assert res_fail_priv.verdict == "FAIL"
+    assert not res_fail_priv.all_critical_gates_passed
+    assert "CRITICAL_GATE_FAILURE" in res_fail_priv.reason_codes
+
+    # 3. Target metric improvement insufficient
+    res_fail_metric = evaluator.evaluate(
+        experiment=exp,
+        curriculum=curriculum,
+        artifact=artifact,
+        simulated_target_delta=0.02,  # < 0.05 min
+        simulated_regression_delta=0.005,
+    )
+    assert res_fail_metric.verdict == "FAIL"
+    assert "TARGET_METRIC_IMPROVEMENT_INSUFFICIENT" in res_fail_metric.reason_codes
+
+
+def test_curriculum_selector_exact_boundary_thresholds():
+    selector = CurriculumSelector()
+    u = uuid.uuid4()
+
+    # Poisoning boundary: 5000 vs 5001
+    cand_p5000 = LearningCandidateRecord(
+        id=uuid.uuid4(), owner_user_id=u, fingerprint="fp1", signal_kind="OWNER_CORRECTION",
+        task_class="test", learning_scope="OWNER_LOCAL", poisoning_risk=5000, privacy_risk=0, contamination_risk=0,
+        impact_score=8000, novelty_score=8000, recurrence_score=8000, counterexample_value=8000,
+        uncertainty_score=5000, transferability_score=5000, recency_score=5000,
+    )
+    cand_p5001 = LearningCandidateRecord(
+        id=uuid.uuid4(), owner_user_id=u, fingerprint="fp2", signal_kind="OWNER_CORRECTION",
+        task_class="test", learning_scope="OWNER_LOCAL", poisoning_risk=5001, privacy_risk=0, contamination_risk=0,
+        impact_score=8000, novelty_score=8000, recurrence_score=8000, counterexample_value=8000,
+        uncertainty_score=5000, transferability_score=5000, recency_score=5000,
+    )
+    assert selector.evaluate_candidate(cand_p5000).hard_gates_passed
+    assert not selector.evaluate_candidate(cand_p5001).hard_gates_passed
+
+    # Privacy boundary: 4000 vs 4001
+    cand_priv4000 = LearningCandidateRecord(
+        id=uuid.uuid4(), owner_user_id=u, fingerprint="fp3", signal_kind="OWNER_CORRECTION",
+        task_class="test", learning_scope="OWNER_LOCAL", poisoning_risk=0, privacy_risk=4000, contamination_risk=0,
+        impact_score=8000, novelty_score=8000, recurrence_score=8000, counterexample_value=8000,
+        uncertainty_score=5000, transferability_score=5000, recency_score=5000,
+    )
+    cand_priv4001 = LearningCandidateRecord(
+        id=uuid.uuid4(), owner_user_id=u, fingerprint="fp4", signal_kind="OWNER_CORRECTION",
+        task_class="test", learning_scope="OWNER_LOCAL", poisoning_risk=0, privacy_risk=4001, contamination_risk=0,
+        impact_score=8000, novelty_score=8000, recurrence_score=8000, counterexample_value=8000,
+        uncertainty_score=5000, transferability_score=5000, recency_score=5000,
+    )
+    assert selector.evaluate_candidate(cand_priv4000).hard_gates_passed
+    assert not selector.evaluate_candidate(cand_priv4001).hard_gates_passed
+
+    # Contamination boundary: 6000 vs 6001
+    cand_c6000 = LearningCandidateRecord(
+        id=uuid.uuid4(), owner_user_id=u, fingerprint="fp5", signal_kind="OWNER_CORRECTION",
+        task_class="test", learning_scope="OWNER_LOCAL", poisoning_risk=0, privacy_risk=0, contamination_risk=6000,
+        impact_score=8000, novelty_score=8000, recurrence_score=8000, counterexample_value=8000,
+        uncertainty_score=5000, transferability_score=5000, recency_score=5000,
+    )
+    cand_c6001 = LearningCandidateRecord(
+        id=uuid.uuid4(), owner_user_id=u, fingerprint="fp6", signal_kind="OWNER_CORRECTION",
+        task_class="test", learning_scope="OWNER_LOCAL", poisoning_risk=0, privacy_risk=0, contamination_risk=6001,
+        impact_score=8000, novelty_score=8000, recurrence_score=8000, counterexample_value=8000,
+        uncertainty_score=5000, transferability_score=5000, recency_score=5000,
+    )
+    assert selector.evaluate_candidate(cand_c6000).hard_gates_passed
+    assert not selector.evaluate_candidate(cand_c6001).hard_gates_passed
+
+
+def test_dry_run_trainer_structural_no_external_ai_imports():
+    import inspect
+    import app.learning.hardness.trainers.dry_run as dry_run_module
+
+    source = inspect.getsource(dry_run_module)
+    forbidden = ["openai", "anthropic", "tinker", "torch", "transformers", "requests", "httpx", "urllib"]
+    for keyword in forbidden:
+        assert keyword not in source.lower(), f"DryRunTrainer must not reference {keyword}"
+
+
+def test_dry_run_artifacts_contain_honest_non_training_truth():
+    artifact = CandidateArtifact(
+        candidate_checkpoint_id="cand_test_dryrun",
+        base_checkpoint_id="base_v1",
+        experiment_id=uuid.uuid4(),
+        curriculum_hash="h" * 64,
+        trainer_type=TrainerType.DRY_RUN,
+        artifact_hash="a" * 64,
+    )
+    assert artifact.real_training_performed is False
+    assert artifact.external_provider_invoked is False
+    assert artifact.spend_cents == 0
+    assert artifact.trainer_type == TrainerType.DRY_RUN
+

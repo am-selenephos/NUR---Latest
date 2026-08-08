@@ -2,6 +2,7 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.learning.hardness.signals import create_signal_from_owner_correction
 from app.models import CognitiveEvent, UserCorrection
 
 
@@ -31,5 +32,14 @@ async def persist_user_correction(
             structured_payload={"target_event_id": str(target_event_id) if target_event_id else None, "reason": reason},
             source_ref=f"cognitive_event:{target_event_id}" if target_event_id else None,
         )
+    )
+    # Emit learning signal for Hardness plane
+    await create_signal_from_owner_correction(
+        db,
+        owner_user_id=owner_user_id,
+        orbit_id=orbit_id,
+        correction_text=correction_text,
+        reason=reason,
+        target_event_id=target_event_id,
     )
     return row

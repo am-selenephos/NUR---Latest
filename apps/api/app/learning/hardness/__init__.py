@@ -1,0 +1,101 @@
+"""NUR Hardness / Self-Directed Learning Plane V1 package."""
+from __future__ import annotations
+
+from app.learning.hardness.candidates import (
+    apply_selector_judgment,
+    ingest_candidate_from_signal,
+)
+from app.learning.hardness.curriculum import (
+    CurriculumBuilder,
+    partition_candidate_ids,
+)
+from app.learning.hardness.evaluation import TournamentEvaluator
+from app.learning.hardness.experiments import (
+    complete_experiment_with_artifact,
+    create_training_experiment,
+)
+from app.learning.hardness.fingerprint import (
+    canonical_json_dumps,
+    compute_candidate_fingerprint,
+    compute_dataset_hash,
+    sha256_hex,
+)
+from app.learning.hardness.pipeline import (
+    SliceExecutionResult,
+    run_owner_correction_hardness_slice,
+)
+from app.learning.hardness.promotion import create_promotion_proposal
+from app.learning.hardness.schemas import (
+    CandidateArtifact,
+    CurriculumSnapshotCreate,
+    CurriculumSnapshotOut,
+    ExperimentStatus,
+    LearningCandidateCreate,
+    LearningCandidateOut,
+    LearningCandidateScores,
+    LearningIntervention,
+    LearningScope,
+    LearningSignalCreate,
+    LearningSignalKind,
+    LearningSignalOut,
+    PromotionProposalCreate,
+    PromotionProposalOut,
+    PromotionRecommendation,
+    SelectionStatus,
+    SelectorJudgment,
+    TournamentEvaluationResult,
+    TrainerType,
+)
+from app.learning.hardness.selector import (
+    CurriculumSelector,
+    SELECTOR_POLICY_VERSION,
+)
+from app.learning.hardness.signals import (
+    create_signal_from_owner_correction,
+    persist_learning_signal,
+)
+from app.learning.hardness.trainers.base import BaseTrainer
+from app.learning.hardness.trainers.dry_run import DryRunTrainer
+
+__all__ = [
+    "BaseTrainer",
+    "CandidateArtifact",
+    "CurriculumBuilder",
+    "CurriculumSelector",
+    "CurriculumSnapshotCreate",
+    "CurriculumSnapshotOut",
+    "DryRunTrainer",
+    "ExperimentStatus",
+    "LearningCandidateCreate",
+    "LearningCandidateOut",
+    "LearningCandidateScores",
+    "LearningIntervention",
+    "LearningPromotionProposalRecord",
+    "LearningScope",
+    "LearningSignalCreate",
+    "LearningSignalKind",
+    "LearningSignalOut",
+    "PromotionProposalCreate",
+    "PromotionProposalOut",
+    "PromotionRecommendation",
+    "SELECTOR_POLICY_VERSION",
+    "SelectionStatus",
+    "SelectorJudgment",
+    "SliceExecutionResult",
+    "TournamentEvaluationResult",
+    "TournamentEvaluator",
+    "TrainerType",
+    "apply_selector_judgment",
+    "canonical_json_dumps",
+    "complete_experiment_with_artifact",
+    "compute_candidate_fingerprint",
+    "compute_dataset_hash",
+    "create_promotion_proposal",
+    "create_signal_from_owner_correction",
+    "create_training_experiment",
+    "ingest_candidate_from_signal",
+    "partition_candidate_ids",
+    "persist_learning_signal",
+    "run_owner_correction_hardness_slice",
+    "sha256_hex",
+]
