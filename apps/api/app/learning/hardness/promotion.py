@@ -28,6 +28,9 @@ async def create_promotion_proposal(
         else:
             recommendation = PromotionRecommendation.DRY_RUN_VALIDATED
             change_class = ChangeClass.UPDATED
+    elif eval_result.verdict == "STRUCTURAL_ONLY":
+        recommendation = PromotionRecommendation.DRY_RUN_VALIDATED
+        change_class = ChangeClass.UPDATED
     else:
         recommendation = PromotionRecommendation.REJECTED
         change_class = ChangeClass.DEMOTED

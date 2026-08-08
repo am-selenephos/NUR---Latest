@@ -98,6 +98,7 @@ class CurriculumBuilder:
                 "fingerprint": c.fingerprint,
                 "signal_kind": c.signal_kind,
                 "task_class": c.task_class,
+                "learning_scope": c.learning_scope,
                 "failure_signature": c.failure_signature,
                 "desired_behavior": c.desired_behavior,
                 "selection_score": c.selection_score,

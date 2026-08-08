@@ -38,6 +38,12 @@ class LearningSignalRecord(Base):
     __table_args__ = (
         UniqueConstraint("owner_user_id", "source_correction_id", name="uq_learning_signals_owner_correction"),
         UniqueConstraint("owner_user_id", "idempotency_key", name="uq_learning_signals_owner_idempotency"),
+        ForeignKeyConstraint(
+            ["owner_user_id", "source_correction_id"],
+            ["user_corrections.owner_user_id", "user_corrections.id"],
+            name="fk_learning_signals_user_corrections_owner",
+            ondelete="SET NULL",
+        ),
     )
 
     id = uuid_pk()
@@ -52,7 +58,7 @@ class LearningSignalRecord(Base):
     )
     source_correction_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("user_corrections.id", ondelete="SET NULL"),
+        nullable=True,
     )
     idempotency_key: Mapped[str | None] = mapped_column(String(128))
     signal_kind: Mapped[str] = mapped_column(String(48), nullable=False)

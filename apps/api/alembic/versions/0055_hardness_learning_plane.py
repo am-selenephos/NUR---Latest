@@ -28,12 +28,14 @@ NEW_TABLES = [
 ]
 
 DDL = """
+ALTER TABLE user_corrections ADD CONSTRAINT uq_user_corrections_owner_id UNIQUE (owner_user_id, id);
+
 CREATE TABLE learning_signals (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     orbit_id uuid REFERENCES orbits(id) ON DELETE SET NULL,
     source_event_id uuid REFERENCES cognitive_events(id) ON DELETE SET NULL,
-    source_correction_id uuid REFERENCES user_corrections(id) ON DELETE SET NULL,
+    source_correction_id uuid,
     idempotency_key varchar(128),
     signal_kind varchar(48) NOT NULL,
     capability_id varchar(64),
@@ -41,6 +43,10 @@ CREATE TABLE learning_signals (
     summary text NOT NULL,
     structured_payload jsonb NOT NULL DEFAULT '{}'::jsonb,
     created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT fk_learning_signals_user_corrections_owner
+        FOREIGN KEY (owner_user_id, source_correction_id)
+        REFERENCES user_corrections(owner_user_id, id)
+        ON DELETE SET NULL,
     CONSTRAINT ck_learning_signals_kind CHECK (
         signal_kind IN (
             'OWNER_CORRECTION', 'VERIFIED_FAILURE', 'TOOL_FAILURE',
@@ -245,4 +251,6 @@ def downgrade() -> None:
         op.execute(f"ALTER TABLE {table} DISABLE ROW LEVEL SECURITY")
         op.execute(f"REVOKE ALL ON {table} FROM {APP_ROLE}")
         op.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
+
+    op.execute("ALTER TABLE user_corrections DROP CONSTRAINT IF EXISTS uq_user_corrections_owner_id")
 

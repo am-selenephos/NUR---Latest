@@ -5,7 +5,7 @@ import uuid
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.learning.hardness.schemas import LearningSignalKind
@@ -45,41 +45,53 @@ async def persist_learning_signal(
         if existing is not None:
             return existing
 
-    record = LearningSignalRecord(
-        owner_user_id=owner_user_id,
-        orbit_id=orbit_id,
-        source_event_id=source_event_id,
-        source_correction_id=source_correction_id,
-        idempotency_key=idempotency_key,
-        signal_kind=signal_kind.value,
-        capability_id=capability_id,
-        task_class=task_class,
-        summary=summary,
-        structured_payload=structured_payload or {},
+    insert_stmt = (
+        pg_insert(LearningSignalRecord)
+        .values(
+            owner_user_id=owner_user_id,
+            orbit_id=orbit_id,
+            source_event_id=source_event_id,
+            source_correction_id=source_correction_id,
+            idempotency_key=idempotency_key,
+            signal_kind=signal_kind.value,
+            capability_id=capability_id,
+            task_class=task_class,
+            summary=summary,
+            structured_payload=structured_payload or {},
+        )
+        .on_conflict_do_nothing()
+        .returning(LearningSignalRecord.id)
     )
-    db.add(record)
-    try:
-        await db.flush()
-    except IntegrityError:
-        # In case of duplicate key race condition
-        if source_correction_id is not None:
-            stmt = select(LearningSignalRecord).where(
-                LearningSignalRecord.owner_user_id == owner_user_id,
-                LearningSignalRecord.source_correction_id == source_correction_id,
-            )
-            existing = (await db.execute(stmt)).scalar_one_or_none()
-            if existing is not None:
-                return existing
-        if idempotency_key is not None:
-            stmt = select(LearningSignalRecord).where(
-                LearningSignalRecord.owner_user_id == owner_user_id,
-                LearningSignalRecord.idempotency_key == idempotency_key,
-            )
-            existing = (await db.execute(stmt)).scalar_one_or_none()
-            if existing is not None:
-                return existing
-        raise
-    return record
+    res = await db.execute(insert_stmt)
+    inserted_id = res.scalar_one_or_none()
+
+    if inserted_id is not None:
+        record = await db.get(LearningSignalRecord, inserted_id)
+        if record is not None:
+            return record
+
+    # Fallback to query existing if concurrent insert won race
+    if source_correction_id is not None:
+        stmt = select(LearningSignalRecord).where(
+            LearningSignalRecord.owner_user_id == owner_user_id,
+            LearningSignalRecord.source_correction_id == source_correction_id,
+        )
+        existing = (await db.execute(stmt)).scalar_one_or_none()
+        if existing is not None:
+            return existing
+
+    if idempotency_key is not None:
+        stmt = select(LearningSignalRecord).where(
+            LearningSignalRecord.owner_user_id == owner_user_id,
+            LearningSignalRecord.idempotency_key == idempotency_key,
+        )
+        existing = (await db.execute(stmt)).scalar_one_or_none()
+        if existing is not None:
+            return existing
+
+    raise RuntimeError(
+        f"Failed to persist or fetch learning signal for owner {owner_user_id}."
+    )
 
 
 async def create_signal_from_owner_correction(

@@ -373,14 +373,14 @@ def test_tournament_evaluator_honest_dry_run_and_fixture():
         external_provider_invoked=False,
     )
 
-    # 1. Default DryRun evaluation (zero fabricated metrics)
+    # 1. Default DryRun evaluation (zero fabricated metrics, structural only)
     adapter = DryRunEvaluationAdapter(evaluator)
     res_dryrun = adapter.evaluate(
         experiment=exp,
         curriculum=curriculum,
         artifact=artifact,
     )
-    assert res_dryrun.verdict == "PASS"
+    assert res_dryrun.verdict == "STRUCTURAL_ONLY"
     assert res_dryrun.real_model_evaluated is False
     assert res_dryrun.target_metric_delta == 0.0
     assert res_dryrun.evaluation_mode == "DRY_RUN_SYNTHETIC"

@@ -283,14 +283,16 @@ async def test_forged_inserts_independently_denied_by_rls(client, app_engine):
 
 
 async def test_owner_bound_composite_foreign_keys(client, app_engine):
-    """Verify that composite foreign keys enforce owner alignment between experiments/curriculum and proposals/experiments."""
+    """Verify that composite foreign keys enforce owner alignment between experiments/curriculum, proposals/experiments, and signals/corrections."""
     ra, _, _ = await register_user(client)
     client.cookies.clear()
     rb, _, _ = await register_user(client)
     uid_a, uid_b = ra.json()["id"], rb.json()["id"]
 
     curr_a_id = str(uuid.uuid4())
-    # User A creates a valid curriculum
+    exp_a_id = str(uuid.uuid4())
+
+    # User A creates a valid curriculum and experiment
     async with app_engine.connect() as conn:
         await conn.execute(text(SET_USER), {"uid": uid_a})
         await conn.execute(
@@ -303,9 +305,18 @@ async def test_owner_bound_composite_foreign_keys(client, app_engine):
             """),
             {"id": curr_a_id, "uid": uid_a},
         )
+        await conn.execute(
+            text("""
+                INSERT INTO training_experiments (
+                    id, owner_user_id, base_checkpoint_id, curriculum_id, curriculum_hash, intervention, hypothesis
+                )
+                VALUES (:id, :uid, 'base_v1', :cid, 'hash_a', 'NO_CHANGE', 'Exp A')
+            """),
+            {"id": exp_a_id, "uid": uid_a, "cid": curr_a_id},
+        )
         await conn.commit()
 
-    # User B tries to create an experiment pointing to User A's curriculum (under User B's owner_user_id)
+    # 1. User B tries to create an experiment pointing to User A's curriculum (under User B's owner_user_id)
     async with app_engine.connect() as conn:
         await conn.execute(text(SET_USER), {"uid": uid_b})
         with pytest.raises(DBAPIError) as exc_info:
@@ -320,6 +331,56 @@ async def test_owner_bound_composite_foreign_keys(client, app_engine):
             )
             await conn.commit()
         assert "fk_training_experiments_curriculum_owner" in str(exc_info.value).lower() or "foreign key" in str(exc_info.value).lower()
+
+    # 2. User B tries to create a proposal pointing to User A's experiment
+    async with app_engine.connect() as conn:
+        await conn.execute(text(SET_USER), {"uid": uid_b})
+        with pytest.raises(DBAPIError) as exc_info:
+            await conn.execute(
+                text("""
+                    INSERT INTO learning_promotion_proposals (
+                        id, owner_user_id, experiment_id, candidate_checkpoint_id, base_checkpoint_id,
+                        target_metric_delta, general_regression_delta, critical_gates_passed,
+                        recommendation, rationale
+                    )
+                    VALUES (
+                        :id, :uid_b, :eid_a, 'cand_b', 'base_v1', 0.10, 0.001, true,
+                        'PROMOTION_CANDIDATE', 'Cross owner prop'
+                    )
+                """),
+                {"id": str(uuid.uuid4()), "uid_b": uid_b, "eid_a": exp_a_id},
+            )
+            await conn.commit()
+        assert "fk_learning_promotion_proposals_experiment_owner" in str(exc_info.value).lower() or "foreign key" in str(exc_info.value).lower()
+
+    # 3. User B tries to create a learning_signal pointing to User A's correction
+    session_maker = async_sessionmaker(app_engine, expire_on_commit=False, class_=AsyncSession)
+    async with session_maker() as db_session:
+        await db_session.execute(text(SET_USER), {"uid": uid_a})
+        corr_a = await persist_user_correction(
+            db_session,
+            owner_user_id=uuid.UUID(uid_a),
+            orbit_id=None,
+            target_event_id=None,
+            correction_text="User A correction",
+            reason="test composite FK",
+        )
+        await db_session.commit()
+
+    async with app_engine.connect() as conn:
+        await conn.execute(text(SET_USER), {"uid": uid_b})
+        with pytest.raises(DBAPIError) as exc_info:
+            await conn.execute(
+                text("""
+                    INSERT INTO learning_signals (
+                        id, owner_user_id, signal_kind, task_class, summary, source_correction_id
+                    )
+                    VALUES (:id, :uid_b, 'OWNER_CORRECTION', 'cognition', 'Cross owner signal', :corr_a_id)
+                """),
+                {"id": str(uuid.uuid4()), "uid_b": uid_b, "corr_a_id": str(corr_a.id)},
+            )
+            await conn.commit()
+        assert "fk_learning_signals_source_correction_owner" in str(exc_info.value).lower() or "foreign key" in str(exc_info.value).lower()
 
 
 async def test_learning_signal_idempotency_and_recurrence(client, app_engine):

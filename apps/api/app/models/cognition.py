@@ -3,7 +3,7 @@ import datetime as dt
 import decimal
 import uuid
 
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, text
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import ENUM as PGEnum, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import DateTime, Numeric
@@ -226,6 +226,9 @@ class ModelEvaluation(Base):
 
 class UserCorrection(Base):
     __tablename__ = "user_corrections"
+    __table_args__ = (
+        UniqueConstraint("owner_user_id", "id", name="uq_user_corrections_owner_id"),
+    )
     id = uuid_pk()
     owner_user_id = _owner()
     orbit_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("orbits.id", ondelete="SET NULL"))

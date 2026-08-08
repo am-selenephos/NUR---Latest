@@ -4,6 +4,7 @@ from __future__ import annotations
 import uuid
 
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.learning.hardness.candidates import (
@@ -21,16 +22,18 @@ from app.learning.hardness.promotion import create_promotion_proposal
 from app.learning.hardness.schemas import (
     CandidateArtifact,
     LearningIntervention,
+    LearningScope,
     PromotionRecommendation,
     SelectionStatus,
     SelectorJudgment,
+    SyntheticEvaluationFixture,
     TournamentEvaluationResult,
     TrainerType,
 )
 from app.learning.hardness.selector import CurriculumSelector
-from app.learning.hardness.signals import create_signal_from_owner_correction
 from app.learning.hardness.trainers.base import BaseTrainer
 from app.learning.hardness.trainers.dry_run import DryRunTrainer
+from app.models.hardness import LearningSignalRecord
 
 
 class SliceExecutionResult(BaseModel):
@@ -48,56 +51,54 @@ class SliceExecutionResult(BaseModel):
     why_changed_ref: str | None = None
 
 
-async def run_owner_correction_hardness_slice(
+async def process_learning_signal(
     db: AsyncSession,
     *,
-    owner_user_id: uuid.UUID,
-    correction_text: str,
-    reason: str | None = None,
-    target_event_id: uuid.UUID | None = None,
-    orbit_id: uuid.UUID | None = None,
+    signal: LearningSignalRecord | uuid.UUID,
     base_checkpoint_id: str = "base_v1",
     capability_id: str = "general_cognition",
     task_class: str = "owner_guidance",
-    intervention: LearningIntervention = LearningIntervention.NO_CHANGE,
+    intervention: LearningIntervention = LearningIntervention.SFT,
     trainer: BaseTrainer | None = None,
     evaluator: TournamentEvaluator | None = None,
+    fixture: SyntheticEvaluationFixture | None = None,
 ) -> SliceExecutionResult:
-    """Execute the full owner correction hardness slice deterministically end-to-end."""
+    """Process a previously persisted canonical learning signal through the Hardness pipeline."""
+    if isinstance(signal, uuid.UUID):
+        signal_record = await db.get(LearningSignalRecord, signal)
+        if signal_record is None:
+            raise ValueError(f"LearningSignalRecord with id {signal} not found.")
+    else:
+        signal_record = signal
+
     if trainer is None:
         trainer = DryRunTrainer()
     if evaluator is None:
         evaluator = TournamentEvaluator()
 
-    # Step 1: Capture typed learning signal
-    signal = await create_signal_from_owner_correction(
-        db,
-        owner_user_id=owner_user_id,
-        orbit_id=orbit_id,
-        correction_text=correction_text,
-        reason=reason,
-        target_event_id=target_event_id,
-        capability_id=capability_id,
-        task_class=task_class,
-    )
+    owner_user_id = signal_record.owner_user_id
+    payload = signal_record.structured_payload or {}
+    failure_signature = payload.get("reason") or signal_record.summary
+    desired_behavior = payload.get("correction_text") or signal_record.summary
 
-    # Step 2: Ingest and deduplicate candidate, then perform deterministic risk screening
+    # Step 1: Ingest and deduplicate candidate, then perform deterministic risk screening
     candidate = await ingest_candidate_from_signal(
         db,
-        signal=signal,
-        failure_signature=reason or "Owner corrected response",
-        desired_behavior=correction_text,
+        signal=signal_record,
+        failure_signature=failure_signature,
+        desired_behavior=desired_behavior,
+        learning_scope=LearningScope.OWNER_LOCAL,
     )
     assess_candidate_risks(candidate)
 
-    # Step 3: Curriculum judgment
+    # Step 2: Curriculum judgment
     selector = CurriculumSelector()
     judgment = selector.evaluate_candidate(candidate)
     await apply_selector_judgment(db, candidate_id=candidate.id, judgment=judgment)
 
     if judgment.status != SelectionStatus.SELECTED:
         return SliceExecutionResult(
-            signal_id=signal.id,
+            signal_id=signal_record.id,
             candidate_id=candidate.id,
             candidate_fingerprint=candidate.fingerprint,
             judgment=judgment,
@@ -111,7 +112,7 @@ async def run_owner_correction_hardness_slice(
             why_changed_ref=None,
         )
 
-    # Step 4: Curriculum Snapshot creation with disjoint partitions
+    # Step 3: Curriculum Snapshot creation with disjoint partitions
     curriculum = await CurriculumBuilder.create_and_persist(
         db,
         owner_user_id=owner_user_id,
@@ -120,13 +121,57 @@ async def run_owner_correction_hardness_slice(
         intervention=intervention,
     )
 
+    # Step 4: Intervention gating
+    if intervention == LearningIntervention.NO_CHANGE:
+        return SliceExecutionResult(
+            signal_id=signal_record.id,
+            candidate_id=candidate.id,
+            candidate_fingerprint=candidate.fingerprint,
+            judgment=judgment,
+            curriculum_id=curriculum.id,
+            dataset_hash=curriculum.dataset_hash,
+            experiment_id=None,
+            artifact=None,
+            eval_result=None,
+            proposal_id=None,
+            recommendation=PromotionRecommendation.DRY_RUN_VALIDATED,
+            why_changed_ref=None,
+        )
+
+    if intervention not in (
+        LearningIntervention.SFT,
+        LearningIntervention.PREFERENCE_TRAINING,
+        LearningIntervention.RL,
+    ):
+        return SliceExecutionResult(
+            signal_id=signal_record.id,
+            candidate_id=candidate.id,
+            candidate_fingerprint=candidate.fingerprint,
+            judgment=judgment,
+            curriculum_id=curriculum.id,
+            dataset_hash=curriculum.dataset_hash,
+            experiment_id=None,
+            artifact=None,
+            eval_result=None,
+            proposal_id=None,
+            recommendation=PromotionRecommendation.DRY_RUN_VALIDATED,
+            why_changed_ref=None,
+        )
+
     # Step 5: Plan falsifiable training experiment
+    if intervention == LearningIntervention.PREFERENCE_TRAINING:
+        hypothesis = f"Preference alignment (DPO/RLHF) on candidate {candidate.fingerprint[:8]} improves {capability_id}"
+    elif intervention == LearningIntervention.RL:
+        hypothesis = f"Reinforcement learning policy optimization on candidate {candidate.fingerprint[:8]} improves {capability_id}"
+    else:
+        hypothesis = f"Supervised fine-tuning on candidate {candidate.fingerprint[:8]} improves {capability_id}"
+
     experiment = await create_training_experiment(
         db,
         owner_user_id=owner_user_id,
         base_checkpoint_id=base_checkpoint_id,
         curriculum=curriculum,
-        hypothesis=f"Fine-tuning on owner correction {candidate.fingerprint[:8]} improves {capability_id}",
+        hypothesis=hypothesis,
         trainer_type=TrainerType.DRY_RUN,
     )
 
@@ -139,6 +184,7 @@ async def run_owner_correction_hardness_slice(
         experiment=experiment,
         curriculum=curriculum,
         artifact=artifact,
+        fixture=fixture,
     )
 
     # Step 8: Create immutable Promotion Proposal with WhyChanged lineage
@@ -150,7 +196,7 @@ async def run_owner_correction_hardness_slice(
     )
 
     return SliceExecutionResult(
-        signal_id=signal.id,
+        signal_id=signal_record.id,
         candidate_id=candidate.id,
         candidate_fingerprint=candidate.fingerprint,
         judgment=judgment,
@@ -162,4 +208,54 @@ async def run_owner_correction_hardness_slice(
         proposal_id=proposal.id,
         recommendation=PromotionRecommendation(proposal.recommendation),
         why_changed_ref=proposal.why_changed_ref,
+    )
+
+
+async def run_owner_correction_hardness_slice(
+    db: AsyncSession,
+    *,
+    owner_user_id: uuid.UUID,
+    correction_text: str,
+    reason: str | None = None,
+    target_event_id: uuid.UUID | None = None,
+    orbit_id: uuid.UUID | None = None,
+    base_checkpoint_id: str = "base_v1",
+    capability_id: str = "general_cognition",
+    task_class: str = "owner_guidance",
+    intervention: LearningIntervention = LearningIntervention.SFT,
+    trainer: BaseTrainer | None = None,
+    evaluator: TournamentEvaluator | None = None,
+    fixture: SyntheticEvaluationFixture | None = None,
+) -> SliceExecutionResult:
+    """Execute the full owner correction hardness slice deterministically end-to-end via canonical user correction."""
+    from app.cognition.correction_service import persist_user_correction
+
+    # 1. Persist user correction and emit exactly 1 canonical LearningSignalRecord atomically
+    user_corr = await persist_user_correction(
+        db,
+        owner_user_id=owner_user_id,
+        orbit_id=orbit_id,
+        target_event_id=target_event_id,
+        correction_text=correction_text,
+        reason=reason,
+    )
+
+    # 2. Query the exact canonical signal produced by persist_user_correction
+    stmt = select(LearningSignalRecord).where(
+        LearningSignalRecord.owner_user_id == owner_user_id,
+        LearningSignalRecord.source_correction_id == user_corr.id,
+    )
+    signal = (await db.execute(stmt)).scalar_one()
+
+    # 3. Process the canonical signal through the pipeline
+    return await process_learning_signal(
+        db,
+        signal=signal,
+        base_checkpoint_id=base_checkpoint_id,
+        capability_id=capability_id,
+        task_class=task_class,
+        intervention=intervention,
+        trainer=trainer,
+        evaluator=evaluator,
+        fixture=fixture,
     )

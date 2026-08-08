@@ -27,6 +27,7 @@ from app.learning.hardness.fingerprint import (
 )
 from app.learning.hardness.pipeline import (
     SliceExecutionResult,
+    process_learning_signal,
     run_owner_correction_hardness_slice,
 )
 from app.learning.hardness.promotion import create_promotion_proposal
@@ -109,6 +110,7 @@ __all__ = [
     "ingest_candidate_from_signal",
     "partition_candidate_ids",
     "persist_learning_signal",
+    "process_learning_signal",
     "run_owner_correction_hardness_slice",
     "sha256_hex",
 ]

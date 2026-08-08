@@ -70,7 +70,7 @@ async def test_owner_correction_hardness_slice_e2e(client, app_engine):
         assert result1.judgment.status == SelectionStatus.SELECTED
         assert result1.curriculum_id is not None
         assert result1.experiment_id is not None
-        assert result1.eval_result.verdict == "PASS"
+        assert result1.eval_result.verdict == "STRUCTURAL_ONLY"
         assert result1.eval_result.real_model_evaluated is False
         assert result1.recommendation == PromotionRecommendation.DRY_RUN_VALIDATED
         assert result1.why_changed_ref is not None
@@ -126,7 +126,38 @@ async def test_owner_correction_hardness_slice_e2e(client, app_engine):
         assert prop_row.critical_gates_passed is True
         assert prop_row.why_changed_ref.startswith("why_changed:")
 
-        # 8. Verify exact signal retry idempotency
+        # 8. Verify process_learning_signal with NO_CHANGE intervention
+        from app.learning.hardness.pipeline import process_learning_signal
+        from app.learning.hardness.schemas import LearningIntervention
+
+        corr_no_change = await persist_user_correction(
+            db,
+            owner_user_id=owner_user_id,
+            orbit_id=None,
+            target_event_id=None,
+            correction_text="No change needed here",
+            reason="testing no-op intervention",
+        )
+        stmt_nc = select(LearningSignalRecord).where(
+            LearningSignalRecord.owner_user_id == owner_user_id,
+            LearningSignalRecord.source_correction_id == corr_no_change.id,
+        )
+        sig_nc = (await db.execute(stmt_nc)).scalar_one()
+
+        res_nc = await process_learning_signal(
+            db,
+            signal=sig_nc,
+            intervention=LearningIntervention.NO_CHANGE,
+        )
+        assert res_nc.curriculum_id is not None
+        assert res_nc.dataset_hash is not None
+        assert res_nc.experiment_id is None, "NO_CHANGE intervention must create 0 training experiments"
+        assert res_nc.artifact is None
+        assert res_nc.eval_result is None
+        assert res_nc.proposal_id is None
+        assert res_nc.recommendation == PromotionRecommendation.DRY_RUN_VALIDATED
+
+        # 9. Verify exact signal retry idempotency
         from app.learning.hardness.candidates import ingest_candidate_from_signal
         from app.learning.hardness.schemas import LearningSignalKind
         from app.learning.hardness.signals import persist_learning_signal

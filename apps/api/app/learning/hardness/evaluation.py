@@ -52,71 +52,50 @@ class TournamentEvaluator:
             target_metric_delta = fixture.target_delta
             general_regression_delta = fixture.regression_delta
             evaluation_mode = "SYNTHETIC_FIXTURE"
-        else:
-            # Production DryRun evaluation: verify structural safety invariants honestly
-            privacy_passed = (
-                curriculum.owner_user_id == experiment.owner_user_id
-                and bool(curriculum.privacy_manifest_hash)
-            )
-            scope_passed = (
-                curriculum.dataset_manifest.get("items", [{}])[0].get("learning_scope", "OWNER_LOCAL") == "OWNER_LOCAL"
-                if curriculum.dataset_manifest.get("items")
-                else True
-            )
-            agency_passed = not artifact.external_provider_invoked
-            calibration_passed = True
-            target_metric_base = 0.0
-            target_metric_candidate = 0.0
-            target_metric_delta = 0.0
-            general_regression_delta = 0.0
-            evaluation_mode = "DRY_RUN_SYNTHETIC"
 
-        # 1. Critical Gates Verification
-        gates.append(
-            CriticalGateResult(
-                gate_name="gate_owner_privacy",
-                status=GateStatus.PASS if privacy_passed else GateStatus.FAIL,
-                passed=privacy_passed,
-                details="Verified owner isolation and sanitized heldout bounds"
-                if privacy_passed
-                else "Owner privacy check failed",
+            gates.append(
+                CriticalGateResult(
+                    gate_name="gate_owner_privacy",
+                    status=GateStatus.PASS if privacy_passed else GateStatus.FAIL,
+                    passed=privacy_passed,
+                    details="Verified owner isolation and sanitized heldout bounds"
+                    if privacy_passed
+                    else "Owner privacy check failed",
+                )
             )
-        )
-        gates.append(
-            CriticalGateResult(
-                gate_name="gate_scope_isolation",
-                status=GateStatus.PASS if scope_passed else GateStatus.FAIL,
-                passed=scope_passed,
-                details="Scope verified as OWNER_LOCAL" if scope_passed else "Scope boundary violated",
+            gates.append(
+                CriticalGateResult(
+                    gate_name="gate_scope_isolation",
+                    status=GateStatus.PASS if scope_passed else GateStatus.FAIL,
+                    passed=scope_passed,
+                    details="Scope verified as OWNER_LOCAL" if scope_passed else "Scope boundary violated",
+                )
             )
-        )
-        gates.append(
-            CriticalGateResult(
-                gate_name="gate_agency_boundaries",
-                status=GateStatus.PASS if agency_passed else GateStatus.FAIL,
-                passed=agency_passed,
-                details="Agency runtime authority boundaries preserved"
-                if agency_passed
-                else "Agency boundary violation",
+            gates.append(
+                CriticalGateResult(
+                    gate_name="gate_agency_boundaries",
+                    status=GateStatus.PASS if agency_passed else GateStatus.FAIL,
+                    passed=agency_passed,
+                    details="Agency runtime authority boundaries preserved"
+                    if agency_passed
+                    else "Agency boundary violation",
+                )
             )
-        )
-        gates.append(
-            CriticalGateResult(
-                gate_name="gate_confidence_calibration",
-                status=GateStatus.PASS if calibration_passed else GateStatus.FAIL,
-                passed=calibration_passed,
-                details="Uncertainty calibration metrics within expected bounds"
-                if calibration_passed
-                else "Calibration check failed",
+            gates.append(
+                CriticalGateResult(
+                    gate_name="gate_confidence_calibration",
+                    status=GateStatus.PASS if calibration_passed else GateStatus.FAIL,
+                    passed=calibration_passed,
+                    details="Uncertainty calibration metrics within expected bounds"
+                    if calibration_passed
+                    else "Calibration check failed",
+                )
             )
-        )
 
-        all_critical_gates_passed = all(g.passed for g in gates)
-        if not all_critical_gates_passed:
-            reason_codes.append("CRITICAL_GATE_FAILURE")
+            all_critical_gates_passed = all(g.passed for g in gates)
+            if not all_critical_gates_passed:
+                reason_codes.append("CRITICAL_GATE_FAILURE")
 
-        # 2. Metric evaluation & Verdict
-        if fixture is not None:
             if target_metric_delta < self.min_target_delta:
                 reason_codes.append("TARGET_METRIC_IMPROVEMENT_INSUFFICIENT")
             if general_regression_delta > self.max_regression_delta:
@@ -131,13 +110,129 @@ class TournamentEvaluator:
                 reason_codes.append("TOURNAMENT_WINNER")
             else:
                 verdict = "FAIL"
+
+            real_model_evaluated = False
         else:
-            # In DryRun without fixture, verdict PASS indicates structural validation passed
-            if all_critical_gates_passed:
-                verdict = "PASS"
+            # Production DryRun evaluation: verify structural safety invariants honestly
+            owner_binding_passed = (curriculum.owner_user_id == experiment.owner_user_id)
+            no_external_invoked = (artifact.external_provider_invoked is False and artifact.spend_cents == 0)
+            manifest_present = bool(curriculum.dataset_manifest and curriculum.privacy_manifest_hash and curriculum.dataset_hash)
+
+            items = curriculum.dataset_manifest.get("items") if isinstance(curriculum.dataset_manifest, dict) else []
+            if items:
+                scopes = [it.get("learning_scope") for it in items if isinstance(it, dict)]
+                scope_structural_passed = len(scopes) > 0 and all(s == "OWNER_LOCAL" for s in scopes)
+            else:
+                top_scope = curriculum.dataset_manifest.get("learning_scope") if isinstance(curriculum.dataset_manifest, dict) else None
+                scope_structural_passed = (top_scope == "OWNER_LOCAL") if top_scope else True
+
+            # 1. Runnable Structural Gates
+            gates.append(
+                CriticalGateResult(
+                    gate_name="gate_owner_binding",
+                    status=GateStatus.PASS if owner_binding_passed else GateStatus.FAIL,
+                    passed=owner_binding_passed,
+                    details="Verified curriculum and experiment owner match"
+                    if owner_binding_passed
+                    else f"Owner mismatch: curriculum {curriculum.owner_user_id} vs experiment {experiment.owner_user_id}",
+                )
+            )
+            gates.append(
+                CriticalGateResult(
+                    gate_name="gate_no_external_provider_invocation",
+                    status=GateStatus.PASS if no_external_invoked else GateStatus.FAIL,
+                    passed=no_external_invoked,
+                    details="Zero external paid AI provider calls verified (spend=0)"
+                    if no_external_invoked
+                    else "External provider was invoked",
+                )
+            )
+            gates.append(
+                CriticalGateResult(
+                    gate_name="gate_manifest_present",
+                    status=GateStatus.PASS if manifest_present else GateStatus.FAIL,
+                    passed=manifest_present,
+                    details="Dataset, privacy, and provenance manifest hashes verified"
+                    if manifest_present
+                    else "Dataset manifest or privacy hash missing",
+                )
+            )
+            gates.append(
+                CriticalGateResult(
+                    gate_name="gate_scope_isolation",
+                    status=GateStatus.PASS if scope_structural_passed else GateStatus.FAIL,
+                    passed=scope_structural_passed,
+                    details="Scope structurally verified as OWNER_LOCAL"
+                    if scope_structural_passed
+                    else "Scope invalid, missing, or non-local",
+                )
+            )
+
+            # 2. Empirical Benchmark Gates (Truthfully NOT_RUN in structural dry-run)
+            gates.append(
+                CriticalGateResult(
+                    gate_name="gate_privacy_benchmark",
+                    status=GateStatus.NOT_RUN,
+                    passed=False,
+                    details="Privacy benchmark evaluation not executed in structural dry run",
+                )
+            )
+            gates.append(
+                CriticalGateResult(
+                    gate_name="gate_scope_behavioral_benchmark",
+                    status=GateStatus.NOT_RUN,
+                    passed=False,
+                    details="Scope behavioral benchmark not executed in structural dry run",
+                )
+            )
+            gates.append(
+                CriticalGateResult(
+                    gate_name="gate_agency_approval_boundary",
+                    status=GateStatus.NOT_RUN,
+                    passed=False,
+                    details="Agency approval boundary evaluation not executed in structural dry run",
+                )
+            )
+            gates.append(
+                CriticalGateResult(
+                    gate_name="gate_confidence_calibration",
+                    status=GateStatus.NOT_RUN,
+                    passed=False,
+                    details="Confidence calibration not executed in structural dry run",
+                )
+            )
+
+            all_structural_passed = (
+                owner_binding_passed
+                and no_external_invoked
+                and manifest_present
+                and scope_structural_passed
+            )
+            all_critical_gates_passed = all_structural_passed
+            if not all_structural_passed:
+                reason_codes.append("CRITICAL_GATE_FAILURE")
+
+            heldout_ids = curriculum.heldout_ids or []
+            if not heldout_ids:
+                reason_codes.append("EMPTY_HELDOUT_SET")
+
+            reason_codes.append("NO_REAL_MODEL_EVALUATED")
+            if all_structural_passed:
+                verdict = "STRUCTURAL_ONLY"
                 reason_codes.append("DRY_RUN_STRUCTURAL_GATES_PASSED")
             else:
                 verdict = "FAIL"
+
+            privacy_passed = False
+            scope_passed = False
+            agency_passed = False
+            calibration_passed = False
+            target_metric_base = 0.0
+            target_metric_candidate = 0.0
+            target_metric_delta = 0.0
+            general_regression_delta = 0.0
+            evaluation_mode = "DRY_RUN_SYNTHETIC"
+            real_model_evaluated = False
 
         return TournamentEvaluationResult(
             evaluation_id=uuid.uuid4(),
@@ -155,7 +250,7 @@ class TournamentEvaluator:
             critical_gates=gates,
             all_critical_gates_passed=all_critical_gates_passed,
             evaluation_mode=evaluation_mode,
-            real_model_evaluated=False,
+            real_model_evaluated=real_model_evaluated,
             verdict=verdict,
             reason_codes=reason_codes,
             evaluated_at=dt.datetime.now(dt.UTC),
