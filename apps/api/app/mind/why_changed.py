@@ -33,8 +33,6 @@ class ChangeClass(StrEnum):
     EXPIRED = "expired"                  # time-based invalidation
     POLICY_CHANGE = "policy_change"      # system policy changed behavior
     DEPLOYMENT = "deployment"            # model/prompt/config deployed
-    EXPERIMENT_VALIDATED = "experiment_validated"  # dry-run / orchestration validation
-    PROPOSED = "proposed"                # candidate proposal evaluated
 
 
 class EntityType(StrEnum):

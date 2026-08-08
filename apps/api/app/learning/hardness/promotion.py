@@ -24,10 +24,10 @@ async def create_promotion_proposal(
     if eval_result.verdict == "PASS":
         if eval_result.real_model_evaluated:
             recommendation = PromotionRecommendation.PROMOTION_CANDIDATE
-            change_class = ChangeClass.PROPOSED
+            change_class = ChangeClass.PROMOTED
         else:
             recommendation = PromotionRecommendation.DRY_RUN_VALIDATED
-            change_class = ChangeClass.EXPERIMENT_VALIDATED
+            change_class = ChangeClass.UPDATED
     else:
         recommendation = PromotionRecommendation.REJECTED
         change_class = ChangeClass.DEMOTED
