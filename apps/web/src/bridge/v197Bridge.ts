@@ -320,17 +320,15 @@ export class V197Bridge {
     universeDocument.addEventListener("click", event => {
       const target = event.target as Element | null;
       if (this.applyingRoute || !target || typeof target.closest !== "function") return;
-      const control = target.closest<HTMLElement>("[data-page], [data-world-focus], [data-world-tab]");
+      const control = target.closest<HTMLElement>("[data-page], [data-world-focus], [data-world-tab], [data-owner-route]");
       if (!control) return;
       const world = control.dataset.worldFocus ?? control.dataset.worldTab;
-      const route = routeForPage(control.dataset.page ?? "") ?? routeForWorldFocus(world ?? "");
+      const route = control.dataset.ownerRoute
+        ? nativeRoute(control.dataset.ownerRoute)
+        : routeForPage(control.dataset.page ?? "") ?? routeForWorldFocus(world ?? "");
       if (!route) return;
       window.setTimeout(() => {
         this.pushRoute(route);
-        if (world && this.snapshot) {
-          renderWorldLens(universeDocument, this.snapshot, world);
-          this.compactRenderedMiniStars(universeDocument);
-        }
       }, 0);
     });
 
@@ -339,15 +337,15 @@ export class V197Bridge {
       const route = routeForPage((event as CustomEvent<{ page?: string }>).detail?.page ?? "");
       if (route) this.pushRoute(route);
     });
+    universeWindow.addEventListener("nur:owner-route", event => {
+      const route = (event as CustomEvent<{ route?: string }>).detail?.route;
+      if (route) this.pushRoute(nativeRoute(route));
+    });
     universeWindow.addEventListener("nur:world-focus", event => {
       if (this.applyingRoute) return;
       const focus = (event as CustomEvent<{ focus?: string }>).detail?.focus ?? "";
       const route = routeForWorldFocus(focus);
       if (route) this.pushRoute(route);
-      if (this.snapshot) {
-        renderWorldLens(universeDocument, this.snapshot, focus);
-        this.compactRenderedMiniStars(universeDocument);
-      }
     });
   }
 
@@ -377,6 +375,7 @@ export class V197Bridge {
   private pushRoute(route: V197NativeRoute): void {
     if (window.location.pathname === route) return;
     window.history.pushState({}, "", route);
+    void this.applyCurrentRoute();
   }
 
   private snapshotEventDetail(snapshot: V197BridgeSnapshot): Record<string, unknown> {

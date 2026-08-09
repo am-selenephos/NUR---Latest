@@ -26,6 +26,10 @@ const nativeV197Routes = new Set([
   "/universe/community",
   "/universe/web-signals",
   "/settings",
+  "/memory",
+  "/teach-nur",
+  "/billing",
+  "/capsules",
   "/universe/omega",
   "/universe/omega/review",
 ]);

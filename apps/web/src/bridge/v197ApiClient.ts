@@ -462,6 +462,240 @@ export interface V197OwnedCapsule {
   created_at: string;
 }
 
+export type V197MemoryType =
+  | "EPISODIC"
+  | "SEMANTIC"
+  | "PROCEDURAL"
+  | "SOCIAL"
+  | "EVIDENCE"
+  | "SELF"
+  | "GOAL"
+  | "META_COGNITIVE"
+  | "ADAPTIVE_INTERFACE";
+
+export type V197MemorySensitivity = "LOW" | "PRIVATE" | "SENSITIVE";
+
+export interface V197MemoryCandidate {
+  id: string;
+  orbit_id: string | null;
+  candidate_text: string;
+  original_text: string;
+  memory_type: V197MemoryType | string;
+  provenance_label: string;
+  confidence: number;
+  sensitivity: V197MemorySensitivity | string;
+  status: string;
+  review_note: string | null;
+  approved_memory_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface V197Memory {
+  id: string;
+  orbit_id: string | null;
+  memory_type: V197MemoryType | string;
+  canonical_text: string;
+  structured_value: Record<string, unknown>;
+  provenance_label: string;
+  confidence: number;
+  sensitivity: V197MemorySensitivity | string;
+  status: string;
+  version: number;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface V197MemoryCreate {
+  canonical_text: string;
+  structured_value?: Record<string, unknown>;
+  orbit_id?: string | null;
+  memory_type?: V197MemoryType;
+  sensitivity?: V197MemorySensitivity;
+  confidence?: number;
+  expires_at?: string | null;
+}
+
+export interface V197MemoryPatch {
+  canonical_text?: string;
+  structured_value?: Record<string, unknown>;
+  memory_type?: V197MemoryType;
+  sensitivity?: V197MemorySensitivity;
+  confidence?: number;
+  correction_reason?: string;
+}
+
+export type V197TeachNURContributionKind =
+  | "FACT"
+  | "LIVED_EXPERIENCE"
+  | "CORRECTION"
+  | "COUNTEREXAMPLE"
+  | "LANGUAGE"
+  | "RESEARCH"
+  | "EXPERTISE"
+  | "MISUNDERSTANDING"
+  | "OUTCOME_EVIDENCE";
+
+export type V197TeachNURConsentScope = "PRIVATE_OWNER" | "DEIDENTIFIED_RESEARCH";
+export type V197TeachNURReviewAction =
+  | "EDIT"
+  | "APPROVE"
+  | "REJECT"
+  | "START_CANARY"
+  | "ACTIVATE"
+  | "ROLLBACK"
+  | "WITHDRAW_CONSENT";
+
+export interface V197TeachNURSourceRef {
+  kind: "OWNER_REFERENCE" | "URL" | "DOI" | "MEMORY" | "OUTCOME" | "RESEARCH_NOTE";
+  reference: string;
+}
+
+export interface V197TeachNURContributionCreate {
+  contribution_kind: V197TeachNURContributionKind;
+  content: string;
+  orbit_id?: string | null;
+  language_tag?: string;
+  consent_scope: V197TeachNURConsentScope;
+  consent_granted: boolean;
+  consent_policy_version?: "teach-nur-v1";
+  sensitivity?: V197MemorySensitivity | null;
+  confidence?: number;
+  source_refs?: V197TeachNURSourceRef[];
+}
+
+export interface V197TeachNURContribution {
+  id: string;
+  orbit_id: string | null;
+  contribution_kind: V197TeachNURContributionKind | string;
+  content: string;
+  language_tag: string;
+  consent_scope: V197TeachNURConsentScope | string;
+  consent_granted: boolean;
+  provenance_label: string;
+  sensitivity: string;
+  confidence: number;
+  status: string;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  model_training_status: "NOT_AUTHORIZED";
+  institutional_promotion_status: "OWNER_SCOPED_ONLY";
+}
+
+export interface V197BillingFeature {
+  feature_key: string;
+  allowed: boolean;
+  usage_limit: number | null;
+}
+
+export interface V197BillingPlan {
+  code: string;
+  name: string;
+  description: string;
+  price_minor: number;
+  currency: string;
+  billing_interval: string;
+  seat_cap: number | null;
+  seats_remaining: number | null;
+  is_free: boolean;
+  active: boolean;
+  legal_copy_version: string;
+  features: V197BillingFeature[];
+}
+
+export interface V197BillingSubscription {
+  id: string;
+  plan_code: string;
+  provider: string;
+  provider_status: string;
+  status: string;
+  is_test: boolean;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  cancelled_at: string | null;
+  ended_at: string | null;
+  latest_receipt_url: string | null;
+}
+
+export interface V197BillingState {
+  subscription: V197BillingSubscription | null;
+  entitlements: Array<V197BillingFeature & {
+    usage_consumed: number;
+    valid_until: string | null;
+    reason: string;
+    projection_version: number;
+  }>;
+  refunds: Array<{
+    id: string;
+    amount_minor: number | null;
+    currency: string | null;
+    status: string;
+    created_at: string;
+  }>;
+  provider_configured: boolean;
+  portal_available: boolean;
+  cancellation_note: string;
+  terms_url: string | null;
+  privacy_url: string | null;
+  refund_policy_url: string | null;
+}
+
+export interface V197BillingCheckout {
+  session_id: string;
+  plan_code: string;
+  provider: string;
+  checkout_url: string;
+  status: string;
+  is_test: boolean;
+  reservation_expires_at: string;
+  renews_automatically: boolean;
+}
+
+export interface V197BillingPortal {
+  url: string;
+  expires_at: string;
+  purpose: "MANAGE_CANCEL_INVOICES";
+}
+
+export interface V197OrbitSource {
+  id: string;
+  source_kind: string;
+  source_id: string;
+  inclusion_mode: string;
+  created_at: string;
+}
+
+export interface V197CapsuleCreate {
+  title: string;
+  purpose: string;
+  capability?: "READ_ONLY" | "ASK_SCOPED_QUESTIONS" | string;
+  recipient_instructions?: string | null;
+  expires_at?: string | null;
+  orbit_source_ids: string[];
+  representations?: Record<string, string>;
+}
+
+export interface V197CapsuleGrant {
+  id: string;
+  capsule_id: string;
+  recipient_user_id: string | null;
+  capability: string;
+  expires_at: string | null;
+  revoked_at: string | null;
+  last_accessed_at: string | null;
+}
+
+export interface V197CapsuleAuditEvent {
+  event_kind: string;
+  actor_user_id: string | null;
+  grant_id: string | null;
+  created_at: string;
+  meta: Record<string, unknown>;
+}
+
 export interface V197OmegaDashboard {
   statuses: Record<string, string>;
   claims: Array<Record<string, unknown>>;
@@ -628,10 +862,10 @@ export class V197ApiClient {
     }
   }
 
-  private writeHeaders(): HeadersInit {
+  private writeHeaders(extra: Record<string, string> = {}): HeadersInit {
     const csrf = cookie("nur_csrf");
     if (!csrf) throw new V197ApiError("The local session is missing its CSRF token.", 401);
-    return { "X-CSRF-Token": csrf };
+    return { "X-CSRF-Token": csrf, ...extra };
   }
 
   get<T>(path: string): Promise<T> {
@@ -660,6 +894,14 @@ export class V197ApiClient {
       method: "PUT",
       headers: this.writeHeaders(),
       body: JSON.stringify(body),
+    });
+  }
+
+  delete<T>(path: string, body?: unknown): Promise<T> {
+    return this.request<T>(path, {
+      method: "DELETE",
+      headers: this.writeHeaders(),
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
   }
 
@@ -757,6 +999,108 @@ export class V197ApiClient {
     return this.patch<V197Preferences>("/profile/preferences", payload);
   }
 
+  memoryCandidates(status?: string, limit = 100): Promise<V197MemoryCandidate[]> {
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (status) query.set("status", status);
+    return this.get<V197MemoryCandidate[]>(`/memory-candidates?${query.toString()}`);
+  }
+
+  approveMemoryCandidate(
+    candidateId: string,
+    payload: { memory_type?: V197MemoryType; sensitivity?: V197MemorySensitivity; review_note?: string | null } = {},
+  ): Promise<V197Memory> {
+    return this.post<V197Memory>(`/memory-candidates/${encodeURIComponent(candidateId)}/approve`, payload);
+  }
+
+  rejectMemoryCandidate(candidateId: string, reviewNote?: string | null): Promise<V197MemoryCandidate> {
+    return this.post<V197MemoryCandidate>(
+      `/memory-candidates/${encodeURIComponent(candidateId)}/reject`,
+      { review_note: reviewNote ?? null },
+    );
+  }
+
+  correctMemoryCandidate(candidateId: string, payload: {
+    canonical_text: string;
+    correction_reason: string;
+    memory_type?: V197MemoryType;
+    sensitivity?: V197MemorySensitivity;
+  }): Promise<V197MemoryCandidate> {
+    return this.post<V197MemoryCandidate>(`/memory-candidates/${encodeURIComponent(candidateId)}/correct`, payload);
+  }
+
+  memories(options: { orbitId?: string | null; includeRetired?: boolean; limit?: number } = {}): Promise<V197Memory[]> {
+    const query = new URLSearchParams({
+      include_retired: String(options.includeRetired ?? false),
+      limit: String(options.limit ?? 100),
+    });
+    if (options.orbitId) query.set("orbit_id", options.orbitId);
+    return this.get<V197Memory[]>(`/memories?${query.toString()}`);
+  }
+
+  createMemory(payload: V197MemoryCreate): Promise<V197Memory> {
+    return this.post<V197Memory>("/memories", payload);
+  }
+
+  patchMemory(memoryId: string, payload: V197MemoryPatch): Promise<V197Memory> {
+    return this.patch<V197Memory>(`/memories/${encodeURIComponent(memoryId)}`, payload);
+  }
+
+  deleteMemory(memoryId: string): Promise<void> {
+    return this.delete<void>(`/memories/${encodeURIComponent(memoryId)}`);
+  }
+
+  teachNURContributions(status?: string, limit = 100): Promise<V197TeachNURContribution[]> {
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (status) query.set("status", status);
+    return this.get<V197TeachNURContribution[]>(`/teach-nur/contributions?${query.toString()}`);
+  }
+
+  createTeachNURContribution(
+    payload: V197TeachNURContributionCreate,
+    idempotencyKey: string,
+  ): Promise<V197TeachNURContribution> {
+    return this.request<V197TeachNURContribution>("/teach-nur/contributions", {
+      method: "POST",
+      headers: this.writeHeaders({ "Idempotency-Key": idempotencyKey }),
+      body: JSON.stringify(payload),
+    });
+  }
+
+  reviewTeachNURContribution(
+    contributionId: string,
+    payload: { action: V197TeachNURReviewAction; edited_text?: string; review_note?: string | null },
+    idempotencyKey: string,
+  ): Promise<V197TeachNURContribution> {
+    return this.request<V197TeachNURContribution>(
+      `/teach-nur/contributions/${encodeURIComponent(contributionId)}/review`,
+      {
+        method: "POST",
+        headers: this.writeHeaders({ "Idempotency-Key": idempotencyKey }),
+        body: JSON.stringify(payload),
+      },
+    );
+  }
+
+  billingPlans(): Promise<V197BillingPlan[]> {
+    return this.get<V197BillingPlan[]>("/billing/plans");
+  }
+
+  billingSubscription(): Promise<V197BillingState> {
+    return this.get<V197BillingState>("/billing/subscription");
+  }
+
+  billingCheckout(planCode: string, idempotencyKey: string): Promise<V197BillingCheckout> {
+    return this.request<V197BillingCheckout>("/billing/checkout", {
+      method: "POST",
+      headers: this.writeHeaders({ "Idempotency-Key": idempotencyKey }),
+      body: JSON.stringify({ plan_code: planCode }),
+    });
+  }
+
+  billingPortal(): Promise<V197BillingPortal> {
+    return this.post<V197BillingPortal>("/billing/portal", {});
+  }
+
   createResearchBrief(question: string, orbitId: string | null): Promise<V197ResearchBrief> {
     return this.post<V197ResearchBrief>("/research/briefs", { question, orbit_id: orbitId });
   }
@@ -838,8 +1182,24 @@ export class V197ApiClient {
     return this.get<V197OwnedCapsule[]>("/capsules");
   }
 
-  capsuleAudit(capsuleId: string): Promise<Array<Record<string, unknown>>> {
-    return this.get<Array<Record<string, unknown>>>(`/capsules/${encodeURIComponent(capsuleId)}/audit`);
+  orbitSources(orbitId: string): Promise<V197OrbitSource[]> {
+    return this.get<V197OrbitSource[]>(`/orbits/${encodeURIComponent(orbitId)}/sources`);
+  }
+
+  createCapsule(orbitId: string, payload: V197CapsuleCreate): Promise<V197OwnedCapsule> {
+    return this.post<V197OwnedCapsule>(`/orbits/${encodeURIComponent(orbitId)}/capsules`, payload);
+  }
+
+  grantCapsule(capsuleId: string, payload: {
+    recipient_email: string;
+    capability?: "READ_ONLY" | "ASK_SCOPED_QUESTIONS" | string;
+    expires_at?: string | null;
+  }): Promise<V197CapsuleGrant> {
+    return this.post<V197CapsuleGrant>(`/capsules/${encodeURIComponent(capsuleId)}/grants`, payload);
+  }
+
+  capsuleAudit(capsuleId: string): Promise<V197CapsuleAuditEvent[]> {
+    return this.get<V197CapsuleAuditEvent[]>(`/capsules/${encodeURIComponent(capsuleId)}/audit`);
   }
 
   revokeCapsule(capsuleId: string): Promise<V197OwnedCapsule> {

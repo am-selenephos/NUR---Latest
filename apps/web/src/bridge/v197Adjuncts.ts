@@ -1,12 +1,20 @@
 import {
   V197ApiClient,
   V197ApiError,
+  type V197BillingPlan,
+  type V197BillingState,
   type V197BridgeSnapshot,
   type V197CapsuleAnswer,
   type V197CapsuleView,
   type V197CommunityPost,
   type V197ConsultationDetail,
+  type V197Memory,
+  type V197MemoryCandidate,
+  type V197MemorySensitivity,
+  type V197MemoryType,
   type V197OwnedCapsule,
+  type V197TeachNURContribution,
+  type V197TeachNURContributionKind,
 } from "./v197ApiClient";
 import { applyV197Locale, directionForPreference, V197_LOCALE_META, type WritingPreference } from "./v197I18n";
 import V197_ADJUNCT_FORENSIC_CSS from "../styles/v197-adjunct-forensic.css?raw";
@@ -15,6 +23,29 @@ import { createV197StarSeal } from "./v197StarSeal";
 
 const ROOT_ID = "nur-v197-adjunct-root";
 const STYLE_ID = "nur-v197-adjunct-style";
+const MEMORY_TYPES: readonly V197MemoryType[] = [
+  "EPISODIC",
+  "SEMANTIC",
+  "PROCEDURAL",
+  "SOCIAL",
+  "EVIDENCE",
+  "SELF",
+  "GOAL",
+  "META_COGNITIVE",
+  "ADAPTIVE_INTERFACE",
+];
+const MEMORY_SENSITIVITIES: readonly V197MemorySensitivity[] = ["LOW", "PRIVATE", "SENSITIVE"];
+const TEACH_NUR_KINDS: readonly V197TeachNURContributionKind[] = [
+  "FACT",
+  "LIVED_EXPERIENCE",
+  "CORRECTION",
+  "COUNTEREXAMPLE",
+  "LANGUAGE",
+  "RESEARCH",
+  "EXPERTISE",
+  "MISUNDERSTANDING",
+  "OUTCOME_EVIDENCE",
+];
 
 type RefreshSnapshot = () => Promise<V197BridgeSnapshot>;
 
@@ -28,6 +59,42 @@ function date(value: unknown): string {
   if (typeof value !== "string" || !value) return "No expiry";
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+}
+
+function activeOrbitId(snapshot: V197BridgeSnapshot): string | null {
+  return snapshot.preferences?.active_orbit_id
+    ?? snapshot.map?.nodes.find(node => node.kind !== "PERSONAL_BRIDGE")?.id
+    ?? snapshot.session.orbit.id
+    ?? null;
+}
+
+function requestKey(scope: string): string {
+  const suffix = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `v197-${scope}:${suffix}`;
+}
+
+function safeExternalUrl(value: string | null | undefined): URL | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+function openExternalUrl(value: string | null | undefined): boolean {
+  const url = safeExternalUrl(value);
+  if (!url) return false;
+  return window.open(url.toString(), "_blank", "noopener,noreferrer") !== null;
+}
+
+function selectOptions<T extends string>(document: Document, select: HTMLSelectElement, values: readonly T[]): void {
+  for (const value of values) {
+    const option = element(document, "option", undefined, value.replaceAll("_", " ")) as HTMLOptionElement;
+    option.value = value;
+    select.append(option);
+  }
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -76,6 +143,17 @@ function status(document: Document, message: string, tone: "quiet" | "good" | "w
   const node = element(document, "p", `nur-adjunct-status is-${tone}`, message);
   node.setAttribute("role", "status");
   return node;
+}
+
+function setStatus(node: HTMLElement, message: string, tone: "quiet" | "good" | "warn" = "quiet"): void {
+  node.textContent = message;
+  node.className = `nur-adjunct-status is-${tone}`;
+}
+
+function labeledControl(document: Document, label: string, control: HTMLElement): HTMLElement {
+  const field = element(document, "label", "nur-adjunct-field");
+  field.append(element(document, "span", undefined, label), control);
+  return field;
 }
 
 function recordId(row: Record<string, unknown>): string {
@@ -231,6 +309,791 @@ async function renderSettings(
   });
 
   grid.append(provider, language, experience, ownership, savePanel);
+}
+
+async function renderMemory(document: Document, api: V197ApiClient, snapshot: V197BridgeSnapshot): Promise<void> {
+  const shell = mount(
+    document,
+    "Memory stays proposed until you choose it.",
+    "Candidate inferences, accepted memories and owner-written context remain separate, editable and deletable inside your private ledger.",
+  );
+  const grid = element(document, "div", "nur-adjunct-grid");
+  shell.append(grid);
+  const orbitId = activeOrbitId(snapshot);
+
+  const create = panel(document, "Owner-written memory", "Hold one thing deliberately");
+  create.classList.add("is-wide");
+  const createText = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+  createText.dataset.adjunctControl = "memory-create-text";
+  createText.placeholder = "Write only what you want NUR to remember...";
+  const createType = element(document, "select", "nur-adjunct-select") as HTMLSelectElement;
+  createType.dataset.adjunctControl = "memory-create-type";
+  selectOptions(document, createType, MEMORY_TYPES);
+  createType.value = "SEMANTIC";
+  const createSensitivity = element(document, "select", "nur-adjunct-select") as HTMLSelectElement;
+  createSensitivity.dataset.adjunctControl = "memory-create-sensitivity";
+  selectOptions(document, createSensitivity, MEMORY_SENSITIVITIES);
+  createSensitivity.value = "PRIVATE";
+  const createAction = button(document, "Remember by my choice", "memory-create", true);
+  createAction.disabled = !orbitId;
+  const createState = status(
+    document,
+    orbitId ? "Nothing is stored until you press this control." : "Choose an active Orbit before creating a memory.",
+    orbitId ? "quiet" : "warn",
+  );
+  const createActions = element(document, "div", "nur-adjunct-actions");
+  createActions.append(createAction);
+  create.append(
+    element(document, "p", "nur-adjunct-boundary", "Private means owner-scoped. Sensitive memory remains excluded from sharing unless you later select it through a separate boundary."),
+    labeledControl(document, "Memory", createText),
+    labeledControl(document, "Type", createType),
+    labeledControl(document, "Sensitivity", createSensitivity),
+    createActions,
+    createState,
+  );
+
+  const candidates = panel(document, "Review queue", "Memory candidates");
+  const candidateState = status(document, "Candidates are not memories until you approve them.");
+  const candidateList = element(document, "div", "nur-adjunct-list");
+  candidates.append(candidateState, candidateList);
+
+  const accepted = panel(document, "Owner ledger", "Accepted memories");
+  const memoryState = status(document, "Edits create a persisted version; deletion removes the owner memory.");
+  const memoryList = element(document, "div", "nur-adjunct-list");
+  accepted.append(memoryState, memoryList);
+
+  const renderCandidates = (rows: V197MemoryCandidate[]) => {
+    candidateList.replaceChildren();
+    if (!rows.length) {
+      candidateList.append(empty(document, "No memory candidate is waiting", "NUR has not proposed an owner memory, or every proposal has already been reviewed."));
+      return;
+    }
+    for (const candidate of rows) {
+      const row = element(document, "article", "nur-adjunct-row");
+      const head = element(document, "div", "nur-adjunct-row-head");
+      head.append(
+        element(document, "strong", undefined, candidate.candidate_text),
+        element(document, "span", "nur-adjunct-chip", candidate.status),
+      );
+      row.append(head, element(document, "p", undefined, `${candidate.memory_type} · ${candidate.sensitivity} · ${candidate.provenance_label}`));
+      if (["PENDING", "PENDING_REVIEW", "CANDIDATE", "EDITED"].includes(candidate.status)) {
+        const correctedText = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+        correctedText.value = candidate.candidate_text;
+        correctedText.dataset.adjunctControl = `memory-candidate-text-${candidate.id}`;
+        const reason = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+        reason.placeholder = "Why this correction is needed";
+        reason.dataset.adjunctControl = `memory-candidate-reason-${candidate.id}`;
+        const actions = element(document, "div", "nur-adjunct-actions");
+        const approve = button(document, "Approve as memory", `memory-candidate-approve-${candidate.id}`, true);
+        const correct = button(document, "Correct proposal", `memory-candidate-correct-${candidate.id}`);
+        const reject = button(document, "Reject proposal", `memory-candidate-reject-${candidate.id}`);
+        actions.append(approve, correct, reject);
+        const controls = [approve, correct, reject];
+        const act = async (action: "approve" | "correct" | "reject") => {
+          controls.forEach(control => { control.disabled = true; });
+          setStatus(candidateState, `${action === "approve" ? "Approving" : action === "correct" ? "Correcting" : "Rejecting"} owner candidate...`);
+          try {
+            if (action === "approve") await api.approveMemoryCandidate(candidate.id);
+            else if (action === "reject") await api.rejectMemoryCandidate(candidate.id);
+            else {
+              const canonicalText = correctedText.value.trim();
+              const correctionReason = reason.value.trim();
+              if (!canonicalText || !correctionReason) throw new Error("A corrected memory and a reason are both required.");
+              await api.correctMemoryCandidate(candidate.id, {
+                canonical_text: canonicalText,
+                correction_reason: correctionReason,
+              });
+            }
+            setStatus(candidateState, "Owner candidate review persisted.", "good");
+            await refreshLists();
+          } catch (error) {
+            setStatus(candidateState, error instanceof Error ? error.message : "The candidate action failed.", "warn");
+            controls.forEach(control => { control.disabled = false; });
+          }
+        };
+        approve.addEventListener("click", () => void act("approve"));
+        correct.addEventListener("click", () => void act("correct"));
+        reject.addEventListener("click", () => void act("reject"));
+        row.append(
+          labeledControl(document, "Corrected wording", correctedText),
+          labeledControl(document, "Correction reason", reason),
+          actions,
+        );
+      }
+      candidateList.append(row);
+    }
+  };
+
+  const renderMemories = (rows: V197Memory[]) => {
+    memoryList.replaceChildren();
+    if (!rows.length) {
+      memoryList.append(empty(document, "No accepted memory", "Create one deliberately or approve a candidate. NUR does not backfill an invented memory."));
+      return;
+    }
+    for (const memory of rows) {
+      const row = element(document, "article", "nur-adjunct-row");
+      const head = element(document, "div", "nur-adjunct-row-head");
+      head.append(
+        element(document, "strong", undefined, memory.canonical_text),
+        element(document, "span", "nur-adjunct-chip", `${memory.status} · v${memory.version}`),
+      );
+      const canonicalText = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+      canonicalText.value = memory.canonical_text;
+      canonicalText.dataset.adjunctControl = `memory-text-${memory.id}`;
+      const memoryType = element(document, "select", "nur-adjunct-select") as HTMLSelectElement;
+      selectOptions(document, memoryType, MEMORY_TYPES);
+      if (MEMORY_TYPES.includes(memory.memory_type as V197MemoryType)) memoryType.value = memory.memory_type;
+      const sensitivity = element(document, "select", "nur-adjunct-select") as HTMLSelectElement;
+      selectOptions(document, sensitivity, MEMORY_SENSITIVITIES);
+      if (MEMORY_SENSITIVITIES.includes(memory.sensitivity as V197MemorySensitivity)) sensitivity.value = memory.sensitivity;
+      const actions = element(document, "div", "nur-adjunct-actions");
+      const save = button(document, "Save owner edit", `memory-save-${memory.id}`, true);
+      const remove = button(document, "Delete memory", `memory-delete-${memory.id}`);
+      actions.append(save, remove);
+      save.addEventListener("click", async () => {
+        const value = canonicalText.value.trim();
+        if (!value) {
+          setStatus(memoryState, "A memory cannot be blank.", "warn");
+          return;
+        }
+        save.disabled = true;
+        remove.disabled = true;
+        try {
+          await api.patchMemory(memory.id, {
+            canonical_text: value,
+            memory_type: memoryType.value as V197MemoryType,
+            sensitivity: sensitivity.value as V197MemorySensitivity,
+          });
+          setStatus(memoryState, "Owner edit persisted as the next memory version.", "good");
+          await refreshLists();
+        } catch (error) {
+          setStatus(memoryState, error instanceof Error ? error.message : "The memory edit failed.", "warn");
+          save.disabled = false;
+          remove.disabled = false;
+        }
+      });
+      remove.addEventListener("click", async () => {
+        if (!window.confirm("Delete this owner memory? This removes it from active NUR use.")) return;
+        save.disabled = true;
+        remove.disabled = true;
+        try {
+          await api.deleteMemory(memory.id);
+          setStatus(memoryState, "Memory deleted from the owner ledger.", "good");
+          await refreshLists();
+        } catch (error) {
+          setStatus(memoryState, error instanceof Error ? error.message : "The memory could not be deleted.", "warn");
+          save.disabled = false;
+          remove.disabled = false;
+        }
+      });
+      row.append(
+        head,
+        element(document, "p", undefined, `${memory.memory_type} · ${memory.sensitivity} · ${memory.provenance_label}`),
+        labeledControl(document, "Canonical wording", canonicalText),
+        labeledControl(document, "Type", memoryType),
+        labeledControl(document, "Sensitivity", sensitivity),
+        actions,
+      );
+      memoryList.append(row);
+    }
+  };
+
+  const refreshLists = async () => {
+    const [candidateRows, memoryRows] = await Promise.all([
+      api.memoryCandidates(undefined, 100),
+      api.memories({ includeRetired: false, limit: 100 }),
+    ]);
+    renderCandidates(candidateRows);
+    renderMemories(memoryRows);
+  };
+
+  createAction.addEventListener("click", async () => {
+    const canonicalText = createText.value.trim();
+    if (!canonicalText || !orbitId) {
+      setStatus(createState, orbitId ? "Write the memory you want NUR to hold." : "Choose an active Orbit first.", "warn");
+      return;
+    }
+    createAction.disabled = true;
+    setStatus(createState, "Writing only this owner-approved memory...");
+    try {
+      await api.createMemory({
+        canonical_text: canonicalText,
+        structured_value: {},
+        orbit_id: orbitId,
+        memory_type: createType.value as V197MemoryType,
+        sensitivity: createSensitivity.value as V197MemorySensitivity,
+        confidence: 1,
+      });
+      createText.value = "";
+      setStatus(createState, "Memory persisted by your explicit choice.", "good");
+      await refreshLists();
+    } catch (error) {
+      setStatus(createState, error instanceof Error ? error.message : "The memory could not be created.", "warn");
+    } finally {
+      createAction.disabled = false;
+    }
+  });
+
+  grid.append(create, candidates, accepted);
+  await refreshLists();
+}
+
+async function renderTeachNUR(document: Document, api: V197ApiClient, snapshot: V197BridgeSnapshot): Promise<void> {
+  const shell = mount(
+    document,
+    "Teach NUR without surrendering authority.",
+    "Your contribution enters an owner-scoped review ledger. Consent is explicit, reversible and never authorizes model training by implication.",
+  );
+  const grid = element(document, "div", "nur-adjunct-grid");
+  shell.append(grid);
+  const orbitId = activeOrbitId(snapshot);
+
+  const contribute = panel(document, "Explicit contribution", "Offer one bounded correction or insight");
+  contribute.classList.add("is-wide");
+  const kind = element(document, "select", "nur-adjunct-select") as HTMLSelectElement;
+  kind.dataset.adjunctControl = "teach-kind";
+  selectOptions(document, kind, TEACH_NUR_KINDS);
+  kind.value = "CORRECTION";
+  const content = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+  content.dataset.adjunctControl = "teach-content";
+  content.placeholder = "What should NUR learn, question or correct?";
+  const scope = element(document, "select", "nur-adjunct-select") as HTMLSelectElement;
+  scope.dataset.adjunctControl = "teach-consent-scope";
+  for (const [value, label] of [
+    ["PRIVATE_OWNER", "Private owner retrieval only"],
+    ["DEIDENTIFIED_RESEARCH", "Deidentified research review"],
+  ] as const) {
+    const option = element(document, "option", undefined, label) as HTMLOptionElement;
+    option.value = value;
+    scope.append(option);
+  }
+  const sensitivity = element(document, "select", "nur-adjunct-select") as HTMLSelectElement;
+  sensitivity.dataset.adjunctControl = "teach-sensitivity";
+  selectOptions(document, sensitivity, MEMORY_SENSITIVITIES);
+  sensitivity.value = "PRIVATE";
+  const consentRow = element(document, "label", "nur-adjunct-toggle");
+  const consent = element(document, "input") as HTMLInputElement;
+  consent.type = "checkbox";
+  consent.dataset.adjunctControl = "teach-consent";
+  consentRow.append(
+    element(document, "span", undefined, "I explicitly consent to this selected contribution scope."),
+    consent,
+  );
+  const scopeState = status(document, "Private owner scope keeps the contribution inside your own retrieval ledger.");
+  const createAction = button(document, "Submit to review ledger", "teach-create", true);
+  createAction.disabled = true;
+  const createState = status(document, "No contribution is submitted without the checked consent control.");
+  const actions = element(document, "div", "nur-adjunct-actions");
+  actions.append(createAction);
+  contribute.append(
+    element(document, "p", "nur-adjunct-boundary", "Deidentified research consent permits governed review only. It does not authorize foundation-model training, institutional promotion or public attribution."),
+    labeledControl(document, "Contribution kind", kind),
+    labeledControl(document, "Contribution", content),
+    labeledControl(document, "Consent scope", scope),
+    labeledControl(document, "Sensitivity", sensitivity),
+    scopeState,
+    consentRow,
+    actions,
+    createState,
+  );
+
+  const ledger = panel(document, "Owner review ledger", "Your contributions");
+  ledger.classList.add("is-wide");
+  const ledgerState = status(document, "Withdrawal closes future use while preserving the required consent audit.");
+  const list = element(document, "div", "nur-adjunct-list");
+  ledger.append(ledgerState, list);
+
+  const renderRows = (rows: V197TeachNURContribution[]) => {
+    list.replaceChildren();
+    if (!rows.length) {
+      list.append(empty(document, "No contribution submitted", "NUR does not invent a teaching history. Your first explicit contribution will appear here."));
+      return;
+    }
+    for (const contribution of rows) {
+      const row = element(document, "article", "nur-adjunct-row");
+      const head = element(document, "div", "nur-adjunct-row-head");
+      head.append(
+        element(document, "strong", undefined, contribution.content),
+        element(document, "span", "nur-adjunct-chip", contribution.status),
+      );
+      row.append(
+        head,
+        element(document, "p", undefined, `${contribution.contribution_kind} · ${contribution.consent_scope} · ${contribution.sensitivity}`),
+        element(document, "p", undefined, `Model training: ${contribution.model_training_status} · Promotion: ${contribution.institutional_promotion_status}`),
+      );
+      if (contribution.consent_granted && !["WITHDRAWN", "REJECTED", "ROLLED_BACK"].includes(contribution.status)) {
+        const withdraw = button(document, "Withdraw consent", `teach-withdraw-${contribution.id}`);
+        const rowActions = element(document, "div", "nur-adjunct-actions");
+        rowActions.append(withdraw);
+        withdraw.addEventListener("click", async () => {
+          withdraw.disabled = true;
+          try {
+            await api.reviewTeachNURContribution(
+              contribution.id,
+              { action: "WITHDRAW_CONSENT", review_note: "Withdrawn by owner from the V197 contribution ledger." },
+              requestKey(`teach-withdraw-${contribution.id}`),
+            );
+            setStatus(ledgerState, "Consent withdrawn. The audit remains, but future use is closed.", "good");
+            await refreshLedger();
+          } catch (error) {
+            setStatus(ledgerState, error instanceof Error ? error.message : "Consent could not be withdrawn.", "warn");
+            withdraw.disabled = false;
+          }
+        });
+        row.append(rowActions);
+      }
+      list.append(row);
+    }
+  };
+
+  const refreshLedger = async () => renderRows(await api.teachNURContributions(undefined, 100));
+
+  const syncConsent = () => {
+    createAction.disabled = !consent.checked;
+    setStatus(
+      createState,
+      consent.checked
+        ? "Consent is explicit for this submission and can later be withdrawn."
+        : "No contribution is submitted without the checked consent control.",
+      consent.checked ? "good" : "quiet",
+    );
+  };
+  consent.addEventListener("change", syncConsent);
+  scope.addEventListener("change", () => {
+    setStatus(
+      scopeState,
+      scope.value === "DEIDENTIFIED_RESEARCH"
+        ? "This permits governed deidentified research review, not model training or public promotion."
+        : "Private owner scope keeps the contribution inside your own retrieval ledger.",
+    );
+    consent.checked = false;
+    syncConsent();
+  });
+
+  createAction.addEventListener("click", async () => {
+    const contribution = content.value.trim();
+    if (!consent.checked || !contribution) {
+      setStatus(createState, consent.checked ? "Write the contribution you want reviewed." : "Explicit consent is required.", "warn");
+      return;
+    }
+    createAction.disabled = true;
+    setStatus(createState, "Submitting only this bounded contribution...");
+    try {
+      await api.createTeachNURContribution({
+        contribution_kind: kind.value as V197TeachNURContributionKind,
+        content: contribution,
+        orbit_id: orbitId,
+        language_tag: snapshot.preferences?.locale ?? snapshot.session.profile.locale ?? "und",
+        consent_scope: scope.value as "PRIVATE_OWNER" | "DEIDENTIFIED_RESEARCH",
+        consent_granted: true,
+        consent_policy_version: "teach-nur-v1",
+        sensitivity: sensitivity.value as V197MemorySensitivity,
+        confidence: 1,
+        source_refs: [],
+      }, requestKey("teach-create"));
+      content.value = "";
+      consent.checked = false;
+      setStatus(createState, "Contribution entered your owner review ledger.", "good");
+      await refreshLedger();
+    } catch (error) {
+      setStatus(createState, error instanceof Error ? error.message : "The contribution could not be submitted.", "warn");
+    } finally {
+      createAction.disabled = !consent.checked;
+    }
+  });
+
+  grid.append(contribute, ledger);
+  await refreshLedger();
+}
+
+function billingPrice(plan: V197BillingPlan): string {
+  if (plan.is_free) return "Free";
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: plan.currency,
+      maximumFractionDigits: 2,
+    }).format(plan.price_minor / 100);
+  } catch {
+    return `${plan.currency} ${(plan.price_minor / 100).toFixed(2)}`;
+  }
+}
+
+function billingLegalLinks(document: Document, state: V197BillingState): HTMLElement {
+  const links = element(document, "div", "nur-adjunct-actions");
+  for (const [label, value] of [
+    ["Terms", state.terms_url],
+    ["Privacy", state.privacy_url],
+    ["Refund policy", state.refund_policy_url],
+  ] as const) {
+    const url = safeExternalUrl(value);
+    if (!url) continue;
+    const anchor = element(document, "a", "nur-adjunct-button", label) as HTMLAnchorElement;
+    anchor.href = url.toString();
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
+    links.append(anchor);
+  }
+  if (!links.childElementCount) {
+    links.append(status(document, "Provider legal links are not configured. Paid checkout remains unavailable until they are present.", "warn"));
+  }
+  return links;
+}
+
+function externalFallback(document: Document, container: HTMLElement, value: string, label: string): boolean {
+  const url = safeExternalUrl(value);
+  if (!url) return false;
+  container.querySelector("[data-adjunct-external-fallback]")?.remove();
+  const anchor = element(document, "a", "nur-adjunct-button", label) as HTMLAnchorElement;
+  anchor.href = url.toString();
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
+  anchor.dataset.adjunctExternalFallback = "true";
+  container.append(anchor);
+  return true;
+}
+
+async function renderBilling(document: Document, api: V197ApiClient): Promise<void> {
+  const [plans, billing] = await Promise.all([api.billingPlans(), api.billingSubscription()]);
+  const shell = mount(
+    document,
+    "Billing without hidden authority.",
+    "Plans, entitlements, renewal state and provider handoff come from the billing ledger. NUR never fabricates a purchase or silently changes your subscription.",
+  );
+  const grid = element(document, "div", "nur-adjunct-grid");
+  shell.append(grid);
+
+  const current = panel(document, "Owner subscription", billing.subscription ? billing.subscription.plan_code : "Orbit Scan Free");
+  const currentFacts = element(document, "div", "nur-adjunct-facts");
+  currentFacts.append(
+    fact(document, "Provider", billing.subscription?.provider ?? (billing.provider_configured ? "Configured, no subscription" : "Disabled")),
+    fact(document, "Status", billing.subscription?.status ?? "FREE"),
+    fact(document, "Renews", billing.subscription ? (billing.subscription.cancel_at_period_end ? "No · cancellation scheduled" : "Provider managed") : "No paid renewal"),
+    fact(document, "Paid through", date(billing.subscription?.current_period_end)),
+  );
+  const portal = button(document, "Manage subscription", "billing-portal");
+  portal.disabled = !billing.portal_available;
+  const portalState = status(document, billing.cancellation_note, billing.provider_configured ? "quiet" : "warn");
+  const currentActions = element(document, "div", "nur-adjunct-actions");
+  currentActions.append(portal);
+  current.append(currentFacts, currentActions, portalState, billingLegalLinks(document, billing));
+  portal.addEventListener("click", async () => {
+    portal.disabled = true;
+    setStatus(portalState, "Requesting a short-lived provider portal...");
+    try {
+      const response = await api.billingPortal();
+      const url = safeExternalUrl(response.url);
+      if (!url) {
+        setStatus(portalState, "The API did not return a valid HTTPS portal URL. Nothing was opened.", "warn");
+      } else if (!openExternalUrl(url.toString())) {
+        externalFallback(document, currentActions, url.toString(), "Open secure billing portal");
+        setStatus(portalState, "Your browser blocked the new tab. Use the secure provider link shown beside this control.", "warn");
+      } else {
+        setStatus(portalState, `Provider portal opened in a new tab. Link expires ${date(response.expires_at)}.`, "good");
+      }
+    } catch (error) {
+      setStatus(portalState, error instanceof Error ? error.message : "The provider portal is unavailable.", "warn");
+    } finally {
+      portal.disabled = !billing.portal_available;
+    }
+  });
+
+  const entitlements = panel(document, "Server projection", "Current entitlements");
+  const entitlementList = element(document, "div", "nur-adjunct-list");
+  if (!billing.entitlements.length) {
+    entitlementList.append(empty(document, "No paid entitlement projection", "Free access remains governed by the server. No paid feature is implied."));
+  }
+  for (const entitlement of billing.entitlements) {
+    const row = element(document, "div", "nur-adjunct-row");
+    const head = element(document, "div", "nur-adjunct-row-head");
+    head.append(
+      element(document, "strong", undefined, entitlement.feature_key.replaceAll("_", " ")),
+      element(document, "span", "nur-adjunct-chip", entitlement.allowed ? "ALLOWED" : "NOT INCLUDED"),
+    );
+    const usage = entitlement.usage_limit === null
+      ? `${entitlement.usage_consumed} used · no fixed limit returned`
+      : `${entitlement.usage_consumed} / ${entitlement.usage_limit} used`;
+    row.append(head, element(document, "p", undefined, `${usage} · ${entitlement.reason}`));
+    entitlementList.append(row);
+  }
+  entitlements.append(entitlementList);
+
+  const available = panel(document, "Available plans", "Choose only through the real provider");
+  available.classList.add("is-wide");
+  const checkoutState = status(
+    document,
+    billing.provider_configured
+      ? "Checkout opens only after the API returns a valid HTTPS provider URL."
+      : "Billing provider is disabled. Plan information is visible, but purchase controls are unavailable.",
+    billing.provider_configured ? "quiet" : "warn",
+  );
+  const planList = element(document, "div", "nur-adjunct-list");
+  if (!plans.length) {
+    planList.append(empty(document, "No active plan returned", "NUR will not invent price, entitlement or availability data."));
+  }
+  for (const plan of plans) {
+    const row = element(document, "article", "nur-adjunct-row");
+    const head = element(document, "div", "nur-adjunct-row-head");
+    head.append(
+      element(document, "strong", undefined, `${plan.name} · ${billingPrice(plan)}`),
+      element(document, "span", "nur-adjunct-chip", plan.billing_interval),
+    );
+    row.append(
+      head,
+      element(document, "p", undefined, plan.description),
+      element(document, "p", "nur-adjunct-boundary", `${plan.features.filter(feature => feature.allowed).length} server-declared features · legal copy ${plan.legal_copy_version}`),
+    );
+    const planActions = element(document, "div", "nur-adjunct-actions");
+    const checkout = button(document, plan.is_free ? "Included free" : `Choose ${plan.name}`, `billing-checkout-${plan.code}`, !plan.is_free);
+    checkout.disabled = plan.is_free || !plan.active || !billing.provider_configured;
+    planActions.append(checkout);
+    checkout.addEventListener("click", async () => {
+      checkout.disabled = true;
+      setStatus(checkoutState, `Creating an idempotent ${plan.name} provider handoff...`);
+      try {
+        const response = await api.billingCheckout(plan.code, requestKey("billing-checkout"));
+        const url = safeExternalUrl(response.checkout_url);
+        if (!url) {
+          setStatus(checkoutState, "The API did not return a valid HTTPS checkout URL. Nothing was opened and no purchase is claimed.", "warn");
+        } else if (!openExternalUrl(url.toString())) {
+          externalFallback(document, planActions, url.toString(), `Continue to ${plan.name}`);
+          setStatus(checkoutState, "Your browser blocked the new tab. Use the secure provider link on this plan. No subscription is claimed yet.", "warn");
+        } else {
+          setStatus(checkoutState, `${plan.name} checkout opened through ${response.provider}. No subscription is claimed until the webhook ledger confirms it.`, "good");
+        }
+      } catch (error) {
+        setStatus(checkoutState, error instanceof Error ? error.message : "Checkout is unavailable.", "warn");
+      } finally {
+        checkout.disabled = plan.is_free || !plan.active || !billing.provider_configured;
+      }
+    });
+    row.append(planActions);
+    planList.append(row);
+  }
+  available.append(checkoutState, planList);
+  grid.append(current, entitlements, available);
+}
+
+async function renderOwnerCapsules(document: Document, api: V197ApiClient, snapshot: V197BridgeSnapshot): Promise<void> {
+  const orbitId = activeOrbitId(snapshot);
+  const [sources, initialCapsules] = await Promise.all([
+    orbitId ? api.orbitSources(orbitId) : Promise.resolve([]),
+    api.ownedCapsules(),
+  ]);
+  let capsules = initialCapsules;
+  const shell = mount(
+    document,
+    "Share a room, never your whole mind.",
+    "A Context Capsule copies only explicitly allowlisted Orbit sources. Recipient grants, expiry, audit and revocation remain separate owner-controlled boundaries.",
+    "/universe/orbits",
+  );
+  const grid = element(document, "div", "nur-adjunct-grid");
+  shell.append(grid);
+
+  const create = panel(document, "Source allowlist", "Create a bounded Context Capsule");
+  create.classList.add("is-wide");
+  const title = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+  title.dataset.adjunctControl = "capsules-title";
+  title.placeholder = "Capsule title";
+  const purpose = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+  purpose.dataset.adjunctControl = "capsules-purpose";
+  purpose.placeholder = "What should this bounded room help the recipient do?";
+  const capability = element(document, "select", "nur-adjunct-select") as HTMLSelectElement;
+  capability.dataset.adjunctControl = "capsules-capability";
+  for (const [value, label] of [
+    ["READ_ONLY", "Read approved sources only"],
+    ["ASK_SCOPED_QUESTIONS", "Ask scoped questions"],
+  ] as const) {
+    const option = element(document, "option", undefined, label) as HTMLOptionElement;
+    option.value = value;
+    capability.append(option);
+  }
+  const instructions = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+  instructions.dataset.adjunctControl = "capsules-instructions";
+  instructions.placeholder = "Optional instructions shown inside the recipient room";
+  const expires = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+  expires.type = "datetime-local";
+  expires.dataset.adjunctControl = "capsules-expires";
+  const sourceList = element(document, "div", "nur-adjunct-list");
+  if (!sources.length) {
+    sourceList.append(empty(
+      document,
+      orbitId ? "No approved Orbit source" : "No active Orbit",
+      orbitId
+        ? "Attach an owned decision, reference or other supported source to this Orbit before creating a Capsule."
+        : "Choose an active Orbit before creating a Context Capsule.",
+    ));
+  }
+  for (const source of sources) {
+    const row = element(document, "label", "nur-adjunct-toggle");
+    const copy = element(document, "span", undefined, `${source.source_kind} · ${source.source_id} · ${source.inclusion_mode}`);
+    const check = element(document, "input") as HTMLInputElement;
+    check.type = "checkbox";
+    check.dataset.capsuleSourceId = source.id;
+    check.dataset.adjunctControl = `capsules-source-${source.id}`;
+    row.append(copy, check);
+    sourceList.append(row);
+  }
+  const createAction = button(document, "Create bounded capsule", "capsules-create", true);
+  createAction.disabled = !orbitId || !sources.length;
+  const createState = status(
+    document,
+    sources.length
+      ? "Select at least one source. Nothing else in Memory, Talk, Journal, Timeline or Omega is traversable."
+      : "Creation is disabled until an active Orbit has an explicit approved source.",
+    sources.length ? "quiet" : "warn",
+  );
+  const createActions = element(document, "div", "nur-adjunct-actions");
+  createActions.append(createAction);
+  create.append(
+    element(document, "p", "nur-adjunct-boundary", "Creating a Capsule does not share it. A recipient grant is a second explicit write, and revocation closes access immediately."),
+    labeledControl(document, "Title", title),
+    labeledControl(document, "Purpose", purpose),
+    labeledControl(document, "Recipient capability", capability),
+    labeledControl(document, "Recipient instructions", instructions),
+    labeledControl(document, "Capsule expiry (optional)", expires),
+    element(document, "h3", undefined, "Approved sources"),
+    sourceList,
+    createActions,
+    createState,
+  );
+
+  const owned = panel(document, "Owner lifecycle", "Your Context Capsules");
+  owned.classList.add("is-wide");
+  const ownedState = status(document, "Email grants are hash-addressed by the server; this page never claims delivery or recipient acceptance.");
+  const ownedList = element(document, "div", "nur-adjunct-list");
+  owned.append(ownedState, ownedList);
+
+  const renderOwned = () => {
+    ownedList.replaceChildren();
+    if (!capsules.length) {
+      ownedList.append(empty(document, "No owner Capsule", "Create a source-bounded room above. It remains unshared until you add a recipient grant."));
+      return;
+    }
+    for (const capsule of capsules) {
+      const row = element(document, "article", "nur-adjunct-row");
+      const capsuleState = capsule.revoked_at ? "REVOKED" : "ACTIVE";
+      const head = element(document, "div", "nur-adjunct-row-head");
+      head.append(
+        element(document, "strong", undefined, capsule.title),
+        element(document, "span", "nur-adjunct-chip", capsuleState),
+      );
+      row.append(
+        head,
+        element(document, "p", undefined, capsule.purpose),
+        element(document, "p", "nur-adjunct-boundary", `${capsule.capability} · expires ${date(capsule.expires_at)}`),
+      );
+      const controls = element(document, "div", "nur-adjunct-actions");
+      const open = button(document, "Open owner controls", `capsules-open-${capsule.id}`);
+      open.addEventListener("click", () => navigate(`/capsule/${encodeURIComponent(capsule.id)}`));
+      controls.append(open);
+      row.append(controls);
+      if (capsuleState === "ACTIVE") {
+        const email = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+        email.type = "email";
+        email.autocomplete = "email";
+        email.placeholder = "Exact recipient account email";
+        email.dataset.adjunctControl = `capsules-grant-email-${capsule.id}`;
+        const grantCapability = element(document, "select", "nur-adjunct-select") as HTMLSelectElement;
+        grantCapability.dataset.adjunctControl = `capsules-grant-capability-${capsule.id}`;
+        for (const [value, label] of [
+          ["READ_ONLY", "Read approved sources only"],
+          ["ASK_SCOPED_QUESTIONS", "Ask scoped questions"],
+        ] as const) {
+          const option = element(document, "option", undefined, label) as HTMLOptionElement;
+          option.value = value;
+          grantCapability.append(option);
+        }
+        grantCapability.value = capsule.capability === "READ_ONLY" ? "READ_ONLY" : "ASK_SCOPED_QUESTIONS";
+        const grant = button(document, "Grant this recipient", `capsules-grant-${capsule.id}`, true);
+        const grantState = status(document, "Granting access does not send an email or prove the recipient opened the room.");
+        const grantActions = element(document, "div", "nur-adjunct-actions");
+        grantActions.append(grant);
+        grant.addEventListener("click", async () => {
+          const recipientEmail = email.value.trim();
+          if (!recipientEmail || !email.checkValidity()) {
+            setStatus(grantState, "Enter the exact valid email for the intended recipient.", "warn");
+            return;
+          }
+          grant.disabled = true;
+          setStatus(grantState, "Writing the recipient grant...");
+          try {
+            await api.grantCapsule(capsule.id, {
+              recipient_email: recipientEmail,
+              capability: grantCapability.value,
+              expires_at: capsule.expires_at,
+            });
+            email.value = "";
+            setStatus(grantState, "Recipient grant persisted. Delivery and opening remain unclaimed.", "good");
+          } catch (error) {
+            setStatus(grantState, error instanceof Error ? error.message : "The recipient grant failed.", "warn");
+          } finally {
+            grant.disabled = false;
+          }
+        });
+        row.append(
+          labeledControl(document, "Recipient email", email),
+          labeledControl(document, "Granted capability", grantCapability),
+          grantActions,
+          grantState,
+        );
+      }
+      ownedList.append(row);
+    }
+  };
+
+  createAction.addEventListener("click", async () => {
+    const selectedSourceIds = Array.from(sourceList.querySelectorAll<HTMLInputElement>("[data-capsule-source-id]:checked"))
+      .map(control => control.dataset.capsuleSourceId)
+      .filter((value): value is string => Boolean(value));
+    const capsuleTitle = title.value.trim();
+    const capsulePurpose = purpose.value.trim();
+    if (!capsuleTitle || !capsulePurpose) {
+      setStatus(createState, "A Capsule title and bounded purpose are required.", "warn");
+      return;
+    }
+    if (!orbitId || !selectedSourceIds.length) {
+      setStatus(createState, orbitId ? "Select at least one approved Orbit source." : "Choose an active Orbit first.", "warn");
+      return;
+    }
+    let expiresAt: string | null = null;
+    if (expires.value) {
+      const parsed = new Date(expires.value);
+      if (Number.isNaN(parsed.getTime())) {
+        setStatus(createState, "Choose a valid Capsule expiry.", "warn");
+        return;
+      }
+      expiresAt = parsed.toISOString();
+    }
+    createAction.disabled = true;
+    setStatus(createState, "Copying only the selected source allowlist...");
+    try {
+      const capsule = await api.createCapsule(orbitId, {
+        title: capsuleTitle,
+        purpose: capsulePurpose,
+        capability: capability.value,
+        recipient_instructions: instructions.value.trim() || null,
+        expires_at: expiresAt,
+        orbit_source_ids: selectedSourceIds,
+        representations: {},
+      });
+      capsules = [capsule, ...capsules];
+      title.value = "";
+      purpose.value = "";
+      instructions.value = "";
+      expires.value = "";
+      sourceList.querySelectorAll<HTMLInputElement>("[data-capsule-source-id]").forEach(control => { control.checked = false; });
+      renderOwned();
+      setStatus(createState, "Capsule created from the selected allowlist. No recipient has access yet.", "good");
+    } catch (error) {
+      setStatus(createState, error instanceof Error ? error.message : "The Capsule could not be created.", "warn");
+    } finally {
+      createAction.disabled = !sources.length;
+    }
+  });
+
+  renderOwned();
+  grid.append(create, owned);
 }
 
 function capsuleStatePanel(document: Document, view: V197CapsuleView): HTMLElement {
@@ -1574,6 +2437,10 @@ export async function renderV197Adjunct(
 ): Promise<boolean> {
   const existing = document.getElementById(ROOT_ID);
   const isAdjunct = route === "/settings"
+    || route === "/memory"
+    || route === "/teach-nur"
+    || route === "/billing"
+    || route === "/capsules"
     || route.startsWith("/capsule/")
     || route === "/consultations"
     || route.startsWith("/consultations/")
@@ -1593,6 +2460,10 @@ export async function renderV197Adjunct(
 
   try {
     if (route === "/settings") await renderSettings(document, api, snapshot, refreshSnapshot);
+    else if (route === "/memory") await renderMemory(document, api, snapshot);
+    else if (route === "/teach-nur") await renderTeachNUR(document, api, snapshot);
+    else if (route === "/billing") await renderBilling(document, api);
+    else if (route === "/capsules") await renderOwnerCapsules(document, api, snapshot);
     else if (route.startsWith("/capsule/")) await renderCapsule(document, api, decodeURIComponent(route.slice("/capsule/".length)));
     else if (route === "/consultations") await renderConsultationIndex(document, api, snapshot);
     else if (route.startsWith("/consultations/")) await renderConsultationDetail(document, api, decodeURIComponent(route.split("/")[2] ?? ""));

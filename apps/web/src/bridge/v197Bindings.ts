@@ -130,11 +130,31 @@ export class V197ActionBindings {
     menu.setAttribute("aria-label", "Owner session");
     const note = this.document.createElement("p");
     note.textContent = "Your private session is active on this device.";
+    const navigation = this.document.createElement("nav");
+    navigation.className = "nur-owner-menu-routes";
+    navigation.setAttribute("aria-label", "Owner spaces");
+    for (const [label, route] of [
+      ["Settings", "/settings"],
+      ["Memory", "/memory"],
+      ["Teach NUR", "/teach-nur"],
+      ["Billing", "/billing"],
+      ["Capsules", "/capsules"],
+      ["Projects", "/projects"],
+      ["Notifications", "/notifications"],
+      ["Glow", "/glow"],
+      ["Omega", "/universe/omega"],
+    ] as const) {
+      const routeButton = this.document.createElement("button");
+      routeButton.type = "button";
+      routeButton.dataset.ownerRoute = route;
+      routeButton.textContent = label;
+      navigation.append(routeButton);
+    }
     const logout = this.document.createElement("button");
     logout.type = "button";
     logout.dataset.action = "auth-logout";
     logout.textContent = "Sign out of NUR";
-    menu.append(note, logout);
+    menu.append(note, navigation, logout);
     this.document.body.append(menu);
   }
 
@@ -735,6 +755,16 @@ export class V197ActionBindings {
         await this.api.logout();
         await this.onLoggedOut();
       });
+      return;
+    }
+
+    const ownerRoute = closest(event.target, "[data-owner-route]");
+    if (ownerRoute?.dataset.ownerRoute) {
+      this.blockNative(event);
+      this.document.getElementById("nur-v197-owner-auth-menu")?.setAttribute("hidden", "");
+      this.universeWindow()?.dispatchEvent(new CustomEvent("nur:owner-route", {
+        detail: { route: ownerRoute.dataset.ownerRoute },
+      }));
       return;
     }
 
