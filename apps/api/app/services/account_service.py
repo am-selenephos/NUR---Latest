@@ -33,7 +33,7 @@ from app.models import (
 )
 from app.models._mixins import now_utc
 from app.models.billing import BillingCustomer, BillingSubscription
-from app.models.projects import AMProjectFile
+from app.models.projects import AMProjectFile, AMProjectRun
 from app.services import audit_service
 from app.services.auth_service import AuthError
 from app.services.object_storage import StoredObjectMissing, get_object_storage
@@ -490,6 +490,34 @@ async def request_account_deletion(
         )
     db.add_all(cleanup_rows)
 
+    # Disable every owner-controlled execution surface before access and
+    # sessions are revoked. Agent cancellation also invalidates approvals,
+    # fences execution tokens, and cancels unsent outbox rows atomically.
+    from app.agentic.lifecycle_service import cancel_owner_workflows_for_deletion
+
+    cancelled_agent_workflows = await cancel_owner_workflows_for_deletion(
+        db, owner_user_id=owner_user_id
+    )
+    project_runs = await db.execute(
+        update(AMProjectRun)
+        .where(
+            AMProjectRun.owner_user_id == owner_user_id,
+            AMProjectRun.status.in_(
+                ["PROPOSED", "APPROVED", "QUEUED", "RUNNING", "CANCEL_REQUESTED"]
+            ),
+        )
+        .values(
+            status=text(
+                "CASE WHEN status = 'RUNNING' THEN 'CANCEL_REQUESTED' "
+                "ELSE 'CANCELLED' END"
+            ),
+            cancelled_at=text(
+                "CASE WHEN status = 'RUNNING' THEN cancelled_at ELSE now() END"
+            ),
+            updated_at=now,
+        )
+    )
+
     revoked = await db.execute(
         update(Session)
         .where(Session.user_id == owner_user_id, Session.revoked_at.is_(None))
@@ -508,6 +536,8 @@ async def request_account_deletion(
             "purge_after": purge_after.isoformat(),
             "revoked_session_count": revoked.rowcount or 0,
             "cleanup_item_count": len(cleanup_rows),
+            "cancelled_agent_workflow_count": cancelled_agent_workflows,
+            "cancelled_or_stopping_project_run_count": project_runs.rowcount or 0,
         },
     )
     await db.commit()

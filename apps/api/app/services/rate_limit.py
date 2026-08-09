@@ -98,3 +98,14 @@ async def allow_owner_upload(redis: Redis, *, user_id: str) -> bool:
         max_n=s.upload_rate_limit_max,
         window_s=s.upload_rate_limit_window_seconds,
     )
+
+
+async def allow_agentic_mutation(redis: Redis, *, user_id: str, ip: str) -> bool:
+    """Bound owner Agent writes by both account and source address."""
+    s = get_settings()
+    return await _fixed_window(
+        redis,
+        key=f"rl:agentic-mutation:{user_id}:{ip}",
+        max_n=s.agentic_mutation_rate_limit_max,
+        window_s=s.agentic_mutation_rate_limit_window_seconds,
+    )

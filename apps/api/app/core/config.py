@@ -186,6 +186,14 @@ class Settings(BaseSettings):
     agentic_dispatch_interval_seconds: int = Field(default=5, validation_alias="NUR_AGENTIC_DISPATCH_INTERVAL_SECONDS")
     agentic_recovery_interval_seconds: int = Field(default=60, validation_alias="NUR_AGENTIC_RECOVERY_INTERVAL_SECONDS")
     agentic_dispatch_batch: int = Field(default=20, validation_alias="NUR_AGENTIC_DISPATCH_BATCH")
+    agentic_mutation_rate_limit_max: int = Field(
+        default=60, ge=1, validation_alias="NUR_AGENTIC_MUTATION_RATE_LIMIT_MAX"
+    )
+    agentic_mutation_rate_limit_window_seconds: int = Field(
+        default=60,
+        ge=1,
+        validation_alias="NUR_AGENTIC_MUTATION_RATE_LIMIT_WINDOW_SECONDS",
+    )
     # Hard ceiling on one handler's execution, strictly shorter than the step
     # lease so a hung handler fails and becomes recoverable rather than holding
     # a lease that recovery would then reclaim underneath a live worker.

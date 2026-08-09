@@ -72,6 +72,11 @@ class AgentWorkflow(Base):
     plan_version: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1, server_default=text("1")
     )
+    request_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    request_digest: Mapped[str | None] = mapped_column(String(64))
+    retry_of_workflow_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("agent_workflows.id", ondelete="RESTRICT")
+    )
 
     # What triggered this, and what the owner may see about why it exists at all.
     trigger_kind: Mapped[str | None] = mapped_column(String(64))
@@ -393,6 +398,9 @@ class AgentPolicy(Base):
 
     id: Mapped[uuid.UUID] = uuid_pk()
     owner_user_id: Mapped[uuid.UUID] = _owner()
+    version: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default=text("1")
+    )
 
     # NULL orbit and project means the account-level default.
     orbit_id: Mapped[uuid.UUID | None] = mapped_column(

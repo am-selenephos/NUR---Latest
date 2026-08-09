@@ -277,6 +277,51 @@ async def test_cancel_requested_run_is_not_executed(client):
     assert await _count_artifacts(owner_id, run_id) == 0
 
 
+async def test_cancel_during_adapter_discards_output_without_artifact(client, monkeypatch):
+    import uuid
+
+    owner_id, run_id = await _approved_queued_run(client)
+    stored_key: str | None = None
+
+    async def _cancel_then_return(db, run, storage):
+        nonlocal stored_key
+        run.status = "CANCEL_REQUESTED"
+        await db.commit()
+        stored = await storage.put(bytes_stream(b"discard me"), max_bytes=1024)
+        stored_key = stored.object_key
+        return AdapterOutput(
+            artifact_kind="EVIDENCE_PACKAGE",
+            artifact_title="cancelled output",
+            object_key=stored.object_key,
+            checksum_sha256=stored.checksum_sha256,
+            byte_size=stored.byte_size,
+            filename="cancelled.bin",
+            media_type="application/octet-stream",
+            result_summary="must not persist",
+            manifest_digest=stored.checksum_sha256,
+            evidence_summary="must not persist",
+        )
+
+    monkeypatch.setitem(
+        project_execution._ADAPTER_FUNCS, "EVIDENCE_PACKAGE", _cancel_then_return
+    )
+    db = await _scoped_db(owner_id)
+    try:
+        result = await execute_run(
+            db,
+            run_id=uuid.UUID(run_id),
+            owner_user_id=uuid.UUID(owner_id),
+            worker_id="w",
+        )
+    finally:
+        await db.close()
+
+    assert result.status == "CANCELLED"
+    assert await _count_artifacts(owner_id, run_id) == 0
+    assert stored_key is not None
+    assert get_object_storage().exists(stored_key) is False
+
+
 async def test_adapter_failure_persists_honest_state_without_artifact(client, monkeypatch):
     import uuid
     owner_id, run_id = await _approved_queued_run(client)

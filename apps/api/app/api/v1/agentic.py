@@ -21,30 +21,26 @@ execution time, enforced one step earlier so the owner is told immediately.
 from __future__ import annotations
 
 import uuid
+from typing import NoReturn
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.agentic import registry
-from app.agentic.enums import ApprovalDecision, WorkflowState
+from app.agentic import lifecycle_service as lifecycle
+from app.agentic.enums import ApprovalDecision
+from app.agentic.lifecycle_schemas import (
+    AgentPolicyPut,
+    WorkflowCreateIn,
+    WorkflowRetryIn,
+    WorkflowStartIn,
+)
 from app.api.deps import Identity, Scoped, require_csrf, require_trusted_origin
-from app.models.agentic import AgentApproval, AgentRunEvent, AgentStep, AgentWorkflow
+from app.models.agentic import AgentApproval, AgentRunEvent
+from app.services import rate_limit
 
 router = APIRouter(prefix="/agentic", tags=["agentic"])
-
-
-class WorkflowOut(BaseModel):
-    id: str
-    title: str
-    objective: str
-    state: str
-    kind: str
-    step_count: int
-    steps_done: int
-    cost_cents: int
-    failure_code: str | None = None
-    updated_at: str
 
 
 class ApprovalDecisionIn(BaseModel):
@@ -62,6 +58,28 @@ class ApprovalDecisionIn(BaseModel):
     note: str | None = Field(default=None, max_length=2000)
     # `{}` is a meaningful edit; None means "not an edit".
     edited_arguments: dict | None = None
+
+
+async def _raise_lifecycle_refusal(
+    db: Scoped, refusal: lifecycle.LifecycleRefused
+) -> NoReturn:
+    await db.rollback()
+    raise HTTPException(
+        status_code=refusal.status_code,
+        detail=refusal.detail(),
+    ) from refusal
+
+
+async def require_agentic_mutation_rate(request: Request, identity: Identity) -> None:
+    owner_user_id, _ = identity
+    ip = request.client.host if request.client else "unknown"
+    allowed = await rate_limit.allow_agentic_mutation(
+        request.app.state.redis,
+        user_id=str(owner_user_id),
+        ip=ip,
+    )
+    if not allowed:
+        raise HTTPException(status_code=429, detail="Too many Agent changes; try again shortly.")
 
 
 @router.get("/tools")
@@ -86,110 +104,199 @@ async def list_tools(identity: Identity) -> dict:
     }
 
 
-@router.get("/workflows")
-async def list_workflows(db: Scoped, identity: Identity, state: str | None = None) -> dict:
+@router.get("/policy")
+async def get_policy(db: Scoped, identity: Identity) -> dict:
     owner_user_id, _ = identity
-    statement = select(AgentWorkflow).where(AgentWorkflow.owner_user_id == owner_user_id)
-    if state:
-        if state not in {member.value for member in WorkflowState}:
-            raise HTTPException(status_code=422, detail="unknown workflow state")
-        statement = statement.where(AgentWorkflow.state == state)
-    rows = (
-        await db.execute(statement.order_by(AgentWorkflow.updated_at.desc()).limit(100))
-    ).scalars().all()
+    return await lifecycle.get_account_policy(db, owner_user_id=owner_user_id)
 
-    out = []
-    for row in rows:
-        steps = (
-            await db.execute(
-                select(AgentStep).where(AgentStep.workflow_id == row.id)
-            )
-        ).scalars().all()
-        out.append(
-            WorkflowOut(
-                id=str(row.id),
-                title=row.title,
-                objective=row.objective,
-                state=row.state,
-                kind=row.kind,
-                step_count=len(steps),
-                steps_done=sum(1 for s in steps if s.state == "SUCCEEDED"),
-                cost_cents=row.cost_cents,
-                failure_code=row.failure_code,
-                updated_at=row.updated_at.isoformat(),
-            ).model_dump()
+
+@router.put(
+    "/policy",
+    dependencies=[
+        Depends(require_csrf),
+        Depends(require_trusted_origin),
+        Depends(require_agentic_mutation_rate),
+    ],
+)
+async def put_policy(payload: AgentPolicyPut, db: Scoped, identity: Identity) -> dict:
+    owner_user_id, _ = identity
+    try:
+        result = await lifecycle.put_account_policy(
+            db, owner_user_id=owner_user_id, payload=payload
         )
-    return {"workflows": out, "count": len(out)}
+    except lifecycle.LifecycleRefused as refusal:
+        await _raise_lifecycle_refusal(db, refusal)
+    await db.commit()
+    return result
+
+
+@router.get("/workflows")
+async def list_workflows(
+    db: Scoped,
+    identity: Identity,
+    state: str | None = None,
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: str | None = None,
+) -> dict:
+    owner_user_id, _ = identity
+    try:
+        return await lifecycle.list_workflows(
+            db,
+            owner_user_id=owner_user_id,
+            state=state,
+            limit=limit,
+            cursor=cursor,
+        )
+    except lifecycle.LifecycleRefused as refusal:
+        await _raise_lifecycle_refusal(db, refusal)
+
+
+@router.post(
+    "/workflows",
+    status_code=201,
+    dependencies=[
+        Depends(require_csrf),
+        Depends(require_trusted_origin),
+        Depends(require_agentic_mutation_rate),
+    ],
+)
+async def create_workflow(
+    payload: WorkflowCreateIn,
+    db: Scoped,
+    identity: Identity,
+) -> dict:
+    owner_user_id, _ = identity
+    try:
+        result = await lifecycle.create_workflow(
+            db, owner_user_id=owner_user_id, payload=payload
+        )
+    except lifecycle.LifecycleRefused as refusal:
+        await _raise_lifecycle_refusal(db, refusal)
+    await db.commit()
+    return result
 
 
 @router.get("/workflows/{workflow_id}")
 async def get_workflow(workflow_id: uuid.UUID, db: Scoped, identity: Identity) -> dict:
     owner_user_id, _ = identity
-    workflow = (
-        await db.execute(
-            select(AgentWorkflow).where(
-                AgentWorkflow.id == workflow_id,
-                AgentWorkflow.owner_user_id == owner_user_id,
-            )
+    try:
+        return await lifecycle.get_workflow(
+            db, owner_user_id=owner_user_id, workflow_id=workflow_id
         )
-    ).scalar_one_or_none()
-    # 404 rather than 403: confirming a row exists but belongs to someone else
-    # is itself a disclosure.
-    if workflow is None:
-        raise HTTPException(status_code=404, detail="workflow not found")
+    except lifecycle.LifecycleRefused as refusal:
+        await _raise_lifecycle_refusal(db, refusal)
 
-    steps = (
-        await db.execute(
-            select(AgentStep)
-            .where(AgentStep.workflow_id == workflow_id)
-            .order_by(AgentStep.ordinal)
+
+@router.post(
+    "/workflows/{workflow_id}/start",
+    dependencies=[
+        Depends(require_csrf),
+        Depends(require_trusted_origin),
+        Depends(require_agentic_mutation_rate),
+    ],
+)
+async def start_workflow(
+    workflow_id: uuid.UUID,
+    payload: WorkflowStartIn,
+    db: Scoped,
+    identity: Identity,
+) -> dict:
+    owner_user_id, _ = identity
+    try:
+        result = await lifecycle.start_workflow(
+            db,
+            owner_user_id=owner_user_id,
+            workflow_id=workflow_id,
+            seen_plan_version=payload.seen_plan_version,
         )
-    ).scalars().all()
-    return {
-        "id": str(workflow.id),
-        "title": workflow.title,
-        "objective": workflow.objective,
-        "state": workflow.state,
-        "plan_version": workflow.plan_version,
-        # The manifest is returned in full, including exclusions: what a
-        # workflow was NOT allowed to see is how an owner checks its scope.
-        "context_manifest": workflow.context_manifest,
-        "success_criteria": workflow.success_criteria,
-        "cost_cents": workflow.cost_cents,
-        "failure_code": workflow.failure_code,
-        "steps": [
-            {
-                "id": str(s.id),
-                "key": s.key,
-                "ordinal": s.ordinal,
-                "state": s.state,
-                "role": s.role,
-                "tool_key": s.tool_key,
-                "risk_class": s.risk_class,
-                "approval_required": s.approval_required,
-                "depends_on": s.depends_on,
-                "verification_verdict": s.verification_verdict,
-                "attempt": s.attempt,
-                "failure_code": s.failure_code,
-            }
-            for s in steps
-        ],
-    }
+    except lifecycle.LifecycleRefused as refusal:
+        await _raise_lifecycle_refusal(db, refusal)
+    await db.commit()
+    return result
+
+
+@router.post(
+    "/workflows/{workflow_id}/cancel",
+    dependencies=[
+        Depends(require_csrf),
+        Depends(require_trusted_origin),
+        Depends(require_agentic_mutation_rate),
+    ],
+)
+async def cancel_workflow(
+    workflow_id: uuid.UUID,
+    db: Scoped,
+    identity: Identity,
+) -> dict:
+    owner_user_id, _ = identity
+    try:
+        result = await lifecycle.cancel_workflow(
+            db, owner_user_id=owner_user_id, workflow_id=workflow_id
+        )
+    except lifecycle.LifecycleRefused as refusal:
+        await _raise_lifecycle_refusal(db, refusal)
+    await db.commit()
+    return result
+
+
+@router.post(
+    "/workflows/{workflow_id}/retry",
+    status_code=201,
+    dependencies=[
+        Depends(require_csrf),
+        Depends(require_trusted_origin),
+        Depends(require_agentic_mutation_rate),
+    ],
+)
+async def retry_workflow(
+    workflow_id: uuid.UUID,
+    payload: WorkflowRetryIn,
+    db: Scoped,
+    identity: Identity,
+) -> dict:
+    owner_user_id, _ = identity
+    try:
+        result = await lifecycle.retry_workflow(
+            db,
+            owner_user_id=owner_user_id,
+            workflow_id=workflow_id,
+            payload=payload,
+        )
+    except lifecycle.LifecycleRefused as refusal:
+        await _raise_lifecycle_refusal(db, refusal)
+    await db.commit()
+    return result
 
 
 @router.get("/workflows/{workflow_id}/events")
-async def workflow_events(workflow_id: uuid.UUID, db: Scoped, identity: Identity) -> dict:
+async def workflow_events(
+    workflow_id: uuid.UUID,
+    db: Scoped,
+    identity: Identity,
+    after_sequence: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=100),
+) -> dict:
     owner_user_id, _ = identity
+    try:
+        await lifecycle.get_workflow(
+            db, owner_user_id=owner_user_id, workflow_id=workflow_id
+        )
+    except lifecycle.LifecycleRefused as refusal:
+        await _raise_lifecycle_refusal(db, refusal)
     rows = (
         await db.execute(
             select(AgentRunEvent)
             .where(
                 AgentRunEvent.workflow_id == workflow_id,
                 AgentRunEvent.owner_user_id == owner_user_id,
+                AgentRunEvent.sequence > after_sequence,
             )
             .order_by(AgentRunEvent.sequence)
+            .limit(limit + 1)
         )
     ).scalars().all()
+    has_more = len(rows) > limit
+    rows = rows[:limit]
     return {
         "events": [
             {
@@ -204,12 +311,17 @@ async def workflow_events(workflow_id: uuid.UUID, db: Scoped, identity: Identity
             for r in rows
         ],
         "count": len(rows),
+        "next_after_sequence": rows[-1].sequence if has_more and rows else None,
         "provenance_label": "Append-only run ledger",
     }
 
 
 @router.get("/approvals")
-async def list_approvals(db: Scoped, identity: Identity) -> dict:
+async def list_approvals(
+    db: Scoped,
+    identity: Identity,
+    limit: int = Query(default=100, ge=1, le=100),
+) -> dict:
     """Everything waiting on the owner, with the whole ask on each row."""
     owner_user_id, _ = identity
     rows = (
@@ -220,6 +332,7 @@ async def list_approvals(db: Scoped, identity: Identity) -> dict:
                 AgentApproval.decision == ApprovalDecision.PENDING.value,
             )
             .order_by(AgentApproval.created_at)
+            .limit(limit)
         )
     ).scalars().all()
     return {
@@ -253,7 +366,11 @@ async def list_approvals(db: Scoped, identity: Identity) -> dict:
 
 @router.post(
     "/approvals/{approval_id}/decide",
-    dependencies=[Depends(require_csrf), Depends(require_trusted_origin)],
+    dependencies=[
+        Depends(require_csrf),
+        Depends(require_trusted_origin),
+        Depends(require_agentic_mutation_rate),
+    ],
 )
 async def decide_approval(
     approval_id: uuid.UUID,

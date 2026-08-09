@@ -11,14 +11,15 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agentic.compiler import CompileResult, ProposedStep, compile_plan
-from app.agentic.enums import WorkflowState
+from app.agentic.enums import StepState, WorkflowState
 from app.agentic.input_schemas import validate_arguments
-from app.agentic.orchestrator import argument_digest
+from app.agentic.orchestrator import record_event
 from app.agentic.policy_store import load_policy
-from app.agentic.redaction import contains_secret, redact_arguments
+from app.agentic.redaction import contains_secret
 from app.agentic.registry import UnknownToolError, spec as get_tool_spec
+from app.agentic.runtime import _ensure_approval_row
 from app.brain.schemas import WorkflowProposal
-from app.models.agentic import AgentWorkflow, AgentStep, AgentApproval
+from app.models.agentic import AgentStep, AgentWorkflow
 
 
 class AgencyBridgeError(ValueError):
@@ -58,7 +59,9 @@ def map_compile_error_to_safe_code(code: str) -> str:
 _RISK_RANK = {
     "R0_READ_ONLY": 0,
     "R1_PRIVATE_DRAFT": 1,
-    "R2_DURABLE_ACTION": 2,
+    "R2_DURABLE_PRIVATE": 2,
+    "R3_EXTERNAL": 3,
+    "R4_IRREVERSIBLE": 4,
 }
 
 
@@ -170,7 +173,12 @@ async def submit_workflow_proposal(
     db.add(workflow)
     await db.flush()
 
+    persisted_steps: list[tuple[AgentStep, ProposedStep]] = []
+    proposed_by_key = {step.key: step for step in proposed_steps}
     for compiled_step in compile_result.steps:
+        state = compiled_step.state
+        if compiled_step.approval_required and state is StepState.READY:
+            state = StepState.WAITING_APPROVAL
         db_step = AgentStep(
             owner_user_id=owner_user_id,
             workflow_id=workflow.id,
@@ -181,41 +189,50 @@ async def submit_workflow_proposal(
             tool_version=compiled_step.tool_version,
             risk_class=compiled_step.risk_class,
             requested_capabilities=list(compiled_step.requested_capabilities),
+            approval_required=compiled_step.approval_required,
             depends_on=list(compiled_step.depends_on),
-            state=compiled_step.state.value,
+            state=state.value,
             input_refs=compiled_step.input_refs,
             timeout_seconds=compiled_step.timeout_seconds,
+            idempotency_key=(
+                f"mind-workflow:{workflow.id}:{workflow.plan_version}:{compiled_step.key}"
+            ),
         )
         db.add(db_step)
-        await db.flush()
+        persisted_steps.append((db_step, proposed_by_key[compiled_step.key]))
 
-        if compiled_step.approval_required:
-            redacted_arguments = redact_arguments(compiled_step.input_refs, drop_private_text=False)
-            digest_str = argument_digest(
-                compiled_step.tool_key,
-                compiled_step.tool_version,
-                redacted_arguments,
-            )
-            step_rationale = (
-                compiled_step.input_refs.get("title")
-                or compiled_step.input_refs.get("description")
-                or compiled_step.key
-            )
-            db_approval = AgentApproval(
-                owner_user_id=owner_user_id,
-                workflow_id=workflow.id,
-                step_id=db_step.id,
-                tool_key=compiled_step.tool_key,
-                tool_version=compiled_step.tool_version,
-                argument_digest=digest_str,
-                plan_version=1,
-                call_version="1",
-                redacted_arguments=redacted_arguments,
-                rationale=str(step_rationale),
-                risk_class=compiled_step.risk_class,
-                decision="PENDING",
-            )
-            db.add(db_approval)
-
+    await db.flush()
+    for db_step, proposed_step in persisted_steps:
+        if db_step.state != StepState.WAITING_APPROVAL.value:
+            continue
+        contract = get_tool_spec(db_step.tool_key or "").contract
+        await _ensure_approval_row(
+            db,
+            owner_user_id=owner_user_id,
+            workflow_id=workflow.id,
+            step_id=db_step.id,
+            tool_key=contract.key,
+            tool_version=contract.version,
+            arguments=dict(db_step.input_refs or {}),
+            rationale=proposed_step.rationale,
+            risk_class=contract.risk_class.value,
+            reversible=contract.reversible,
+            cost_ceiling_cents=contract.estimated_cost_cents,
+            expected_result=proposal.rationale,
+            scope_summary=(
+                f"orbit={orbit_id or 'account'}; project={project_id or 'none'}"
+            ),
+        )
+        await record_event(
+            db,
+            owner_user_id=owner_user_id,
+            workflow_id=workflow.id,
+            step_id=db_step.id,
+            event_type="STEP_AWAITING_APPROVAL",
+            summary="current owner policy requires approval before dispatch",
+            from_state=StepState.READY.value,
+            to_state=StepState.WAITING_APPROVAL.value,
+            actor="SYSTEM",
+        )
     await db.flush()
     return workflow, compile_result

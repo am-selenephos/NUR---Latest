@@ -250,13 +250,17 @@ async def test_agency_bridge_strict_arguments_and_approval(client: AsyncClient, 
         assert db_steps[0].input_refs["title"] == "Q3 Engineering Roadmap"
         assert db_steps[0].input_refs["steps"] == ["Ship Capability Runtime"]
 
+        assert db_steps[0].approval_required is True
+        assert db_steps[0].state == "WAITING_APPROVAL"
         stmt_app = select(AgentApproval).where(AgentApproval.workflow_id == workflow.id)
         db_approvals = (await db.execute(stmt_app)).scalars().all()
         assert len(db_approvals) == 1
-        assert db_approvals[0].tool_key == "create_draft_plan"
-        assert db_approvals[0].decision == "PENDING"
-        assert db_approvals[0].argument_digest is not None
-        assert db_approvals[0].redacted_arguments["title"] == "Q3 Engineering Roadmap"
+        approval = db_approvals[0]
+        assert approval.decision == "PENDING"
+        assert approval.plan_version == workflow.plan_version
+        assert approval.call_version.startswith("cv:")
+        assert len(approval.call_version) == 67
+        assert approval.call_version != "1"
 
 
 @pytest.mark.asyncio
@@ -383,4 +387,3 @@ def test_workflow_refused_serialization_privacy():
     assert "secret" not in serialized
     assert "message" not in serialized
     assert "errors" not in deserialized
-

@@ -520,6 +520,25 @@ async def execute_run(
     if run.budget_cents is not None and cost_cents > run.budget_cents:
         return await _fail(db, run, orbit_id, "BUDGET_EXCEEDED", "Run cost exceeded its budget ceiling.")
 
+    # Cancellation is cooperative across the adapter boundary. A running
+    # adapter uses its own session, so refresh after it returns and discard its
+    # uncommitted object if the owner (or account deletion) requested a stop.
+    await db.refresh(run)
+    if run.status == "CANCEL_REQUESTED":
+        storage.delete(output.object_key)
+        run.status = "CANCELLED"
+        run.cancelled_at = now_utc()
+        run.updated_at = run.cancelled_at
+        _record_event(
+            db,
+            run,
+            orbit_id,
+            "PROJECT_RUN_CANCELLED",
+            "Run cancelled after the adapter returned; no artifact was persisted.",
+        )
+        await db.commit()
+        return ExecutionResult(run_id=run_id, status="CANCELLED")
+
     artifact = AMProjectArtifact(
         owner_user_id=run.owner_user_id,
         project_id=run.project_id,

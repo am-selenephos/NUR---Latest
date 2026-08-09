@@ -19,8 +19,12 @@ def paths():
 def test_every_declared_agentic_route_is_mounted(paths):
     for path in (
         "/api/v1/agentic/tools",
+        "/api/v1/agentic/policy",
         "/api/v1/agentic/workflows",
         "/api/v1/agentic/workflows/{workflow_id}",
+        "/api/v1/agentic/workflows/{workflow_id}/start",
+        "/api/v1/agentic/workflows/{workflow_id}/cancel",
+        "/api/v1/agentic/workflows/{workflow_id}/retry",
         "/api/v1/agentic/workflows/{workflow_id}/events",
         "/api/v1/agentic/approvals",
         "/api/v1/agentic/approvals/{approval_id}/decide",
@@ -38,12 +42,25 @@ def test_the_decide_route_requires_csrf():
     assert "require_csrf" in decorator.rsplit("@router.post", 1)[-1] or "require_csrf" in source
 
 
-def test_no_write_route_exists_for_creating_a_workflow_yet():
-    """Declaring a POST that cannot honestly plan would be a surface that lies."""
-    schema = create_app().openapi()["paths"]
-    workflows = schema.get("/api/v1/agentic/workflows", {})
-    assert "get" in workflows
-    assert "post" not in workflows
+def test_owner_lifecycle_writes_require_csrf_and_trusted_origin():
+    """Every owner mutation crosses both browser-write boundaries."""
+    import inspect
+    from app.api.v1 import agentic
+
+    source = inspect.getsource(agentic)
+    for function_name in (
+        "put_policy",
+        "create_workflow",
+        "start_workflow",
+        "cancel_workflow",
+        "retry_workflow",
+        "decide_approval",
+    ):
+        before = source.split(f"async def {function_name}", 1)[0]
+        decorator = before.rsplit("@router.", 1)[-1]
+        assert "require_csrf" in decorator
+        assert "require_trusted_origin" in decorator
+        assert "require_agentic_mutation_rate" in decorator
 
 
 def test_tool_catalog_exposes_bound_state():
@@ -57,9 +74,9 @@ def test_tool_catalog_exposes_bound_state():
 def test_missing_workflow_returns_404_not_403():
     """Confirming a row exists but belongs to someone else is a disclosure."""
     import inspect
-    from app.api.v1 import agentic
+    from app.agentic import lifecycle_service
 
-    source = inspect.getsource(agentic.get_workflow)
+    source = inspect.getsource(lifecycle_service._owned_workflow)
     assert "status_code=404" in source
     # Check for a raised 403, not the literal string — the rationale comment
     # above the raise mentions 403, and matching that proves nothing.
@@ -91,6 +108,6 @@ def test_a_changed_request_cannot_be_decided_on_stale_arguments():
 def test_workflow_detail_returns_the_context_manifest():
     """What a workflow was not allowed to see is how an owner checks its scope."""
     import inspect
-    from app.api.v1 import agentic
+    from app.agentic import lifecycle_service
 
-    assert "context_manifest" in inspect.getsource(agentic.get_workflow)
+    assert "context_manifest" in inspect.getsource(lifecycle_service._workflow_snapshot)

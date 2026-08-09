@@ -302,36 +302,13 @@ async def test_capability_runtime_e2e_full_approval_and_handler_execution(client
         assert len(steps) == 1
         step = steps[0]
         assert step.tool_key == "create_draft_plan"
-        assert step.state == "READY"
+        assert step.state == "WAITING_APPROVAL"
 
         step_id = step.id
         wf_id = wf.id
-
-        # 5. Queue ready step for worker
-        from app.agentic.orchestrator import queue_ready_dependants
-        queued_rows = await queue_ready_dependants(db, owner_user_id=owner_user_id, workflow_id=wf_id)
-        assert len(queued_rows) == 1
         await db.commit()
 
-    # 6. Worker Pass 1: Attempts execution, encounters policy requiring approval, transitions to WAITING_APPROVAL
-    from app.agentic.observability import new_trace
-    from app.agentic.runtime import run_step
-    trace = new_trace()
-    async with AsyncSession(super_engine) as db:
-        await set_user_context(db, owner_user_id)
-        outcome1 = await run_step(
-            db,
-            owner_user_id=owner_user_id,
-            step_id=step_id,
-            worker="production-test-worker-pass-1",
-            trace=trace,
-        )
-        await db.commit()
-
-    assert outcome1["executed"] is False
-    assert outcome1["step_state"] == "WAITING_APPROVAL"
-
-    # 7. Read exact approval digest, plan_version, and call_version
+    # 5. Read the exact approval binding before any dispatch is allowed.
     async with AsyncSession(super_engine) as db:
         await set_user_context(db, owner_user_id)
         appr = (
@@ -347,7 +324,7 @@ async def test_capability_runtime_e2e_full_approval_and_handler_execution(client
         seen_plan_version = int(appr.plan_version)
         seen_call_version = appr.call_version
 
-        # 8. Call real decisions.decide(..., decision="APPROVE")
+        # 6. Call real decisions.decide(..., decision="APPROVE")
         from app.agentic.decisions import decide
         decision_res = await decide(
             db,
@@ -361,7 +338,7 @@ async def test_capability_runtime_e2e_full_approval_and_handler_execution(client
         )
         await db.commit()
 
-    # 9. Confirm step is now QUEUED and outbox intent exists
+    # 7. Confirm step is now QUEUED and outbox intent exists
     assert decision_res.decision == "APPROVED"
     assert decision_res.step_state == "QUEUED"
     assert decision_res.outbox_intent_id is not None
@@ -376,12 +353,16 @@ async def test_capability_runtime_e2e_full_approval_and_handler_execution(client
         ).mappings().first()
         assert outbox_row is not None
 
-        # 10. Worker Pass 2: Executes through actual Agency runtime with approved consent
+        # 8. The worker executes only after the owner-bound consent is durable.
+        from app.agentic.observability import new_trace
+        from app.agentic.runtime import run_step
+
+        trace = new_trace()
         outcome2 = await run_step(
             db,
             owner_user_id=owner_user_id,
             step_id=step_id,
-            worker="production-test-worker-pass-2",
+            worker="production-test-worker",
             trace=trace,
         )
         await db.commit()

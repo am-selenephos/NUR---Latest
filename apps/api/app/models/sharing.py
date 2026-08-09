@@ -71,7 +71,9 @@ class CapsuleAccessEvent(Base):
     id = uuid_pk()
     capsule_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("context_capsules.id", ondelete="CASCADE"), nullable=False)
     grant_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("capsule_grants.id", ondelete="SET NULL"))
-    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
     event_kind: Mapped[str] = mapped_column(PGEnum('VIEWED', 'QUESTION_ASKED', 'ANSWER_SHOWN', 'COMMENT_CREATED', 'EXPORT_ATTEMPTED', 'REVOKED', 'EXPIRED', name="access_event_kind", create_type=False), nullable=False)
     created_at = _created()
     meta: Mapped[dict] = mapped_column("metadata", JSONB, default=dict, server_default=text("'{}'::jsonb"))

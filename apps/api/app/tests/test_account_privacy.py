@@ -196,11 +196,115 @@ async def test_session_inventory_and_revocation_are_owner_scoped(client, super_e
             ).scalar_one() == 1
 
 
+async def test_capsule_actor_reference_is_erased_with_recipient(client, super_engine):
+    owner, _, _ = await register_user(client, chosen_name="Capsule owner")
+    owner_id = uuid.UUID(owner.json()["id"])
+    orbit_id = uuid.UUID(owner.json()["orbit"]["id"])
+    async with _second_client(client) as recipient_client:
+        recipient, _, _ = await register_user(
+            recipient_client, chosen_name="Capsule recipient"
+        )
+        recipient_id = uuid.UUID(recipient.json()["id"])
+
+    capsule_id, grant_id, event_id = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    async with super_engine.begin() as conn:
+        await conn.execute(
+            text(
+                "INSERT INTO context_capsules("
+                "id,orbit_id,owner_user_id,title,purpose) "
+                "VALUES (:capsule,:orbit,:owner,'Bounded capsule','Deletion proof')"
+            ),
+            {"capsule": capsule_id, "orbit": orbit_id, "owner": owner_id},
+        )
+        await conn.execute(
+            text(
+                "INSERT INTO capsule_grants(id,capsule_id,recipient_user_id) "
+                "VALUES (:grant,:capsule,:recipient)"
+            ),
+            {"grant": grant_id, "capsule": capsule_id, "recipient": recipient_id},
+        )
+        await conn.execute(
+            text(
+                "INSERT INTO capsule_access_events("
+                "id,capsule_id,grant_id,actor_user_id,event_kind) "
+                "VALUES (:event,:capsule,:grant,:recipient,'VIEWED')"
+            ),
+            {
+                "event": event_id,
+                "capsule": capsule_id,
+                "grant": grant_id,
+                "recipient": recipient_id,
+            },
+        )
+        await conn.execute(
+            text("DELETE FROM users WHERE id=:recipient"),
+            {"recipient": recipient_id},
+        )
+        actor, grant = (
+            await conn.execute(
+                text(
+                    "SELECT actor_user_id, grant_id FROM capsule_access_events "
+                    "WHERE id=:event"
+                ),
+                {"event": event_id},
+            )
+        ).one()
+    assert actor is None
+    assert grant is None
+
+
 async def test_deletion_request_shuts_access_immediately_and_can_be_cancelled(
     client, super_engine
 ):
     registered, email, password = await register_user(client, chosen_name="Grace owner")
     owner_id = uuid.UUID(registered.json()["id"])
+    orbit_id = uuid.UUID(registered.json()["orbit"]["id"])
+    workflow_id, step_id, project_id, run_id = (
+        uuid.uuid4(), uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    )
+    async with super_engine.begin() as conn:
+        await conn.execute(
+            text(
+                "INSERT INTO agent_workflows(id,owner_user_id,kind,title,objective,state) "
+                "VALUES (:workflow,:owner,'OWNER_DEFINED','Deletion fence','Stop safely','QUEUED')"
+            ),
+            {"workflow": workflow_id, "owner": owner_id},
+        )
+        await conn.execute(
+            text(
+                "INSERT INTO agent_steps(id,owner_user_id,workflow_id,ordinal,key,state,role) "
+                "VALUES (:step,:owner,:workflow,1,'bounded_step','QUEUED','researcher')"
+            ),
+            {"step": step_id, "owner": owner_id, "workflow": workflow_id},
+        )
+        await conn.execute(
+            text(
+                "INSERT INTO agent_dispatch_outbox("
+                "owner_user_id,workflow_id,step_id,dispatch_key,state) "
+                "VALUES (:owner,:workflow,:step,:key,'RETRYABLE')"
+            ),
+            {
+                "owner": owner_id,
+                "workflow": workflow_id,
+                "step": step_id,
+                "key": f"{step_id}:0",
+            },
+        )
+        await conn.execute(
+            text(
+                "INSERT INTO am_projects(id,owner_user_id,orbit_id,title,objective,status) "
+                "VALUES (:project,:owner,:orbit,'Deletion project','Stop safely','ACTIVE')"
+            ),
+            {"project": project_id, "owner": owner_id, "orbit": orbit_id},
+        )
+        await conn.execute(
+            text(
+                "INSERT INTO am_project_runs("
+                "id,owner_user_id,project_id,role,request_summary,status) "
+                "VALUES (:run,:owner,:project,'researcher','Bounded run','QUEUED')"
+            ),
+            {"run": run_id, "owner": owner_id, "project": project_id},
+        )
 
     assert (
         await client.request(
@@ -252,7 +356,29 @@ async def test_deletion_request_shuts_access_immediately_and_can_be_cancelled(
                 {"owner": owner_id},
             )
         ).scalar_one()
+        execution_states = (
+            await conn.execute(
+                text(
+                    "SELECT "
+                    "(SELECT state FROM agent_workflows WHERE id=:workflow),"
+                    "(SELECT state FROM agent_steps WHERE id=:step),"
+                    "(SELECT state FROM agent_dispatch_outbox WHERE workflow_id=:workflow),"
+                    "(SELECT status FROM am_project_runs WHERE id=:run)"
+                ),
+                {
+                    "workflow": workflow_id,
+                    "step": step_id,
+                    "run": run_id,
+                },
+            )
+        ).one()
     assert (user_status, request_status, active_sessions) == ("deletion_pending", "PENDING", 0)
+    assert tuple(execution_states) == (
+        "CANCELLED",
+        "CANCELLED",
+        "CANCELLED",
+        "CANCELLED",
+    )
 
     cross_site = await client.post(
         "/api/v1/account/deletion/cancel",
