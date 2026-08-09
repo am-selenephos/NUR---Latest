@@ -294,6 +294,15 @@ async def test_system_return_is_persisted_idempotent_and_owner_isolated(client):
     assert corrected_body["correction_count"] == 1
     assert corrected_body["glow"]["awarded_points"] == 0
 
+    flow = (await client.get("/api/v1/timeline/flow")).json()
+    projected = [row for row in flow["entries"] if row["source_id"] == outcome_id]
+    assert len(projected) == 1
+    assert projected[0]["title"] == "Energy improved by one point after the walk."
+    assert projected[0]["source_type"] == "OUTCOME"
+    assert projected[0]["status"] == "OBSERVED"
+    assert projected[0]["system_slug"] == "introspection"
+    assert projected[0]["lane"] == "past"
+
     alias_action = await client.post(
         "/api/v1/systems/introspection/actions",
         headers=H(client),

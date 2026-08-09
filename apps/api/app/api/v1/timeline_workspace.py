@@ -245,6 +245,7 @@ def _entry_out(row: TimelineEvent) -> dict:
         "energy_type": row.energy_type,
         "importance": row.importance,
         "source_type": row.source_type,
+        "source_id": str(row.source_id) if row.source_id else None,
         "created_at": row.created_at,
         "updated_at": row.updated_at,
     }

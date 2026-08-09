@@ -29,6 +29,7 @@ from app.models import (
 )
 from app.models._mixins import now_utc
 from app.services.glow_service import AwardResult, award_glow
+from app.services.timeline_service import record_observed_outcome
 
 router = APIRouter(tags=["living-system"])
 
@@ -674,6 +675,16 @@ async def return_system_action(
     await db.flush()
     action.outcome_id = outcome.id
     action.updated_at = now_utc()
+    await record_observed_outcome(
+        db,
+        owner_user_id=owner_user_id,
+        outcome_id=outcome.id,
+        observed_result=outcome.observed_result,
+        occurred_at=outcome.created_at,
+        orbit_id=action.orbit_id,
+        system_slug=system_slug,
+        provenance={"system_action_id": str(action.id)},
+    )
     add_living_event(
         db,
         owner_user_id=owner_user_id,
@@ -763,6 +774,19 @@ async def correct_system_action_return(
         "system_action_id": str(action.id),
         "corrections": corrections[-20:],
     }
+    await record_observed_outcome(
+        db,
+        owner_user_id=owner_user_id,
+        outcome_id=outcome.id,
+        observed_result=outcome.observed_result,
+        occurred_at=outcome.created_at,
+        orbit_id=action.orbit_id,
+        system_slug=system_slug,
+        provenance={
+            "system_action_id": str(action.id),
+            "correction_count": len(corrections[-20:]),
+        },
+    )
     add_living_event(
         db,
         owner_user_id=owner_user_id,

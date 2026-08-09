@@ -184,6 +184,42 @@ describe("Track A V197 write bindings", () => {
     expect(fake.addInsightToTimeline).toHaveBeenCalledWith("insight-1");
     expect(refresh).toHaveBeenCalledTimes(4);
   });
+
+  it("restores the active route after hydration before an action completes", async () => {
+    const document = window.document.implementation.createHTMLDocument("System mutation");
+    document.body.innerHTML = `
+      <input id="universe-composer-input" value="A new owner System">
+      <button data-action="add-system">Add system</button>
+    `;
+    const order: string[] = [];
+    const fake = api();
+    fake.createOrbit.mockImplementation(async () => {
+      order.push("persist");
+      return { id: "orbit-new", title: "A new owner System" };
+    });
+    const refresh = vi.fn().mockImplementation(async () => {
+      order.push("snapshot");
+      return snapshot();
+    });
+    const afterHydrate = vi.fn().mockImplementation(async () => {
+      order.push("route");
+    });
+
+    bindV197Actions(
+      document,
+      fake as unknown as V197ActionApi,
+      snapshot(),
+      refresh,
+      () => undefined,
+      talkTransport(fake),
+      afterHydrate,
+    );
+    document.querySelector<HTMLButtonElement>('[data-action="add-system"]')?.click();
+    await settle();
+
+    expect(order).toEqual(["persist", "snapshot", "route"]);
+    expect(afterHydrate).toHaveBeenCalledOnce();
+  });
 });
 
 describe("Track A V197 authentication transition", () => {

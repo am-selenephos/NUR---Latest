@@ -169,6 +169,7 @@ type MockState = {
   journal: Array<Record<string, unknown>>;
   orbits: Array<Record<string, unknown>>;
   thread: Array<Record<string, unknown>>;
+  planStepDone: boolean;
   outcomePosts: number;
   preferences: Record<string, unknown>;
 };
@@ -196,6 +197,7 @@ export async function installBundledFontPolicy(page: Page) {
 export async function installNurMocks(page: Page) {
   await installBundledFontPolicy(page);
   const state: MockState = {
+    planStepDone: false,
     outcomePosts: 1,
     preferences: {
       locale: "en",
@@ -351,6 +353,14 @@ export async function installNurMocks(page: Page) {
       daily_quest: {},
       weekly_mission: {},
     });
+    if (path === "/api/v1/glow/rewards" && method === "POST") return json(route, {
+      awarded_points: 0,
+      balance: 0,
+      lifetime_points: 0,
+      idempotent_replay: true,
+      streak: null,
+      achievements_unlocked: [],
+    });
     if (path === "/api/v1/projects/summary") return json(route, null);
     if (path === "/api/v1/community/rooms" && method === "GET") return json(route, []);
     if (path === "/api/v1/orbits/current-state") return json(route, {
@@ -490,7 +500,14 @@ export async function installNurMocks(page: Page) {
       id: "plan-1",
       title: "Make one pattern into movement",
       status: "ACTIVE",
-      steps: [{ id: "step-1", title: "Return an outcome", body: null, position: 0, done: false, done_at: null }],
+      steps: [{
+        id: "step-1",
+        title: "Return an outcome",
+        body: null,
+        position: 0,
+        done: state.planStepDone,
+        done_at: state.planStepDone ? now : null,
+      }],
     }]);
     if (path === "/api/v1/plans" && method === "POST") return json(route, {
       id: "plan-created",
@@ -506,6 +523,18 @@ export async function installNurMocks(page: Page) {
       done: false,
       done_at: null,
     }, 201);
+    if (path === "/api/v1/plan-steps/step-1" && method === "PATCH") {
+      const body = JSON.parse(request.postData() || "{}") as { done?: boolean };
+      state.planStepDone = body.done ?? state.planStepDone;
+      return json(route, {
+        id: "step-1",
+        title: "Return an outcome",
+        body: null,
+        position: 0,
+        done: state.planStepDone,
+        done_at: state.planStepDone ? now : null,
+      });
+    }
     if (path === "/api/v1/outcomes") {
       state.outcomePosts += 1;
       return json(route, { id: `outcome-${state.outcomePosts}` }, 201);

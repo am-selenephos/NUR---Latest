@@ -94,7 +94,10 @@ function renderTalk(document: Document, rows: V197TalkThreadRow[]): void {
       meta.textContent = "NUR · model-generated";
       message.append(meta);
     }
-    message.append(document.createTextNode(row.text || "Persisted response without display text."));
+    const body = document.createElement("span");
+    body.className = "talk-message-body";
+    body.textContent = row.text || "Persisted response without display text.";
+    message.append(body);
     stream.append(message);
   });
   // Deferred to the next frame: immediately after appending, `scrollHeight` is

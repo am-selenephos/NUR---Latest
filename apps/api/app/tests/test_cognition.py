@@ -117,6 +117,15 @@ async def test_journal_plans_research_persist(client):
     r = await client.post("/api/v1/outcomes", headers=H(client),
                           json={"observed_result": "Shipped the pass.", "plan_step_id": step["id"]})
     assert r.status_code == 201
+    outcome = r.json()
+    flow = (await client.get("/api/v1/timeline/flow")).json()
+    projected = [row for row in flow["entries"] if row["source_id"] == outcome["id"]]
+    assert len(projected) == 1
+    assert projected[0]["title"] == "Shipped the pass."
+    assert projected[0]["source_type"] == "OUTCOME"
+    assert projected[0]["status"] == "OBSERVED"
+    assert projected[0]["lane"] == "past"
+    assert projected[0]["plan_id"]
     r = await client.post("/api/v1/research-drafts", headers=H(client),
                           json={"question": "What does neuroscience say about identity change?"})
     assert r.json()["status"] == "STAGED"

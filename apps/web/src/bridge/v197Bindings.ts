@@ -50,6 +50,7 @@ export type V197ActionApi = Pick<
 
 type RefreshSnapshot = () => Promise<V197BridgeSnapshot>;
 type LoggedOut = () => Promise<void> | void;
+type AfterHydrate = () => Promise<void> | void;
 export interface V197TalkTransport {
   readonly active: boolean;
   talk(payload: V197TalkStreamPayload, hooks?: V197TalkStreamHooks, signal?: AbortSignal): Promise<import("./v197ApiClient").V197TalkResult>;
@@ -104,6 +105,7 @@ export class V197ActionBindings {
     private readonly refreshSnapshot: RefreshSnapshot,
     private readonly onLoggedOut: LoggedOut,
     private readonly talkTransport: V197TalkTransport,
+    private readonly afterHydrate: AfterHydrate,
   ) {
     this.snapshot = initialSnapshot;
   }
@@ -187,6 +189,7 @@ export class V197ActionBindings {
     this.snapshot = await this.refreshSnapshot();
     hydrateTrackAV197(this.document, this.snapshot);
     this.installLanguageControls();
+    await this.afterHydrate();
   }
 
   private async perform(control: HTMLElement, task: () => Promise<void>): Promise<void> {
@@ -958,8 +961,17 @@ export function bindV197Actions(
   refresh: RefreshSnapshot,
   onLoggedOut: LoggedOut = () => undefined,
   talkTransport: V197TalkTransport = new V197StreamClient(),
+  afterHydrate: AfterHydrate = () => undefined,
 ): () => void {
-  return new V197ActionBindings(document, api, snapshot, refresh, onLoggedOut, talkTransport).bind();
+  return new V197ActionBindings(
+    document,
+    api,
+    snapshot,
+    refresh,
+    onLoggedOut,
+    talkTransport,
+    afterHydrate,
+  ).bind();
 }
 
 export function bindV197EntryAuth(

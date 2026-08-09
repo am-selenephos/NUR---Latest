@@ -10,9 +10,10 @@ from sqlalchemy import select
 
 from app.api.deps import Identity, Scoped, require_csrf
 from app.cognition.provenance import prediction_error, revise_hypothesis_from_outcome
-from app.models import CognitiveEvent, Experiment, Hypothesis, Outcome, PlanStep
+from app.models import CognitiveEvent, Experiment, Hypothesis, Outcome, Plan, PlanStep
 from app.observability.metrics import record_counter
 from app.services.glow_service import award_glow_if_eligible
+from app.services.timeline_service import record_observed_outcome
 
 router = APIRouter(tags=["hypotheses"])
 
@@ -158,6 +159,18 @@ async def report_outcome(exp_id: uuid.UUID, payload: OutcomeIn, request: Request
     db.add(CognitiveEvent(owner_user_id=user_id, event_kind="OUTCOME_REPORTED",
                           content_text=payload.observed_result[:400], source_ref=f"outcome:{o.id}",
                           structured_payload={"experiment_id": str(e.id), "difference_from_prediction": diff}))
+    await record_observed_outcome(
+        db,
+        owner_user_id=user_id,
+        outcome_id=o.id,
+        observed_result=o.observed_result,
+        occurred_at=o.created_at,
+        orbit_id=e.orbit_id,
+        provenance={
+            "experiment_id": str(e.id),
+            **({"hypothesis_id": str(e.hypothesis_id)} if e.hypothesis_id else {}),
+        },
+    )
     e.status = "COMPLETED"
     await award_glow_if_eligible(
         db,
@@ -192,6 +205,20 @@ async def report_step_outcome(payload: OutcomeIn, request: Request, db: Scoped, 
     db.add(CognitiveEvent(owner_user_id=user_id, event_kind="OUTCOME_REPORTED",
                           content_text=payload.observed_result[:400], source_ref=f"outcome_step:{step.id}"))
     await db.flush()
+    plan = (await db.execute(select(Plan).where(
+        Plan.id == step.plan_id,
+        Plan.owner_user_id == user_id,
+    ))).scalar_one()
+    await record_observed_outcome(
+        db,
+        owner_user_id=user_id,
+        outcome_id=o.id,
+        observed_result=o.observed_result,
+        occurred_at=o.created_at,
+        orbit_id=plan.orbit_id,
+        plan_id=plan.id,
+        provenance={"plan_step_id": str(step.id)},
+    )
     await award_glow_if_eligible(
         db,
         owner_user_id=user_id,

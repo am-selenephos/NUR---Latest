@@ -307,7 +307,6 @@ export class V197Bridge {
         if (!currentSession) throw new Error("Your local Orbit session ended. Sign in again.");
         const next = await this.api.snapshot(currentSession);
         this.snapshot = next;
-        window.setTimeout(() => void this.applyCurrentRoute(), 0);
         return next;
       },
       async () => {
@@ -327,6 +326,8 @@ export class V197Bridge {
         entryDocument.querySelector<HTMLButtonElement>("#f4-close")?.click();
         this.ensureEntryAuthBinding(entryDocument, hostApi);
       },
+      undefined,
+      async () => this.applyCurrentRoute(),
     );
     emitBridgeEvent(V197_EVENTS.sessionHydrate, this.snapshotEventDetail(this.snapshot));
   }
@@ -365,7 +366,11 @@ export class V197Bridge {
       }, 0);
     });
 
-    universeWindow.addEventListener("nur:page-change", event => {
+    // Canonical V197 emits these non-bubbling CustomEvents on `document`.
+    // Listening on `window` only caught direct button clicks through the
+    // fallback listener above; programmatic openPage() transitions were lost
+    // and the next hydration reapplied the stale URL route.
+    universeDocument.addEventListener("nur:page-change", event => {
       if (this.applyingRoute) return;
       const route = routeForPage((event as CustomEvent<{ page?: string }>).detail?.page ?? "");
       if (route) this.pushRoute(route);
@@ -374,7 +379,7 @@ export class V197Bridge {
       const route = (event as CustomEvent<{ route?: string }>).detail?.route;
       if (route) this.pushRoute(nativeRoute(route));
     });
-    universeWindow.addEventListener("nur:world-focus", event => {
+    universeDocument.addEventListener("nur:world-focus", event => {
       if (this.applyingRoute) return;
       const focus = (event as CustomEvent<{ focus?: string }>).detail?.focus ?? "";
       const route = routeForWorldFocus(focus);
