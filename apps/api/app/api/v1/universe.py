@@ -93,6 +93,8 @@ class TimelineOut(BaseModel):
 class InsightsSummary(BaseModel):
     provenance_label: str
     counts: dict[str, int]
+    dedicated_insights: list[dict]
+    omega_claims: list[dict]
     claims: list[dict]
     contradictions: list[dict]
     predictions: list[dict]
@@ -367,7 +369,7 @@ async def insights_summary(db: Scoped, identity: Identity) -> InsightsSummary:
     dedicated = (await db.execute(
         select(Insight).where(
             Insight.owner_user_id == user_id,
-            Insight.status.notin_(["REJECTED", "ARCHIVED"]),
+            Insight.lifecycle_status.notin_(["OWNER_REJECTED", "SUPERSEDED", "RETRACTED"]),
         ).order_by(Insight.updated_at.desc()).limit(16)
     )).scalars().all()
     claims = (await db.execute(
@@ -387,40 +389,54 @@ async def insights_summary(db: Scoped, identity: Identity) -> InsightsSummary:
             FeasibilityAssessment.owner_user_id == user_id,
         ).order_by(FeasibilityAssessment.created_at.desc()).limit(8)
     )).scalars().all()
+    dedicated_rows = [{
+        "record_kind": "DEDICATED_INSIGHT",
+        "id": str(row.id),
+        "title": row.title,
+        "claim_text": row.claim,
+        "insight_type": row.insight_type,
+        "truth_status": row.status,
+        "lifecycle_status": row.lifecycle_status,
+        "epistemic_state": row.epistemic_state,
+        "insight_version": row.insight_version,
+        "time_scale": row.time_scale,
+        "source_domains": row.source_domains,
+        "source_diversity": row.source_diversity,
+        "confidence": row.confidence,
+        "evidence": row.evidence,
+        "counter_evidence": row.counter_evidence,
+        "alternative_explanations": row.alternative_explanations,
+        "what_nur_may_be_wrong_about": row.what_nur_may_be_wrong_about,
+        "positive_interpretation": row.positive_interpretation,
+        "hard_interpretation": row.hard_interpretation,
+        "suggested_action": row.suggested_action,
+        "provenance_label": row.provenance_label,
+        "detail_route": f"/universe/insights/{row.id}",
+    } for row in dedicated]
+    omega_rows = [{
+        "record_kind": "OMEGA_CLAIM",
+        "id": str(row.id),
+        "claim_text": row.claim_text,
+        "truth_status": row.truth_status,
+        "confidence": row.confidence,
+        "provenance_label": f"OMEGA_{row.truth_status}",
+        "detail_route": f"/universe/omega/why-changed/{row.id}",
+    } for row in claims]
     return InsightsSummary(
-        provenance_label="omega_owner_ledger",
+        provenance_label="owner_ledger",
         counts={
-            "claims": len(dedicated) + len(claims),
+            "claims": len(dedicated_rows) + len(omega_rows),
+            "dedicated_insights": len(dedicated_rows),
+            "omega_claims": len(omega_rows),
             "open_contradictions": len(contradictions),
             "predictions": len(predictions),
             "review_queue": len(reviews),
             "learning_proposals": await _count(db, select(func.count(OmegaLearningProposal.id)).where(OmegaLearningProposal.owner_user_id == user_id)),
             "feasibility_assessments": len(feasibility),
         },
-        claims=[{
-            "id": str(row.id),
-            "title": row.title,
-            "claim_text": row.claim,
-            "insight_type": row.insight_type,
-            "truth_status": row.status,
-            "confidence": row.confidence,
-            "evidence": row.evidence,
-            "counter_evidence": row.counter_evidence,
-            "what_nur_may_be_wrong_about": row.what_nur_may_be_wrong_about,
-            "positive_interpretation": row.positive_interpretation,
-            "hard_interpretation": row.hard_interpretation,
-            "suggested_action": row.suggested_action,
-            "provenance_label": row.provenance_label,
-        } for row in dedicated] + [
-            {
-                "id": str(c.id),
-                "claim_text": c.claim_text,
-                "truth_status": c.truth_status,
-                "confidence": c.confidence,
-                "provenance_label": f"OMEGA_{c.truth_status}",
-            }
-            for c in claims
-        ],
+        dedicated_insights=dedicated_rows,
+        omega_claims=omega_rows,
+        claims=dedicated_rows + omega_rows,
         contradictions=[{"id": str(c.id), "description": c.description, "severity": c.severity, "status": c.status} for c in contradictions],
         predictions=[{"id": str(p.id), "prediction_text": p.prediction_text, "status": p.status, "confidence": p.confidence} for p in predictions],
         review_queue=[{"id": str(r.id), "candidate_claim_text": r.candidate_claim_text, "sensitivity": r.sensitivity, "status": r.status} for r in reviews],

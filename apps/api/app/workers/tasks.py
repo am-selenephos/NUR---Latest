@@ -1,17 +1,26 @@
 """Phase 0 worker spine: idempotent, ID-only payloads, structured logs.
 Workers never execute user-supplied code and never receive private raw text."""
+import datetime as dt
+import hashlib
 import logging
 import socket
 import uuid
 
+from sqlalchemy import select
+
+from app.core.config import get_settings
 from app.core.logging import configure_logging, log
 from app.db.rls import set_user_context
 from app.db.session import get_sessionmaker
-from app.workers.asyncrun import run_task
+from app.insights.due_owner_service import insight_consolidation_owner_ids
+from app.insights.service import InsightRunBusy, consolidate_owner
+from app.models import InsightProjectionCheckpoint
+from app.models._mixins import now_utc
 from app.omega.due_owner_service import omega_consolidation_due_owner_ids
 from app.omega.replay_service import omega_consolidate_owner
-from app.services.project_execution import execute_run
 from app.services.account_service import purge_due_account_deletions
+from app.services.project_execution import execute_run
+from app.workers.asyncrun import run_task
 from app.workers.celery_app import celery
 
 configure_logging()
@@ -92,6 +101,120 @@ async def _omega_consolidate_due_owners() -> dict:
         dispatched.append(str(owner_id))
     log(logger, "omega due-owner dispatch", owner_count=len(dispatched))
     return {"dispatched_owner_ids": dispatched, "count": len(dispatched)}
+
+
+@celery.task(name="nur.insights_consolidate_owner", ignore_result=False, acks_late=True)
+def insights_consolidate_owner_task(owner_user_id: str, run_kind: str = "EVENT") -> dict:
+    """Run one bounded Insight pass. The queue payload contains IDs and an enum only."""
+    return run_task(lambda: _insights_consolidate_owner(owner_user_id, run_kind))
+
+
+async def _insights_consolidate_owner(owner_user_id: str, run_kind: str) -> dict:
+    owner_uuid = uuid.UUID(owner_user_id)
+    normalized_kind = run_kind.upper()
+    async with get_sessionmaker()() as db:
+        await set_user_context(db, owner_uuid)
+        checkpoint = (
+            await db.execute(
+                select(InsightProjectionCheckpoint).where(
+                    InsightProjectionCheckpoint.owner_user_id == owner_uuid
+                )
+            )
+        ).scalar_one_or_none()
+        due_reason = _insight_due_reason(checkpoint, normalized_kind, now=now_utc())
+        if due_reason is not None:
+            return {"status": "SKIPPED", "reason": due_reason}
+        idempotency_key = _insight_idempotency_key(checkpoint, normalized_kind)
+        try:
+            run = await consolidate_owner(
+                db,
+                owner_user_id=owner_uuid,
+                run_kind=normalized_kind,
+                idempotency_key=idempotency_key,
+                worker_id=f"celery:{socket.gethostname()}",
+            )
+        except InsightRunBusy as exc:
+            await db.rollback()
+            return {"status": "SKIPPED", "reason": str(exc)}
+        await db.commit()
+        log(
+            logger,
+            "insight consolidation",
+            owner_user_id=owner_user_id,
+            run_id=str(run.id),
+            status=run.status,
+            run_kind=normalized_kind,
+        )
+        return {"id": str(run.id), "status": run.status, "run_kind": run.run_kind}
+
+
+def _insight_due_reason(
+    checkpoint: InsightProjectionCheckpoint | None, run_kind: str, *, now: dt.datetime
+) -> str | None:
+    if checkpoint is None:
+        return "NO_PENDING_EVENTS"
+    if checkpoint.attempt_count >= checkpoint.max_attempts:
+        return "RETRY_CEILING_REACHED"
+    if checkpoint.claim_token and checkpoint.lease_expires_at and checkpoint.lease_expires_at > now:
+        return "OWNER_RUN_LEASED"
+    if checkpoint.next_eligible_at and checkpoint.next_eligible_at > now:
+        return "BACKOFF_ACTIVE"
+    if run_kind == "EVENT":
+        return None if checkpoint.pending_event_count > 0 else "NO_PENDING_EVENTS"
+    age = now - checkpoint.last_run_at if checkpoint.last_run_at else None
+    if run_kind == "DAILY":
+        return None if age is None or age >= dt.timedelta(days=1) else "DAILY_NOT_DUE"
+    if run_kind == "WEEKLY":
+        return None if age is None or age >= dt.timedelta(days=7) else "WEEKLY_NOT_DUE"
+    return "UNKNOWN_RUN_KIND"
+
+
+def _insight_idempotency_key(
+    checkpoint: InsightProjectionCheckpoint, run_kind: str
+) -> str:
+    now = now_utc()
+    if run_kind == "DAILY":
+        basis = f"daily:{now.date().isoformat()}"
+    elif run_kind == "WEEKLY":
+        iso_year, iso_week, _ = now.isocalendar()
+        basis = f"weekly:{iso_year}-W{iso_week:02d}"
+    else:
+        basis = ":".join(
+            (
+                "event",
+                str(checkpoint.last_cognitive_event_id or "start"),
+                str(checkpoint.last_domain_event_id or "start"),
+                str(checkpoint.pending_since or checkpoint.updated_at),
+                str(checkpoint.pending_event_count),
+                str(checkpoint.attempt_count),
+            )
+        )
+    return f"{run_kind.lower()}:{hashlib.sha256(basis.encode('utf-8')).hexdigest()}"
+
+
+@celery.task(name="nur.insights_consolidate_due_owners", ignore_result=False)
+def insights_consolidate_due_owners_task(run_kind: str = "EVENT") -> dict:
+    """Dispatch a bounded active-owner batch; each owner job performs its due check."""
+    return run_task(lambda: _insights_consolidate_due_owners(run_kind))
+
+
+async def _insights_consolidate_due_owners(run_kind: str) -> dict:
+    normalized_kind = run_kind.upper()
+    if normalized_kind not in {"EVENT", "DAILY", "WEEKLY"}:
+        raise ValueError("Unknown scheduled Insight run kind.")
+    async with get_sessionmaker()() as db:
+        owners = await insight_consolidation_owner_ids(
+            db, limit=get_settings().insights_owner_batch
+        )
+    for owner_id in owners:
+        insights_consolidate_owner_task.delay(str(owner_id), normalized_kind)
+    log(
+        logger,
+        "insight due-owner dispatch",
+        owner_count=len(owners),
+        run_kind=normalized_kind,
+    )
+    return {"count": len(owners), "run_kind": normalized_kind}
 
 
 @celery.task(name="nur.account_deletion_purge", ignore_result=False, acks_late=True)

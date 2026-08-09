@@ -1,6 +1,9 @@
 import type {
   V197BridgeSnapshot,
   V197CommunityRoom,
+  V197InsightDetail,
+  V197InsightEvidenceResponse,
+  V197InsightWhyChanged,
   V197MapNode,
   V197Plan,
   V197PlanStep,
@@ -24,6 +27,7 @@ const CORE_SYSTEMS = [
   "Introspection",
   "Connection",
 ] as const;
+const NO_RELIABLE_INSIGHT = "NUR doesn't have enough evidence for a reliable pattern yet.";
 
 function empty(node: Element): void {
   while (node.firstChild) node.removeChild(node.firstChild);
@@ -639,6 +643,17 @@ function setLaneCard(card: Element | undefined, eyebrow: string, title: string, 
   text(detailSlot, detail);
 }
 
+function primaryInsight(snapshot: V197BridgeSnapshot): Record<string, unknown> | undefined {
+  const summary = snapshot.insights;
+  const typed = summary?.dedicated_insights?.[0];
+  if (typed) return typed;
+  const compatible = summary?.claims.find(row =>
+    row.record_kind === "DEDICATED_INSIGHT"
+    || (typeof row.insight_type === "string" && Array.isArray(row.evidence)),
+  );
+  return compatible ?? summary?.omega_claims?.[0] ?? summary?.claims[0];
+}
+
 function ensureInsightControls(document: Document, claim: Record<string, unknown> | undefined): void {
   const panel = document.querySelector<HTMLElement>(".universe-insight-panel");
   if (!panel) return;
@@ -674,24 +689,109 @@ function ensureInsightControls(document: Document, claim: Record<string, unknown
     panel.append(controls);
   }
   const insightId = typeof claim?.id === "string" ? claim.id : "";
-  const dedicated = Boolean(insightId && Array.isArray(claim?.evidence));
+  const dedicated = Boolean(
+    insightId
+    && (claim?.record_kind === "DEDICATED_INSIGHT"
+      || (typeof claim?.insight_type === "string" && Array.isArray(claim?.evidence))),
+  );
+  const ownerConfirmed = claim?.lifecycle_status === "OWNER_CONFIRMED"
+    || claim?.truth_status === "ACCEPTED";
   controls.dataset.insightId = dedicated ? insightId : "";
   controls.hidden = false;
   controls.querySelectorAll<HTMLButtonElement>("button").forEach(button => {
-    button.disabled = !dedicated;
-    button.setAttribute("aria-disabled", String(!dedicated));
-    button.title = dedicated
-      ? "Persist this owner review action."
-      : "Generate a dedicated evidence-linked Insight before reviewing it here.";
+    const requiresConfirmation = button.dataset.action === "insight-plan";
+    const disabled = !dedicated || (requiresConfirmation && !ownerConfirmed);
+    button.disabled = disabled;
+    button.setAttribute("aria-disabled", String(disabled));
+    button.title = !dedicated
+      ? "Generate a dedicated evidence-linked Insight before reviewing it here."
+      : requiresConfirmation && !ownerConfirmed
+        ? "Accept this Insight before converting it into a Plan."
+        : "Persist this owner review action.";
   });
   const correction = controls.querySelector<HTMLInputElement>("#nur-v197-insight-correction");
   if (correction) correction.disabled = !dedicated;
   text(
     controls.querySelector(".nur-v197-insight-review-state"),
     dedicated
-      ? `${String(claim?.truth_status ?? "candidate").toLowerCase()} · owner review required`
+      ? `${String(claim?.lifecycle_status ?? claim?.truth_status ?? "candidate").toLowerCase()} · owner-governed Insight`
       : "Omega claim shown read-only · generate a dedicated Insight to act on it",
   );
+}
+
+export function renderInsightInspection(
+  document: Document,
+  detail: V197InsightDetail | null,
+  evidence: V197InsightEvidenceResponse | null,
+  history: V197InsightWhyChanged | null,
+  failure: string | null = null,
+): void {
+  const panel = document.querySelector<HTMLElement>(".universe-insight-panel");
+  if (!panel) return;
+  let host = panel.querySelector<HTMLElement>("#nur-v197-insight-inspection");
+  if (!host) {
+    host = document.createElement("section");
+    host.id = "nur-v197-insight-inspection";
+    host.className = "nur-v197-insight-inspection";
+    host.setAttribute("aria-label", "Insight evidence and change history");
+    panel.append(host);
+  }
+  host.hidden = false;
+  empty(host);
+  if (failure || !detail || !evidence || !history) {
+    const state = document.createElement("small");
+    state.textContent = failure ?? "No dedicated Insight is available for evidence inspection.";
+    host.append(state);
+    return;
+  }
+  ensureInsightControls(document, {
+    ...detail,
+    record_kind: "DEDICATED_INSIGHT",
+    claim_text: detail.claim,
+  });
+
+  const heading = document.createElement("strong");
+  heading.textContent = `${detail.epistemic_state} · ${detail.time_scale} · version ${detail.insight_version}`;
+  const sourceState = document.createElement("p");
+  const support = evidence.relations.filter(row => row.relation === "SUPPORTS");
+  const counter = evidence.relations.filter(row => row.relation === "CONTRADICTS");
+  sourceState.textContent = `${support.length} supporting · ${counter.length} counter · ${detail.source_diversity} source domains`;
+  const uncertainty = document.createElement("p");
+  uncertainty.textContent = `What NUR may be wrong about: ${detail.what_nur_may_be_wrong_about}`;
+  host.append(heading, sourceState, uncertainty);
+
+  const evidenceList = document.createElement("ul");
+  evidenceList.setAttribute("aria-label", "Canonical Insight evidence");
+  evidence.relations.slice(0, 8).forEach(row => {
+    const item = document.createElement("li");
+    item.textContent = `${row.relation} · ${row.source_domain} · ${row.provenance_label} · ${row.source_exists ? "source present" : "source invalidated"}${row.evidence_summary ? ` · ${row.evidence_summary}` : ""}`;
+    evidenceList.append(item);
+  });
+  host.append(evidenceList);
+
+  if (detail.alternative_explanations.length) {
+    const alternatives = document.createElement("p");
+    alternatives.textContent = `Alternatives: ${detail.alternative_explanations.join(" · ")}`;
+    host.append(alternatives);
+  }
+  const changes = document.createElement("p");
+  changes.textContent = history.changes.length
+    ? `Why changed: ${history.changes.slice(-4).map(row => `${row.change_class}: ${row.trigger}`).join(" · ")}`
+    : "Why changed: no state transition has been recorded yet.";
+  host.append(changes);
+
+  const routes = document.createElement("nav");
+  routes.setAttribute("aria-label", "Canonical Insight links");
+  Object.entries(detail.canonical_links).forEach(([label, route]) => {
+    if (!route) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "soft-button";
+    button.dataset.ownerRoute = route;
+    button.textContent = label.replace(/_/g, " ");
+    routes.append(button);
+  });
+  host.append(routes);
 }
 
 function renderVisibleLens(
@@ -817,14 +917,14 @@ function renderVisibleLens(
 
   if (focus === "insights") {
     const insight = snapshot.insights;
-    const claim = insight?.claims[0];
+    const claim = primaryInsight(snapshot);
     const claimText = typeof claim?.claim_text === "string" ? claim.claim_text : null;
     const claimTitle = typeof claim?.title === "string" ? claim.title : claimText;
     count = insight?.counts.claims ?? 0;
-    title = claimTitle ?? "No candidate insight yet";
+    title = claimTitle ?? NO_RELIABLE_INSIGHT;
     copy = claimText
       ? `${claimText} · ${Array.isArray(claim?.evidence) ? claim.evidence.length : 0} attached evidence records.`
-      : "NUR will not invent advice before evidence exists.";
+      : "More owner evidence across time or domains is required before NUR surfaces one.";
     uncertainty = typeof claim?.what_nur_may_be_wrong_about === "string"
       ? claim.what_nur_may_be_wrong_about
       : `${insight?.counts.open_contradictions ?? 0} open contradictions · ${insight?.counts.review_queue ?? 0} awaiting review.`;
@@ -851,8 +951,12 @@ function renderVisibleLens(
   text(panel.querySelector(".insight-evidence span"), "No fake live metrics");
   text(panel.querySelector(".insight-revision span"), "Updated from the latest persisted snapshot.");
   const controls = document.querySelector<HTMLElement>("#nur-v197-insight-controls");
-  if (focus === "insights") ensureInsightControls(document, snapshot.insights?.claims[0]);
-  else if (controls) controls.hidden = true;
+  const inspection = document.querySelector<HTMLElement>("#nur-v197-insight-inspection");
+  if (focus === "insights") ensureInsightControls(document, primaryInsight(snapshot));
+  else {
+    if (controls) controls.hidden = true;
+    if (inspection) inspection.hidden = true;
+  }
 }
 
 export function renderWorldLens(
@@ -984,7 +1088,7 @@ export function renderWorldLens(
 
 function renderInsight(document: Document, snapshot: V197BridgeSnapshot): void {
   const insights = snapshot.insights;
-  const claim = insights?.claims[0];
+  const claim = primaryInsight(snapshot);
   const contradiction = insights?.contradictions[0];
   const claimText = typeof claim?.claim_text === "string" ? claim.claim_text : null;
   const confidence = typeof claim?.confidence === "number" ? `${Math.round(claim.confidence * 100)}% confidence` : "awaiting owner evidence";
@@ -1003,8 +1107,13 @@ function renderInsight(document: Document, snapshot: V197BridgeSnapshot): void {
 
   ownText(document.querySelector(".system-badge"), "Candidate insight");
   text(document.querySelector(".universe-insight-title small"), claimText ? "Candidate claim" : "Evidence state");
-  text(document.querySelector(".universe-insight-title h2"), claimText ?? "No candidate insight yet");
-  text(document.querySelector(".universe-insight-copy"), claimText ? `Inferred from the owner ledger · ${confidence}.` : "NUR will not invent an insight before evidence exists.");
+  text(document.querySelector(".universe-insight-title h2"), claimText ?? NO_RELIABLE_INSIGHT);
+  text(
+    document.querySelector(".universe-insight-copy"),
+    claimText
+      ? `Inferred from the owner ledger · ${confidence}.`
+      : "More owner evidence across time or domains is required before NUR surfaces one.",
+  );
   const contradictionText = typeof contradiction?.description === "string" ? contradiction.description : "No open contradiction is persisted.";
   text(document.querySelector(".insight-uncertainty span"), "Open contradiction");
   text(document.querySelector(".insight-uncertainty p"), contradictionText);

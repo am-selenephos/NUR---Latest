@@ -51,6 +51,7 @@ class EntityType(StrEnum):
     ATTENTION_ITEM = "attention_item"
     MODEL_CHECKPOINT = "model_checkpoint"
     CURRICULUM = "curriculum"
+    INSIGHT = "insight"
 
 
 # ── WhyChangedRecord Pydantic model ───────────────────────────────────────
@@ -97,17 +98,11 @@ class WhyChangedRecord(BaseModel):
     # Timing
     occurred_at: dt.datetime = Field(default_factory=lambda: dt.datetime.now(dt.timezone.utc))
 
+    model_config = {"from_attributes": True}
 
-# ── In-memory service (until migration adds DB table) ─────────────────────
-# This service works with the Pydantic model. Phase 2 migration will add
-# the database table and this will be upgraded to persist.
 
 class WhyChangedService:
-    """Service for recording and querying why-changed entries.
-
-    Currently stores records in the cognitive_events table as structured payloads
-    until the dedicated table is created by migration 0054.
-    """
+    """Append-only, owner-scoped state-transition explanations."""
 
     @staticmethod
     async def record_change(
@@ -153,21 +148,16 @@ class WhyChangedService:
             policy_version=policy_version,
         )
 
-        # Persist as a CognitiveEvent until dedicated table exists
-        from app.models import CognitiveEvent
-        event = CognitiveEvent(
-            owner_user_id=owner_user_id,
-            event_kind="SYSTEM_EVENT",
-            content_text=f"WhyChanged: {entity_type}/{entity_id} — {change_class}",
-            structured_payload={
-                "why_changed": record.model_dump(mode="json"),
-            },
-            source_ref=f"why_changed:{record.id}",
-            scope="PRIVATE_ORBIT",
+        from app.models import WhyChangedRecordRow
+
+        row = WhyChangedRecordRow(
+            **record.model_dump(exclude={"entity_type", "change_class"}),
+            entity_type=record.entity_type.value,
+            change_class=record.change_class.value,
         )
-        db.add(event)
+        db.add(row)
         await db.flush()
-        return record
+        return WhyChangedRecord.model_validate(row)
 
     @staticmethod
     async def get_change_history(
@@ -178,39 +168,19 @@ class WhyChangedService:
         entity_id: str,
         limit: int = 50,
     ) -> list[WhyChangedRecord]:
-        """Retrieve the change history for an entity, newest first.
-
-        Queries CognitiveEvent records with why_changed structured payloads.
-        """
-        from app.models import CognitiveEvent
+        """Retrieve one entity's governed history, newest first."""
+        from app.models import WhyChangedRecordRow
         from sqlalchemy import desc
 
         stmt = (
-            select(CognitiveEvent)
+            select(WhyChangedRecordRow)
             .where(
-                CognitiveEvent.owner_user_id == owner_user_id,
-                CognitiveEvent.event_kind == "SYSTEM_EVENT",
-                CognitiveEvent.source_ref.like("why_changed:%"),
+                WhyChangedRecordRow.owner_user_id == owner_user_id,
+                WhyChangedRecordRow.entity_type == entity_type,
+                WhyChangedRecordRow.entity_id == entity_id,
             )
-            .order_by(desc(CognitiveEvent.created_at))
-            .limit(limit * 3)  # over-fetch since we filter in Python
+            .order_by(desc(WhyChangedRecordRow.occurred_at))
+            .limit(min(max(limit, 1), 200))
         )
         result = await db.execute(stmt)
-        events = result.scalars().all()
-
-        records: list[WhyChangedRecord] = []
-        for event in events:
-            payload = event.structured_payload or {}
-            wc_data = payload.get("why_changed", {})
-            if (
-                wc_data.get("entity_type") == entity_type
-                and wc_data.get("entity_id") == entity_id
-            ):
-                try:
-                    records.append(WhyChangedRecord.model_validate(wc_data))
-                except Exception:
-                    continue
-            if len(records) >= limit:
-                break
-
-        return records
+        return [WhyChangedRecord.model_validate(row) for row in result.scalars()]

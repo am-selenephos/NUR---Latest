@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { V197BridgeSnapshot } from "../bridge/v197ApiClient";
-import { hydrateTrackAV197, renderWorldLens } from "../bridge/v197Hydration";
+import { hydrateTrackAV197, renderInsightInspection, renderWorldLens } from "../bridge/v197Hydration";
 
 function fixture(): Document {
   const document = window.document.implementation.createHTMLDocument("NUR universe");
@@ -115,7 +115,48 @@ function snapshot(): V197BridgeSnapshot {
     map: { provenance_label: "owner_ledger", counts: [{ key: "orbits", label: "owner-owned orbits", count: 8 }], nodes },
     orbits: { provenance_label: "owner_ledger", orbits: nodes.map(node => ({ ...node, description: null, status: "ACTIVE", created_at: "2026-07-11T10:00:00Z" })) },
     timeline: { provenance_label: "owner_ledger", items: [{ id: "event-1", kind: "JOURNAL_ENTRY", title: "Journal entry", body: "Persisted journal", created_at: "2026-07-11T10:00:00Z", provenance_label: "owner_written", route: "/journal" }] },
-    insights: { provenance_label: "omega_owner_ledger", counts: { claims: 1, open_contradictions: 1 }, claims: [{ claim_text: "Rest protects the work", confidence: 0.72 }], contradictions: [{ description: "Urgency conflicts with capacity" }], predictions: [], review_queue: [] },
+    insights: {
+      provenance_label: "agentic_insights_and_omega_owner_ledgers",
+      counts: { claims: 2, dedicated_insights: 1, omega_claims: 1, open_contradictions: 1 },
+      dedicated_insights: [{
+        record_kind: "DEDICATED_INSIGHT",
+        id: "insight-1",
+        title: "Rest protects the work",
+        claim_text: "Rest protects the work",
+        insight_type: "CROSS_DOMAIN_PATTERN",
+        truth_status: "CANDIDATE",
+        lifecycle_status: "SURFACED",
+        epistemic_state: "PROVISIONAL",
+        insight_version: 2,
+        time_scale: "WEEKLY",
+        source_domains: ["OUTCOME", "PLAN"],
+        source_diversity: 2,
+        confidence: 0.72,
+        evidence: [{ id: "evidence-1" }],
+        counter_evidence: [],
+        alternative_explanations: ["The workload may have changed."],
+        what_nur_may_be_wrong_about: "The improvement may be temporary.",
+        suggested_action: "Protect one recovery window.",
+        provenance_label: "AGENTIC_INSIGHT_OWNER_LEDGER",
+        detail_route: "/universe/insights/insight-1",
+      }],
+      omega_claims: [{
+        record_kind: "OMEGA_CLAIM",
+        id: "omega-1",
+        claim_text: "Urgency may be rising",
+        truth_status: "CANDIDATE",
+        confidence: 0.54,
+        provenance_label: "OMEGA_CANDIDATE",
+        detail_route: "/universe/omega/why-changed/omega-1",
+      }],
+      claims: [
+        { record_kind: "DEDICATED_INSIGHT", id: "insight-1", title: "Rest protects the work", claim_text: "Rest protects the work", insight_type: "CROSS_DOMAIN_PATTERN", lifecycle_status: "SURFACED", evidence: [{ id: "evidence-1" }] },
+        { record_kind: "OMEGA_CLAIM", id: "omega-1", claim_text: "Urgency may be rising" },
+      ],
+      contradictions: [{ description: "Urgency conflicts with capacity" }],
+      predictions: [],
+      review_queue: [],
+    },
     preferences: { locale: "en", writing_preference: "default", default_boundary: "PRIVATE_ORBIT", active_orbit_id: "orbit-1" },
     talkThread: [{ id: "talk-1", who: "user", text: "Persisted Talk", structured_payload: {}, created_at: "2026-07-11T10:00:00Z" }],
     journal: [{ id: "journal-1", body: "Persisted journal", orbit_id: "orbit-1", event_id: "event-1", created_at: "2026-07-11T10:00:00Z" }],
@@ -182,6 +223,82 @@ describe("Track A V197 persisted hydration", () => {
     expect(document.querySelector(".universe-insight-copy")?.textContent).toContain("Persisted journal");
     expect(document.querySelector(".system-badge .nur-exact-mini-host")?.textContent).toBe("BADGE_STAR");
     expect(document.querySelector(".system-badge")?.textContent).toContain("Timeline lens");
+  });
+
+  it("keeps Omega read-only while exposing owner-governed dedicated Insight evidence", () => {
+    const document = fixture();
+    const state = snapshot();
+    renderWorldLens(document, state, "insights");
+
+    const controls = document.querySelector<HTMLElement>("#nur-v197-insight-controls");
+    expect(controls?.dataset.insightId).toBe("insight-1");
+    expect(document.querySelector<HTMLButtonElement>('[data-action="insight-accept"]')?.disabled).toBe(false);
+    expect(document.querySelector<HTMLButtonElement>('[data-action="insight-plan"]')?.disabled).toBe(true);
+    expect(controls?.textContent).toContain("owner-governed Insight");
+
+    renderInsightInspection(
+      document,
+      {
+        id: "insight-1", title: "Rest protects the work", claim: "Rest protects the work",
+        lifecycle_status: "SURFACED", epistemic_state: "PROVISIONAL", insight_version: 2,
+        time_scale: "WEEKLY", source_domains: ["OUTCOME", "PLAN"], source_diversity: 2,
+        alternative_explanations: ["The workload may have changed."], assumptions: [], contradictions: [],
+        what_nur_may_be_wrong_about: "The improvement may be temporary.", quality_dimensions: {},
+        canonical_links: { timeline: "/universe/timeline", evidence: "/universe/insights/insight-1" },
+      },
+      {
+        insight_id: "insight-1",
+        relations: [{
+          id: "relation-1", source_kind: "OUTCOME", source_id: "outcome-1", source_domain: "OUTCOME",
+          relation: "SUPPORTS", provenance_label: "OWNER_REPORTED", explicitness: "EXPLICIT",
+          confidence: 1, evidence_summary: "A real outcome returned.", source_occurred_at: "2026-08-09T10:00:00Z",
+          source_exists: true, canonical_route: "/universe/timeline",
+        }],
+      },
+      {
+        insight_id: "insight-1",
+        changes: [{
+          change_class: "MATERIAL_EVIDENCE", trigger: "Outcome returned", owner_correction: false,
+          occurred_at: "2026-08-09T10:01:00Z", affected_future_behavior: "Evidence digest advanced.",
+        }],
+        governance: "owner-governed",
+      },
+    );
+    const inspection = document.querySelector("#nur-v197-insight-inspection")?.textContent ?? "";
+    expect(inspection).toContain("PROVISIONAL · WEEKLY · version 2");
+    expect(inspection).toContain("source present");
+    expect(inspection).toContain("Why changed: MATERIAL_EVIDENCE: Outcome returned");
+
+    state.insights!.dedicated_insights = [];
+    state.insights!.claims = state.insights!.omega_claims ?? [];
+    renderWorldLens(document, state, "insights");
+    expect(controls?.dataset.insightId).toBe("");
+    expect(document.querySelector<HTMLButtonElement>('[data-action="insight-accept"]')?.disabled).toBe(true);
+    expect(controls?.textContent).toContain("Omega claim shown read-only");
+  });
+
+  it("states the reliable-pattern evidence threshold honestly when Insights are empty", () => {
+    const document = fixture();
+    const state = snapshot();
+    state.insights = {
+      provenance_label: "owner_ledger",
+      counts: { claims: 0, dedicated_insights: 0, omega_claims: 0, open_contradictions: 0 },
+      dedicated_insights: [],
+      omega_claims: [],
+      claims: [],
+      contradictions: [],
+      predictions: [],
+      review_queue: [],
+    };
+
+    renderWorldLens(document, state, "insights");
+
+    expect(document.querySelector(".universe-insight-title h2")?.textContent).toBe(
+      "NUR doesn't have enough evidence for a reliable pattern yet.",
+    );
+    expect(document.querySelector(".universe-insight-copy")?.textContent).toContain(
+      "More owner evidence across time or domains is required",
+    );
   });
 
   it("renders persisted bounded rooms with roles, DEMO marks, and privacy copy", () => {

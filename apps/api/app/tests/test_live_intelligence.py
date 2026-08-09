@@ -124,6 +124,16 @@ async def test_social_orbit_timeline_insight_and_live_universe_owner_flow(client
 
     insight_summary = (await client.get("/api/v1/universe/insights-summary")).json()
     assert any(row["id"] == candidate["id"] for row in insight_summary["claims"])
+    assert any(
+        row["id"] == candidate["id"] and row["record_kind"] == "DEDICATED_INSIGHT"
+        for row in insight_summary["dedicated_insights"]
+    )
+    assert all(row["record_kind"] == "OMEGA_CLAIM" for row in insight_summary["omega_claims"])
+    assert insight_summary["counts"]["dedicated_insights"] == 1
+    assert insight_summary["counts"]["claims"] == (
+        insight_summary["counts"]["dedicated_insights"]
+        + insight_summary["counts"]["omega_claims"]
+    )
     timeline_summary = (await client.get("/api/v1/universe/timeline")).json()
     assert any(row["kind"] == "INSIGHT_REVIEW_DUE" for row in timeline_summary["items"])
 

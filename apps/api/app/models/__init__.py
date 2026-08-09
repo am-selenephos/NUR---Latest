@@ -102,6 +102,14 @@ from app.models.projects import (  # noqa: F401
 from app.models.intelligence import (  # noqa: F401
     Insight, OrbitEvent, OrbitMember, Person, TimelineEvent,
 )
+from app.models.agentic_insights import (  # noqa: F401
+    InsightEvidenceRelation,
+    InsightFeedback,
+    InsightPattern,
+    InsightProjectionCheckpoint,
+    InsightProjectionRun,
+    WhyChangedRecordRow,
+)
 from app.models.community import (  # noqa: F401
     CommunityComment, CommunityMembership, CommunityMessage, CommunityPost,
     CommunityReaction, CommunityRoom, Consultation, ConsultationContribution,

@@ -486,13 +486,16 @@ def test_the_foreign_key_set_is_exactly_as_expected(engine):
         # workflow scope
         ("agent_workflows", "(orbit_id) REFERENCES orbits(id) ON DELETE SET NULL"),
         ("agent_workflows", "(project_id) REFERENCES am_projects(id) ON DELETE SET NULL"),
-        ("agent_workflows", "(retry_of_workflow_id) REFERENCES agent_workflows(id) ON DELETE RESTRICT"),
+        (
+            "agent_workflows",
+            "(retry_of_workflow_id, owner_user_id) REFERENCES "
+            "agent_workflows(id, owner_user_id) ON DELETE SET NULL (retry_of_workflow_id)",
+        ),
     }
 
     unexpected = sorted(actual - expected)
     missing = sorted(expected - actual)
     assert not unexpected, f"foreign keys present but not expected: {unexpected}"
     assert not missing, f"foreign keys expected but absent: {missing}"
-
 
 

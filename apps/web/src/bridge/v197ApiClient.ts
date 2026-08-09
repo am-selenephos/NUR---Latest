@@ -81,10 +81,93 @@ export interface V197Timeline {
   }>;
 }
 
+export interface V197DedicatedInsightSummary extends Record<string, unknown> {
+  record_kind: "DEDICATED_INSIGHT";
+  id: string;
+  title: string;
+  claim_text: string;
+  insight_type: string;
+  truth_status: string;
+  lifecycle_status: string;
+  epistemic_state: string;
+  insight_version: number;
+  time_scale: string;
+  source_domains: string[];
+  source_diversity: number;
+  confidence: number;
+  evidence: Array<Record<string, unknown>>;
+  counter_evidence: Array<Record<string, unknown>>;
+  alternative_explanations: string[];
+  what_nur_may_be_wrong_about: string;
+  suggested_action: string | null;
+  provenance_label: string;
+  detail_route: string;
+}
+
+export interface V197OmegaClaimSummary extends Record<string, unknown> {
+  record_kind: "OMEGA_CLAIM";
+  id: string;
+  claim_text: string;
+  truth_status: string;
+  confidence: number;
+  provenance_label: string;
+  detail_route: string;
+}
+
+export interface V197InsightDetail extends Record<string, unknown> {
+  id: string;
+  title: string;
+  claim: string;
+  lifecycle_status: string;
+  epistemic_state: string;
+  insight_version: number;
+  time_scale: string;
+  source_domains: string[];
+  source_diversity: number;
+  alternative_explanations: string[];
+  assumptions: string[];
+  contradictions: string[];
+  what_nur_may_be_wrong_about: string;
+  quality_dimensions: Record<string, unknown>;
+  canonical_links: Record<string, string | null>;
+}
+
+export interface V197InsightEvidenceResponse {
+  insight_id: string;
+  relations: Array<{
+    id: string;
+    source_kind: string;
+    source_id: string;
+    source_domain: string;
+    relation: string;
+    provenance_label: string;
+    explicitness: string;
+    confidence: number;
+    evidence_summary: string | null;
+    source_occurred_at: string | null;
+    source_exists: boolean;
+    canonical_route: string;
+  }>;
+}
+
+export interface V197InsightWhyChanged {
+  insight_id: string;
+  changes: Array<{
+    change_class: string;
+    trigger: string;
+    owner_correction: boolean;
+    occurred_at: string;
+    affected_future_behavior: string;
+  }>;
+  governance: string;
+}
+
 export interface V197Insights {
   provenance_label: string;
   counts: Record<string, number>;
   claims: Array<Record<string, unknown>>;
+  dedicated_insights?: V197DedicatedInsightSummary[];
+  omega_claims?: V197OmegaClaimSummary[];
   contradictions: Array<Record<string, unknown>>;
   predictions: Array<Record<string, unknown>>;
   review_queue: Array<Record<string, unknown>>;
@@ -1485,6 +1568,18 @@ export class V197ApiClient {
     return this.post<Record<string, unknown>>(`/insights/${encodeURIComponent(insightId)}/add-to-timeline`, {});
   }
 
+  insightDetail(insightId: string): Promise<V197InsightDetail> {
+    return this.get<V197InsightDetail>(`/insights/${encodeURIComponent(insightId)}`);
+  }
+
+  insightEvidence(insightId: string): Promise<V197InsightEvidenceResponse> {
+    return this.get<V197InsightEvidenceResponse>(`/insights/${encodeURIComponent(insightId)}/evidence`);
+  }
+
+  insightWhyChanged(insightId: string): Promise<V197InsightWhyChanged> {
+    return this.get<V197InsightWhyChanged>(`/insights/${encodeURIComponent(insightId)}/why-changed`);
+  }
+
   saveTodayCheckIn(payload: {
     energy: number;
     pain: number;
@@ -1522,6 +1617,14 @@ export class V197ApiClient {
         return fallback;
       }
     };
+    const required = async <T>(path: string): Promise<T> => {
+      try {
+        return await this.get<T>(path);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : "Owner data could not be read.";
+        throw new Error(`NUR could not load the signed-in owner state from ${path}. ${detail}`);
+      }
+    };
 
     const emptyGlow: V197GlowSummary = {
       balance: 0,
@@ -1539,15 +1642,15 @@ export class V197ApiClient {
     };
     const [health, live, ownerState, map, orbits, timeline, insights, mapGraph, scoreboard, preferences, talkThread, journal, plans, glow, researchBriefs, projects] = await Promise.all([
       this.health().catch(() => null),
-      read<V197LiveUniverse | null>("/universe/live", null),
-      read<V197OwnerState | null>("/orbits/current-state", null),
+      required<V197LiveUniverse>("/universe/live"),
+      required<V197OwnerState>("/orbits/current-state"),
       read<V197MapSummary | null>("/universe/map-summary", null),
       read<V197OrbitsSummary | null>("/universe/orbits-summary", null),
       read<V197Timeline | null>("/universe/timeline", null),
       read<V197Insights | null>("/universe/insights-summary", null),
       read<V197MapGraph | null>("/map", null),
       read<V197GlowScoreboard | null>("/glow/scoreboard", null),
-      read<V197Preferences | null>("/profile/preferences", null),
+      required<V197Preferences>("/profile/preferences"),
       read<V197TalkThreadRow[]>("/cognition/talk-thread", []),
       read<V197JournalEntry[]>("/journal", []),
       read<V197Plan[]>("/plans", []),

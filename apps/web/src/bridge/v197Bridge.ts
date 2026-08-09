@@ -5,7 +5,7 @@ import { renderV197Map } from "./v197Map";
 import { renderV197Timeline } from "./v197Timeline";
 import { bindV197Actions, bindV197EntryAuth } from "./v197Bindings";
 import { emitBridgeEvent, routeForPage, routeForWorldFocus, V197_EVENTS, type V197NativeRoute } from "./v197Events";
-import { hydrateTrackAV197, renderWorldLens } from "./v197Hydration";
+import { hydrateTrackAV197, renderInsightInspection, renderWorldLens } from "./v197Hydration";
 import {
   compactV197MiniStars,
   ensureV197EntryPolish,
@@ -98,6 +98,8 @@ export class V197Bridge {
   private entryAuthDocument: Document | null = null;
   private entryAuthCleanup: (() => void) | null = null;
   private miniStarCompactionFrame: number | null = null;
+  private authenticatedSessionActive = false;
+  private stageGuard: MutationObserver | null = null;
 
   constructor(
     private readonly hostWindow: V197HostWindow,
@@ -114,6 +116,7 @@ export class V197Bridge {
     const entryDocument = await waitForFrameDocument(entryFrame, "#nur-front-v61", "Canonical V197 entry");
     ensureV197EntryPolish(entryDocument);
     this.ensureEntryAuthBinding(entryDocument, hostApi);
+    this.installStageGuard(hostApi);
 
     window.addEventListener("popstate", () => void this.applyCurrentRoute());
     emitBridgeEvent(V197_EVENTS.ready, { integrity: "pass", mode: "track-a-persisted" });
@@ -168,6 +171,8 @@ export class V197Bridge {
           ? "/plan"
           : route.startsWith("/systems/")
             ? "/systems"
+            : route.startsWith("/universe/insights/")
+              ? "/universe/insights"
             : route === "/universe/life"
               ? "/universe"
               : route;
@@ -224,6 +229,12 @@ export class V197Bridge {
         // owner-ledger lens as the final route state.
         if (world !== "universe") await pause(0);
         renderWorldLens(this.universeDocument, this.snapshot, world);
+        if (world === "insights") {
+          const routeInsightId = route.startsWith("/universe/insights/")
+            ? decodeURIComponent(route.slice("/universe/insights/".length))
+            : null;
+          await this.renderInsightRoute(routeInsightId);
+        }
         this.compactRenderedMiniStars(this.universeDocument);
       }
       if (route.startsWith("/systems/")) {
@@ -250,7 +261,15 @@ export class V197Bridge {
         this.snapshot = await this.api.snapshot(session);
       }
     }
-    const universeDocument = await this.enterAuthenticatedUniverse(hostApi, this.hostDocument, session);
+    this.authenticatedSessionActive = true;
+    let universeDocument: Document;
+    try {
+      universeDocument = await this.enterAuthenticatedUniverse(hostApi, this.hostDocument, session);
+    } catch (error) {
+      this.authenticatedSessionActive = false;
+      hostApi.showEntry();
+      throw error;
+    }
     this.universeDocument = universeDocument;
     ensureV197PremiumPolish(universeDocument);
     if (["/", "/auth", "/onboarding"].includes(window.location.pathname)) {
@@ -274,6 +293,7 @@ export class V197Bridge {
         if (!currentSession) throw new Error("Your local Orbit session ended. Sign in again.");
         const next = await this.api.snapshot(currentSession);
         this.snapshot = next;
+        window.setTimeout(() => void this.applyCurrentRoute(), 0);
         return next;
       },
       async () => {
@@ -281,6 +301,7 @@ export class V197Bridge {
         this.actionCleanup = null;
         this.snapshot = null;
         this.universeDocument = null;
+        this.authenticatedSessionActive = false;
         window.history.replaceState({}, "", "/");
         hostApi.showEntry();
         const entryFrame = selectRequired<HTMLIFrameElement>(this.hostDocument, V197_SELECTORS.entryStage);
@@ -347,6 +368,47 @@ export class V197Bridge {
       const route = routeForWorldFocus(focus);
       if (route) this.pushRoute(route);
     });
+  }
+
+  private installStageGuard(hostApi: V197HostApi): void {
+    this.stageGuard?.disconnect();
+    const enforce = () => {
+      if (this.authenticatedSessionActive || hostApi.getStage() !== "universe") return;
+      hostApi.showEntry();
+    };
+    this.stageGuard = new MutationObserver(enforce);
+    this.stageGuard.observe(this.hostDocument.documentElement, {
+      attributes: true,
+      attributeFilter: ["aria-hidden", "class", "inert"],
+      childList: true,
+      subtree: true,
+    });
+    enforce();
+  }
+
+  private async renderInsightRoute(requestedInsightId: string | null): Promise<void> {
+    if (!this.universeDocument || !this.snapshot) return;
+    const summary = this.snapshot.insights;
+    const fallback = summary?.dedicated_insights?.[0]
+      ?? summary?.claims.find(row => row.record_kind === "DEDICATED_INSIGHT");
+    const fallbackId = typeof fallback?.id === "string" ? fallback.id : null;
+    const insightId = requestedInsightId || fallbackId;
+    if (!insightId) {
+      renderInsightInspection(this.universeDocument, null, null, null);
+      return;
+    }
+    renderInsightInspection(this.universeDocument, null, null, null, "Loading canonical evidence and change history…");
+    try {
+      const [detail, evidence, history] = await Promise.all([
+        this.api.insightDetail(insightId),
+        this.api.insightEvidence(insightId),
+        this.api.insightWhyChanged(insightId),
+      ]);
+      renderInsightInspection(this.universeDocument, detail, evidence, history);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "The Insight could not be inspected.";
+      renderInsightInspection(this.universeDocument, null, null, null, detail);
+    }
   }
 
   private compactRenderedMiniStars(universeDocument: Document): void {

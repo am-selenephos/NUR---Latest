@@ -28,7 +28,16 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import (
+    Boolean,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    String,
+    Text,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import DateTime
@@ -74,9 +83,7 @@ class AgentWorkflow(Base):
     )
     request_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     request_digest: Mapped[str | None] = mapped_column(String(64))
-    retry_of_workflow_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("agent_workflows.id", ondelete="RESTRICT")
-    )
+    retry_of_workflow_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
 
     # What triggered this, and what the owner may see about why it exists at all.
     trigger_kind: Mapped[str | None] = mapped_column(String(64))
@@ -128,6 +135,12 @@ class AgentWorkflow(Base):
     updated_at: Mapped[dt.datetime] = _updated()
 
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["retry_of_workflow_id", "owner_user_id"],
+            ["agent_workflows.id", "agent_workflows.owner_user_id"],
+            name="fk_agent_workflow_retry_owner",
+            ondelete="SET NULL (retry_of_workflow_id)",
+        ),
         Index("ix_agent_workflows_owner_state", "owner_user_id", "state"),
     )
 

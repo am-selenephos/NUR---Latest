@@ -48,6 +48,23 @@ class OmegaExperience(Base):
     provenance_label: Mapped[str] = mapped_column(String, nullable=False)
     sensitivity: Mapped[str] = mapped_column(String, nullable=False, default="PRIVATE", server_default="PRIVATE")
     confidence: Mapped[float] = mapped_column(Float, default=1.0, server_default=text("1.0"))
+    source_domain: Mapped[str] = mapped_column(
+        String(48), nullable=False, default="UNKNOWN", server_default="UNKNOWN"
+    )
+    features: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+    explicitness: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="SYSTEM_OBSERVED", server_default="SYSTEM_OBSERVED"
+    )
+    retention_policy: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="SOURCE_BOUND", server_default="SOURCE_BOUND"
+    )
+    observed_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=now_utc, server_default=text("now()")
+    )
+    invalidated_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    source_fingerprint: Mapped[str | None] = mapped_column(String(64))
     created_at = _created()
 
 

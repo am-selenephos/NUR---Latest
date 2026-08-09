@@ -28,6 +28,12 @@ class OmegaExperienceIn(BaseModel):
     provenance_label: str = "OWNER_WRITTEN"
     sensitivity: str | None = None
     confidence: float = 1.0
+    source_domain: str = "UNKNOWN"
+    features: dict = Field(default_factory=dict)
+    explicitness: str = "SYSTEM_OBSERVED"
+    retention_policy: str = "SOURCE_BOUND"
+    observed_at: dt.datetime | None = None
+    source_fingerprint: str | None = None
 
 
 class OmegaExperienceOut(BaseModel):
@@ -43,6 +49,13 @@ class OmegaExperienceOut(BaseModel):
     provenance_label: str
     sensitivity: str
     confidence: float
+    source_domain: str
+    features: dict
+    explicitness: str
+    retention_policy: str
+    observed_at: dt.datetime
+    invalidated_at: dt.datetime | None
+    source_fingerprint: str | None
     created_at: dt.datetime
     model_config = {"from_attributes": True}
 

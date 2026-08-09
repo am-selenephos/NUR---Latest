@@ -220,5 +220,53 @@ class Insight(Base):
     provenance_label: Mapped[str] = mapped_column(
         String(64), default="INFERRED_OWNER_LEDGER", server_default="INFERRED_OWNER_LEDGER", nullable=False
     )
+    pattern_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("insight_patterns.id", ondelete="SET NULL")
+    )
+    parent_insight_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("insights.id", ondelete="SET NULL")
+    )
+    lifecycle_status: Mapped[str] = mapped_column(
+        String(32), default="CANDIDATE", server_default="CANDIDATE", nullable=False
+    )
+    epistemic_state: Mapped[str] = mapped_column(
+        String(32), default="INFERRED", server_default="INFERRED", nullable=False
+    )
+    insight_version: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"))
+    pattern_fingerprint: Mapped[str | None] = mapped_column(String(64))
+    evidence_digest: Mapped[str | None] = mapped_column(String(64))
+    time_scale: Mapped[str] = mapped_column(
+        String(24), default="FAST", server_default="FAST", nullable=False
+    )
+    time_window_start: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    time_window_end: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    source_domains: Mapped[list] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb"), nullable=False
+    )
+    source_diversity: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    alternative_explanations: Mapped[list] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb"), nullable=False
+    )
+    assumptions: Mapped[list] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb"), nullable=False
+    )
+    contradictions: Mapped[list] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb"), nullable=False
+    )
+    confidence_basis: Mapped[dict] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
+    quality_dimensions: Mapped[dict] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
+    quality_policy_version: Mapped[str] = mapped_column(
+        String(48), default="agentic-insights-quality-v1",
+        server_default="agentic-insights-quality-v1", nullable=False,
+    )
+    calibration_target: Mapped[str | None] = mapped_column(String(48))
+    surfaced_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    reviewed_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    cooldown_until: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    source_invalidated_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
     created_at = _created()
     updated_at = _created()

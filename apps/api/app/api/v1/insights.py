@@ -2,12 +2,21 @@
 
 import uuid
 from collections import Counter
+import datetime as dt
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.api.deps import Identity, Scoped, require_csrf
+from app.insights.service import (
+    InsightRunBusy,
+    consolidate_owner,
+    insight_evidence,
+    owned_insight,
+    review_insight,
+)
+from app.mind.why_changed import ChangeClass, EntityType, WhyChangedService
 from app.models import (
     CognitiveEvent,
     Insight,
@@ -51,6 +60,30 @@ class InsightOut(BaseModel):
     status: str
     correction: str | None
     provenance_label: str
+    pattern_id: uuid.UUID | None
+    parent_insight_id: uuid.UUID | None
+    lifecycle_status: str
+    epistemic_state: str
+    insight_version: int
+    pattern_fingerprint: str | None
+    evidence_digest: str | None
+    time_scale: str
+    time_window_start: dt.datetime | None
+    time_window_end: dt.datetime | None
+    source_domains: list
+    source_diversity: int
+    alternative_explanations: list
+    assumptions: list
+    contradictions: list
+    confidence_basis: dict
+    quality_dimensions: dict
+    quality_policy_version: str
+    calibration_target: str | None
+    surfaced_at: dt.datetime | None
+    reviewed_at: dt.datetime | None
+    cooldown_until: dt.datetime | None
+    source_invalidated_at: dt.datetime | None
+    canonical_links: dict = Field(default_factory=dict)
     created_at: object
     updated_at: object
 
@@ -68,6 +101,53 @@ class CorrectInsightIn(BaseModel):
 
 class ConvertInsightIn(BaseModel):
     plan_title: str | None = None
+
+
+class ConsolidateInsightIn(BaseModel):
+    run_kind: str = "MANUAL"
+
+
+class ConsolidationOut(BaseModel):
+    id: uuid.UUID
+    status: str
+    run_kind: str
+    max_observations: int
+    processed_observations: int
+    invalidated_relations: int
+    generated_candidates: int
+    surfaced_insight_id: uuid.UUID | None
+    self_insight_id: uuid.UUID | None
+    suppressed_insight_id: uuid.UUID | None
+    suppressed_reason: str | None
+    input_counts: dict
+
+    model_config = {"from_attributes": True}
+
+
+def _canonical_links(insight: Insight) -> dict:
+    return {
+        "timeline": "/universe/timeline",
+        "map": "/universe/map",
+        "orbit": f"/universe/orbits/{insight.orbit_id}" if insight.orbit_id else None,
+        "goal": f"/goals/{insight.affected_goal_id}" if insight.affected_goal_id else None,
+        "project": (
+            f"/projects/{insight.affected_project_id}"
+            if insight.affected_project_id
+            else None
+        ),
+        "person": (
+            f"/universe/orbits?person={insight.affected_person_id}"
+            if insight.affected_person_id
+            else None
+        ),
+        "evidence": f"/universe/insights/{insight.id}",
+    }
+
+
+def _insight_out(insight: Insight) -> InsightOut:
+    out = InsightOut.model_validate(insight)
+    out.canonical_links = _canonical_links(insight)
+    return out
 
 
 def _timeline_and_audit(
@@ -108,13 +188,12 @@ def _timeline_and_audit(
 
 
 async def _owned_insight(db: Scoped, owner_user_id: uuid.UUID, insight_id: uuid.UUID) -> Insight:
-    row = (await db.execute(select(Insight).where(
-        Insight.id == insight_id,
-        Insight.owner_user_id == owner_user_id,
-    ))).scalar_one_or_none()
-    if row is None:
+    try:
+        return await owned_insight(
+            db, owner_user_id=owner_user_id, insight_id=insight_id
+        )
+    except LookupError:
         raise HTTPException(404, "Insight not found.")
-    return row
 
 
 @router.get("", response_model=list[InsightOut])
@@ -131,13 +210,114 @@ async def list_insights(
     rows = (await db.execute(
         query.order_by(Insight.updated_at.desc()).limit(min(limit, 200))
     )).scalars().all()
-    return [InsightOut.model_validate(row) for row in rows]
+    return [_insight_out(row) for row in rows]
+
+
+@router.post(
+    "/consolidate",
+    response_model=ConsolidationOut,
+    dependencies=[Depends(require_csrf)],
+)
+async def consolidate_insights(
+    payload: ConsolidateInsightIn, db: Scoped, identity: Identity
+) -> ConsolidationOut:
+    owner_user_id, _ = identity
+    try:
+        run = await consolidate_owner(
+            db,
+            owner_user_id=owner_user_id,
+            run_kind=payload.run_kind,
+            worker_id="owner-api",
+        )
+    except InsightRunBusy as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await db.commit()
+    return ConsolidationOut.model_validate(run)
 
 
 @router.get("/{insight_id}", response_model=InsightOut)
 async def get_insight(insight_id: uuid.UUID, db: Scoped, identity: Identity) -> InsightOut:
     owner_user_id, _ = identity
-    return InsightOut.model_validate(await _owned_insight(db, owner_user_id, insight_id))
+    return _insight_out(await _owned_insight(db, owner_user_id, insight_id))
+
+
+@router.get("/{insight_id}/evidence")
+async def get_insight_evidence(
+    insight_id: uuid.UUID, db: Scoped, identity: Identity
+) -> dict:
+    owner_user_id, _ = identity
+    try:
+        rows = await insight_evidence(
+            db, owner_user_id=owner_user_id, insight_id=insight_id
+        )
+    except LookupError as exc:
+        raise HTTPException(404, "Insight not found.") from exc
+    relations = []
+    for row, source_exists in rows:
+        relations.append(
+            {
+                "id": row.id,
+                "source_kind": row.source_kind,
+                "source_id": row.source_id,
+                "source_domain": row.source_domain,
+                "relation": row.relation,
+                "provenance_label": row.provenance_label,
+                "explicitness": row.explicitness,
+                "confidence": row.confidence,
+                "evidence_summary": row.evidence_summary,
+                "source_occurred_at": row.source_occurred_at,
+                "insight_version": row.insight_version,
+                "invalidated_at": row.invalidated_at,
+                "invalidation_reason": row.invalidation_reason,
+                "source_exists": source_exists,
+                "canonical_route": _evidence_route(row.source_kind, row.source_id),
+            }
+        )
+    return {"insight_id": insight_id, "relations": relations}
+
+
+@router.get("/{insight_id}/why-changed")
+async def get_insight_why_changed(
+    insight_id: uuid.UUID, db: Scoped, identity: Identity
+) -> dict:
+    owner_user_id, _ = identity
+    await _owned_insight(db, owner_user_id, insight_id)
+    rows = await WhyChangedService.get_change_history(
+        db,
+        owner_user_id=owner_user_id,
+        entity_type=EntityType.INSIGHT.value,
+        entity_id=str(insight_id),
+    )
+    return {
+        "insight_id": insight_id,
+        "changes": [row.model_dump(mode="json") for row in rows],
+        "governance": "Inspectable state transitions only; no chain-of-thought is stored.",
+    }
+
+
+def _evidence_route(source_kind: str, source_id: uuid.UUID) -> str:
+    routes = {
+        "AM_PROJECT": f"/projects/{source_id}",
+        "COGNITIVE_EVENT": "/universe/timeline",
+        "DOMAIN_EVENT": "/universe/timeline",
+        "GOAL": f"/goals/{source_id}",
+        "INSIGHT": f"/universe/insights/{source_id}",
+        "INSIGHT_FEEDBACK": "/universe/insights",
+        "JOURNAL_ENTRY": f"/journal?entry={source_id}",
+        "ORBIT": f"/universe/orbits/{source_id}",
+        "OUTCOME": f"/universe/timeline?outcome={source_id}",
+        "PERSON": f"/universe/orbits?person={source_id}",
+        "PLAN": f"/plan?plan={source_id}",
+        "PLAN_STEP": f"/plan?step={source_id}",
+        "PREDICTION": f"/universe/timeline?prediction={source_id}",
+        "RESEARCH_SOURCE_NOTE": f"/research?source={source_id}",
+        "SYSTEM_ACTION": f"/systems?action={source_id}",
+        "TIMELINE_EVENT": f"/universe/timeline?event={source_id}",
+        "USER_CORRECTION": "/universe/insights",
+    }
+    return routes.get(source_kind, "/universe/insights")
 
 
 @router.post("/generate", response_model=InsightOut, status_code=201, dependencies=[Depends(require_csrf)])
@@ -278,6 +458,26 @@ async def generate_insight(payload: GenerateInsightIn, db: Scoped, identity: Ide
         hard_interpretation=hard,
         suggested_action=action,
         provenance_label="INFERRED_OWNER_LEDGER",
+        lifecycle_status="CANDIDATE",
+        epistemic_state="NEEDS_OWNER_CONFIRMATION",
+        source_domains=sorted(
+            {
+                "OMEGA" if row.get("kind", "").startswith("OMEGA") else "LIVING"
+                for row in evidence
+            }
+        ),
+        source_diversity=len(
+            {
+                "OMEGA" if row.get("kind", "").startswith("OMEGA") else "LIVING"
+                for row in evidence
+            }
+        ),
+        alternative_explanations=[wrong_about],
+        assumptions=["This manually requested legacy candidate may be single-source."],
+        quality_dimensions={
+            "passes": False,
+            "reason_codes": ["LEGACY_SINGLE_SOURCE_CANDIDATE"],
+        },
     )
     db.add(insight)
     await db.flush()
@@ -288,8 +488,24 @@ async def generate_insight(payload: GenerateInsightIn, db: Scoped, identity: Ide
         event_kind="INSIGHT_CREATED",
         description=f"Candidate insight created from {len(evidence)} owner evidence records.",
     )
+    await WhyChangedService.record_change(
+        db,
+        owner_user_id=owner_user_id,
+        entity_type=EntityType.INSIGHT,
+        entity_id=str(insight.id),
+        change_class=ChangeClass.CREATED,
+        trigger="Owner explicitly requested a legacy single-source candidate.",
+        new_version="1",
+        supporting_evidence=[f"{row['kind']}:{row['id']}" for row in evidence],
+        counter_evidence=[
+            f"{row['kind']}:{row['id']}" for row in counter_evidence if row.get("id")
+        ],
+        actor="owner",
+        affected_future_behavior="Candidate requires owner review and is not surfaced truth.",
+        policy_version=insight.quality_policy_version,
+    )
     await db.commit()
-    return InsightOut.model_validate(insight)
+    return _insight_out(insight)
 
 
 async def _set_status(
@@ -299,18 +515,18 @@ async def _set_status(
     identity: Identity,
 ) -> InsightOut:
     owner_user_id, _ = identity
-    row = await _owned_insight(db, owner_user_id, insight_id)
-    row.status = status
-    row.updated_at = now_utc()
-    _timeline_and_audit(
-        db,
-        owner_user_id=owner_user_id,
-        insight=row,
-        event_kind=f"INSIGHT_{status}",
-        description=f"Owner marked this insight {status.lower()}.",
-    )
+    action = {"ACCEPTED": "THIS_FITS", "REJECTED": "NOT_RIGHT"}[status]
+    try:
+        row = await review_insight(
+            db,
+            owner_user_id=owner_user_id,
+            insight_id=insight_id,
+            action=action,
+        )
+    except LookupError as exc:
+        raise HTTPException(404, "Insight not found.") from exc
     await db.commit()
-    return InsightOut.model_validate(row)
+    return _insight_out(row)
 
 
 @router.post("/{insight_id}/accept", response_model=InsightOut, dependencies=[Depends(require_csrf)])
@@ -328,19 +544,20 @@ async def correct_insight(
     insight_id: uuid.UUID, payload: CorrectInsightIn, db: Scoped, identity: Identity
 ) -> InsightOut:
     owner_user_id, _ = identity
-    row = await _owned_insight(db, owner_user_id, insight_id)
-    row.status = "CORRECTED"
-    row.correction = payload.correction.strip()
-    row.updated_at = now_utc()
-    _timeline_and_audit(
-        db,
-        owner_user_id=owner_user_id,
-        insight=row,
-        event_kind="INSIGHT_CORRECTED",
-        description="Owner supplied a correction; the original candidate remains auditable.",
-    )
+    try:
+        row = await review_insight(
+            db,
+            owner_user_id=owner_user_id,
+            insight_id=insight_id,
+            action="CORRECT_NUR",
+            correction_text=payload.correction,
+        )
+    except LookupError as exc:
+        raise HTTPException(404, "Insight not found.") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
     await db.commit()
-    return InsightOut.model_validate(row)
+    return _insight_out(row)
 
 
 @router.post("/{insight_id}/save-to-memory", dependencies=[Depends(require_csrf)])
@@ -378,6 +595,8 @@ async def convert_insight_to_plan(
 ) -> dict:
     owner_user_id, _ = identity
     row = await _owned_insight(db, owner_user_id, insight_id)
+    if row.status != "ACCEPTED" or row.lifecycle_status != "OWNER_CONFIRMED":
+        raise HTTPException(409, "Only an owner-confirmed insight can become a plan.")
     plan = Plan(
         owner_user_id=owner_user_id,
         orbit_id=row.orbit_id,

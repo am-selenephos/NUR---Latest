@@ -56,6 +56,7 @@ export type V197NativeRoute =
   | "/universe/orbits"
   | "/universe/timeline"
   | "/universe/insights"
+  | `/universe/insights/${string}`
   | "/universe/research"
   | "/universe/community"
   | "/universe/web-signals"

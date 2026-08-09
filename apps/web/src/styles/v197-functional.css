@@ -203,6 +203,44 @@ body.universe-edition #nur-front-v61 #nur-outcome-composer[hidden],
   min-width: 0;
 }
 
+.nur-v197-insight-inspection {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin-block-start: 12px;
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--nur-line-faint);
+  color: var(--nur-text-soft);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.nur-v197-insight-inspection > strong {
+  color: var(--nur-champagne);
+  font-weight: 600;
+}
+
+.nur-v197-insight-inspection > p,
+.nur-v197-insight-inspection > ul {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.nur-v197-insight-inspection > ul {
+  display: grid;
+  gap: 5px;
+  max-height: 180px;
+  padding-inline-start: 18px;
+  overflow-y: auto;
+}
+
+.nur-v197-insight-inspection > nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 #scope-modal .scope-modal {
   max-height: min(86dvh, 780px);
   overflow-y: auto;

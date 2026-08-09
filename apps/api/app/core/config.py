@@ -178,6 +178,39 @@ class Settings(BaseSettings):
     omega_consolidation_interval_hours: int = Field(default=24, validation_alias="NUR_OMEGA_CONSOLIDATION_INTERVAL_HOURS")
     omega_max_experiences_per_run: int = Field(default=100, validation_alias="NUR_OMEGA_MAX_EXPERIENCES_PER_RUN")
 
+    # Agentic Insights runs are deterministic, owner-scoped and bounded. Beat
+    # dispatches owner IDs only; private source text is loaded after RLS context.
+    insights_scheduled_consolidation: bool = Field(
+        default=True, validation_alias="NUR_INSIGHTS_SCHEDULED_CONSOLIDATION"
+    )
+    insights_event_interval_seconds: int = Field(
+        default=300,
+        ge=60,
+        le=3600,
+        validation_alias="NUR_INSIGHTS_EVENT_INTERVAL_SECONDS",
+    )
+    insights_max_observations_per_run: int = Field(
+        default=250,
+        ge=20,
+        le=1000,
+        validation_alias="NUR_INSIGHTS_MAX_OBSERVATIONS_PER_RUN",
+    )
+    insights_owner_batch: int = Field(
+        default=50, ge=1, le=100, validation_alias="NUR_INSIGHTS_OWNER_BATCH"
+    )
+    insights_lease_seconds: int = Field(
+        default=180,
+        ge=60,
+        le=900,
+        validation_alias="NUR_INSIGHTS_LEASE_SECONDS",
+    )
+    insights_max_attempts: int = Field(
+        default=5, ge=1, le=20, validation_alias="NUR_INSIGHTS_MAX_ATTEMPTS"
+    )
+    insights_cooldown_hours: int = Field(
+        default=24, ge=1, le=720, validation_alias="NUR_INSIGHTS_COOLDOWN_HOURS"
+    )
+
     # Agency Plane background loops. The dispatcher drains committed outbox
     # intents onto the queue; recovery reclaims abandoned step leases. Both are
     # Celery Beat entries rather than manual invocations, and both are safe to

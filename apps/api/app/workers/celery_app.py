@@ -35,6 +35,26 @@ if _s.omega_scheduled_consolidation:
         "args": (),
     }
 
+if _s.insights_scheduled_consolidation:
+    _beat["nur-insights-event-consolidation"] = {
+        "task": "nur.insights_consolidate_due_owners",
+        "schedule": max(60, int(_s.insights_event_interval_seconds)),
+        "args": ("EVENT",),
+        "options": {"expires": max(60, int(_s.insights_event_interval_seconds))},
+    }
+    _beat["nur-insights-daily-consolidation"] = {
+        "task": "nur.insights_consolidate_due_owners",
+        "schedule": 24 * 60 * 60,
+        "args": ("DAILY",),
+        "options": {"expires": 24 * 60 * 60},
+    }
+    _beat["nur-insights-weekly-consolidation"] = {
+        "task": "nur.insights_consolidate_due_owners",
+        "schedule": 7 * 24 * 60 * 60,
+        "args": ("WEEKLY",),
+        "options": {"expires": 7 * 24 * 60 * 60},
+    }
+
 if _s.agentic_dispatch_enabled:
     # The Agency Plane's two background loops. Without these the outbox is a
     # table nothing drains and an abandoned lease is never reclaimed — the

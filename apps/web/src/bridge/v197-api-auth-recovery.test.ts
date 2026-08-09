@@ -48,6 +48,20 @@ describe("V197 presentation auth recovery", () => {
     await expect(new V197ApiClient().session()).rejects.toMatchObject({ status: 503, message: "database not ready" });
   });
 
+  it("fails closed when a signed-in owner snapshot cannot load required state", async () => {
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/v1/universe/live")) {
+        return Promise.resolve(response(503, { detail: "owner ledger unavailable" }));
+      }
+      return Promise.resolve(response(200, {}));
+    }));
+
+    await expect(new V197ApiClient().snapshot(created)).rejects.toThrow(
+      "NUR could not load the signed-in owner state from /universe/live. owner ledger unavailable",
+    );
+  });
+
   it("verifies that signup created the active browser session", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(response(201, created))

@@ -158,7 +158,7 @@ async def build_live_universe(
     ).order_by(OmegaReviewQueue.created_at.desc()).limit(8))).scalars().all()
     dedicated_insights = (await db.execute(select(Insight).where(
         Insight.owner_user_id == owner_user_id,
-        Insight.status.notin_(["REJECTED", "ARCHIVED"]),
+        Insight.lifecycle_status.notin_(["OWNER_REJECTED", "SUPERSEDED", "RETRACTED"]),
     ).order_by(Insight.updated_at.desc()).limit(8))).scalars().all()
 
     social_orbits = (await db.execute(select(Orbit).where(
@@ -290,20 +290,25 @@ async def build_live_universe(
         })
 
     latest_insights = [{
+        "record_kind": "DEDICATED_INSIGHT",
         "id": str(row.id),
         "title": row.title,
         "insight_type": row.insight_type,
         "claim": row.claim,
         "status": row.status,
+        "lifecycle_status": row.lifecycle_status,
+        "epistemic_state": row.epistemic_state,
+        "insight_version": row.insight_version,
         "confidence": row.confidence,
         "evidence_count": len(row.evidence),
         "counter_evidence_count": len(row.counter_evidence),
         "what_nur_may_be_wrong_about": row.what_nur_may_be_wrong_about,
         "suggested_action": row.suggested_action,
-        "route": "/universe/insights",
+        "route": f"/universe/insights/{row.id}",
         "provenance_label": row.provenance_label,
     } for row in dedicated_insights]
     latest_insights.extend({
+        "record_kind": "OMEGA_CLAIM",
         "id": str(row.id),
         "title": row.claim_text[:120],
         "insight_type": row.claim_type,
@@ -312,7 +317,7 @@ async def build_live_universe(
         "confidence": row.confidence,
         "support_count": row.support_count,
         "contradiction_count": row.contradiction_count,
-        "route": "/universe/insights",
+        "route": f"/universe/omega/why-changed/{row.id}",
         "provenance_label": f"OMEGA_{row.truth_status}",
     } for row in claims)
 
