@@ -37,6 +37,7 @@ from app.models.billing import (
     BillingSubscription,
     BillingWebhookReceipt,
 )
+from app.models.account import AccountCleanupItem, AccountDeletionRequest
 
 __all__ = [
     "Base", "User", "Profile", "Session", "Orbit", "ConsentRecord",
@@ -48,6 +49,7 @@ __all__ = [
     "BillingPlan", "BillingCheckoutSession", "BillingCustomer",
     "BillingSubscription", "BillingEntitlement", "BillingEntitlementEvent",
     "BillingWebhookReceipt", "BillingRefundEvent",
+    "AccountDeletionRequest", "AccountCleanupItem",
 ]
 from app.models.cognition import (  # noqa: F401
     ClaimEvidence, CognitiveEvent, Decision, Experiment, Hypothesis,

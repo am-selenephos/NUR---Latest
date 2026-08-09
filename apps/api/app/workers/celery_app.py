@@ -54,4 +54,14 @@ if _s.agentic_dispatch_enabled:
         "options": {"expires": max(5, int(_s.agentic_recovery_interval_seconds))},
     }
 
+if _s.account_deletion_purge_enabled:
+    _beat["nur-account-deletion-purge"] = {
+        "task": "nur.account_deletion_purge",
+        "schedule": max(60, int(_s.account_deletion_purge_interval_seconds)),
+        "args": (),
+        "options": {
+            "expires": max(60, int(_s.account_deletion_purge_interval_seconds))
+        },
+    }
+
 celery.conf.beat_schedule = _beat

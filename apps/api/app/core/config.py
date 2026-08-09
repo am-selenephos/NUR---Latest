@@ -45,6 +45,31 @@ class Settings(BaseSettings):
     password_change_rate_limit_max: int = 5
     password_change_rate_limit_window_seconds: int = 900
 
+    # Account erasure is two-phase: access shuts down immediately, then this
+    # bounded grace period permits an authenticated cancellation before a
+    # leased worker performs the irreversible purge.
+    account_deletion_grace_hours: int = Field(
+        default=168, ge=1, le=720, validation_alias="NUR_ACCOUNT_DELETION_GRACE_HOURS"
+    )
+    account_deletion_purge_enabled: bool = Field(
+        default=True, validation_alias="NUR_ACCOUNT_DELETION_PURGE_ENABLED"
+    )
+    account_deletion_purge_interval_seconds: int = Field(
+        default=300,
+        ge=60,
+        le=3600,
+        validation_alias="NUR_ACCOUNT_DELETION_PURGE_INTERVAL_SECONDS",
+    )
+    account_deletion_purge_batch: int = Field(
+        default=25, ge=1, le=100, validation_alias="NUR_ACCOUNT_DELETION_PURGE_BATCH"
+    )
+    account_deletion_lease_seconds: int = Field(
+        default=300,
+        ge=60,
+        le=1800,
+        validation_alias="NUR_ACCOUNT_DELETION_LEASE_SECONDS",
+    )
+
     # Account recovery. Local capture writes a mode-0600 development artifact;
     # production must use the SMTP adapter and an HTTPS reset origin.
     password_reset_ttl_seconds: int = Field(default=900, ge=300, le=3600)

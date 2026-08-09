@@ -81,6 +81,16 @@ then provision a fresh least-privilege value through the hidden local configurat
 - Backup, restore, and drill helpers live in `infra/scripts/dr-*.sh`. Their existence is not proof
   of an achieved RPO/RTO; retain the timed drill evidence for the exact candidate.
 
+## Account erasure worker
+
+`DELETE /api/v1/account` revokes every owner session and marks the account
+`deletion_pending` immediately. Celery beat then runs `nur.account_deletion_purge`
+after `NUR_ACCOUNT_DELETION_GRACE_HOURS`. Cleanup is leased and idempotent: a
+missing local object is a completed retry, while a real deletion failure returns
+the request to `PENDING` with bounded backoff. Do not delete queue rows or object
+files manually. A configured external provider without an erasure adapter is
+recorded as `PURGED_EXTERNAL_ACTION_REQUIRED`; it is never reported as erased.
+
 ## Package
 
 ```bash

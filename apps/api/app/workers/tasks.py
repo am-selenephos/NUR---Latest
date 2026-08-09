@@ -11,6 +11,7 @@ from app.workers.asyncrun import run_task
 from app.omega.due_owner_service import omega_consolidation_due_owner_ids
 from app.omega.replay_service import omega_consolidate_owner
 from app.services.project_execution import execute_run
+from app.services.account_service import purge_due_account_deletions
 from app.workers.celery_app import celery
 
 configure_logging()
@@ -91,3 +92,15 @@ async def _omega_consolidate_due_owners() -> dict:
         dispatched.append(str(owner_id))
     log(logger, "omega due-owner dispatch", owner_count=len(dispatched))
     return {"dispatched_owner_ids": dispatched, "count": len(dispatched)}
+
+
+@celery.task(name="nur.account_deletion_purge", ignore_result=False, acks_late=True)
+def account_deletion_purge_task() -> dict:
+    """Bounded scheduled erasure pass. The scheduler payload contains no owner data."""
+    return run_task(lambda: _account_deletion_purge())
+
+
+async def _account_deletion_purge() -> dict:
+    result = await purge_due_account_deletions()
+    log(logger, "account deletion purge", **result)
+    return result

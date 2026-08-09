@@ -109,6 +109,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(auth_router, prefix="/api/v1")
     from app.api.v1.password_recovery import router as password_recovery_router
+    from app.api.v1.account import router as account_router
     from app.api.v1.cognition import content as content_router, router as cognition_router
     from app.api.v1.community import router as community_router
     from app.api.v1.community_moderation import router as community_moderation_router
@@ -141,6 +142,7 @@ def create_app() -> FastAPI:
     from app.omega.routes import router as omega_router
     from app.billing.routes import router as billing_router
     app.include_router(cognition_router, prefix="/api/v1")
+    app.include_router(account_router, prefix="/api/v1")
     app.include_router(password_recovery_router, prefix="/api/v1")
     app.include_router(community_router, prefix="/api/v1")
     app.include_router(community_social_router, prefix="/api/v1")

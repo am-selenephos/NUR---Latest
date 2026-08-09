@@ -132,8 +132,17 @@ async def resolve_session(db: AsyncSession, cookie_value: str | None) -> tuple[u
     sid, secret = parsed
     async with db.begin():
         await set_auth_context(db)
-        row = (await db.execute(select(Session).where(Session.id == sid))).scalar_one_or_none()
-    if not row or row.revoked_at is not None:
+        resolved = (
+            await db.execute(
+                select(Session, User.status)
+                .join(User, User.id == Session.user_id)
+                .where(Session.id == sid)
+            )
+        ).one_or_none()
+    if not resolved:
+        return None
+    row, user_status = resolved
+    if user_status != "active" or row.revoked_at is not None:
         return None
     if row.expires_at <= dt.datetime.now(dt.UTC):
         return None

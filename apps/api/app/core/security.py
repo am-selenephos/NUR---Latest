@@ -57,6 +57,17 @@ def new_password_reset_token() -> tuple[str, str]:
     return token, hash_password_reset_token(token)
 
 
+def hash_account_deletion_receipt_token(token: str) -> str:
+    """Keyed digest for a deletion receipt secret retained after owner purge."""
+    return _mac(get_settings().session_secret, f"account-deletion-receipt:{token}")
+
+
+def new_account_deletion_receipt_token() -> tuple[str, str]:
+    """Return the one-time owner receipt token and only its durable digest."""
+    token = secrets.token_urlsafe(48)
+    return token, hash_account_deletion_receipt_token(token)
+
+
 def opaque_fingerprint(value: str, *, purpose: str) -> str:
     """Short keyed identifier suitable for limiter keys and audit metadata."""
     return _mac(get_settings().session_secret, f"{purpose}:{value}")[:16]
