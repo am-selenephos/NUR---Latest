@@ -113,6 +113,31 @@ def _body(approval, decision, **extra):
 
 
 @pytest.mark.asyncio
+async def test_approval_decision_rejects_cross_site_origin(client, session_for, owner):
+    async with session_for() as db:
+        _workflow, _step, approval = await _waiting_step_with_approval(db, owner)
+
+    response = await client.post(
+        f"/api/v1/agentic/approvals/{approval.id}/decide",
+        json=_body(approval, "APPROVE"),
+        headers={
+            **_csrf(client),
+            "Origin": "https://attacker.invalid",
+            "Sec-Fetch-Site": "cross-site",
+        },
+    )
+
+    assert response.status_code == 403
+    async with session_for() as check:
+        assert (
+            await check.execute(
+                text("SELECT decision FROM agent_approvals WHERE id = :approval"),
+                {"approval": approval.id},
+            )
+        ).scalar_one() == "PENDING"
+
+
+@pytest.mark.asyncio
 async def test_approve_reaches_the_handler(client, session_for, owner):
     async with session_for() as db:
         workflow, step, approval = await _waiting_step_with_approval(db, owner)

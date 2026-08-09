@@ -13,6 +13,7 @@ from app.mind.capabilities.schemas import (
 
 CONTEXTUAL_ANSWER_SPEC = CapabilitySpec(
     capability_id="capability:contextual_answer",
+    version="1",
     name="Contextual Answer",
     description="Synthesize direct answers using scoped context and memory without side effects.",
     intent_signatures=(
@@ -24,6 +25,10 @@ CONTEXTUAL_ANSWER_SPEC = CapabilitySpec(
         "answer my question",
         "summarize what we discussed",
         "what does this mean",
+        "samjhao",
+        "samjha do",
+        "سمجھاؤ",
+        "समझाओ",
     ),
     allowed_surfaces=("talk", "research", "reflection"),
     sensitivity_ceiling="HIGH",

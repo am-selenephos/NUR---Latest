@@ -175,7 +175,7 @@ class WorkflowStepProposal(BaseModel):
     title: str
     description: str
     tool_key: str
-    tool_version: str = "1"
+    tool_version: str
     risk_class: str = "R1_PRIVATE_DRAFT"
     requires_approval: bool = True
     arguments: dict[str, Any] = Field(default_factory=dict)

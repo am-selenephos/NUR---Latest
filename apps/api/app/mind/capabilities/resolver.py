@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import enum
 import re
+from collections.abc import Callable, Sequence
 from typing import Any
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.brain.schemas import UncertaintyKind
 from app.mind.capabilities.schemas import CapabilitySpec
@@ -20,6 +22,13 @@ class ResolutionFallbackMode(enum.StrEnum):
     DIRECT_TALK = "DIRECT_TALK"
     CLARIFY_QUESTION = "CLARIFY_QUESTION"
     REFUSE_SCOPE = "REFUSE_SCOPE"
+
+
+class ResolutionSource(enum.StrEnum):
+    EXPLICIT_AUTHENTICATED = "EXPLICIT_AUTHENTICATED"
+    DETERMINISTIC_RULE = "DETERMINISTIC_RULE"
+    CONSTRAINED_CLASSIFIER = "CONSTRAINED_CLASSIFIER"
+    FALLBACK = "FALLBACK"
 
 
 class AbstentionReasonCode(enum.StrEnum):
@@ -42,6 +51,23 @@ class CapabilityResolution(BaseModel):
     fallback_mode: ResolutionFallbackMode = ResolutionFallbackMode.DIRECT_TALK
     extracted_parameters: dict[str, Any] = Field(default_factory=dict)
     uncertainty_kind: UncertaintyKind | None = None
+    resolution_source: ResolutionSource = ResolutionSource.FALLBACK
+    resolution_reason: str = "Resolver abstained or used the direct Talk fallback."
+
+
+class ClassifierCandidate(BaseModel):
+    """One enum-constrained classifier vote; arbitrary capability IDs are ignored."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    capability_id: str
+    confidence_score: float = Field(ge=0.0, le=1.0)
+
+
+Classifier = Callable[
+    [str, tuple[str, ...]],
+    Sequence[ClassifierCandidate | dict[str, Any]],
+]
 
 
 # Prohibited domains that trigger immediate refusal
@@ -59,12 +85,110 @@ AMBIGUOUS_USER_PATTERN = re.compile(
 GLOBAL_MIN_CONFIDENCE_THRESHOLD = 0.82
 GLOBAL_MIN_TOP_TWO_MARGIN = 0.15
 
+NEGATION_PREFIX_PATTERN = re.compile(
+    r"(?:\bdo\s+not\b|\bdon't\b|\bdont\b|\bnot\b|\bavoid\b|\bwithout\b|\bmat\b)"
+    r"(?:\W+\w+){0,3}\W*$",
+    re.IGNORECASE,
+)
+
+
+def _signature_is_negated(query: str, signature: str) -> bool:
+    start = query.find(signature)
+    if start < 0:
+        return False
+    prefix = query[max(0, start - 48):start]
+    prefix = re.split(r"[.!?;\n]", prefix)[-1]
+    return NEGATION_PREFIX_PATTERN.search(prefix) is not None
+
 
 class CapabilityResolver:
     """Deterministic, policy-governed resolver for cognitive capabilities."""
 
-    def __init__(self, registry: CapabilityRegistry | None = None) -> None:
+    def __init__(
+        self,
+        registry: CapabilityRegistry | None = None,
+        classifier: Classifier | None = None,
+    ) -> None:
         self._registry = registry or get_default_registry()
+        self._classifier = classifier
+
+    def _resolve_with_classifier(
+        self,
+        query: str,
+        candidates: tuple[CapabilitySpec, ...],
+    ) -> CapabilityResolution | None:
+        if self._classifier is None:
+            return None
+
+        allowed = {cap.capability_id: cap for cap in candidates}
+        try:
+            raw_candidates = self._classifier(query, tuple(sorted(allowed)))
+        except Exception:
+            return None
+
+        scores: dict[str, float] = {}
+        for raw in raw_candidates:
+            try:
+                candidate = ClassifierCandidate.model_validate(raw)
+            except ValidationError:
+                continue
+            if candidate.capability_id not in allowed:
+                continue
+            scores[candidate.capability_id] = max(
+                scores.get(candidate.capability_id, 0.0),
+                candidate.confidence_score,
+            )
+
+        ranked = sorted(scores.items(), key=lambda item: (-item[1], item[0]))
+        if not ranked:
+            return None
+
+        best_id, best_score = ranked[0]
+        best_cap = allowed[best_id]
+        threshold = max(GLOBAL_MIN_CONFIDENCE_THRESHOLD, best_cap.min_confidence_threshold)
+        if best_score < threshold:
+            return CapabilityResolution(
+                selected_capability=None,
+                confidence_score=best_score,
+                abstained=True,
+                abstention_reason=(
+                    f"Classifier confidence {best_score:.4f} below required threshold {threshold:.2f}."
+                ),
+                abstention_reason_code=AbstentionReasonCode.CONFIDENCE_BELOW_THRESHOLD,
+                fallback_mode=ResolutionFallbackMode.DIRECT_TALK,
+                uncertainty_kind=UncertaintyKind.INSUFFICIENT_EVIDENCE,
+                resolution_source=ResolutionSource.CONSTRAINED_CLASSIFIER,
+                resolution_reason="Constrained classifier abstained below the confidence gate.",
+            )
+
+        if len(ranked) > 1:
+            runner_id, runner_score = ranked[1]
+            margin = best_score - runner_score
+            if runner_score > 0.0 and margin < GLOBAL_MIN_TOP_TWO_MARGIN:
+                return CapabilityResolution(
+                    selected_capability=None,
+                    confidence_score=best_score,
+                    abstained=True,
+                    abstention_reason=(
+                        f"Classifier margin {margin:.4f} between '{best_id}' and "
+                        f"'{runner_id}' below required separation {GLOBAL_MIN_TOP_TWO_MARGIN}."
+                    ),
+                    abstention_reason_code=AbstentionReasonCode.AMBIGUOUS_MARGIN_COLLISION,
+                    fallback_mode=ResolutionFallbackMode.DIRECT_TALK,
+                    uncertainty_kind=UncertaintyKind.CONFLICTING_OWNER_STATE,
+                    resolution_source=ResolutionSource.CONSTRAINED_CLASSIFIER,
+                    resolution_reason="Constrained classifier abstained at the top-two margin gate.",
+                )
+
+        return CapabilityResolution(
+            selected_capability=best_cap,
+            confidence_score=best_score,
+            abstained=False,
+            abstention_reason_code=AbstentionReasonCode.NONE,
+            fallback_mode=ResolutionFallbackMode.DIRECT_TALK,
+            resolution_source=ResolutionSource.CONSTRAINED_CLASSIFIER,
+            resolution_reason="Enum-constrained classifier selected a registered permitted capability.",
+        )
 
     def resolve(
         self,
@@ -73,6 +197,8 @@ class CapabilityResolver:
         surface: str = "talk",
         sensitivity: str = "NORMAL",
         mode_hint: str | None = None,
+        explicit_capability_id: str | None = None,
+        explicit_key_authenticated: bool = False,
     ) -> CapabilityResolution:
         """Resolve a user query to a CapabilitySpec or abstain cleanly."""
         clean_query = query.strip()
@@ -124,6 +250,34 @@ class CapabilityResolver:
                 uncertainty_kind=UncertaintyKind.INSUFFICIENT_EVIDENCE,
             )
 
+        # An explicit key is authoritative only when the authenticated API layer
+        # says it came from the owner. It must still survive surface/scope policy.
+        if explicit_capability_id and explicit_key_authenticated:
+            explicit = next(
+                (cap for cap in candidates if cap.capability_id == explicit_capability_id),
+                None,
+            )
+            if explicit is None:
+                return CapabilityResolution(
+                    selected_capability=None,
+                    confidence_score=0.0,
+                    abstained=True,
+                    abstention_reason="Explicit capability is unknown or not permitted in this scope.",
+                    abstention_reason_code=AbstentionReasonCode.NO_PERMITTED_CAPABILITIES,
+                    fallback_mode=ResolutionFallbackMode.DIRECT_TALK,
+                    uncertainty_kind=UncertaintyKind.INSUFFICIENT_EVIDENCE,
+                    resolution_reason="Authenticated explicit key failed registry or scope validation.",
+                )
+            return CapabilityResolution(
+                selected_capability=explicit,
+                confidence_score=1.0,
+                abstained=False,
+                abstention_reason_code=AbstentionReasonCode.NONE,
+                fallback_mode=ResolutionFallbackMode.DIRECT_TALK,
+                resolution_source=ResolutionSource.EXPLICIT_AUTHENTICATED,
+                resolution_reason="Owner selected an authenticated, registered capability key.",
+            )
+
         # 4. Intent matching & scoring (Deterministic local scoring, zero provider/embedding calls)
         q_lower = clean_query.lower()
         q_tokens = set(re.findall(r"\w+", q_lower))
@@ -136,6 +290,8 @@ class CapabilityResolver:
             for sig in cap.intent_signatures:
                 sig_lower = sig.lower()
                 if sig_lower in q_lower:
+                    if _signature_is_negated(q_lower, sig_lower):
+                        continue
                     # Substring match
                     match_score = 0.82 + 0.13 * (len(sig_lower) / max(len(q_lower), 1))
                     if q_lower.startswith(sig_lower):
@@ -155,6 +311,9 @@ class CapabilityResolver:
         scored_candidates.sort(key=lambda x: x[1], reverse=True)
 
         if not scored_candidates or scored_candidates[0][1] == 0.0:
+            classified = self._resolve_with_classifier(clean_query, candidates)
+            if classified is not None:
+                return classified
             return CapabilityResolution(
                 selected_capability=None,
                 confidence_score=0.0,
@@ -170,6 +329,9 @@ class CapabilityResolver:
 
         # 5. Confidence Threshold Gate (must be >= 0.82)
         if best_score < threshold:
+            classified = self._resolve_with_classifier(clean_query, candidates)
+            if classified is not None:
+                return classified
             return CapabilityResolution(
                 selected_capability=None,
                 confidence_score=best_score,
@@ -185,6 +347,9 @@ class CapabilityResolver:
             runner_up_cap, runner_up_score = scored_candidates[1]
             margin = best_score - runner_up_score
             if margin < GLOBAL_MIN_TOP_TWO_MARGIN and runner_up_score > 0.0:
+                classified = self._resolve_with_classifier(clean_query, candidates)
+                if classified is not None:
+                    return classified
                 return CapabilityResolution(
                     selected_capability=None,
                     confidence_score=best_score,
@@ -211,4 +376,6 @@ class CapabilityResolver:
             abstention_reason_code=AbstentionReasonCode.NONE,
             fallback_mode=ResolutionFallbackMode.DIRECT_TALK,
             extracted_parameters=extracted,
+            resolution_source=ResolutionSource.DETERMINISTIC_RULE,
+            resolution_reason=f"Deterministic intent signature matched {best_cap.capability_id}.",
         )

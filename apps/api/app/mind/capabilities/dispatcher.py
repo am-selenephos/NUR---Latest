@@ -155,12 +155,10 @@ class WorkerDispatcher:
         # Preview vs Persist distinction (§9):
         # "plan this out", "show me a plan", "outline a plan" -> preview only (no workflow proposal persisted)
         # "draft a plan to ...", "create a plan", "save plan" -> governed workflow proposal
-        is_preview_only = False
         q_lower = query.lower()
-        preview_triggers = ("plan this out", "show me a plan", "outline a plan", "how would you plan", "preview plan")
         persist_triggers = ("draft a plan", "create a plan", "make a plan", "save plan", "save draft", "create draft")
-        if any(pt in q_lower for pt in preview_triggers) and not any(st in q_lower for st in persist_triggers):
-            is_preview_only = True
+        has_persist_intent = any(trigger in q_lower for trigger in persist_triggers)
+        is_preview_only = not has_persist_intent
 
         if is_preview_only:
             step_bullets = "\n".join(f"- {s}" for s in steps)
@@ -221,5 +219,3 @@ class WorkerDispatcher:
             decision_summary=f"Proposed workflow via {capability.worker_role} ({capability.capability_id}).",
             cost_estimate_cents=capability.estimated_cost_cents,
         )
-
-

@@ -79,6 +79,10 @@ async def test_capability_runtime_e2e_deterministic_plan_proposal(client, super_
         assert model_run.run_metadata["provider_invoked"] is False
         assert model_run.run_metadata["execution_provenance"] == "DETERMINISTIC_WORKER"
         assert model_run.run_metadata["capability_id"] == "capability:plan_from_conversation"
+        assert model_run.run_metadata["capability_version"] == "1"
+        assert model_run.run_metadata["capability_resolution_source"] == "DETERMINISTIC_RULE"
+        assert model_run.run_metadata["capability_confidence"] >= 0.82
+        assert model_run.run_metadata["capability_resolution_reason"]
         assert model_run.response_metadata["available"] is False
         assert "deterministic Mind capability worker" in model_run.response_metadata["reason"]
 
@@ -88,7 +92,7 @@ async def test_capability_runtime_e2e_deterministic_plan_proposal(client, super_
         ).scalars().all()
         assert len(workflows) == 1
         wf = workflows[0]
-        assert wf.state == "BLOCKED_ON_APPROVAL"
+        assert wf.state == "PLAN_READY"
         assert wf.title == "Plan: Deploy the cognitive kernel"
 
         steps = (
@@ -116,6 +120,39 @@ async def test_capability_runtime_e2e_deterministic_plan_proposal(client, super_
         # Verify argument_digest integrity
         expected_digest = argument_digest(appr.tool_key, appr.tool_version, appr.redacted_arguments)
         assert appr.argument_digest == expected_digest
+
+
+@pytest.mark.asyncio
+async def test_authenticated_explicit_capability_is_a_preview_without_save_intent(
+    client,
+    super_engine,
+):
+    res, _, _ = await register_user(client)
+    owner_user_id = uuid.UUID(res.json()["id"])
+    events = []
+
+    async def event_sink(event_type, payload):
+        events.append((event_type, payload))
+
+    async with AsyncSession(super_engine) as db:
+        await set_user_context(db, owner_user_id)
+        result = await run_mind_cognitive_loop(
+            db,
+            owner_user_id=owner_user_id,
+            user_line="Explain the tradeoffs. Do not save or create anything.",
+            requested_capability_id="capability:plan_from_conversation",
+            event_sink=event_sink,
+        )
+
+        resolved = next(payload for name, payload in events if name == "talk.capability.resolved")
+        assert resolved["capability_id"] == "capability:plan_from_conversation"
+        assert resolved["resolution_source"] == "EXPLICIT_AUTHENTICATED"
+        assert "Plan Preview" in result.output.direct_response
+        assert (
+            await db.execute(
+                select(AgentWorkflow).where(AgentWorkflow.owner_user_id == owner_user_id)
+            )
+        ).scalars().all() == []
 
 
 @pytest.mark.asyncio
@@ -257,7 +294,7 @@ async def test_capability_runtime_e2e_full_approval_and_handler_execution(client
         ).scalars().all()
         assert len(workflows) == 1
         wf = workflows[0]
-        assert wf.state == "BLOCKED_ON_APPROVAL"
+        assert wf.state == "PLAN_READY"
 
         steps = (
             await db.execute(select(AgentStep).where(AgentStep.workflow_id == wf.id))

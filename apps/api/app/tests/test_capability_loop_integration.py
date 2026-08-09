@@ -136,7 +136,7 @@ async def test_capability_loop_contextual_answer_resolution(client, super_engine
 
 @pytest.mark.asyncio
 async def test_capability_loop_workflow_proposal_submission(client, super_engine):
-    """Plan intent routes to WORKFLOW_PROPOSAL and creates BLOCKED_ON_APPROVAL workflow in Agency."""
+    """Plan intent routes to WORKFLOW_PROPOSAL and creates an inert compiled workflow."""
     res, _, _ = await register_user(client)
     owner_user_id = uuid.UUID(res.json()["id"])
 
@@ -176,7 +176,7 @@ async def test_capability_loop_workflow_proposal_submission(client, super_engine
             await db.execute(select(AgentWorkflow).where(AgentWorkflow.owner_user_id == owner_user_id))
         ).scalars().all()
         assert len(workflows) == 1
-        assert workflows[0].state == "BLOCKED_ON_APPROVAL"
+        assert workflows[0].state == "PLAN_READY"
 
         approvals = (
             await db.execute(select(AgentApproval).where(AgentApproval.owner_user_id == owner_user_id))

@@ -24,6 +24,7 @@ database, which is what lets the failure modes above be tested exhaustively.
 
 from __future__ import annotations
 
+import datetime as dt
 from dataclasses import dataclass, field
 
 from app.agentic.enums import StepState
@@ -117,8 +118,10 @@ def compile_plan(
     policy: OwnerPolicy,
     *,
     within_scope: bool = True,
+    now: dt.datetime | None = None,
 ) -> CompileResult:
     errors: list[CompileError] = []
+    policy_now = now or dt.datetime.now(dt.timezone.utc)
 
     if not proposed:
         return CompileResult(False, errors=(CompileError("EMPTY_PLAN", "A plan needs at least one step."),))
@@ -158,7 +161,7 @@ def compile_plan(
             )
             continue
 
-        verdict = evaluate(tool, policy, within_scope=within_scope)
+        verdict = evaluate(tool, policy, now=policy_now, within_scope=within_scope)
         verdicts[step.key] = verdict
         if verdict.decision is Decision.DENY:
             # Carrying the policy's own reason means the owner is told why the

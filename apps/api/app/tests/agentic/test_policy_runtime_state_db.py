@@ -339,6 +339,46 @@ async def test_quiet_hours_are_evaluated_in_the_owners_zone(scoped, owner):
 
 
 @pytest.mark.asyncio
+async def test_runtime_applies_quiet_hours_to_the_real_execution_gate(scoped, owner):
+    now = dt.datetime.now(dt.timezone.utc)
+    await _policy(
+        scoped,
+        owner,
+        quiet_hours={"start": now.hour, "end": (now.hour + 1) % 24, "tz": "UTC"},
+    )
+    workflow_id = await _workflow(scoped, owner)
+    step = AgentStep(
+        owner_user_id=owner,
+        workflow_id=workflow_id,
+        ordinal=1,
+        key="quiet",
+        state="QUEUED",
+        role="operator",
+        tool_key=TOOL,
+        tool_version="1",
+        risk_class="R0_READ_ONLY",
+        input_refs={"limit": 3},
+        depends_on=[],
+    )
+    scoped.add(step)
+    await scoped.flush()
+    await scoped.commit()
+
+    outcome = await run_step(
+        scoped,
+        owner_user_id=owner,
+        step_id=step.id,
+        trace=new_trace(),
+        worker="quiet-hours-test",
+    )
+    await scoped.commit()
+
+    assert outcome["executed"] is False
+    assert outcome["step_state"] == "WAITING_APPROVAL"
+    assert "quiet hours" in outcome["reason"].lower()
+
+
+@pytest.mark.asyncio
 async def test_an_overnight_window_is_one_night_not_two_halves(scoped, owner):
     await _policy(scoped, owner, quiet_hours={"start": 22, "end": 7, "tz": "UTC"})
     await scoped.commit()

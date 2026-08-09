@@ -28,7 +28,7 @@ from sqlalchemy import select
 
 from app.agentic import registry
 from app.agentic.enums import ApprovalDecision, WorkflowState
-from app.api.deps import Identity, Scoped, require_csrf
+from app.api.deps import Identity, Scoped, require_csrf, require_trusted_origin
 from app.models.agentic import AgentApproval, AgentRunEvent, AgentStep, AgentWorkflow
 
 router = APIRouter(prefix="/agentic", tags=["agentic"])
@@ -251,7 +251,10 @@ async def list_approvals(db: Scoped, identity: Identity) -> dict:
     }
 
 
-@router.post("/approvals/{approval_id}/decide", dependencies=[Depends(require_csrf)])
+@router.post(
+    "/approvals/{approval_id}/decide",
+    dependencies=[Depends(require_csrf), Depends(require_trusted_origin)],
+)
 async def decide_approval(
     approval_id: uuid.UUID,
     payload: ApprovalDecisionIn,

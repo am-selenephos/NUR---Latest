@@ -4,8 +4,10 @@ from pathlib import Path
 import uuid
 import pytest
 from httpx import AsyncClient
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agentic.enums import WorkflowState
 from app.brain.schemas import WorkflowProposal, WorkflowStepProposal
 from app.db.rls import set_user_context
 from app.mind.agency_bridge import AgencyBridgeError, submit_workflow_proposal
@@ -29,6 +31,20 @@ def test_ast_agency_bridge_no_create_draft_plan_fallback():
             pytest.fail("Found string literal 'create_draft_plan' in agency_bridge.py - no hardcoded fallbacks permitted!")
 
 
+def test_workflow_step_requires_explicit_tool_version():
+    """A proposed side effect must name the exact registered tool version."""
+    with pytest.raises(ValidationError) as exc_info:
+        WorkflowStepProposal(
+            key="step_1",
+            title="Draft plan",
+            description="Create the owner-requested draft",
+            tool_key="create_draft_plan",
+            arguments={"title": "Plan", "steps": ["Verify it"]},
+        )
+
+    assert "tool_version" in str(exc_info.value)
+
+
 @pytest.mark.asyncio
 async def test_agency_bridge_rejects_missing_tool_key(client: AsyncClient, super_engine):
     res, email, password = await register_user(client)
@@ -48,6 +64,7 @@ async def test_agency_bridge_rejects_missing_tool_key(client: AsyncClient, super
                     title="Do something mysterious",
                     description="No tool specified",
                     tool_key="",  # Empty tool key
+                    tool_version="1",
                     requires_approval=True,
                 )
             ],
@@ -79,6 +96,7 @@ async def test_agency_bridge_rejects_unknown_tool_via_compiler(client: AsyncClie
                     title="Unknown action",
                     description="Calls non-existent tool",
                     tool_key="non_existent_tool_12345",
+                    tool_version="1",
                     arguments={"title": "test"},
                     requires_approval=True,
                 )
@@ -110,6 +128,7 @@ async def test_agency_bridge_rejects_invalid_arguments_schema(client: AsyncClien
                     title="Draft plan with invalid objective",
                     description="Calls create_draft_plan with extra field",
                     tool_key="create_draft_plan",
+                    tool_version="1",
                     arguments={"title": "Plan", "objective": "Invalid field"},
                     requires_approval=True,
                 )
@@ -151,6 +170,7 @@ async def test_agency_bridge_rejects_cyclic_dependencies(client: AsyncClient, su
                     title="Step 1",
                     description="Depends on step 2",
                     tool_key="create_draft_plan",
+                    tool_version="1",
                     arguments={"title": "Step 1", "steps": ["Task 1"]},
                     dependencies=["step_2"],
                     requires_approval=True,
@@ -160,6 +180,7 @@ async def test_agency_bridge_rejects_cyclic_dependencies(client: AsyncClient, su
                     title="Step 2",
                     description="Depends on step 1",
                     tool_key="create_draft_plan",
+                    tool_version="1",
                     arguments={"title": "Step 2", "steps": ["Task 2"]},
                     dependencies=["step_1"],
                     requires_approval=True,
@@ -203,6 +224,7 @@ async def test_agency_bridge_strict_arguments_and_approval(client: AsyncClient, 
                     title="Draft custom plan",
                     description="Create a draft plan with specific title",
                     tool_key="create_draft_plan",
+                    tool_version="1",
                     arguments={"title": "Q3 Engineering Roadmap", "steps": ["Ship Capability Runtime"]},
                     requires_approval=True,
                     estimated_cost_cents=2,
@@ -217,7 +239,7 @@ async def test_agency_bridge_strict_arguments_and_approval(client: AsyncClient, 
 
         assert compile_res.ok is True
         assert workflow is not None
-        assert workflow.state == "BLOCKED_ON_APPROVAL"
+        assert workflow.state == WorkflowState.PLAN_READY.value
         assert workflow.budget_cents == 2
 
         from sqlalchemy import select
@@ -267,6 +289,7 @@ async def test_agency_step_dependency_state_persists_blocked(client: AsyncClient
                     title="Root step",
                     description="Creates initial plan",
                     tool_key="create_draft_plan",
+                    tool_version="1",
                     arguments={"title": "Step A Plan", "steps": ["Task A"]},
                     requires_approval=False,
                 ),
@@ -275,6 +298,7 @@ async def test_agency_step_dependency_state_persists_blocked(client: AsyncClient
                     title="Dependent step",
                     description="Creates follow-up plan",
                     tool_key="create_draft_plan",
+                    tool_version="1",
                     arguments={"title": "Step B Plan", "steps": ["Task B"]},
                     dependencies=["step_a"],
                     requires_approval=False,
@@ -359,5 +383,4 @@ def test_workflow_refused_serialization_privacy():
     assert "secret" not in serialized
     assert "message" not in serialized
     assert "errors" not in deserialized
-
 

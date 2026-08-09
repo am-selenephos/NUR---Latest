@@ -73,6 +73,11 @@ class TalkIn(BaseModel):
     locale: str = "en"
     writing_preference: str = "default"
     mode: str | None = None
+    capability_id: str | None = Field(
+        default=None,
+        max_length=128,
+        pattern=r"^capability:[a-z0-9_]+$",
+    )
     memory_mode: Literal["EPHEMERAL", "REVIEW"] = "EPHEMERAL"
 
 
@@ -122,6 +127,7 @@ async def talk(payload: TalkIn, request: Request, db: Scoped, identity: Identity
             writing_preference=payload.writing_preference,
             memory_mode=payload.memory_mode,
             requested_mode=payload.mode,
+            requested_capability_id=payload.capability_id,
         )
     except PermissionError as exc:
         raise HTTPException(404, str(exc)) from exc
@@ -169,6 +175,7 @@ async def talk_stream(payload: TalkStreamIn, request: Request, identity: Identit
         writing_preference=payload.writing_preference,
         memory_mode=payload.memory_mode,
         mode=payload.mode,
+        capability_id=payload.capability_id,
     )
     try:
         job = await talk_stream_coordinator.start_or_get(user_id, spec)

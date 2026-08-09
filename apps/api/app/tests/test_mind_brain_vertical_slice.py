@@ -189,6 +189,7 @@ async def test_agency_workflow_proposal_compilation(client, super_engine):
                     title="Record note",
                     description="Create draft plan",
                     tool_key="create_draft_plan",
+                    tool_version="1",
                     arguments={"title": "Draft Plan", "steps": ["Step 1"]},
                     requires_approval=True,
                 )
@@ -204,8 +205,8 @@ async def test_agency_workflow_proposal_compilation(client, super_engine):
         assert compile_res.ok is True
         assert workflow is not None
         assert workflow.title == "Test durable workflow"
-        # Execution cannot occur before approval: state must be BLOCKED_ON_APPROVAL
-        assert workflow.state == "BLOCKED_ON_APPROVAL"
+        # A compiled workflow is inert until the owner starts it.
+        assert workflow.state == "PLAN_READY"
 
 
 def import_uuid():
@@ -435,7 +436,7 @@ async def test_mind_loop_ordinary_talk_vs_durable_action(client, super_engine, m
         workflows = (await db.execute(select(AgentWorkflow).where(AgentWorkflow.owner_user_id == owner_user_id))).scalars().all()
         assert len(workflows) == 0
 
-    # Case 2: Durable Action intent in next_move -> WorkflowProposal submitted to Agency in BLOCKED_ON_APPROVAL state
+    # Case 2: durable action intent -> an inert, compiled Agency proposal.
     async def mock_action_talk(request, event_sink=None):
         return AIProviderResult(
             provider="openai",
@@ -465,11 +466,11 @@ async def test_mind_loop_ordinary_talk_vs_durable_action(client, super_engine, m
         )
         assert "migrate the database" in res2.output.direct_response.lower() or "draft" in res2.output.direct_response.lower()
 
-        # Verify a workflow was created in BLOCKED_ON_APPROVAL state
+        # Verify a workflow was compiled but not started.
         workflows = (await db.execute(select(AgentWorkflow).where(AgentWorkflow.owner_user_id == owner_user_id))).scalars().all()
         assert len(workflows) == 1
         wf = workflows[0]
-        assert wf.state == "BLOCKED_ON_APPROVAL"
+        assert wf.state == "PLAN_READY"
 
         # Verify an AgentApproval was persisted in PENDING decision state
         approvals = (await db.execute(select(AgentApproval).where(AgentApproval.owner_user_id == owner_user_id))).scalars().all()

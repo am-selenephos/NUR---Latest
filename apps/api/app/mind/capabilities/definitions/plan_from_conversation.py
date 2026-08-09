@@ -13,6 +13,7 @@ from app.mind.capabilities.schemas import (
 
 PLAN_FROM_CONVERSATION_SPEC = CapabilitySpec(
     capability_id="capability:plan_from_conversation",
+    version="1",
     name="Plan from Conversation",
     description="Draft a structured Plan and proposed action steps from conversational intent for owner review.",
     intent_signatures=(
@@ -27,6 +28,11 @@ PLAN_FROM_CONVERSATION_SPEC = CapabilitySpec(
         "schedule these tasks",
         "build an action plan",
         "let's plan",
+        "plan banao",
+        "plan bana do",
+        "mansooba banao",
+        "منصوبہ بناؤ",
+        "योजना बनाओ",
     ),
     allowed_surfaces=("talk", "plan"),
     sensitivity_ceiling="NORMAL",

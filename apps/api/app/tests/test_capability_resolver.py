@@ -3,8 +3,10 @@ from unittest.mock import patch
 
 from app.mind.capabilities.resolver import (
     AbstentionReasonCode,
+    ClassifierCandidate,
     CapabilityResolver,
     ResolutionFallbackMode,
+    ResolutionSource,
 )
 from app.mind.capabilities.registry import CapabilityRegistry
 from app.mind.capabilities.schemas import CapabilitySpec, ExecutionMode
@@ -148,12 +150,111 @@ def test_adversarial_text_does_not_force_routing():
     )
 
 
+def test_authenticated_explicit_capability_precedes_text_scoring():
+    resolver = CapabilityResolver()
+    res = resolver.resolve(
+        "explain the current plan",
+        surface="talk",
+        explicit_capability_id="capability:plan_from_conversation",
+        explicit_key_authenticated=True,
+    )
+
+    assert res.abstained is False
+    assert res.selected_capability is not None
+    assert res.selected_capability.capability_id == "capability:plan_from_conversation"
+    assert res.resolution_source == ResolutionSource.EXPLICIT_AUTHENTICATED
+    assert res.confidence_score == 1.0
+
+
+def test_unauthenticated_explicit_capability_cannot_force_routing():
+    resolver = CapabilityResolver()
+    res = resolver.resolve(
+        "explain the current plan",
+        surface="talk",
+        explicit_capability_id="capability:plan_from_conversation",
+        explicit_key_authenticated=False,
+    )
+
+    assert res.selected_capability is not None
+    assert res.selected_capability.capability_id == "capability:contextual_answer"
+    assert res.resolution_source == ResolutionSource.DETERMINISTIC_RULE
+
+
+def test_negated_plan_intent_never_routes_to_plan_worker():
+    resolver = CapabilityResolver()
+    res = resolver.resolve("Do not make a plan. Explain the tradeoffs instead.", surface="talk")
+
+    assert res.selected_capability is not None
+    assert res.selected_capability.capability_id == "capability:contextual_answer"
+
+
+def test_roman_urdu_plan_intent_resolves_deterministically():
+    resolver = CapabilityResolver()
+    res = resolver.resolve("Mere liye aik plan banao", surface="talk")
+
+    assert res.abstained is False
+    assert res.selected_capability is not None
+    assert res.selected_capability.capability_id == "capability:plan_from_conversation"
+    assert res.resolution_source == ResolutionSource.DETERMINISTIC_RULE
+    assert res.resolution_reason
+
+
 def test_resolver_executes_no_provider_call():
     """Negative test 9: resolver executes no provider call."""
     with patch("app.brain.provider.BrainProviderAdapter") as mock_adapter:
         resolver = CapabilityResolver()
         resolver.resolve("draft a plan for the project", surface="talk")
         mock_adapter.assert_not_called()
+
+
+def test_constrained_classifier_resolves_only_registered_candidate():
+    def classifier(_query, allowed_ids):
+        assert "capability:contextual_answer" in allowed_ids
+        return [
+            ClassifierCandidate(
+                capability_id="capability:contextual_answer",
+                confidence_score=0.91,
+            )
+        ]
+
+    resolver = CapabilityResolver(classifier=classifier)
+    res = resolver.resolve("a semantically novel but permitted question", surface="talk")
+
+    assert res.abstained is False
+    assert res.selected_capability is not None
+    assert res.selected_capability.capability_id == "capability:contextual_answer"
+    assert res.resolution_source == ResolutionSource.CONSTRAINED_CLASSIFIER
+
+
+def test_constrained_classifier_cannot_invent_capability_id():
+    resolver = CapabilityResolver(
+        classifier=lambda _query, _allowed: [
+            {"capability_id": "capability:invented", "confidence_score": 0.99}
+        ]
+    )
+    res = resolver.resolve("a semantically novel request", surface="talk")
+
+    assert res.abstained is True
+    assert res.selected_capability is None
+
+
+def test_constrained_classifier_enforces_confidence_and_margin():
+    low = CapabilityResolver(
+        classifier=lambda _query, _allowed: [
+            {"capability_id": "capability:contextual_answer", "confidence_score": 0.81}
+        ]
+    ).resolve("novel low-confidence request", surface="talk")
+    assert low.abstained is True
+    assert low.abstention_reason_code == AbstentionReasonCode.CONFIDENCE_BELOW_THRESHOLD
+
+    close = CapabilityResolver(
+        classifier=lambda _query, _allowed: [
+            {"capability_id": "capability:contextual_answer", "confidence_score": 0.91},
+            {"capability_id": "capability:plan_from_conversation", "confidence_score": 0.80},
+        ]
+    ).resolve("novel ambiguous request", surface="talk")
+    assert close.abstained is True
+    assert close.abstention_reason_code == AbstentionReasonCode.AMBIGUOUS_MARGIN_COLLISION
 
 
 def test_repeated_identical_input_produces_identical_resolution():
@@ -173,6 +274,9 @@ def test_clean_resolution_contextual_answer():
     assert res.selected_capability.capability_id == "capability:contextual_answer"
     assert res.confidence_score >= 0.82
     assert res.abstention_reason_code == AbstentionReasonCode.NONE
+    assert res.selected_capability.version == "1"
+    assert res.resolution_source == ResolutionSource.DETERMINISTIC_RULE
+    assert res.resolution_reason
 
 
 def test_clean_resolution_plan_from_conversation():

@@ -28,6 +28,7 @@ class TalkStreamSpec:
     writing_preference: str
     mode: str | None
     memory_mode: str
+    capability_id: str | None = None
 
     @property
     def fingerprint(self) -> str:
@@ -38,6 +39,7 @@ class TalkStreamSpec:
                 "locale": self.locale,
                 "writing_preference": self.writing_preference,
                 "mode": self.mode,
+                "capability_id": self.capability_id,
                 "memory_mode": self.memory_mode,
             },
             sort_keys=True,
@@ -141,6 +143,7 @@ class TalkStreamCoordinator:
                         writing_preference=job.spec.writing_preference,
                         memory_mode=job.spec.memory_mode,
                         requested_mode=job.spec.mode,
+                        requested_capability_id=job.spec.capability_id,
                         request_id=job.spec.request_id,
                         event_sink=job.publish,
                     )

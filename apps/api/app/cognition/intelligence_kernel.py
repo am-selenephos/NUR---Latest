@@ -31,6 +31,7 @@ async def run_talk_kernel(
     writing_preference: str = "default",
     memory_mode: str = "EPHEMERAL",
     requested_mode: str | None = None,
+    requested_capability_id: str | None = None,
     request_id: uuid.UUID | None = None,
     event_sink: AIStreamSink | None = None,
 ) -> TalkKernelResult:
@@ -71,6 +72,7 @@ async def run_talk_kernel(
         writing_preference=writing_preference,
         memory_mode=memory_mode,
         requested_mode=requested_mode,
+        requested_capability_id=requested_capability_id,
         request_id=request_id,
         event_sink=event_sink,
     )

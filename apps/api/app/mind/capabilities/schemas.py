@@ -114,6 +114,7 @@ class CapabilitySpec(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     capability_id: str = Field(..., description="Unique slug, e.g., 'capability:plan_from_conversation'")
+    version: str = Field(default="1", min_length=1, pattern=r"^[A-Za-z0-9._-]+$")
     name: str
     description: str
     intent_signatures: tuple[str, ...] = Field(

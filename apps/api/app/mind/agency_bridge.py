@@ -10,7 +10,8 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agentic.compiler import ProposedStep, compile_plan, CompileResult
+from app.agentic.compiler import CompileResult, ProposedStep, compile_plan
+from app.agentic.enums import WorkflowState
 from app.agentic.input_schemas import validate_arguments
 from app.agentic.orchestrator import argument_digest
 from app.agentic.policy_store import load_policy
@@ -90,7 +91,11 @@ async def submit_workflow_proposal(
         except UnknownToolError:
             raise AgencyBridgeError(f"Unregistered Agency tool '{tool_key}' in step '{step_key}'.")
 
-        tool_version = getattr(step, "tool_version", None) or tool_spec.contract.version
+        tool_version = getattr(step, "tool_version", None)
+        if not tool_version or not str(tool_version).strip():
+            raise AgencyBridgeError(
+                f"Workflow step '{step_key}' is missing required 'tool_version'. Zero silent fallback."
+            )
         if str(tool_version) != str(tool_spec.contract.version):
             raise AgencyBridgeError(
                 f"Tool version mismatch for '{tool_key}' in step '{step_key}': "
@@ -135,10 +140,6 @@ async def submit_workflow_proposal(
     if not compile_result.ok or not compile_result.steps:
         return None, compile_result
 
-    # Determine workflow status based on whether any step requires approval
-    requires_approval = any(s.approval_required for s in compile_result.steps)
-    initial_state = "BLOCKED_ON_APPROVAL" if requires_approval else "READY"
-
     # Derive truthful max_risk_class from compiled steps
     highest_risk = "R0_READ_ONLY"
     max_rank = 0
@@ -154,7 +155,7 @@ async def submit_workflow_proposal(
         kind="COGNITIVE_WORKFLOW",
         title=proposal.title,
         objective=proposal.rationale,
-        state=initial_state,
+        state=WorkflowState.PLAN_READY.value,
         plan_version=1,
         trigger_kind="MIND_COGNITIVE_RESULT",
         trigger_ref=proposal.task_id,
@@ -218,4 +219,3 @@ async def submit_workflow_proposal(
 
     await db.flush()
     return workflow, compile_result
-

@@ -4,6 +4,8 @@ Each test here corresponds to a way a plan can be broken such that run time
 either stalls forever or grades its own homework.
 """
 
+import datetime as dt
+
 import pytest
 
 from app.agentic.compiler import (
@@ -161,6 +163,27 @@ def test_approval_keys_are_surfaced_up_front():
     result = compile_plan(plan, suggest)
     assert result.ok, result.errors
     assert result.approval_keys == ("draft",)
+
+
+def test_quiet_hours_are_applied_during_compilation():
+    quiet = OwnerPolicy(
+        initiative_level=InitiativeLevel.INTERNAL,
+        max_risk_class=RiskClass.R0_READ_ONLY,
+        permitted_tools=frozenset({"get_plan"}),
+        auto_run_tools=frozenset({"get_plan"}),
+        granted_capabilities=KNOWN_CAPABILITIES,
+        quiet_hours=(22, 7),
+        timezone_name="UTC",
+    )
+
+    result = compile_plan(
+        (step("read", tool="get_plan"),),
+        quiet,
+        now=dt.datetime(2026, 8, 9, 23, tzinfo=dt.timezone.utc),
+    )
+
+    assert result.ok, result.errors
+    assert result.approval_keys == ("read",)
 
 
 def test_out_of_scope_plan_is_refused_entirely():

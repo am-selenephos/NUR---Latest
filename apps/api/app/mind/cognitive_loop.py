@@ -50,6 +50,7 @@ async def run_mind_cognitive_loop(
     writing_preference: str = "default",
     memory_mode: str = "EPHEMERAL",
     requested_mode: str | None = None,
+    requested_capability_id: str | None = None,
     request_id: uuid.UUID | None = None,
     event_sink: AIStreamSink | None = None,
 ) -> TalkKernelResult:
@@ -116,6 +117,8 @@ async def run_mind_cognitive_loop(
         surface=scope_envelope.surface,
         sensitivity=scope_envelope.sensitivity_ceiling,
         mode_hint=requested_mode,
+        explicit_capability_id=requested_capability_id,
+        explicit_key_authenticated=requested_capability_id is not None,
     )
 
     if resolution.fallback_mode == ResolutionFallbackMode.REFUSE_SCOPE:
@@ -137,9 +140,11 @@ async def run_mind_cognitive_loop(
             {
                 "request_id": str(request_id) if request_id else None,
                 "capability_id": resolution.selected_capability.capability_id if resolution.selected_capability else None,
+                "capability_version": resolution.selected_capability.version if resolution.selected_capability else None,
                 "confidence_score": resolution.confidence_score,
+                "resolution_source": resolution.resolution_source.value,
                 "abstained": resolution.abstained,
-                "reason": resolution.abstention_reason,
+                "reason": resolution.abstention_reason or resolution.resolution_reason,
             },
         )
 
@@ -219,6 +224,10 @@ async def run_mind_cognitive_loop(
     run_metadata["scope_envelope_id"] = str(scope_envelope.scope_id)
     if resolution.selected_capability is not None:
         run_metadata["capability_id"] = resolution.selected_capability.capability_id
+        run_metadata["capability_version"] = resolution.selected_capability.version
+        run_metadata["capability_resolution_source"] = resolution.resolution_source.value
+        run_metadata["capability_confidence"] = resolution.confidence_score
+        run_metadata["capability_resolution_reason"] = resolution.resolution_reason
 
     model_run = ModelRun(
         owner_user_id=owner_user_id,
@@ -320,7 +329,7 @@ async def run_mind_cognitive_loop(
                     {
                         "workflow_id": str(workflow.id),
                         "state": workflow.state,
-                        "requires_approval": workflow.state == "BLOCKED_ON_APPROVAL",
+                        "requires_approval": bool(compile_res.approval_keys),
                     },
                 )
             elif workflow is None:

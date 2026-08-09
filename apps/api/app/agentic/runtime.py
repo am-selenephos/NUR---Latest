@@ -340,7 +340,8 @@ async def execute_step(
 
     # ── Gate. After the claim so only one worker asks; before the handler so a
     #    refusal costs nothing. ──
-    verdict = evaluate(contract, policy, within_scope=within_scope)
+    policy_now = dt.datetime.now(dt.timezone.utc)
+    verdict = evaluate(contract, policy, now=policy_now, within_scope=within_scope)
     if verdict.decision is Decision.DENY:
         await _record_tool_call(
             db, owner_user_id=owner_user_id, workflow_id=workflow_id, step_id=step_id,
