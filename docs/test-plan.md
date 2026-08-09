@@ -14,7 +14,11 @@ Date: 2026-07-11
 
 ## Backend
 
-- auth and seven-System provisioning;
+- auth and six-System provisioning;
+- Mind scope-before-retrieval and bounded capability/fallback routing;
+- Brain server-provider, structured output, failure, and model-run lineage;
+- Agency registry/version/schema/policy/approval/outbox/owner-isolation contracts;
+- Hardness forced-RLS, owner lineage, dry-run-only, and no-silent-promotion contracts;
 - owner-scoped Glow idempotency;
 - step completion gate and Outcome reward;
 - translation persistence and recipient denial;
@@ -31,7 +35,7 @@ Date: 2026-07-11
 - machine registry coverage for entry/auth, every authenticated primary page, hidden scope/language chamber, mobile-only controls, and deferred adjunct routes;
 - every `WIRED` registry row points to an executed Playwright spec rather than a unit-only proof;
 - persisted refresh proof;
-- exact seven System labels;
+- exact six System labels: Ambition, Rebuild, Creation, Growth, Introspection, Connection;
 - no critical map overlap at 1280/1440;
 - real Map/Orbits/Timeline/Insights owner reads;
 - Korean and Roman Urdu preference persistence;

@@ -1,14 +1,20 @@
 # NUR
 
-**Private AI reasoning with inspectable evidence, owner-controlled memory, and revocable Context Capsules.**
+**Private, evidence-bound cognition with owner-controlled memory, bounded Agency, and revocable Context Capsules.**
 
-NUR is a local-first scoped beta for private project-orbit work. It combines an OpenAI-backed Talk workspace with persisted decisions, references, journals, plans, corrections, outcomes, owner-scoped retrieval, verification, and explicit context sharing.
+NUR is a local-first scoped beta for private project-orbit work. Its canonical V197 interface is
+connected by a nonvisual TypeScript bridge to a FastAPI backend with owner-scoped persistence,
+retrieval, verification, controlled sharing, Mind/Brain cognition, bounded capabilities, and an
+Agency execution boundary.
 
-NUR focuses on one complete vertical slice:
+The release gate focuses on one bounded readiness slice:
 
 > private evidence-bound Talk → structured next move → persisted Plan → owner-approved Context Capsule → recipient-scoped answer → immediate revocation
 
-Read [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md) for the exact demonstration flow and [`RUNBOOK.md`](RUNBOOK.md) for local operations.
+The repository also contains broader Systems, Universe, Community, Projects, Billing, Omega,
+Capability, Agency, and Hardness foundations. Their presence is not a claim that every owner UI,
+external provider, or release gate is complete. Read [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md) for the
+demonstration flow and [`RUNBOOK.md`](RUNBOOK.md) for local operations.
 
 ## Why NUR
 
@@ -32,21 +38,29 @@ NUR keeps those operations separate and inspectable.
 ## Architecture
 
 ```text
-React / Vite interface
+Canonical V197 Entry + Universe presentation
+        |
+        +--> nonvisual TypeScript bridge (no second visible renderer)
         |
         v
 FastAPI API + HTTP-only session + CSRF
         |
+        +--> Mind: scope, capability routing, hydration, verification
+        +--> Brain: server-only provider profiles and structured cognition
+        +--> Agency: typed tools, policy, exact-call approval, outbox/runtime
         +--> Postgres with forced owner RLS
         +--> Redis + Celery worker / scheduler
-        +--> owner-scoped lexical retrieval
-        +--> OpenAI Responses API
-        +--> structured-output validation and verifier
-        +--> persisted evidence and model-run ledger
+        +--> evidence, model-run, WhyChanged, and Hardness ledgers
         |
         v
-Versioned Context Capsule + recipient grant + audit + revoke
+Owner surfaces + versioned Context Capsule/grant/audit/revoke
 ```
+
+At baseline `7df3ade9a9dea495b84d25cc7660350941c1e1f8`, Talk enters the Mind loop,
+resolves scope before retrieval, selects one of the currently registered bounded capabilities or a
+fallback, invokes Brain through the server provider boundary when needed, and submits proposed
+side effects to Agency. The owner Agent lifecycle surface and full Hardness product surface remain
+incomplete; the Hardness trainer contract is dry-run only.
 
 ## Quick boot
 
@@ -64,7 +78,8 @@ Later launches are one command. Open:
 http://localhost:5173
 ```
 
-The launcher starts Postgres, Redis, FastAPI, the worker, Omega scheduler, Vite, demo seed, health checks, and the browser.
+The launcher starts the local services selected by its mode, runs health checks, and opens the
+browser. A successful local boot is not release proof.
 
 Useful commands:
 

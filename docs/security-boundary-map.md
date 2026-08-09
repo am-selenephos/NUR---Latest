@@ -1,52 +1,89 @@
 # NUR Security Boundary Map
 
-Date: 2026-07-09
+Audited against repository baseline: `7df3ade9a9dea495b84d25cc7660350941c1e1f8`
 
-## Secrets
+## Credentials and secrets
 
-- OpenAI keys are never stored in source, frontend env, Docker image, screenshots, logs, or packages.
-- `infra/scripts/configure-openai-local.sh` writes ignored `.env.local` with hidden input and mode `600`.
-- `RUN_NUR.sh openai` fails closed if `.env.local` is missing or incomplete.
-- Bootable packages exclude `.env`, `.env.local`, `.env.*`, node_modules, build/dist, test results, proof folders, `.git`, DB volumes, Redis dumps, and secret-like artifacts.
+- Provider credentials are server-side only and must never enter source, V197, frontend env,
+  screenshots, logs, queues, traces, evidence packets, packages, or chat.
+- A reportedly exposed credential must be revoked and rotated immediately through the provider's
+  trusted control plane, out of band. Git ignore, mode `600`, quarantine, and secret scans do not
+  make an exposed value safe to retain or reuse.
+- `infra/scripts/configure-openai-local.sh` is the local hidden-input provisioning path. Never copy
+  an old `.env` or `.env.local` between worktrees.
+- Bootable packages exclude environment files, dependencies/build products, runtime artifacts,
+  proof folders, Git data, database volumes, Redis dumps, and secret-like artifacts.
 
-## Owner Data
+## Session and owner isolation
 
-- Owner records include `owner_user_id` and are protected by RLS.
-- New product tables for Research, Community, Web Signals, and provider capabilities use owner-only RLS and `FORCE ROW LEVEL SECURITY`.
-- Runtime app role is `nur_app` with no bypass RLS.
-- Superuser access is limited to migrations/tests and is not used by runtime API sessions.
+- Authentication uses an HTTP-only session. Mutating endpoints use CSRF dependencies where
+  declared; trusted-origin enforcement must be verified route by route.
+- The runtime role is `nur_app` with `NOBYPASSRLS`. Covered owner records carry
+  `owner_user_id`, and PostgreSQL policies use forced RLS.
+- Schema-owner/superuser access is for migrations and isolated tests, not runtime API sessions.
+- Wrong-owner object reads return no row or `404`, avoiding object-existence disclosure.
 
-## Recipient Capsule Boundary
+## Mind and Capability
 
-- Capsule grants expose only approved Orbit sources.
-- Recipients cannot access owner Talk, Journal, Timeline, Omega, general memory, or excluded sources.
-- Revoked and expired rooms block content and question answering.
-- Capsule answers include source refs and do not expose chain-of-thought.
+- Mind resolves authenticated scope before retrieval. Context hydration must not widen that scope.
+- The current capability registry is a bounded first-party catalog with two registered
+  capabilities. Unknown capabilities, context sources, and Agency tools fail closed.
+- Capability metadata does not grant database, filesystem, shell, network, connector, or secret
+  access. Workers receive bounded inputs through canonical services.
 
-## Omega Boundary
+## Brain
 
-- Omega tables are owner-only.
-- Omega UI is hidden behind `NUR_ENABLE_OMEGA_RESEARCH=true`.
-- Omega tracks evidence, contradictions, predictions, and learning proposals; it does not claim sentience, AGI, soul, or autonomous real-world action.
-- Recipient Capsule isolation from Omega is tested at the API layer.
+- Brain owns model profile/provider invocation. The browser and bridge do not call OpenAI directly.
+- Disabled-provider mode is explicit and must not fabricate model output or external action.
+- Structured output, evidence verification, safe error mapping, and model-run lineage are required
+  before an answer is represented as completed.
+- Prompts, hidden reasoning, credentials, and unrestricted private context are not public response
+  or SSE fields.
 
-## Frontend Boundary
+## Agency
 
-- No frontend OpenAI SDK.
-- No `VITE_OPENAI_API_KEY` or public key path.
-- Visible primary controls are registered in `docs/interaction-registry.md` and enforced by Playwright.
-- Honest disabled states are required for future/destructive controls.
+- All side effects must pass through registered, versioned tools, schema validation, owner policy,
+  risk classification, budgets, and approval rules.
+- Approval is bound to the exact tool call with argument digest, tool version, plan version, and
+  call version. Edited or expired calls must be revalidated.
+- Approval decisions, workflow state, append-only events, and dispatch intent commit atomically;
+  the broker is not called inside that transaction.
+- Agent workflows, steps, approvals, checkpoints, events, and outbox records are owner-scoped.
 
-## Billing Boundary
+At the audited baseline, the approval-decision route has CSRF protection but does not declare the
+trusted-origin dependency used by some other sensitive writes. That is a residual release gap, not
+permission to treat CSRF alone as complete origin protection. Direct owner workflow lifecycle
+routes and the complete V197 Agent surface are also absent.
 
-- Billing is disabled by default and provider secrets remain server-only.
-- Checkout requires authenticated CSRF plus an idempotency key; checkout
-  completion alone grants nothing.
-- Webhooks verify HMAC over raw bytes, an owner/session/plan binding, provider
-  mode, checkout existence, and variant before transactionally projecting
+## Hardness and self-directed learning
+
+- Learning signals, candidates, curricula, experiments, and promotion proposals use owner keys
+  and forced RLS.
+- The current database permits only `DRY_RUN` training experiments.
+- Owner-local evidence must not silently become global product learning. No candidate may train,
+  self-modify, deploy, or promote itself from a proposal row.
+- WhyChanged/provenance and independent evaluation remain required for any later promotion path.
+
+## Recipient Capsule boundary
+
+- Capsule grants expose only approved source representations.
+- Recipients cannot access owner Talk, Journal, Timeline, Omega, Hardness, Agentic workflows,
+  general memory, or excluded sources.
+- Revoked and expired grants block reads and questions. Answers expose source references, not
+  chain-of-thought.
+
+## Frontend boundary
+
+- Canonical V197 owns visible presentation; the TypeScript bridge is nonvisual infrastructure and
+  narrowly binds/hydrates existing surfaces.
+- No frontend OpenAI SDK, `VITE_OPENAI_API_KEY`, or public provider-key path is allowed.
+- Visible controls must be registered and proved on the exact candidate. Missing destructive or
+  external capabilities remain honestly disabled.
+
+## Billing boundary
+
+- Billing is disabled by default and provider secrets remain server-side.
+- Checkout requires authenticated CSRF plus idempotency; checkout completion alone grants nothing.
+- Webhooks verify raw-body signatures and owner/session/plan/provider bindings before projecting
   subscription and entitlement state.
-- Raw webhook bodies and customer email are excluded from receipts and domain
-  events. Billing owner tables use forced RLS; receipt and entitlement history
-  are append-only to the runtime role.
-- Live charges require a separate explicit enable switch. The deterministic
-  test adapter is rejected in production.
+- Live charges require an explicit enable switch. Test adapters are rejected in production.

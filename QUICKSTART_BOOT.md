@@ -6,9 +6,11 @@ On Linux, double-click `START_NUR.desktop` (or run `bash START_NUR.sh`).
 On macOS, double-click `RUN_NUR.command` after configuring OpenAI once.
 
 The first interactive Linux launch opens a hidden local OpenAI setup. After
-that, the same launcher starts Postgres, Redis, FastAPI, worker, scheduler,
-V197 web interface, demo data, health checks, and real server-side Talk. The
-API key stays only in ignored `.env.local` and is never included in the ZIP.
+that, the same launcher starts the selected local services, V197 web interface,
+demo data, and health checks. Talk uses real server-side AI only when a valid
+provider is explicitly configured; disabled mode is honest and does not
+fabricate a response. The API key stays only in ignored `.env.local` and is
+never included in the ZIP.
 
 To configure explicitly:
 
@@ -38,6 +40,10 @@ Demo credentials are printed by `seed-demo-nur.sh`. Defaults:
 Owner: owner@nur.app / owner-demo-pass-123
 Recipient: recipient@nur.app / recipient-demo-pass-123
 ```
+
+**Local demo only.** These predictable credentials must never be used in production, staging, a
+publicly reachable host, or any environment containing real user data. Do not expose the seeded
+service beyond loopback. Replace or remove the accounts before changing that boundary.
 
 The low-level `RUN_NUR.sh` default remains an honest disabled-provider boot for
 testing. To configure real AI manually:

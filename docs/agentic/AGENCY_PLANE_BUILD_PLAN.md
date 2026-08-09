@@ -1,7 +1,16 @@
 # Agency Plane — build plan and handoff
 
-Branch `claude/nur-agentic-spine-20260728`, draft PR #11, base
-`codex/nur-full-completion-20260726`.
+Historical handoff from branch `claude/nur-agentic-spine-20260728`, draft PR #11,
+base `codex/nur-full-completion-20260726`.
+
+## Current reconciliation at `7df3ade`
+
+This phase table is a PR #11 authoring snapshot, not current completion evidence. The current
+baseline contains a typed Agency tool registry, compiler, policy engine, exact-call approval
+records, dispatch outbox, runtime, worker tasks, and a Mind-to-Agency proposal bridge. The public
+API exposes tool/workflow/event/approval reads and approval decisions. Direct owner lifecycle
+create/start/cancel/retry routes and the V197 owner Agent surface remain incomplete. These facts
+do not establish end-to-end Agency release readiness.
 
 Written to be executed, not admired. Every remaining phase names the files it
 touches, the guarantee it must prove, and the test that proves it. Where I hit a
@@ -164,4 +173,6 @@ pass.
 - Orbits / Timeline / Insights lens modules (PR #10 landed Map only)
 - PRs #3 and #4 need triage — the only two with unique commits
 - Frame rate 21–33 FPS against a ≥55 target
-- The OpenAI key in `.env.local` is the one pasted into a chat transcript
+- A provider credential was reportedly pasted into a chat transcript. Treat it as exposed:
+  revoke and rotate it immediately through the provider control plane, out of band. Never read,
+  copy, transfer, provision, or reuse the old value to recover a prior proof.

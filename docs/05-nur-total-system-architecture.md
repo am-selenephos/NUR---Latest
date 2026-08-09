@@ -1,5 +1,8 @@
 # NUR Total System Architecture
 
+This is a topology map, not a completion claim. Current implementation and proof remain
+commit-specific.
+
 ```text
 Exact V197 host/runtime
   -> idempotent nonvisual bridge
@@ -15,13 +18,18 @@ Exact V197 host/runtime
 1. **Identity and boundary:** users, sessions, profiles, consent, CSRF, RLS.
 2. **Personal evidence:** cognition events, Journal, decisions, references, corrections, outcomes.
 3. **Action:** goals, objectives, Plans, steps, schedules, Today actions.
-4. **Living model:** seven Systems, diagnostics/actions/progress, Body/Mind/Life, predictions.
+4. **Living model:** six founder-locked Systems (Ambition, Rebuild, Creation, Growth,
+   Introspection, Connection), diagnostics/actions/progress, Body/Mind/Life, predictions.
 5. **Reward:** Glow rules, transactions, streaks, achievements, levels, leaderboards.
-6. **Intelligence:** retrieval, task router, structured provider, verifier, memory candidates, Omega.
-7. **Universe:** live aggregate, graph Map, Timeline, Orbits, Insights, feasibility.
-8. **Outside/shared:** Research, Web Signals, Community, Group NUR, Council, Capsule.
-9. **Work:** AM Projects, tasks, evidence, runs, reviews, deliverables.
-10. **Language/experience:** 35-locale metadata/catalogs, translation provenance, RTL, V197 motion/performance.
+6. **Intelligence:** Mind scope/capability/hydration, Brain provider profiles, structured output,
+   verification, memory candidates, WhyChanged, Omega, and Hardness foundations.
+7. **Agency:** typed tools, policy, compiler, exact-call approvals, outbox, worker runtime, and
+   append-only execution evidence. Complete owner lifecycle UI/API remains a separate proof.
+8. **Universe:** live aggregate, graph Map, Timeline, Orbits, Insights, feasibility.
+9. **Outside/shared:** Research, Web Signals, Community, Group NUR, Council, Capsule.
+10. **Work:** AM Projects, tasks, evidence, runs, reviews, deliverables.
+11. **Language/experience:** locale/catalog targets, translation provenance, RTL, V197
+    motion/performance. The 35-locale target is not current human-review proof.
 
 ## Data flow law
 

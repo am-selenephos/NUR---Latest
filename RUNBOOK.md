@@ -1,5 +1,8 @@
 # Runbook
 
+This runbook describes local operation. Commands must be run from the exact candidate commit;
+results from another SHA are not release evidence.
+
 ## Start
 
 ```bash
@@ -46,6 +49,38 @@ until removed manually.
 bash RUN_NUR.sh reset-demo
 ```
 
+This is destructive to local demo data. Do not run it against an environment containing data that
+must be retained.
+
+## Database migration role
+
+Alembic must use the schema-owner connection through `ALEMBIC_DATABASE_URL`. The runtime
+`nur_app` role is intentionally unable to own schemas or bypass forced RLS. A fresh environment
+may also require:
+
+```bash
+bash infra/scripts/provision-email-lookup-role.sh
+```
+
+Never point a migration command at a database inferred from a default URL. Verify the target,
+current revision, and single Alembic head before upgrade or rollback work.
+
+## Credential incident
+
+If any provider credential is reported in chat, an archive, a log, or another uncontrolled
+location, stop using it. Revoke and rotate it in the provider's trusted control plane, out of band.
+Do not retrieve, copy, transfer, or reuse an old `.env` to restore service. Review provider usage,
+then provision a fresh least-privilege value through the hidden local configuration flow.
+
+## Runtime recovery
+
+- Use `bash RUN_NUR.sh status` and `bash RUN_NUR.sh logs` before restarting services.
+- Keep owner data and the dispatch/event ledgers intact while diagnosing Agency or worker faults.
+- Do not mark approvals complete, rewrite workflow state, or delete outbox rows by hand.
+- Provider-disabled mode is an honest degraded mode; it must not fabricate AI or external actions.
+- Backup, restore, and drill helpers live in `infra/scripts/dr-*.sh`. Their existence is not proof
+  of an achieved RPO/RTO; retain the timed drill evidence for the exact candidate.
+
 ## Package
 
 ```bash
@@ -55,3 +90,6 @@ bash RUN_NUR.sh package
 The packager excludes `.env`, `.env.local`, node modules, build outputs,
 runtime logs, DB files, proof artifacts, and `.git`; then it runs the secret
 scan and writes a SHA-256 sidecar.
+
+Inspect and independently verify the produced package before distribution. Packaging does not
+rotate a credential that was exposed elsewhere.

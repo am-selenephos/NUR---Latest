@@ -1,14 +1,35 @@
-# Current capability gap map — V6
+# Historical capability gap map - V6 (superseded snapshot)
 
-Candidate `6d7eeefe6e3923015de879719e1a09056f30a6ce` · 2026-07-25 · 229 requirements.
+Historical candidate `6d7eeefe6e3923015de879719e1a09056f30a6ce` | 2026-07-25 | 229 requirements.
 
-Source of truth: `/home/nur/NUR-V5-100-COMPLETION/REQUIREMENT_MATRIX.csv`.
+Historical source: `/home/nur/NUR-V5-100-COMPLETION/REQUIREMENT_MATRIX.csv`.
+
+This document is retained for provenance. Its percentages, counts, file-presence claims, and gate
+states are not current completion truth and must not be quoted as such.
+
+## Reconciliation overlay at `7df3ade`
+
+- PR #19 readiness is green on this exact baseline, but it is a bounded readiness lane rather than
+  full release proof.
+- The current founder-locked Systems are six: Ambition, Rebuild, Creation, Growth,
+  Introspection, and Connection. The former seven-System rows below are superseded.
+- Talk now enters the Mind cognitive loop: scope resolves before retrieval, capability routing and
+  bounded hydration run before Brain/provider invocation, and workflow proposals pass to Agency.
+- The sealed capability registry currently contains two capabilities. This is integrated partial
+  coverage, not the complete Cognitive OS catalog.
+- Agency now has typed tools, policy/compiler/runtime, exact-call approvals, outbox/worker
+  foundations, and owner-scoped read/approval routes. Direct owner create/start/cancel/retry routes
+  and the complete V197 owner Agent surface remain open.
+- WhyChanged and the owner-scoped Hardness schema are present. Hardness training is constrained to
+  `DRY_RUN`; there is no complete public Hardness product surface or autonomous promotion path.
+- Documentation and evidence still require an exact-head completion ledger, current route/control
+  matrices, broader browser/provider proof, release packaging, and external-provider acceptance.
 
 `BACKEND_ONLY` and `UI_ONLY` are failing statuses: the orchestrator states neither is
 product-complete. `UNPROVEN` means the code exists but the required runtime evidence has not
 been captured on this candidate — it is never counted as green.
 
-## Summary
+## Historical summary (do not use as a current percentage)
 
 | Gate | Reqs | PASS | PARTIAL | UNPROVEN | BACKEND_ONLY | MISSING | BLOCKED_EXT | FOUNDER |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -31,7 +52,7 @@ been captured on this candidate — it is never counted as green.
 | `G16_FULL_RELEASE` | 14 | 0 | 3 | 2 | 0 | 8 | 0 | 1 |
 | **total** | **229** | **31** | **99** | **35** | **6** | **47** | **7** | **4** |
 
-## Everything not yet passing, by gate
+## Historical detail by gate
 
 ### G00_EVIDENCE
 
@@ -202,8 +223,9 @@ been captured on this candidate — it is never counted as green.
   gap: Migration 0024 + test_teach_nur.py exist; no V197 control (see G03-009)
 - **G07-011 Research/Web gateway with citations** — `BLOCKED_EXTERNAL`  
   gap: research.live-fetch is BLOCKED_BY_EXTERNAL_PROVIDER in the control matrix
-- **G07-012 Bounded tools with confirmation** — `MISSING`  
-  gap: No tool registry with risk classes and confirmation rules found
+- **G07-012 Bounded tools with confirmation** — `SUPERSEDED`
+  current overlay: Agency now has a typed registry, risk policy, and exact-call approvals; broader
+  capability coverage and complete owner lifecycle proof remain open
 - **G07-013 Multilingual/adversarial evaluation** — `MISSING`  
   gap: No packages/evals; no regression eval harness
 - **G07-015 No false sentience claims** — `PARTIAL`  
@@ -273,20 +295,17 @@ been captured on this candidate — it is never counted as green.
 
 ### G10_SYSTEMS
 
-- **G10-sys1 Star System: Quiet Ambition** — `PARTIAL`  
-  gap: Living-system backend and lenses exist and pass unit tests; no per-System proof of the full diagnostic->action->Return->projection slice, and browser suites were not run on this candidate
-- **G10-sys2 Star System: Rebuild** — `PARTIAL`  
-  gap: Living-system backend and lenses exist and pass unit tests; no per-System proof of the full diagnostic->action->Return->projection slice, and browser suites were not run on this candidate
-- **G10-sys3 Star System: Study** — `PARTIAL`  
-  gap: Living-system backend and lenses exist and pass unit tests; no per-System proof of the full diagnostic->action->Return->projection slice, and browser suites were not run on this candidate
-- **G10-sys4 Star System: Money** — `PARTIAL`  
-  gap: Living-system backend and lenses exist and pass unit tests; no per-System proof of the full diagnostic->action->Return->projection slice, and browser suites were not run on this candidate
-- **G10-sys5 Star System: Body** — `PARTIAL`  
-  gap: Living-system backend and lenses exist and pass unit tests; no per-System proof of the full diagnostic->action->Return->projection slice, and browser suites were not run on this candidate
-- **G10-sys6 Star System: Connection** — `PARTIAL`  
-  gap: Living-system backend and lenses exist and pass unit tests; no per-System proof of the full diagnostic->action->Return->projection slice, and browser suites were not run on this candidate
-- **G10-sys7 Star System: Creation** — `PARTIAL`  
-  gap: Living-system backend and lenses exist and pass unit tests; no per-System proof of the full diagnostic->action->Return->projection slice, and browser suites were not run on this candidate
+The old seven-System structure is superseded. Structural truth at `7df3ade` is:
+
+- **G10-sys1 Star System: Ambition** — `PARTIAL`
+- **G10-sys2 Star System: Rebuild** — `PARTIAL`
+- **G10-sys3 Star System: Creation** — `PARTIAL`
+- **G10-sys4 Star System: Growth** — `PARTIAL`
+- **G10-sys5 Star System: Introspection** — `PARTIAL`
+- **G10-sys6 Star System: Connection** — `PARTIAL`
+
+For each System, backend/lens foundations exist; this overlay does not claim the complete
+diagnostic -> action -> Return -> projection browser slice on the current docs commit.
 - **G10-008 System progress + Body/Mind/Life composition** — `PARTIAL`  
   gap: Progress calculation exists; explainability surface and versioned weights unproven
 - **G10-009 Today computed from real state** — `PARTIAL`  
@@ -389,12 +408,13 @@ been captured on this candidate — it is never counted as green.
   gap: Implemented; expiry/race test unproven
 - **G14-007 Deletion/export lifecycle** — `PARTIAL`  
   gap: storage_hygiene.py + test_storage_hygiene.py exist
-- **G14-008 Bounded agent tasks/runs/artifacts/reviews** — `MISSING`  
-  gap: No agents module; V5 PRJ-002 unmet
-- **G14-009 Capabilities, budgets, cancel, rollback** — `MISSING`  
-  gap: No agent permission model
-- **G14-010 Human approval before irreversible actions** — `MISSING`  
-  gap: No approval gate
+- **G14-008 Bounded agent tasks/runs/artifacts/reviews** — `SUPERSEDED`
+  current overlay: Agentic workflow/run foundations exist; project-owner lifecycle/UI proof remains open
+- **G14-009 Capabilities, budgets, cancel, rollback** — `SUPERSEDED`
+  current overlay: tool capabilities, policy, budgets, recovery primitives, and runtime exist;
+  complete direct owner cancel/retry lifecycle remains open
+- **G14-010 Human approval before irreversible actions** — `SUPERSEDED`
+  current overlay: exact-call approval infrastructure exists; complete headed owner proof remains open
 - **G14-011 Timeline/Insights/Glow/Capsule projection** — `PARTIAL`  
   gap: Projection routes exist; parity unproven
 - **G14-012 Capsule creation from canonical V197** — `PARTIAL`  
@@ -414,8 +434,8 @@ been captured on this candidate — it is never counted as green.
   gap: see required_behavior
 - **G15-004 Push permission UX** — `MISSING`  
   gap: see required_behavior
-- **G15-005 Complete CI required gates** — `UNPROVEN`  
-  gap: No CI run observed on 6d7eeef; work never pushed
+- **G15-005 Complete CI required gates** — `SUPERSEDED`
+  current overlay: PR #19 readiness passed on `7df3ade`; full release gates remain incomplete
 - **G15-006 Browser matrix in CI** — `UNPROVEN`  
   gap: see required_behavior
 - **G15-007 Secret/dependency/SBOM scans** — `PARTIAL`  
@@ -480,10 +500,10 @@ been captured on this candidate — it is never counted as green.
 - **G16-014 Founder release approval** — `FOUNDER_ACTION_REQUIRED`  
   gap: Release approval is founder-controlled
 
-## The six BACKEND_ONLY domains
+## Historical backend-only examples
 
-These have real servers, real migrations and passing tests, and **no reachable control in the
-canonical V197 shell**. Each is counted as failing:
+This incomplete table records the older candidate and must be re-audited against current V197
+controls before assigning a present-day status:
 
 | Requirement | Domain | Server side | Missing |
 | --- | --- | --- | --- |
@@ -492,13 +512,13 @@ canonical V197 shell**. Each is counted as failing:
 | G03-010 | Billing | `app/billing/`, migration 0025 | plan/checkout/portal/cancel control |
 | G02-014 | Account export | Omega export foundation | `settings.export` is NOT_IMPLEMENTED_VISIBLE |
 
-## The seven NOT_IMPLEMENTED_VISIBLE controls
+## Historical NOT_IMPLEMENTED_VISIBLE controls
 
 From `docs/release/v197-control-matrix.json` (stale — regenerate on this candidate):
 `plan.direction`, `community.legacy-tabs`, `ritual.control`, `voice.composer`,
 `settings.export`, `settings.delete`, `community.future-tabs`.
 
-## Required repository documents
+## Historical required-document inventory
 
 24 of the 35 documents named in Masterplan §30 exist. Missing: 
 `docs/current-capability-gap-map.md`, `docs/memory-learning-consent.md`, `docs/adaptive-interface-spec.md`, `docs/internet-verification-threat-model.md`, `docs/engagement-policy.md`, `docs/signal-feed-ranking.md`, `docs/privacy-data-retention.md`, `docs/moderation-safety-plan.md`, `docs/deployment-sre-runbook.md`, `docs/test-evaluation-plan.md`, `docs/release-evidence.md`.

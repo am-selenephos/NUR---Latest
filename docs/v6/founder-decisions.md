@@ -1,8 +1,8 @@
 # Founder decisions — V6
 
-Binding record of explicit founder decisions taken during the V5 100% completion mission.
-Each entry supersedes any earlier plan text it contradicts, per the Masterplan §0 conflict rule
-(`newer explicit founder decision > older founder decision`).
+Historical record of explicit founder decisions taken during the V5 completion mission.
+Later security amendments in this file supersede earlier operational instructions. No founder
+decision can waive credential-revocation, least-privilege, or non-disclosure requirements.
 
 ---
 
@@ -34,7 +34,7 @@ The historical source `252eee806ece31ef829a2dc5cd45aa8d8f8e855db1bde98b6f87193d7
 The superseded value was verified, not assumed: `git cat-file blob 03c9de12 | sha256sum`
 returns exactly `252eee80…`. The July 13 plan was accurate when it was written.
 
-### Commit lineage
+### Commit lineage at the time of ratification
 
 ```
 6ce2c46  Publish NUR V197 cousin-ready demo
@@ -49,10 +49,12 @@ f8ddd7a  Consolidate exact V197 star brain interface
 6d7eeef  fix(ai): restore compatible live Talk payload and proof gate   (release/nur-p0-candidate)
    │
    ▼
-HEAD     completion/nur-v5-full-pass
+HEAD     completion/nur-v5-full-pass (historical decision-time branch)
 ```
 
-`f8ddd7a` is an ancestor of HEAD. The canonical bytes have not changed since.
+At repository baseline `7df3ade9a9dea495b84d25cc7660350941c1e1f8`, the executable
+`scripts/check-v197-integrity.ts` still pins the ratified hashes above. This statement verifies
+source identity only; it is not a visual, runtime, or release-completion claim.
 
 ### The transformation
 
@@ -108,7 +110,7 @@ Supporting reasons:
 | `docs/release/v197-control-matrix.json` | Must be regenerated against the ratified source on this candidate — it currently carries `generated_from_sha: 33a5dab`. |
 | Masterplan V5 §9.1, Status ledger V5 `SRC-002`/`UI-001`, Masterpack manifest | **Superseded on the hash value only.** Files preserved unmodified as historical evidence. |
 
-### Conditions attached to the ratification
+### Conditions attached to the ratification (historical gate snapshot)
 
 The founder ratified the **source identity**. Runtime and visual proof is **not** waived.
 `G03_V197` cannot pass until all six conditions are proven on this candidate:
@@ -122,71 +124,40 @@ The founder ratified the **source identity**. Runtime and visual proof is **not*
 | C5 | no regression in source-native controls | OPEN |
 | C6 | current browser E2E | OPEN |
 
-Until C2–C6 are met, `G03_V197` stays `FAIL`, and `CONFLICT-001` is recorded as
-**RESOLVED (identity) / CONDITIONS PENDING (proof)**.
+The table records gate state when this decision was written. It must not be used as current CI or
+release evidence. The source-identity conflict is resolved; runtime proof remains commit-specific.
 
 ---
 
-## FD-002 — The existing OpenAI key is locked; no rotation
+## FD-002 - Retired no-rotation decision
 
-**Decided:** 2026-07-25 · **Founder:** Mahnoor · **Status:** IN FORCE
-**Supersedes:** every earlier rotation instruction, including blocker B2 as originally written.
+**Decided:** 2026-07-25 | **Status:** RETIRED FOR SECURITY
 
-### Decision
+The former instruction to preserve and reuse a reportedly exposed OpenAI credential is unsafe and
+must not be followed. File permissions, Git ignore rules, quarantine, and secret scanning reduce
+additional disclosure; none invalidates copies that may already exist.
 
-The OpenAI API key that produced the verified `LIVE_TALK_PASS` is **reused unchanged**. It must
-not be rotated, revoked, replaced, regenerated, or disabled. `FOUNDER_ACTION_REQUIRED_ROTATE_OPENAI_KEYS`
-is withdrawn.
+## FD-003 - Exposed credentials require out-of-band revocation and rotation
 
-### Retrieval
+**Amended:** 2026-08-09 | **Status:** IN FORCE
+**Supersedes:** FD-002 and every instruction to retain, copy, transfer, select, provision, or reuse
+a reportedly exposed credential.
 
-Retrieved only from live local configuration, in the founder's stated priority order. Source:
-`/home/nur/NUR-LIVE-TALK-PROOF-20260723/.env.local` (mode 600). Never recovered from chat
-transcripts, audit reports, Git history, screenshots, public files, or archived plaintext.
+### Required response
 
-Provenance was confirmed rather than assumed: the live key line fingerprints to the same value
-the forensic audit recorded for archive snapshot 06 (`NUR-LIVE-TALK-PROOF`), which is the
-configuration that produced `LIVE_TALK_PASS` at commit `33a5dab`.
+1. Revoke every reportedly exposed provider credential through the provider's trusted control
+   plane, outside Git, chat, logs, screenshots, patches, and release artifacts.
+2. Review provider usage and billing for abuse before provisioning a replacement.
+3. Create a fresh least-privilege credential out of band. Enter it only through the local hidden
+   configuration flow; never copy an existing `.env` or `.env.local` between worktrees.
+4. Keep exposed material quarantined until sanitized replacements are created, then remove or
+   securely destroy plaintext copies according to the approved retention process.
+5. Record only non-secret rotation evidence: provider, affected environment, revocation time,
+   responsible owner, and verification state. Never record the credential or a transferable value.
 
-### Competing configurations
+### Release boundary
 
-Two distinct active key values exist in live local worktree configuration:
-
-| Group | Paths |
-| --- | --- |
-| 1 — **selected** | `/home/nur/NUR-LIVE-TALK-PROOF-20260723/.env.local`, `/home/nur/NUR-FABLE-20260720-155600/.env.local` |
-| 2 — not selected | `/home/nur/NUR-DEMO-COUSIN-20260722/.env.local`, `/home/nur/NUR-DEMO-TALK-FIXED/.env.local` |
-
-`FOUNDER_ACTION_REQUIRED_IDENTIFY_EXISTING_OPENAI_KEY` was **not** raised. The founder's own
-priority list names source #1 explicitly, and that source resolves to exactly one value, so the
-choice is determinate rather than a guess. Group 2 belongs to demo worktrees that did not
-produce `LIVE_TALK_PASS`. Values were never displayed. **If the founder intends group 2 to be
-the locked key instead, say so and it will be re-provisioned.**
-
-### Provisioning
-
-The whole `.env.local` was copied to `/home/nur/NUR-INTEGRATION-20260722/.env.local` — it also
-carries the provider, model (`gpt-4.1`) and reasoning-effort settings the proven run used.
-
-| Control | State |
-| --- | --- |
-| value preserved exactly | `SAME_OPENAI_KEY=true` |
-| file mode | `600` |
-| ignored by Git | yes — `.gitignore:3` (`.env.*`) |
-| appears in `git status` | no |
-| `npm run secret-scan` | passes |
-| displayed, echoed, or logged | never |
-| in commits, patches, reports, evidence, ZIPs | never |
-| fingerprints | only in `/home/nur/NUR-V5-100-COMPLETION/.secret-evidence/` (dir 700, file 600) |
-
-### Exposure handling under this decision
-
-The key stays active and valid. Historical archives containing duplicate plaintext copies remain
-quarantined at `/home/nur/NUR-QUARANTINE-SECRETS/` (700/600) and are excluded from every release
-path. `docs/v6/credential-exposure-inventory.csv` rotation state changes from `UNROTATED_P0` to
-`FOUNDER_LOCKED_NO_ROTATION`.
-
-**The residual risk is unchanged and is now accepted by decision, not by oversight:** the archive
-copies were readable at `~/Downloads` before quarantine, so anyone who obtained them holds a
-working credential. Quarantine limits further spread; it does not revoke access already taken.
-Reviewing provider usage for unexpected spend remains worthwhile.
+Until provider-side revocation and replacement are verified, live-provider release proof is
+`EXTERNAL_BLOCKED`. Disabled-provider tests may continue, but an exposed credential must never be
+used to obtain a PASS. Repository automation may detect or exclude secrets; it must not retrieve,
+move, rotate, or display them.
