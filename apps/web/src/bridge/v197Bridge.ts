@@ -214,16 +214,25 @@ export class V197Bridge {
       // Orbit is a bridge-native surface like the other adjuncts: plain DOM and
       // SVG in the canonical document, never a React tree owning a product page.
       const orbitRendered = await renderV197Orbit(this.universeDocument, route, this.api);
-      if (orbitRendered) return;
+      if (orbitRendered) {
+        this.markWorldFocus("orbits");
+        return;
+      }
       // Map, likewise: it composes canonical Systems, goals, plans, decisions and
       // outcomes into a causal surface, and owns no life entity of its own.
       const mapRendered = await renderV197Map(this.universeDocument, route, this.api);
-      if (mapRendered) return;
+      if (mapRendered) {
+        this.markWorldFocus("map");
+        return;
+      }
       // Timeline, likewise: it composes canonical timeline_events and
       // scheduled_actions into a temporal surface and owns no life entity of
       // its own.
       const timelineRendered = await renderV197Timeline(this.universeDocument, route, this.api);
-      if (timelineRendered) return;
+      if (timelineRendered) {
+        this.markWorldFocus("timeline");
+        return;
+      }
       const page = pageByRoute[canonicalRoute];
       if (page) this.click(V197_SELECTORS.pageNav(page));
       const world = worldByRoute[canonicalRoute];
@@ -445,6 +454,20 @@ export class V197Bridge {
   private click(selector: string): void {
     const button = this.universeDocument?.querySelector<HTMLElement>(selector);
     button?.click();
+  }
+
+  private markWorldFocus(focus: string): void {
+    if (!this.universeDocument || !this.snapshot) return;
+    this.universeDocument.body.dataset.nurWorldFocus = focus;
+    this.universeDocument.querySelectorAll<HTMLElement>("[data-world-focus], [data-world-tab]").forEach(control => {
+      const active = (control.dataset.worldFocus ?? control.dataset.worldTab) === focus;
+      control.classList.toggle("active", active);
+      if (control.matches(".universe-nav-tabs button, [role='tab']")) {
+        control.setAttribute("aria-selected", String(active));
+      }
+    });
+    renderWorldLens(this.universeDocument, this.snapshot, focus);
+    this.compactRenderedMiniStars(this.universeDocument);
   }
 
   private async refreshSnapshot(): Promise<V197BridgeSnapshot> {
