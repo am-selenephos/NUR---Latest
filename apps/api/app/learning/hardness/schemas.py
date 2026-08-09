@@ -314,8 +314,8 @@ class CandidateArtifact(BaseModel):
 
 class CriticalGateResult(BaseModel):
     gate_name: str
-    status: GateStatus = GateStatus.PASS
-    passed: bool = True
+    status: GateStatus = GateStatus.NOT_RUN
+    passed: bool = False
     details: str
 
 
@@ -324,21 +324,21 @@ class TournamentEvaluationResult(BaseModel):
     candidate_checkpoint_id: str
     base_checkpoint_id: str
     experiment_id: uuid.UUID
-    target_metric_base: float
-    target_metric_candidate: float
-    target_metric_delta: float
-    general_regression_delta: float
-    privacy_passed: bool
-    scope_isolation_passed: bool
-    agency_approval_passed: bool
-    calibration_passed: bool
-    critical_gates: list[CriticalGateResult]
-    all_structural_gates_passed: bool = True
+    target_metric_base: float = 0.0
+    target_metric_candidate: float = 0.0
+    target_metric_delta: float = 0.0
+    general_regression_delta: float = 0.0
+    privacy_passed: bool = False
+    scope_isolation_passed: bool = False
+    agency_approval_passed: bool = False
+    calibration_passed: bool = False
+    critical_gates: list[CriticalGateResult] = Field(default_factory=list)
+    all_structural_gates_passed: bool = False
     all_critical_gates_passed: bool = False
     evaluation_mode: str = "DRY_RUN_SYNTHETIC"
     real_model_evaluated: bool = False
     verdict: str  # PASS / FAIL / STRUCTURAL_ONLY
-    reason_codes: list[str]
+    reason_codes: list[str] = Field(default_factory=list)
     evaluated_at: dt.datetime = Field(default_factory=lambda: dt.datetime.now(dt.UTC))
 
 
@@ -347,12 +347,12 @@ class PromotionProposalCreate(BaseModel):
     experiment_id: uuid.UUID
     candidate_checkpoint_id: str
     base_checkpoint_id: str
-    target_metric_delta: float
-    general_regression_delta: float
-    critical_gates_passed: bool
-    evaluation_summary: dict[str, Any]
-    recommendation: PromotionRecommendation
-    uncertainty_score: int = Field(default=0, ge=0, le=10000)
+    target_metric_delta: float = 0.0
+    general_regression_delta: float = 0.0
+    critical_gates_passed: bool = False
+    evaluation_summary: dict[str, Any] = Field(default_factory=dict)
+    recommendation: PromotionRecommendation = PromotionRecommendation.REJECTED
+    uncertainty_score: int = Field(default=10000, ge=0, le=10000)
     rationale: str
     why_changed_ref: str | None = None
 
