@@ -100,6 +100,7 @@ export class V197Bridge {
   private miniStarCompactionFrame: number | null = null;
   private authenticatedSessionActive = false;
   private stageGuard: MutationObserver | null = null;
+  private entryPresentationTransition: Promise<void> | null = null;
 
   constructor(
     private readonly hostWindow: V197HostWindow,
@@ -147,6 +148,10 @@ export class V197Bridge {
     if (session) {
       await this.activateSession(hostApi, session);
       return;
+    }
+
+    if (!["/", "/auth", "/onboarding"].includes(window.location.pathname)) {
+      (entryDocument.defaultView as V197EntryWindow | null)?.nurShowFront?.();
     }
 
   }
@@ -267,7 +272,7 @@ export class V197Bridge {
       universeDocument = await this.enterAuthenticatedUniverse(hostApi, this.hostDocument, session);
     } catch (error) {
       this.authenticatedSessionActive = false;
-      hostApi.showEntry();
+      await this.showEntry(hostApi);
       throw error;
     }
     this.universeDocument = universeDocument;
@@ -303,10 +308,8 @@ export class V197Bridge {
         this.universeDocument = null;
         this.authenticatedSessionActive = false;
         window.history.replaceState({}, "", "/");
-        hostApi.showEntry();
+        await this.showEntry(hostApi);
         const entryFrame = selectRequired<HTMLIFrameElement>(this.hostDocument, V197_SELECTORS.entryStage);
-        const universeFrame = selectRequired<HTMLIFrameElement>(this.hostDocument, V197_SELECTORS.universeStage);
-        await waitForEntryPresentation(hostApi, entryFrame, universeFrame);
         const entryDocument = await waitForFrameDocument(entryFrame, "#nur-front-v61", "Canonical V197 entry");
         // A refreshed authenticated page enters the Universe before the native
         // Entry intro has ever revealed its front surface. Restore that exact
@@ -374,7 +377,9 @@ export class V197Bridge {
     this.stageGuard?.disconnect();
     const enforce = () => {
       if (this.authenticatedSessionActive || hostApi.getStage() !== "universe") return;
-      hostApi.showEntry();
+      void this.showEntry(hostApi).catch(error => {
+        console.error("NUR could not restore the canonical Entry presentation.", error);
+      });
     };
     this.stageGuard = new MutationObserver(enforce);
     this.stageGuard.observe(this.hostDocument.documentElement, {
@@ -384,6 +389,22 @@ export class V197Bridge {
       subtree: true,
     });
     enforce();
+  }
+
+  private async showEntry(hostApi: V197HostApi): Promise<void> {
+    if (this.entryPresentationTransition) return this.entryPresentationTransition;
+    const entryFrame = selectRequired<HTMLIFrameElement>(this.hostDocument, V197_SELECTORS.entryStage);
+    const universeFrame = selectRequired<HTMLIFrameElement>(this.hostDocument, V197_SELECTORS.universeStage);
+    const transition = (async () => {
+      hostApi.showEntry();
+      await waitForEntryPresentation(hostApi, entryFrame, universeFrame);
+    })();
+    this.entryPresentationTransition = transition;
+    try {
+      await transition;
+    } finally {
+      if (this.entryPresentationTransition === transition) this.entryPresentationTransition = null;
+    }
   }
 
   private async renderInsightRoute(requestedInsightId: string | null): Promise<void> {
