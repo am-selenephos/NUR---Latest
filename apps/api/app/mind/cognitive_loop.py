@@ -312,6 +312,11 @@ async def run_mind_cognitive_loop(
             is_deterministic_worker = False
             provider_invoked = True
             cognitive_result, brain_trace = await run_brain_step(packet, event_sink=event_sink)
+            brain_trace.model_run_id = model_run.id
+            brain_trace.request_id = request_id
+            brain_trace.scope_envelope_id = scope_envelope.scope_id
+            brain_trace.turn_event_id = turn.id
+            brain_trace.cognitive_task_id = packet.task_id
 
         # If the CognitiveResult contains a workflow proposal, submit to Agency
         agency_refusal_reasons: list[str] | None = None
@@ -477,10 +482,12 @@ async def run_mind_cognitive_loop(
         "summary": metacog_review.decision_summary,
     }
     model_run.run_metadata = updated_run_meta
+    model_run.usage = dict(brain_trace.provider_usage)
     model_run.response_metadata = {
         "available": provider_available,
         "reason": None if not is_deterministic_worker else "Executed via deterministic Mind capability worker.",
         "brain_profile": brain_trace.profile_key,
+        "raw_response_id": brain_trace.provider_response_id,
     }
 
     omega = await talk_summary(db, owner_user_id=owner_user_id, workspace_frame_id=frame.id)

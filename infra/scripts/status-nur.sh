@@ -43,9 +43,21 @@ for name in api worker beat web; do
 done
 
 printf '\nHealth:\n'
-curl -fsS http://localhost:8000/healthz && printf '\n' || printf 'api healthz unavailable\n'
+health_json="$(curl -fsS http://localhost:8000/healthz 2>/dev/null || true)"
+ai_provider_mode="${NUR_AI_PROVIDER:-disabled}"
+if [[ -n "$health_json" ]]; then
+  printf '%s\n' "$health_json"
+  ai_provider_mode="$(
+    printf '%s' "$health_json" \
+      | python3 -c 'import json, sys; print(json.load(sys.stdin).get("ai_provider", "unknown"))' \
+      2>/dev/null \
+      || printf '%s' "$ai_provider_mode"
+  )"
+else
+  printf 'api healthz unavailable\n'
+fi
 curl -fsS http://localhost:8000/readyz && printf '\n' || printf 'api readyz unavailable\n'
 curl -fsS http://localhost:5173 >/dev/null && printf 'web reachable http://localhost:5173\n' || printf 'web unavailable\n'
-printf 'ai provider mode: %s\n' "${NUR_AI_PROVIDER:-disabled}"
+printf 'ai provider mode: %s\n' "$ai_provider_mode"
 printf 'omega enabled: %s\n' "${NUR_OMEGA_ENABLED:-true}"
 printf 'omega scheduler: %s\n' "${NUR_OMEGA_SCHEDULED_CONSOLIDATION:-true}"

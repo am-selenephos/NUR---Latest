@@ -38,6 +38,8 @@ class BrainTrace:
     total_output_tokens: int = 0
     total_cost_cents: float = 0.0
     wall_time_ms: int = 0
+    provider_response_id: str | None = None
+    provider_usage: dict[str, Any] = field(default_factory=dict)
 
     def record_step(self, step_name: str, **kwargs: Any) -> None:
         """Append a named trace step with structured metadata."""
@@ -61,4 +63,6 @@ class BrainTrace:
             "total_output_tokens": self.total_output_tokens,
             "total_cost_cents": self.total_cost_cents,
             "wall_time_ms": self.wall_time_ms,
+            "provider_response_id": self.provider_response_id,
+            "provider_usage": self.provider_usage,
         }

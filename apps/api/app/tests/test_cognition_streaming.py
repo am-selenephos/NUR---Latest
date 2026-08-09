@@ -121,6 +121,8 @@ async def test_semantic_sse_persists_and_replays_idempotently(client, monkeypatc
     assert status["response_event_id"] == completed["result"]["response_event_id"]
     assert status["schema_valid"] is True
     assert status["verification_verdict"] in {"PASS", "WARN"}
+    assert status["provider_response_id_present"] is True
+    assert status["usage_recorded"] is True
     assert len(status["evidence_digest"]) == 64
     assert status["evidence_source_count"] == len(completed["result"]["evidence"]["retrieval"])
     thread = (await client.get(f"/api/v1/cognition/talk-thread?orbit_id={orbit_id}")).json()

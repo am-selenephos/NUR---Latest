@@ -73,7 +73,10 @@ class OpenAITalkProvider:
         evidence = [r.model_dump() for r in request.retrieval]
         chosen_model = request.model or self._settings.openai_model
         system_content = request.system_prompt if request.system_prompt is not None else TALK_SYSTEM_PROMPT
-        format_spec = request.output_schema if request.output_schema is not None else talk_json_schema()
+        # Brain callers use an empty mapping to mean "use the canonical Talk
+        # schema". Never forward that sentinel to Responses API as an empty
+        # text.format object; the provider correctly rejects it as malformed.
+        format_spec = request.output_schema or talk_json_schema()
 
         payload: dict[str, Any] = {
             "model": chosen_model,

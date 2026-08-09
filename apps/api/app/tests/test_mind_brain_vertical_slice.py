@@ -366,6 +366,29 @@ async def test_openai_talk_provider_privileged_system_prompt_and_profile_params(
 
 
 @pytest.mark.asyncio
+async def test_openai_talk_provider_empty_schema_uses_canonical_talk_schema():
+    from pydantic import SecretStr
+    from app.ai.openai_provider import OpenAITalkProvider
+    from app.ai.schemas import TalkProviderRequest
+    from app.core.config import Settings
+
+    provider = OpenAITalkProvider(
+        settings=Settings(
+            openai_api_key=SecretStr("sk-test-key-12345"),
+            openai_model="gpt-4.1",
+        )
+    )
+
+    payload = provider._payload(
+        TalkProviderRequest(user_line="Hello", output_schema={})
+    )
+
+    assert payload["text"]["format"]["type"] == "json_schema"
+    assert payload["text"]["format"]["name"] == "nur_talk_output"
+    assert payload["text"]["format"]["strict"] is True
+
+
+@pytest.mark.asyncio
 async def test_mind_loop_ordinary_talk_vs_durable_action(client, super_engine, monkeypatch):
     import uuid
     from sqlalchemy.ext.asyncio import AsyncSession

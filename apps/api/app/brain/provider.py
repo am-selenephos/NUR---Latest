@@ -111,6 +111,8 @@ class BrainProviderAdapter:
         usage = result.usage or {}
         trace.total_input_tokens = usage.get("input_tokens", 0)
         trace.total_output_tokens = usage.get("output_tokens", 0)
+        trace.provider_response_id = result.raw_response_id
+        trace.provider_usage = dict(usage)
         trace.record_step("provider_completed", elapsed_ms=elapsed_ms, usage=usage)
 
         # Convert AIProviderResult.output (NURTalkOutput) → CognitiveResult
