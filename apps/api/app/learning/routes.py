@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
 from app.api.deps import Identity, Scoped, require_csrf
 from app.learning import service
@@ -84,6 +84,26 @@ async def create_teach_nur_contribution(
     )
     await db.commit()
     return output
+
+
+@router.get(
+    "/contributions",
+    response_model=list[TeachNURContributionDetail],
+)
+async def list_teach_nur_contributions(
+    db: Scoped,
+    identity: Identity,
+    status: str | None = Query(default=None, min_length=1, max_length=24),
+    limit: int = Query(default=100, ge=1, le=100),
+) -> list[TeachNURContributionDetail]:
+    owner_user_id, _ = identity
+    bundles = await service.list_contribution_bundles(
+        db,
+        owner_user_id=owner_user_id,
+        status=status,
+        limit=limit,
+    )
+    return [_detail(bundle) for bundle in bundles]
 
 
 @router.get(

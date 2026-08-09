@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
+from collections import defaultdict
 from dataclasses import dataclass
 
 from sqlalchemy import func, select
@@ -286,6 +287,103 @@ async def get_contribution_bundle(
         knowledge_versions=versions,
         evaluations=evaluations,
     )
+
+
+async def list_contribution_bundles(
+    db: AsyncSession,
+    *,
+    owner_user_id: uuid.UUID,
+    status: str | None = None,
+    limit: int = 100,
+) -> list[ContributionBundle]:
+    query = select(TeachNURContribution).where(
+        TeachNURContribution.owner_user_id == owner_user_id,
+    )
+    if status:
+        query = query.where(TeachNURContribution.status == status.upper())
+    contributions = list(
+        (
+            await db.execute(
+                query.order_by(
+                    TeachNURContribution.updated_at.desc(),
+                    TeachNURContribution.created_at.desc(),
+                    TeachNURContribution.id.desc(),
+                ).limit(limit)
+            )
+        ).scalars()
+    )
+    if not contributions:
+        return []
+
+    contribution_ids = [row.id for row in contributions]
+    candidates = list(
+        (
+            await db.execute(
+                select(TeachNURCandidate).where(
+                    TeachNURCandidate.owner_user_id == owner_user_id,
+                    TeachNURCandidate.contribution_id.in_(contribution_ids),
+                )
+            )
+        ).scalars()
+    )
+    reviews = list(
+        (
+            await db.execute(
+                select(TeachNURReview)
+                .where(
+                    TeachNURReview.owner_user_id == owner_user_id,
+                    TeachNURReview.contribution_id.in_(contribution_ids),
+                )
+                .order_by(TeachNURReview.created_at.asc())
+            )
+        ).scalars()
+    )
+    versions = list(
+        (
+            await db.execute(
+                select(TeachNURKnowledgeVersion)
+                .where(
+                    TeachNURKnowledgeVersion.owner_user_id == owner_user_id,
+                    TeachNURKnowledgeVersion.contribution_id.in_(contribution_ids),
+                )
+                .order_by(TeachNURKnowledgeVersion.version.asc())
+            )
+        ).scalars()
+    )
+    evaluations = list(
+        (
+            await db.execute(
+                select(TeachNUREvaluationRun)
+                .where(
+                    TeachNUREvaluationRun.owner_user_id == owner_user_id,
+                    TeachNUREvaluationRun.contribution_id.in_(contribution_ids),
+                )
+                .order_by(TeachNUREvaluationRun.created_at.asc())
+            )
+        ).scalars()
+    )
+
+    candidate_by_contribution = {row.contribution_id: row for row in candidates}
+    reviews_by_contribution: defaultdict[uuid.UUID, list[TeachNURReview]] = defaultdict(list)
+    versions_by_contribution: defaultdict[uuid.UUID, list[TeachNURKnowledgeVersion]] = defaultdict(list)
+    evaluations_by_contribution: defaultdict[uuid.UUID, list[TeachNUREvaluationRun]] = defaultdict(list)
+    for row in reviews:
+        reviews_by_contribution[row.contribution_id].append(row)
+    for row in versions:
+        versions_by_contribution[row.contribution_id].append(row)
+    for row in evaluations:
+        evaluations_by_contribution[row.contribution_id].append(row)
+
+    return [
+        ContributionBundle(
+            contribution=row,
+            candidate=candidate_by_contribution[row.id],
+            reviews=reviews_by_contribution[row.id],
+            knowledge_versions=versions_by_contribution[row.id],
+            evaluations=evaluations_by_contribution[row.id],
+        )
+        for row in contributions
+    ]
 
 
 async def review_contribution(

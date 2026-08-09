@@ -456,3 +456,48 @@ async def test_consent_withdrawal_purges_text_and_rls_blocks_other_owner(
         ).rowcount
     assert visible == 0
     assert changed == 0
+
+
+async def test_contribution_list_is_owner_scoped_filterable_and_bounded(client):
+    await register_user(client)
+    pending = await create_contribution(
+        client,
+        content="A private owner contribution still waiting for review.",
+    )
+    active = await create_contribution(
+        client,
+        content="A private owner contribution ready for active retrieval.",
+    )
+    approved = await review(
+        client,
+        active.json()["id"],
+        "APPROVE",
+        key="teach-list-approve-1",
+    )
+    assert pending.status_code == 201
+    assert approved.status_code == 200
+
+    all_rows = await client.get("/api/v1/teach-nur/contributions")
+    assert all_rows.status_code == 200
+    assert {row["id"] for row in all_rows.json()} == {
+        pending.json()["id"],
+        active.json()["id"],
+    }
+    assert all("candidate" in row for row in all_rows.json())
+
+    active_rows = await client.get(
+        "/api/v1/teach-nur/contributions",
+        params={"status": "active", "limit": 1},
+    )
+    assert active_rows.status_code == 200
+    assert [row["id"] for row in active_rows.json()] == [active.json()["id"]]
+    invalid_limit = await client.get(
+        "/api/v1/teach-nur/contributions",
+        params={"limit": 101},
+    )
+    assert invalid_limit.status_code == 422
+
+    await register_user(client)
+    hidden = await client.get("/api/v1/teach-nur/contributions")
+    assert hidden.status_code == 200
+    assert hidden.json() == []
