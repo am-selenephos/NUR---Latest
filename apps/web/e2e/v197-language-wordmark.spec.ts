@@ -25,6 +25,7 @@ test("V197 keeps Bodoni holographic NUR motion and dark native language controls
   test.skip(testInfo.project.name !== "chromium-desktop", "Desktop visual lock runs once.");
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
   const universe = await openSystems(page);
   await expect(page.locator("#root")).toHaveCount(0);
 
@@ -50,9 +51,9 @@ test("V197 keeps Bodoni holographic NUR motion and dark native language controls
   expect(before.animationName).toContain("univPrism");
   expect(before.visualAnimation).toContain("univPrism");
   expect(before.textFill).toMatch(/^(transparent|rgba\(0, 0, 0, 0\))$/);
-  await page.waitForTimeout(1_200);
-  const afterPosition = await wordmark.evaluate(node => getComputedStyle(node, "::after").backgroundPosition);
-  expect(afterPosition).not.toBe(before.visualPosition);
+  await expect.poll(
+    () => wordmark.evaluate(node => getComputedStyle(node, "::after").backgroundPosition),
+  ).not.toBe(before.visualPosition);
 
   await mkdir(proofRoot, { recursive: true });
   await page.screenshot({

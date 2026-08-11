@@ -2,11 +2,14 @@ import { createHash } from "node:crypto";
 
 import { expect, test } from "@playwright/test";
 
+import { buildV197PerformanceBootstrap } from "../src/bridge/v197PerformanceProfile";
 import { installNurMocks } from "./helpers/nurMocks";
 
 const CANONICAL_SHA256 = "d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6";
+const PWA_METADATA = '<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#000000">';
+const BRIDGE_LOADER = '<script type="module" src="/assets/v197-bridge.js"></script>';
 
-test("product routes serve the byte-locked V197 host with only the nonvisual bridge appended", async ({ page }) => {
+test("product routes compose the byte-locked V197 host with deterministic runtime appendages", async ({ page }) => {
   const canonicalResponse = await page.request.get("/v197/NUR_V197_CHECKBOX_TICK_RESTORED.html");
   expect(canonicalResponse.status()).toBe(200);
   const canonical = await canonicalResponse.text();
@@ -16,7 +19,9 @@ test("product routes serve the byte-locked V197 host with only the nonvisual bri
   expect(productResponse.status()).toBe(200);
   const productDocument = await productResponse.text();
   expect(productDocument).toBe(
-    canonical.replace("</body>", '<script type="module" src="/assets/v197-bridge.js"></script></body>'),
+    canonical
+      .replace("</head>", `${PWA_METADATA}${buildV197PerformanceBootstrap()}</head>`)
+      .replace("</body>", `${BRIDGE_LOADER}</body>`),
   );
 
   await page.goto("/systems", { waitUntil: "load" });
@@ -24,7 +29,7 @@ test("product routes serve the byte-locked V197 host with only the nonvisual bri
   await expect(page.locator("#nur-entry-stage")).toHaveCount(1);
   await expect(page.locator("#nur-universe-stage")).toHaveCount(1);
   await expect(page.locator("#nur-entry-stage")).toHaveAttribute("srcdoc", /.+/);
-  await expect(page.locator("#nur-universe-stage")).toHaveAttribute("srcdoc", /.+/);
+  expect(await page.locator("#nur-universe-stage").getAttribute("srcdoc")).toBeNull();
 });
 
 test("current bridge hydrates six founder Systems without replacing canonical V197 geometry", async ({ page }) => {
@@ -41,8 +46,8 @@ test("current bridge hydrates six founder Systems without replacing canonical V1
   await expect(universe.locator(".universe-system-node:visible b")).toHaveText([
     "Ambition", "Rebuild", "Creation", "Growth", "Introspection", "Connection",
   ]);
-  await expect(universe.locator(".universe-system-node:visible b"))
-    .not.toContainText(/Quiet Ambition|Study|Money|Body|Neural Upgrade/);
+  const systemLabels = await universe.locator(".universe-system-node:visible b").allTextContents();
+  expect(systemLabels.join(" ")).not.toMatch(/Quiet Ambition|Study|Money|Body|Neural Upgrade/);
   await expect(universe.locator("#front-nur-star")).toHaveCount(1);
   await expect(universe.locator("#nur-brain-canvas")).toHaveCount(1);
   await expect(universe.locator("#root")).toHaveCount(0);

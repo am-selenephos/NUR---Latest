@@ -6,9 +6,9 @@ Status: `PHASE_1_PASS` candidate only. This is not a full-product acceptance.
 
 - Canonical source: `/home/nur/Downloads/NUR_V197_CHECKBOX_TICK_RESTORED.html`
 - Served copy: `apps/web/public/v197/NUR_V197_CHECKBOX_TICK_RESTORED.html`
-- Canonical host SHA-256: `252eee806ece31ef829a2dc5cd45aa8d8f8e855db1bde98b6f87193d786633c3`
-- Decoded entry SHA-256: `49e2e72fb3adea405428789d9235dfc5ecb122f8dc1e17205d4fa05de64ecd97`
-- Decoded universe SHA-256: `b80eb5198d6fd9088e999020bd1cf85e95af9a20fd4ab172cfb7d5726dbd5a3c`
+- Canonical host SHA-256: `d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6`
+- Decoded entry SHA-256: `cdeac0c8574333c7261be2bc410357ecc5407ee0dd5b1b8089630f3914026030`
+- Decoded universe SHA-256: `3cff07b31e8360e5ce793287298d66127c4f278705dc0f8e6abdfbe7e874dc40`
 - Integrity command: `npm run v197:integrity`
 
 The canonical host and both decoded documents are byte-checked. No Phase 1 code edits the canonical V197 file.
@@ -19,7 +19,7 @@ The canonical host and both decoded documents are byte-checked. No Phase 1 code 
 |---|---|---|
 | V197 entry document | `IMPLEMENTED` | canonical nested `srcdoc` document |
 | V197 universe document | `IMPLEMENTED` | canonical nested `srcdoc` document |
-| Product route response | `IMPLEMENTED` | exact canonical host plus one nonvisual external bridge loader |
+| Product route response | `IMPLEMENTED` | exact canonical host plus deterministic PWA metadata, fail-closed pre-srcdoc performance bootstrap, and one nonvisual external bridge loader |
 | V197 `iframe` / `srcdoc` stages | `IMPLEMENTED` | canonical entry and universe stage documents remain V197-owned |
 | Visible React root | `NOT_PRESENT` | no `#root` in route host or V197 frames |
 | React geometry CSS | `NOT_LOADED` | route host does not load `global.css` |
@@ -36,7 +36,7 @@ The canonical host and both decoded documents are byte-checked. No Phase 1 code 
 | `/universe/research`, `/universe/community`, `/universe/web-signals` | canonical V197 world focus and outer URL synchronization; source-local staging is blocked | `WIRED_READ_ONLY` |
 | `/settings`, `/capsule/:id`, `/universe/omega*` | same V197 host plus bridge-owned plain semantic adjunct chamber; no React root/CSS | `WIRED` |
 
-The default Systems/Universe route deliberately does not programmatically click V197's `Universe` tab because the canonical handler invokes `scrollIntoView`. Leaving the source default intact preserves its initial mobile viewport. Product-route HTML is byte-identical to the canonical static host except for one appended nonvisual bridge-loader tag; the static `/v197/` file remains exact and hash-verified.
+The default Systems/Universe route deliberately does not programmatically click V197's `Universe` tab because the canonical handler invokes `scrollIntoView`. Leaving the source default intact preserves its initial mobile viewport. Product-route HTML is deterministically composed from the exact canonical static host with PWA metadata, the fail-closed pre-srcdoc performance bootstrap, and one appended nonvisual bridge-loader tag. The static `/v197/` file remains exact and hash-verified.
 
 ## Native control law
 
