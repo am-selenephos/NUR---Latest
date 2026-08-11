@@ -31,19 +31,6 @@ async function visibleBox(label: string, locator: Locator) {
   return box!;
 }
 
-function overlaps(
-  a: { x: number; y: number; width: number; height: number },
-  b: { x: number; y: number; width: number; height: number },
-  pad = 0,
-) {
-  return !(
-    a.x + a.width + pad <= b.x
-    || b.x + b.width + pad <= a.x
-    || a.y + a.height + pad <= b.y
-    || b.y + b.height + pad <= a.y
-  );
-}
-
 async function assertNoHorizontalOverflow(frame: FrameLocator) {
   const widths = await frame.locator("html").evaluate(element => ({
     scroll: element.scrollWidth,
@@ -58,15 +45,20 @@ test("Universe topbar routes to distinct canonical lenses and searches the owner
   await expect(frame.locator("#page-systems")).toBeVisible();
 
   for (const lens of [
-    { label: "Map", route: "/universe/map", focus: "map" },
-    { label: "Orbits", route: "/universe/orbits", focus: "orbits" },
-    { label: "Timeline", route: "/universe/timeline", focus: "timeline" },
-    { label: "Insights", route: "/universe/insights", focus: "insights" },
+    { label: "Map", route: "/universe/map", focus: "map", root: "#nur-map-root" },
+    { label: "Orbits", route: "/universe/orbits", focus: "orbits", root: "#nur-orbit-root" },
+    { label: "Timeline", route: "/universe/timeline", focus: "timeline", root: "#nur-timeline-root" },
+    { label: "Insights", route: "/universe/insights", focus: "insights", root: "#page-systems" },
   ] as const) {
     await frame.getByRole("tab", { name: lens.label, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${lens.route}$`));
     await expect(frame.locator("body")).toHaveAttribute("data-nur-world-focus", lens.focus);
-    await expect(frame.locator(".universe-insight-panel")).toHaveAttribute("data-nur-lens", lens.focus);
+    await expect(frame.locator(lens.root)).toBeVisible({ timeout: 20_000 });
+    if (lens.focus === "insights") {
+      await expect(frame.locator(".universe-insight-panel")).toHaveAttribute("data-nur-lens", lens.focus);
+    } else {
+      await expect(frame.locator(lens.root)).toHaveAttribute("data-v197-native-adjunct", "true");
+    }
   }
 
   await frame.locator("#universe-search").fill("Postgres");
@@ -75,42 +67,38 @@ test("Universe topbar routes to distinct canonical lenses and searches the owner
     .toContainText("Postgres RLS is the trust boundary.");
 });
 
-test("Systems map labels breathe at 1280 and Add System does not cover labels", async ({ page }) => {
+test("dedicated Map controls breathe at 1280 without escaping the canonical host", async ({ page }) => {
   const frame = await authenticate(page);
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto("/universe/map");
 
-  const panel = frame.locator("#page-systems .universe-map-panel");
-  await expect(panel).toBeVisible();
-  const ambition = await visibleBox("Ambition label", panel.locator('.universe-system-node[data-system="Ambition"]'));
-  const growth = await visibleBox("Growth label", panel.locator('.universe-system-node[data-system="Growth"]'));
-  const connection = await visibleBox("Connection label", panel.locator('.universe-system-node[data-system="Connection"]'));
-  const add = await visibleBox("Add System control", panel.locator(".universe-add-system"));
-  const title = await visibleBox("map title", panel.locator(".universe-map-title"));
-  await visibleBox("star brain", panel.locator(".universe-master-star"));
-
-  expect(overlaps(ambition, growth, 10), "Ambition and Growth breathe").toBe(false);
-  expect(overlaps(growth, connection, 10), "Growth and Connection breathe").toBe(false);
-  expect(overlaps(add, ambition, 10), "Add System does not cover Ambition").toBe(false);
-  expect(overlaps(add, connection, 10), "Add System does not cover Connection").toBe(false);
-  expect(overlaps(title, ambition, 6), "NUR title and Ambition do not collide").toBe(false);
-  expect(overlaps(title, growth, 6), "NUR title and Growth do not collide").toBe(false);
+  const root = frame.locator("#nur-map-root");
+  await expect(root).toBeVisible({ timeout: 20_000 });
+  await expect(root).toHaveAttribute("data-map-loaded", "true");
+  const rootBox = await visibleBox("Map root", root);
+  const title = await visibleBox("Map title", root.locator(".nur-map-title"));
+  const search = await visibleBox("Map search", root.locator(".nur-map-search"));
+  const workspace = await visibleBox("Map workspace", root.locator(".nur-map-workspace"));
+  for (const [label, box] of [["title", title], ["search", search], ["workspace", workspace]] as const) {
+    expect(box.x, `${label} left edge`).toBeGreaterThanOrEqual(rootBox.x - 1);
+    expect(box.x + box.width, `${label} right edge`).toBeLessThanOrEqual(rootBox.x + rootBox.width + 1);
+  }
+  await expect(root.getByRole("tab", { name: "Universe", exact: true })).toHaveAttribute("aria-selected", "true");
   await assertNoHorizontalOverflow(frame);
 
-  await page.screenshot({ path: proofPath("systems-map-1280-label-breathing.png"), fullPage: false });
-  await panel.locator('.universe-system-node[data-system="Growth"]').click();
-  await expect(frame.locator(".universe-insight-title h2")).toHaveText("Growth");
-  await panel.locator(".universe-add-system").click();
-  await expect(frame.locator("#universe-composer-input")).toBeFocused();
+  await page.screenshot({ path: proofPath("map-1280-control-breathing.png"), fullPage: false });
+  await root.getByRole("tab", { name: "Focus", exact: true }).click();
+  await expect(root.getByRole("tab", { name: "Focus", exact: true })).toHaveAttribute("aria-selected", "true");
 });
 
 test("timeline, research, web signals, and insights expose distinct persisted truth", async ({ page }) => {
   const frame = await authenticate(page);
 
   await page.goto("/universe/timeline");
-  await expect(frame.locator(".universe-insight-panel")).toHaveAttribute("data-nur-lens", "timeline");
-  await expect(frame.locator(".universe-system-lane")).toHaveAttribute("aria-label", "Owner timeline summary");
-  await expect(frame.locator(".universe-insight-panel")).toContainText("The owner returned a visible outcome.");
+  const timeline = frame.locator("#nur-timeline-root");
+  await expect(timeline).toBeVisible({ timeout: 20_000 });
+  await expect(timeline).toHaveAttribute("data-timeline-loaded", "true");
+  await expect(timeline).toContainText("The owner returned a visible outcome.");
 
   await page.goto("/universe/research");
   await expect(frame.locator(".universe-insight-panel")).toHaveAttribute("data-nur-lens", "research");
@@ -134,28 +122,14 @@ test("mobile map first viewport is usable, not clipped", async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await page.goto("/universe/map");
 
-  const panel = frame.locator("#page-systems .universe-map-panel");
-  await expect(panel).toBeVisible();
-  const addSystem = panel.locator(".universe-add-system");
-  const addState = await addSystem.evaluate(element => {
-    const style = getComputedStyle(element);
-    const rect = element.getBoundingClientRect();
-    return {
-      display: style.display,
-      visibility: style.visibility,
-      opacity: style.opacity,
-      width: rect.width,
-      height: rect.height,
-    };
-  });
-  expect(addState.display, JSON.stringify(addState)).not.toBe("none");
-  expect(addState.visibility, JSON.stringify(addState)).toBe("visible");
-  expect(Number(addState.opacity), JSON.stringify(addState)).toBeGreaterThan(0);
-  expect(addState.width, JSON.stringify(addState)).toBeGreaterThan(0);
-  expect(addState.height, JSON.stringify(addState)).toBeGreaterThan(0);
-  await expect(addSystem).toBeVisible();
-  await expect(panel.locator('.universe-system-node[data-system="Ambition"]')).toBeVisible();
-  await expect(panel.locator(".universe-system-node:not([hidden])")).toHaveCount(6);
+  const root = frame.locator("#nur-map-root");
+  await expect(root).toBeVisible({ timeout: 20_000 });
+  await expect(root).toHaveAttribute("data-map-loaded", "true");
+  await expect(root.locator(".nur-map-title")).toBeVisible();
+  await expect(root.locator(".nur-map-workspace")).toBeVisible();
+  await expect(root.locator(".nur-map-nav")).toBeHidden();
+  await expect(root.locator(".nur-map-detail")).toBeHidden();
+  await expect(root.getByRole("tab", { name: "Focus", exact: true })).toHaveAttribute("aria-selected", "true");
   await assertNoHorizontalOverflow(frame);
-  await page.screenshot({ path: proofPath("systems-map-mobile-393-clean.png"), fullPage: false });
+  await page.screenshot({ path: proofPath("map-mobile-393-clean.png"), fullPage: false });
 });

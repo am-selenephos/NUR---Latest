@@ -86,6 +86,60 @@ const mockSystems = systemTitles.map((title, index) => {
   };
 });
 
+const mockMapLayouts = [
+  { x: 260, y: 220 },
+  { x: 600, y: 170 },
+  { x: 940, y: 220 },
+  { x: 300, y: 520 },
+  { x: 600, y: 560 },
+  { x: 900, y: 520 },
+] as const;
+
+const mockMapGraph = {
+  nodes: [
+    { id: "nur", kind: "NUR", label: "NUR", parent_id: null, status: "ACTIVE", data: {} },
+    ...mockSystems.map(row => ({
+      id: `system:${row.slug}`,
+      kind: "SYSTEM",
+      label: row.title,
+      parent_id: "nur",
+      status: "ACTIVE",
+      data: { system_slug: row.slug },
+    })),
+  ],
+  edges: mockSystems.map(row => ({
+    id: `edge:${row.slug}`,
+    source: "nur",
+    target: `system:${row.slug}`,
+    kind: "MASTER_TO_SYSTEM",
+    semantic: false,
+    user_confirmed: true,
+  })),
+  system_regions: mockSystems.map((row, index) => ({
+    slug: row.slug,
+    title: row.title,
+    node_id: `system:${row.slug}`,
+    state: "ACTIVE",
+    state_reason: "0% progress from persisted owner evidence; no returned outcome yet.",
+    progress_percent: 0,
+    active_goal_count: 0,
+    blocker_count: 0,
+    next_move: row.next_move,
+    layout: { ...mockMapLayouts[index]!, radius: 132 },
+  })),
+  counts: { systems: mockSystems.length, nodes: mockSystems.length + 1, edges: mockSystems.length },
+  suggested_changes: { candidate_edges: [], suggestions: [] },
+  staleness: {},
+  permissions: { can_move: true, can_accept_suggestions: true },
+  future_paths: mockSystems.map(row => ({
+    system_slug: row.slug,
+    current_progress: 0,
+    if_continued: row.prediction.if_followed,
+    if_ignored: row.prediction.if_ignored,
+    basis: "Persisted owner evidence only.",
+  })),
+};
+
 const mockToday = {
   date: now.slice(0, 10),
   day_label: "Today",
@@ -337,7 +391,69 @@ export async function installNurMocks(page: Page) {
     if (path === "/api/v1/auth/me") return json(route, mockUser);
     if (path === "/api/v1/auth/logout") return json(route, undefined, 204);
     if (path === "/api/v1/universe/live") return json(route, mockLiveUniverse);
-    if (path === "/api/v1/map") return json(route, null);
+    if (path === "/api/v1/map/views") return json(route, {
+      default_view_id: "mock-map-view",
+      views: [{ id: "mock-map-view", name: "Owner Map", is_default: true }],
+    });
+    if (path === "/api/v1/map" || path === "/api/v1/map/views/mock-map-view/graph") {
+      return json(route, mockMapGraph);
+    }
+    if (path === "/api/v1/map/smart-sections") return json(route, {
+      current_focus: [],
+      needs_decision: [],
+      blocked: [],
+      momentum: [],
+      fragile_paths: [],
+      recently_changed: [],
+    });
+    if (path === "/api/v1/orbit-field") return json(route, {
+      people: [],
+      groups: [],
+      relationships: [],
+      layout: [],
+      thread_counts: {},
+    });
+    if (path === "/api/v1/orbit-threads") return json(route, []);
+    if (path === "/api/v1/timeline/flow") return json(route, {
+      now,
+      entries: [{
+        ref: "event:evt-outcome",
+        id: "evt-outcome",
+        kind: "EVENT",
+        event_type: "OUTCOME_REPORTED",
+        title: "The owner returned a visible outcome.",
+        description: "Observed from a persisted owner outcome.",
+        status: "OBSERVED",
+        time_kind: "PAST",
+        date_precision: "EXACT",
+        scheduled_for: null,
+        ends_at: null,
+        all_day: false,
+        actual_start_at: null,
+        actual_end_at: null,
+        completion_state: null,
+        occurred_at: now,
+        system_slug: "ambition",
+        goal_id: null,
+        plan_id: null,
+        orbit_id: mockOrbit.id,
+        phase_id: null,
+        visibility_scope: "PRIVATE_ORBIT",
+        energy_type: null,
+        importance: 1,
+        source_type: "OUTCOME",
+      }],
+      unscheduled: [],
+      phases: [],
+      dependencies: [],
+      counts: { total: 1, past: 1, present: 0, future: 0, unscheduled: 0 },
+    });
+    if (path === "/api/v1/timeline/smart-sections") return json(route, {
+      needs_attention: [],
+      overdue: [],
+      fragile: [],
+      recently_changed: [],
+    });
     if (path === "/api/v1/glow/scoreboard") return json(route, null);
     if (path === "/api/v1/glow/summary") return json(route, {
       balance: 0,

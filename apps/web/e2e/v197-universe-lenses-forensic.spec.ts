@@ -3,13 +3,13 @@ import { expect, test, type FrameLocator, type Page } from "@playwright/test";
 import { installNurMocks } from "./helpers/nurMocks";
 
 const lenses = [
-  { route: "/universe/map", focus: "map", laneLabel: "Owner map summary" },
-  { route: "/universe/orbits", focus: "orbits", laneLabel: "Owner Orbits summary" },
-  { route: "/universe/timeline", focus: "timeline", laneLabel: "Owner timeline summary" },
-  { route: "/universe/insights", focus: "insights", laneLabel: "Owner insight summary" },
-  { route: "/universe/research", focus: "research", laneLabel: "Owner research summary" },
-  { route: "/universe/community", focus: "community", laneLabel: "Persisted community rooms" },
-  { route: "/universe/web-signals", focus: "web", laneLabel: "Owner web-signal staging summary" },
+  { route: "/universe/map", focus: "map", root: "#nur-map-root", title: "Map", laneLabel: null },
+  { route: "/universe/orbits", focus: "orbits", root: "#nur-orbit-root", title: "Orbit", laneLabel: null },
+  { route: "/universe/timeline", focus: "timeline", root: "#nur-timeline-root", title: "Timeline", laneLabel: null },
+  { route: "/universe/insights", focus: "insights", root: "#page-systems", title: null, laneLabel: "Owner insight summary" },
+  { route: "/universe/research", focus: "research", root: "#page-systems", title: null, laneLabel: "Owner research summary" },
+  { route: "/universe/community", focus: "community", root: "#page-systems", title: null, laneLabel: "Persisted community rooms" },
+  { route: "/universe/web-signals", focus: "web", root: "#page-systems", title: null, laneLabel: "Owner web-signal staging summary" },
 ] as const;
 
 async function authenticate(page: Page): Promise<void> {
@@ -51,26 +51,34 @@ test("all seven Universe routes retain one bounded canonical V197 surface", asyn
     for (const lens of lenses) {
       await page.goto(lens.route, { waitUntil: "load" });
       const frame = page.frameLocator("#nur-universe-stage");
-      const root = frame.locator("#page-systems");
+      const root = frame.locator(lens.root);
       await expect(root).toBeVisible({ timeout: 20_000 });
       await expect.poll(() => frame.locator("body").getAttribute("data-nur-world-focus"))
         .toBe(lens.focus);
       await expect.poll(() => frame.locator(
         `[data-world-focus="${lens.focus}"].active, [data-world-tab="${lens.focus}"].active`,
       ).count()).toBeGreaterThan(0);
-      await expect(frame.locator(".universe-system-lane")).toHaveAttribute("aria-label", lens.laneLabel);
+      if (lens.laneLabel) {
+        await expect(frame.locator(".universe-system-lane")).toHaveAttribute("aria-label", lens.laneLabel);
+      } else {
+        await expect(root).toHaveAttribute("data-v197-native-adjunct", "true");
+        await expect(frame.locator("#page-systems")).toBeHidden();
+      }
 
-      const result = await root.evaluate(async element => {
+      const result = await root.evaluate(async (element, dedicatedTitle) => {
         await document.fonts.ready;
         await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
         const visible = (node: HTMLElement) => {
-          const style = getComputedStyle(node);
+          let current: HTMLElement | null = node;
+          while (current) {
+            const style = getComputedStyle(current);
+            if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) <= 0) {
+              return false;
+            }
+            current = current.parentElement;
+          }
           const rect = node.getBoundingClientRect();
-          return style.display !== "none"
-            && style.visibility !== "hidden"
-            && Number(style.opacity) > 0
-            && rect.width > 0
-            && rect.height > 0;
+          return rect.width > 0 && rect.height > 0;
         };
         const viewportControls = Array.from(
           element.querySelectorAll<HTMLElement>("button, input, textarea, select, [role='button']"),
@@ -85,54 +93,64 @@ test("all seven Universe routes retain one bounded canonical V197 surface", asyn
             ? [{ name: `${control.tagName.toLowerCase()}.${control.className}`, left: rect.left, right: rect.right }]
             : [];
         });
-        const title = element.querySelector<HTMLElement>(".universe-map-title")!;
-        const wordmark = title.querySelector<HTMLElement>(".nur-v197-stable-wordmark")!;
-        const subtitle = title.querySelector<HTMLElement>(".nur-master-subtitle")!;
+        const title = element.querySelector<HTMLElement>(".universe-map-title");
+        const wordmark = title?.querySelector<HTMLElement>(".nur-v197-stable-wordmark") ?? null;
+        const subtitle = title?.querySelector<HTMLElement>(".nur-master-subtitle") ?? null;
         const visualCenter = (node: HTMLElement) => {
           const rect = node.getBoundingClientRect();
           const style = getComputedStyle(node);
           const matrix = style.transform === "none" ? new DOMMatrix() : new DOMMatrix(style.transform);
           return rect.left + rect.width / 2 - matrix.m41;
         };
-        const wordmarkStyle = getComputedStyle(wordmark);
+        const wordmarkStyle = wordmark ? getComputedStyle(wordmark) : null;
         const bounds = element.getBoundingClientRect();
+        const surfaceHeading = dedicatedTitle
+          ? element.querySelector<HTMLElement>("h1")?.textContent?.trim() ?? null
+          : null;
         return {
           left: bounds.left,
           right: bounds.right,
           scrollWidth: document.documentElement.scrollWidth,
           viewportWidth: innerWidth,
           escapedControls,
-          lockupDelta: visualCenter(wordmark) - visualCenter(subtitle),
-          lockupAxis: title.dataset.nurLockupAxis,
-          holographic: wordmark.dataset.nurHolographicWordmark,
-          animation: wordmarkStyle.animationName,
-          backgroundClip: wordmarkStyle.backgroundClip,
-          textFill: wordmarkStyle.webkitTextFillColor,
+          nativeAdjunct: element.dataset.v197NativeAdjunct ?? null,
+          surfaceHeading,
+          lockupDelta: wordmark && subtitle ? visualCenter(wordmark) - visualCenter(subtitle) : null,
+          lockupAxis: title?.dataset.nurLockupAxis ?? null,
+          holographic: wordmark?.dataset.nurHolographicWordmark ?? null,
+          animation: wordmarkStyle?.animationName ?? null,
+          backgroundClip: wordmarkStyle?.backgroundClip ?? null,
+          textFill: wordmarkStyle?.webkitTextFillColor ?? null,
         };
-      });
+      }, lens.title);
 
       expect(result.left).toBeGreaterThanOrEqual(-1);
       expect(result.right).toBeLessThanOrEqual(viewport.width + 1);
       expect(result.scrollWidth).toBeLessThanOrEqual(result.viewportWidth + 1);
       expect(result.escapedControls).toEqual([]);
-      expect(Math.abs(result.lockupDelta)).toBeLessThanOrEqual(.25);
-      expect(result.lockupAxis).toBe("center");
-      expect(result.holographic).toBe("animated");
-      expect(result.animation).toContain("univPrism");
-      expect(result.backgroundClip).toBe("text");
-      expect(result.textFill).toBe("rgba(0, 0, 0, 0)");
+      if (lens.title) {
+        expect(result.nativeAdjunct).toBe("true");
+        expect(result.surfaceHeading).toBe(lens.title);
+      } else {
+        expect(Math.abs(result.lockupDelta ?? Number.POSITIVE_INFINITY)).toBeLessThanOrEqual(.25);
+        expect(result.lockupAxis).toBe("center");
+        expect(result.holographic).toBe("animated");
+        expect(result.animation).toContain("univPrism");
+        expect(result.backgroundClip).toBe("text");
+        expect(result.textFill).toBe("rgba(0, 0, 0, 0)");
+      }
       await expectExactV197Sigils(frame);
     }
   }
 });
 
-test("Map owns the exact V43 brain and six founder-locked native system symbols", async ({ page }) => {
+test("Systems owns the exact V43 brain while Map owns a dedicated causal surface", async ({ page }) => {
   test.setTimeout(60_000);
   await authenticate(page);
 
   for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }] as const) {
     await page.setViewportSize(viewport);
-    await page.goto("/universe/map", { waitUntil: "load" });
+    await page.goto("/systems", { waitUntil: "load" });
     const frame = page.frameLocator("#nur-universe-stage");
     const panel = frame.locator("#page-systems .universe-map-panel");
     await expect(panel).toBeVisible({ timeout: 20_000 });
@@ -189,5 +207,14 @@ test("Map owns the exact V43 brain and six founder-locked native system symbols"
       expect(node.copyFits, detail).toBe(true);
       expect(node.scrollFits, detail).toBe(true);
     });
+
+    await page.goto("/universe/map", { waitUntil: "load" });
+    const map = frame.locator("#nur-map-root");
+    await expect(map).toBeVisible({ timeout: 20_000 });
+    await expect(map).toHaveAttribute("data-v197-native-adjunct", "true");
+    await expect(map).toHaveAttribute("data-map-loaded", "true");
+    await expect(map.locator("h1")).toHaveText("Map");
+    await expect(frame.locator("#page-systems")).toBeHidden();
+    await expect(frame.locator("#root")).toHaveCount(0);
   }
 });

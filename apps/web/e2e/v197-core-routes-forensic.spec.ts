@@ -30,13 +30,18 @@ test("core routes retain authentic controls and bounded geometry", async ({ page
       await waitForRoute(frame, route);
 
       const result = await frame.locator("body").evaluate(async () => {
-        await new Promise(resolve => setTimeout(resolve, 250));
         await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
         const visible = (element: HTMLElement) => {
-          const style = getComputedStyle(element);
+          let current: HTMLElement | null = element;
+          while (current) {
+            const style = getComputedStyle(current);
+            if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) <= 0) {
+              return false;
+            }
+            current = current.parentElement;
+          }
           const rect = element.getBoundingClientRect();
-          return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0
-            && rect.width > 0 && rect.height > 0;
+          return rect.width > 0 && rect.height > 0;
         };
         const escaped = Array.from(document.querySelectorAll<HTMLElement>("button, a, input, textarea, select"))
           .filter(element => visible(element) && !element.closest("[hidden], [aria-hidden='true']"))
@@ -152,7 +157,18 @@ test("Entry primary action is transparent spectral glass with a real seal", asyn
   const button = frame.locator("#f4-begin");
   await expect(button).toBeVisible({ timeout: 20_000 });
   await expect(button.locator(":scope > .nur-star-seal--control > .spark")).toHaveCount(1);
-  const radius = await button.evaluate(element => Number.parseFloat(getComputedStyle(element).borderRadius));
-  expect(radius).toBeGreaterThan(100);
-  await expect(button).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  const material = await button.evaluate(element => {
+    const style = getComputedStyle(element);
+    const channels = style.backgroundColor.match(/[\d.]+/g)?.map(Number) ?? [];
+    return {
+      radius: Number.parseFloat(style.borderRadius),
+      backgroundAlpha: channels.length === 4 ? channels[3]! : 1,
+      backgroundImage: style.backgroundImage,
+      backdropFilter: style.backdropFilter,
+    };
+  });
+  expect(material.radius).toBeGreaterThan(100);
+  expect(material.backgroundAlpha).toBeLessThanOrEqual(.05);
+  expect(material.backgroundImage).toContain("gradient");
+  expect(material.backdropFilter).not.toBe("none");
 });
