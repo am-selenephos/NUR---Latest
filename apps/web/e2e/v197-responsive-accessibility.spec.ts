@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
   auditV197Viewport,
@@ -16,6 +16,26 @@ async function authenticate(page: Page): Promise<void> {
     { name: "nur_session", value: "responsive-accessibility-session", url: "http://localhost:4173", httpOnly: true, sameSite: "Lax" },
     { name: "nur_csrf", value: "responsive-accessibility-csrf", url: "http://localhost:4173", httpOnly: false, sameSite: "Lax" },
   ]);
+}
+
+async function canvasSignal(canvas: Locator): Promise<{ lit: number; checksum: number }> {
+  return canvas.evaluate((element: HTMLCanvasElement) => {
+    const context = element.getContext("2d");
+    if (!context || element.width < 2 || element.height < 2) return { lit: 0, checksum: 0 };
+    const pixels = context.getImageData(0, 0, element.width, element.height).data;
+    const stride = Math.max(4, Math.floor(pixels.length / 28_000 / 4) * 4);
+    let lit = 0;
+    let checksum = 0;
+    for (let index = 0; index < pixels.length; index += stride) {
+      const r = pixels[index] ?? 0;
+      const g = pixels[index + 1] ?? 0;
+      const b = pixels[index + 2] ?? 0;
+      const a = pixels[index + 3] ?? 0;
+      if (r + g + b > 120 && a > 20) lit += 1;
+      checksum = (checksum + r * 3 + g * 5 + b * 7 + a * 11) % 2_147_483_647;
+    }
+    return { lit, checksum };
+  });
 }
 
 test("required viewport matrix preserves overflow, touch, node, and center contracts", async ({ page }, testInfo) => {
@@ -114,12 +134,36 @@ test("scope modal traps focus, closes with Escape, and restores its trigger", as
   await expect(trigger).toBeFocused();
 });
 
-test("reduced motion leaves the exact brain intact and collapses decorative timing", async ({ page }) => {
+test("reduced motion leaves the exact brain and a complete static galaxy intact", async ({ page }) => {
   await authenticate(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/today", { waitUntil: "load" });
   const frame = page.frameLocator("#nur-universe-stage");
   await expect(frame.locator("#page-today")).toBeVisible({ timeout: 20_000 });
+  const galaxy = frame.locator("#space3d");
+  const galaxyPresentation = await galaxy.evaluate(element => {
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return {
+      display: style.display,
+      visibility: style.visibility,
+      opacity: style.opacity,
+      width: rect.width,
+      height: rect.height,
+    };
+  });
+  expect(galaxyPresentation, JSON.stringify(galaxyPresentation)).toMatchObject({
+    display: "block",
+    visibility: "visible",
+  });
+  expect(galaxyPresentation.width).toBeGreaterThan(0);
+  expect(galaxyPresentation.height).toBeGreaterThan(0);
+  await expect.poll(async () => (await canvasSignal(galaxy)).lit).toBeGreaterThan(110);
+  const firstGalaxyFrame = await canvasSignal(galaxy);
+  await page.waitForTimeout(420);
+  const secondGalaxyFrame = await canvasSignal(galaxy);
+  expect(secondGalaxyFrame.lit).toBeGreaterThan(110);
+  expect(secondGalaxyFrame.checksum).toBe(firstGalaxyFrame.checksum);
 
   const result = await frame.locator("body").evaluate(() => {
     const control = document.querySelector<HTMLElement>(".clean-nav-button");

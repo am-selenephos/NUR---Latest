@@ -166,6 +166,7 @@ export function ensureV197BlackGalaxy(document: Document): void {
   if (!canvas || !frameWindow) return;
   canvas.dataset.nurGalaxyRig = "canonical-v197-true-3d";
   canvas.dataset.nurGalaxyLayers = "far-dust-galaxy-super";
+  canvas.dataset.nurNebulaBackdrop = "css-static-v1";
   const context = canvas.getContext("2d") as VeiledContext | null;
   if (!context || context.__v197Veil) return;
 

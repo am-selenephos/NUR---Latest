@@ -39,6 +39,8 @@ const approval = (over: Partial<V197AgenticApproval> = {}): V197AgenticApproval 
   expected_result: "One Timeline event on 4 August",
   risk_class: "R2_DURABLE_PRIVATE", reversible: true,
   scope_summary: "Ambition system", cost_ceiling_cents: 0,
+  approval_id: "a", step_id: "s", argument_digest: "sha256:arguments",
+  plan_version: 1, call_version: "call-version-1",
   ...over,
 });
 

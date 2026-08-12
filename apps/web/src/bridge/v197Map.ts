@@ -675,7 +675,6 @@ export async function renderV197Map(
     search.placeholder = "Search Systems, goals, plans, decisions or signals";
     search.value = state.query;
     search.setAttribute("aria-label", "Search the Map");
-    search.style.width = "260px";
     search.addEventListener("input", () => actions.setQuery(search.value));
     tools.append(search);
 
@@ -863,16 +862,60 @@ export async function renderV197Map(
       return pane;
     }
 
-    // Geometry: the server's layout, in a viewBox centred on the anchor.
+    // Fit the real owner-ledger geometry instead of looking through a permanent
+    // 1560x1120 window. Sparse maps used to occupy a small patch in the middle
+    // of the workspace even though their coordinates were valid. This changes
+    // only the camera; server-owned positions and drag writes stay untouched.
+    const positioned = nodes.flatMap(node => {
+      const layout = node.data.layout as { x: number; y: number } | undefined;
+      return layout ? [{ x: layout.x, y: layout.y }] : [];
+    });
+    const regionExtents = state.graph.system_regions.flatMap(region => [
+      { x: region.layout.x - 148, y: region.layout.y - 148 },
+      { x: region.layout.x + 148, y: region.layout.y + 148 },
+    ]);
+    const extents = [...positioned, ...regionExtents];
+    if (extents.length === 0) {
+      extents.push({ x: -310, y: -230 }, { x: 310, y: 230 });
+    }
+    const minX = Math.min(...extents.map(point => point.x));
+    const maxX = Math.max(...extents.map(point => point.x));
+    const minY = Math.min(...extents.map(point => point.y));
+    const maxY = Math.max(...extents.map(point => point.y));
+    const mapWidth = Math.max(620, maxX - minX + 160);
+    const mapHeight = Math.max(460, maxY - minY + 150);
+    const mapCenterX = (minX + maxX) / 2;
+    const mapCenterY = (minY + maxY) / 2;
+
     const canvas = svg(doc, "svg", {
       class: "nur-map-canvas",
-      viewBox: "-780 -560 1560 1120",
+      viewBox:
+        `${mapCenterX - mapWidth / 2} ${mapCenterY - mapHeight / 2} ${mapWidth} ${mapHeight}`,
       preserveAspectRatio: "xMidYMid meet",
       role: "img",
       "aria-label":
         `Map with ${nodes.length} objects across ${state.graph.system_regions.length} Systems. `
         + "A full outline is available through the Outline control.",
     });
+    canvas.dataset.mapCamera = "owner-ledger-fit";
+
+    const defs = svg(doc, "defs");
+    const regionPrism = svg(doc, "linearGradient", {
+      id: "nur-map-region-prism",
+      x1: "0%", y1: "0%", x2: "100%", y2: "100%",
+    });
+    for (const [offset, color] of [
+      ["0%", "rgba(255,211,90,0.05)"],
+      ["22%", "rgba(255,122,69,0.035)"],
+      ["42%", "rgba(255,82,171,0.032)"],
+      ["61%", "rgba(79,204,255,0.03)"],
+      ["80%", "rgba(72,235,175,0.032)"],
+      ["100%", "rgba(193,107,255,0.026)"],
+    ]) {
+      regionPrism.append(svg(doc, "stop", { offset, "stop-color": color }));
+    }
+    defs.append(regionPrism);
+    canvas.append(defs);
 
     // System regions first: soft gravity behind everything.
     const regions = svg(doc, "g", { class: "nur-map-region-halo" });
@@ -880,7 +923,7 @@ export async function renderV197Map(
       const dim = state.systemFilter !== "ALL" && state.systemFilter !== region.slug;
       regions.append(svg(doc, "circle", {
         cx: region.layout.x, cy: region.layout.y, r: 132,
-        fill: "rgba(16,16,82,0.24)",
+        fill: "url(#nur-map-region-prism)",
         stroke: "rgba(248,217,138,0.1)",
         "stroke-width": 1,
         opacity: dim ? 0.25 : 1,

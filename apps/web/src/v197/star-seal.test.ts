@@ -52,7 +52,8 @@ describe("V197 star seal", () => {
 
   it("can replay the exact intro presentation from the canonical iSpark source", () => {
     document.body.innerHTML = `
-      <div id="iSpark" class="i-spark spark">
+      <div id="iSpark" class="spark nur-v33-master nur-v34-exact-symbol f4-master-star f4-master-star--hero"
+        role="button" tabindex="0" aria-label="Wake the NUR star">
         <div class="spark-glow"></div><div class="spark-halo"></div>
         <div class="spark-h2"></div><div class="spark-core"></div>
         <div class="rayset">${Array.from({ length: 12 }, (_, index) => `<div class="ray g r${index + 1}"><div class="ray-glow"></div><div class="ray-core"></div></div>`).join("")}</div>
@@ -64,7 +65,13 @@ describe("V197 star seal", () => {
     expect(startup.classList.contains(V197_STARTUP_STAR_CLASS)).toBe(true);
     expect(startup.dataset.nurV197SigilSource).toBe("#iSpark");
     expect(startup.querySelector("#iSpark")).toBeNull();
-    expect(startup.querySelector(`.i-spark.${V197_SIGIL_STAR_CLASS}`)).not.toBeNull();
+    const star = startup.querySelector<HTMLElement>(`.i-spark.${V197_SIGIL_STAR_CLASS}`);
+    expect(star).not.toBeNull();
+    expect([...star!.classList]).toEqual(["i-spark", "spark", V197_SIGIL_STAR_CLASS]);
+    expect(star!.hasAttribute("role")).toBe(false);
+    expect(star!.hasAttribute("tabindex")).toBe(false);
+    expect(star!.hasAttribute("aria-label")).toBe(false);
+    expect(star!.getAttribute("aria-hidden")).toBe("true");
     expect(startup.querySelectorAll(".ray")).toHaveLength(12);
     expect(startup.querySelectorAll(".ob")).toHaveLength(3);
   });

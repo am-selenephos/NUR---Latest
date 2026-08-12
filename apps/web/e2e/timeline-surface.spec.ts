@@ -19,6 +19,14 @@ test.describe.configure({ mode: "serial" });
 
 let sharedContext: BrowserContext;
 let sharedPage: Page;
+let seededTitles: {
+  completed: string;
+  overdue: string;
+  future: string;
+  dependent: string;
+  predicted: string;
+  unscheduled: string;
+};
 
 test.beforeAll(async ({ browser }) => {
   sharedContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -59,7 +67,16 @@ async function signIn(page: Page): Promise<void> {
  * depends on is created by this file.
  */
 async function seedEntries(page: Page): Promise<void> {
-  const created = await page.evaluate(async () => {
+  const nonce = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  seededTitles = {
+    completed: `E2E completed action ${nonce}`,
+    overdue: `E2E overdue action ${nonce}`,
+    future: `E2E future predecessor ${nonce}`,
+    dependent: `E2E future dependent ${nonce}`,
+    predicted: `E2E predicted outcome ${nonce}`,
+    unscheduled: `E2E unscheduled idea ${nonce}`,
+  };
+  const created = await page.evaluate(async (titles) => {
     const csrf = document.cookie.split("; ")
       .find((row) => row.startsWith("nur_csrf="))?.split("=")[1] ?? "";
     const headers = { "Content-Type": "application/json", "X-CSRF-Token": csrf };
@@ -74,27 +91,27 @@ async function seedEntries(page: Page): Promise<void> {
     const day = 86_400_000;
     const results = {
       completed: await post({
-        event_type: "ACTION", title: "E2E completed action",
+        event_type: "ACTION", title: titles.completed,
         status: "COMPLETED", scheduled_for: new Date(now - 4 * day).toISOString(),
       }),
       overdue: await post({
-        event_type: "ACTION", title: "E2E overdue action",
+        event_type: "ACTION", title: titles.overdue,
         status: "SCHEDULED", scheduled_for: new Date(now - 2 * day).toISOString(),
       }),
       future: await post({
-        event_type: "ACTION", title: "E2E future predecessor",
+        event_type: "ACTION", title: titles.future,
         status: "PLANNED", scheduled_for: new Date(now + 3 * day).toISOString(),
       }),
       dependent: await post({
-        event_type: "ACTION", title: "E2E future dependent",
+        event_type: "ACTION", title: titles.dependent,
         status: "PLANNED", scheduled_for: new Date(now + 5 * day).toISOString(),
       }),
       predicted: await post({
-        event_type: "ACTION", title: "E2E predicted outcome",
+        event_type: "ACTION", title: titles.predicted,
         status: "PREDICTED", scheduled_for: new Date(now + 20 * day).toISOString(),
       }),
       unscheduled: await post({
-        event_type: "ACTION", title: "E2E unscheduled idea",
+        event_type: "ACTION", title: titles.unscheduled,
         date_precision: "UNSCHEDULED",
       }),
     };
@@ -111,7 +128,7 @@ async function seedEntries(page: Page): Promise<void> {
       }),
     });
     return results;
-  });
+  }, seededTitles);
   for (const [name, result] of Object.entries(created)) {
     expect(result.status, `seeding ${name} failed: ${JSON.stringify(result.body)}`).toBe(201);
   }
@@ -253,7 +270,7 @@ test("all four modes render their own workspace", async () => {
 test("the past crystallises, the future stays translucent, the overdue is neither", async () => {
   const frame = await openTimeline(sharedPage);
   await frame.click('[data-timeline-mode="flow"]');
-  const lanes = await frame.evaluate(() => {
+  const lanes = await frame.evaluate((titles) => {
     const byTitle = (needle: string) => {
       const node = Array.from(document.querySelectorAll("[data-timeline-entry]"))
         .find((row) => (row.textContent || "").includes(needle));
@@ -266,11 +283,11 @@ test("the past crystallises, the future stays translucent, the overdue is neithe
       };
     };
     return {
-      completed: byTitle("E2E completed action"),
-      overdue: byTitle("E2E overdue action"),
-      future: byTitle("E2E future predecessor"),
+      completed: byTitle(titles.completed),
+      overdue: byTitle(titles.overdue),
+      future: byTitle(titles.future),
     };
-  });
+  }, seededTitles);
 
   // A settled past reads as settled: solid edge.
   expect(lanes.completed?.lane).toBe("past");
@@ -289,15 +306,15 @@ test("the past crystallises, the future stays translucent, the overdue is neithe
 test("a prediction is labelled as one and never as an observed fact", async () => {
   const frame = await openTimeline(sharedPage);
   await frame.click('[data-timeline-mode="flow"]');
-  const predicted = await frame.evaluate(() => {
+  const predicted = await frame.evaluate((title) => {
     const node = Array.from(document.querySelectorAll("[data-timeline-entry]"))
-      .find((row) => (row.textContent || "").includes("E2E predicted outcome"));
+      .find((row) => (row.textContent || "").includes(title));
     return {
       found: Boolean(node),
       text: node?.textContent ?? "",
       lane: (node as HTMLElement | undefined)?.dataset.timelineLane ?? null,
     };
-  });
+  }, seededTitles.predicted);
   expect(predicted.found).toBe(true);
   // The word, not only a hue — the basis survives for a reader who cannot
   // separate these colours.
@@ -310,18 +327,18 @@ test("a prediction is labelled as one and never as an observed fact", async () =
 test("unscheduled work stays visible in its own holding field", async () => {
   const frame = await openTimeline(sharedPage);
   await frame.click('[data-timeline-mode="flow"]');
-  const holding = await frame.evaluate(() => {
+  const holding = await frame.evaluate((title) => {
     const field = document.querySelector("[data-timeline-unscheduled]");
     return {
       present: Boolean(field),
       // §18: valid work without a date is held, never dropped from the surface.
-      containsIdea: (field?.textContent || "").includes("E2E unscheduled idea"),
+      containsIdea: (field?.textContent || "").includes(title),
       // And it is not smuggled into the dated river.
       inRiver: Array.from(
         document.querySelectorAll(".nur-timeline-day-group [data-timeline-entry]"),
-      ).some((row) => (row.textContent || "").includes("E2E unscheduled idea")),
+      ).some((row) => (row.textContent || "").includes(title)),
     };
-  });
+  }, seededTitles.unscheduled);
   expect(holding.present).toBe(true);
   expect(holding.containsIdea).toBe(true);
   expect(holding.inRiver).toBe(false);
@@ -330,7 +347,7 @@ test("unscheduled work stays visible in its own holding field", async () => {
 test("the Now Horizon sits at the present, between past and future entries", async () => {
   const frame = await openTimeline(sharedPage);
   await frame.click('[data-timeline-mode="flow"]');
-  const order = await frame.evaluate(() => {
+  const order = await frame.evaluate((titles) => {
     const spine = document.querySelector(".nur-timeline-spine");
     if (!spine) return null;
     const nodes = Array.from(spine.querySelectorAll(
@@ -342,11 +359,11 @@ test("the Now Horizon sits at the present, between past and future entries", asy
     );
     return {
       nowIndex,
-      completedIndex: indexOf("E2E completed action"),
-      futureIndex: indexOf("E2E future predecessor"),
+      completedIndex: indexOf(titles.completed),
+      futureIndex: indexOf(titles.future),
       nowLabel: (nodes[nowIndex]?.textContent || "").trim(),
     };
-  });
+  }, seededTitles);
   expect(order).not.toBeNull();
   expect(order!.nowIndex).toBeGreaterThan(-1);
   // Placed by timestamp, not by day: a horizon labelled with a time must not sit
@@ -362,13 +379,13 @@ test("dragging a future entry opens the ripple dialog and writes nothing yet", a
   const frame = await openTimeline(page);
   await frame.click('[data-timeline-mode="flow"]');
 
-  const before = await frame.evaluate(async () => {
+  const before = await frame.evaluate(async (title) => {
     const flow = await (await fetch("/api/v1/timeline/flow", { credentials: "include" })).json();
     const row = flow.entries.find(
-      (e: { title: string }) => e.title === "E2E future predecessor",
+      (e: { title: string }) => e.title === title,
     );
     return { scheduledFor: row.scheduled_for as string, ref: row.ref as string };
-  });
+  }, seededTitles.future);
 
   const locator = page.frameLocator("#nur-universe-stage")
     .locator(`[data-timeline-entry="${before.ref}"]`);
@@ -401,46 +418,46 @@ test("dragging a future entry opens the ripple dialog and writes nothing yet", a
       hasCancel: Boolean(node?.querySelector("[data-timeline-ripple-cancel]")),
     };
   });
-  expect(dialog.text).toContain("E2E future predecessor");
-  expect(dialog.text).toContain("E2E future dependent");
+  expect(dialog.text).toContain(seededTitles.future);
+  expect(dialog.text).toContain(seededTitles.dependent);
   expect(dialog.modes).toContain("MOVE_ONLY");
   expect(dialog.modes).toContain("SHIFT_DEPENDENTS");
   expect(dialog.hasCancel).toBe(true);
 
   // Nothing is written until a mode is chosen. This is the guarantee.
-  const during = await frame.evaluate(async () => {
+  const during = await frame.evaluate(async (title) => {
     const flow = await (await fetch("/api/v1/timeline/flow", { credentials: "include" })).json();
     return flow.entries.find(
-      (e: { title: string }) => e.title === "E2E future predecessor",
+      (e: { title: string }) => e.title === title,
     ).scheduled_for as string;
-  });
+  }, seededTitles.future);
   expect(during).toBe(before.scheduledFor);
 
   // Cancelling leaves it untouched too.
   await frame.click("[data-timeline-ripple-cancel]");
-  const after = await frame.evaluate(async () => {
+  const after = await frame.evaluate(async (title) => {
     const flow = await (await fetch("/api/v1/timeline/flow", { credentials: "include" })).json();
     return flow.entries.find(
-      (e: { title: string }) => e.title === "E2E future predecessor",
+      (e: { title: string }) => e.title === title,
     ).scheduled_for as string;
-  });
+  }, seededTitles.future);
   expect(after).toBe(before.scheduledFor);
 });
 
 test("choosing Move-this-only leaves the dependent where it was", async () => {
   test.slow();
   const frame = await openTimeline(sharedPage);
-  const before = await frame.evaluate(async () => {
+  const before = await frame.evaluate(async (titles) => {
     const flow = await (await fetch("/api/v1/timeline/flow", { credentials: "include" })).json();
     const pick = (title: string) => flow.entries.find(
       (e: { title: string }) => e.title === title,
     );
     return {
-      predecessor: pick("E2E future predecessor").scheduled_for as string,
-      dependent: pick("E2E future dependent").scheduled_for as string,
-      predecessorId: pick("E2E future predecessor").id as string,
+      predecessor: pick(titles.future).scheduled_for as string,
+      dependent: pick(titles.dependent).scheduled_for as string,
+      predecessorId: pick(titles.future).id as string,
     };
-  });
+  }, seededTitles);
 
   // Drive the same dialog the drag opens, through the keyboard-reachable path.
   await frame.evaluate(async (id) => {
@@ -457,16 +474,16 @@ test("choosing Move-this-only leaves the dependent where it was", async () => {
     });
   }, before.predecessorId);
 
-  const after = await frame.evaluate(async () => {
+  const after = await frame.evaluate(async (titles) => {
     const flow = await (await fetch("/api/v1/timeline/flow", { credentials: "include" })).json();
     const pick = (title: string) => flow.entries.find(
       (e: { title: string }) => e.title === title,
     );
     return {
-      predecessor: pick("E2E future predecessor").scheduled_for as string,
-      dependent: pick("E2E future dependent").scheduled_for as string,
+      predecessor: pick(titles.future).scheduled_for as string,
+      dependent: pick(titles.dependent).scheduled_for as string,
     };
-  });
+  }, seededTitles);
   expect(after.predecessor).not.toBe(before.predecessor);
   // The whole point of MOVE_ONLY: nothing downstream is touched.
   expect(after.dependent).toBe(before.dependent);
@@ -517,11 +534,11 @@ test("the five detail tabs render, and NUR View always states its doubt", async 
 test("an unmeasured field says so instead of showing a number", async () => {
   const frame = await openTimeline(sharedPage);
   await frame.click('[data-timeline-mode="flow"]');
-  const ref = await frame.evaluate(() => {
+  const ref = await frame.evaluate((title) => {
     const node = Array.from(document.querySelectorAll("[data-timeline-entry]"))
-      .find((row) => (row.textContent || "").includes("E2E future dependent"));
+      .find((row) => (row.textContent || "").includes(title));
     return node?.getAttribute("data-timeline-entry") ?? null;
-  });
+  }, seededTitles.dependent);
   expect(ref).not.toBeNull();
   await frame.click(`[data-timeline-entry="${ref}"]`);
   await frame.click('[data-timeline-tab="time"]');
@@ -573,20 +590,42 @@ test("Horizons buckets work by real timestamp and never invent an entry", async 
     async () => frame.evaluate(
       () => document.querySelectorAll("[data-timeline-horizon-bucket]").length,
     ),
-    { timeout: 12_000, message: "the seven timestamp horizon buckets never finished loading" },
-  ).toBe(7);
-  const buckets = await frame.evaluate(
-    () => Array.from(document.querySelectorAll("[data-timeline-horizon-bucket]"))
-      .map((n) => ({
-        key: (n as HTMLElement).dataset.timelineHorizonBucket,
-        empty: (n.textContent || "").includes("Nothing here."),
-      })),
-  );
-  expect(buckets.map((b) => b.key)).toEqual([
+    { timeout: 12_000 },
+  ).toBe(true);
+  const verdict = await frame.evaluate(async () => {
+    const served = await (await fetch("/api/v1/timeline/horizons", {
+      credentials: "include",
+    })).json();
+    const rendered = Array.from(document.querySelectorAll("[data-timeline-horizon-bucket]"))
+      .map((node) => {
+        const key = (node as HTMLElement).dataset.timelineHorizonBucket ?? "";
+        const items = Array.from(node.querySelectorAll(".nur-timeline-horizon-item"))
+          .map((row) => (row.textContent || "").trim());
+        return {
+          key,
+          items,
+          saysEmpty: (node.textContent || "").includes("Nothing here."),
+          servedCount: (served.buckets[key] ?? []).length,
+        };
+      });
+    return rendered;
+  });
+
+  expect(verdict.map((row) => row.key)).toEqual([
     "NOW", "THIS_WEEK", "THIRTY_DAYS", "NINETY_DAYS", "SIX_MONTHS", "ONE_YEAR", "SOMEDAY",
   ]);
-  // An empty horizon says it is empty rather than being filled with filler.
-  expect(buckets.some((b) => b.empty)).toBe(true);
+
+  for (const bucket of verdict) {
+    // Never invent an entry: what is drawn matches what the server bucketed,
+    // exactly. Asserting "some bucket is empty" was data-dependent and started
+    // failing once repeated runs had filled every horizon.
+    expect(
+      bucket.items.length,
+      `${bucket.key} rendered ${bucket.items.length} items for ${bucket.servedCount} served`,
+    ).toBe(bucket.servedCount);
+    // And an empty horizon says so rather than being padded with filler.
+    expect(bucket.saysEmpty).toBe(bucket.servedCount === 0);
+  }
 });
 
 test("an entry is reachable and reschedulable by keyboard alone", async () => {
@@ -626,10 +665,10 @@ test("nothing loops when reduced motion is requested", async ({ browser }) => {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     reducedMotion: "reduce",
+    storageState: await sharedContext.storageState(),
   });
   const page = await context.newPage();
   try {
-    await signIn(page);
     const frame = await openTimeline(page);
     const motion = await frame.evaluate(() => {
       const sigil = document.querySelector(".nur-timeline-now-sigil");
@@ -649,10 +688,12 @@ test("nothing loops when reduced motion is requested", async ({ browser }) => {
 });
 
 test("mobile keeps the flow readable without a sideways scroll", async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    storageState: await sharedContext.storageState(),
+  });
   const page = await context.newPage();
   try {
-    await signIn(page);
     const frame = await openTimeline(page);
     const layout = await frame.evaluate(() => {
       const root = document.getElementById("nur-timeline-root");

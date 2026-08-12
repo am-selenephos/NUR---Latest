@@ -22,8 +22,8 @@
 :root {
   --tl-void: #000000;
   --tl-glass: #030307;
-  --tl-navy: #06062b;
-  --tl-abyss: #101052;
+  --tl-navy: #020202;
+  --tl-abyss: #050505;
 
   --tl-pearl: #fff8df;
   --tl-antique-gold: #c9942f;
@@ -36,6 +36,14 @@
   --tl-fuchsia: #ff18c8;
   --tl-rose: #ff3a9e;
   --tl-coral: #ff526f;
+  --tl-spectrum-glass:
+    radial-gradient(82% 120% at 2% 2%, rgba(255, 70, 86, .015), transparent 56%),
+    radial-gradient(82% 120% at 18% 98%, rgba(255, 145, 72, .017), transparent 56%),
+    radial-gradient(82% 120% at 34% 2%, rgba(255, 220, 92, .021), transparent 56%),
+    radial-gradient(82% 120% at 51% 98%, rgba(72, 235, 175, .015), transparent 56%),
+    radial-gradient(82% 120% at 68% 2%, rgba(79, 204, 255, .014), transparent 56%),
+    radial-gradient(82% 120% at 84% 98%, rgba(90, 112, 255, .013), transparent 56%),
+    radial-gradient(82% 120% at 98% 2%, rgba(193, 107, 255, .014), transparent 56%);
 
   --tl-rail: 264px;
   --tl-detail: 376px;
@@ -61,6 +69,7 @@
   background: transparent;
   color: var(--tl-pearl);
   font-family: "Bodoni Moda", Georgia, serif;
+  container: nur-timeline / inline-size;
 }
 
 /* ── shell and zones ──────────────────────────────────────────────────────── */
@@ -90,8 +99,11 @@
 .nur-timeline-pane {
   position: relative;
   border-radius: 22px;
-  background: linear-gradient(180deg, rgba(6, 6, 43, 0.5), rgba(3, 3, 7, 0.72));
-  border: 1px solid rgba(248, 217, 138, 0.13);
+  background:
+    var(--tl-spectrum-glass),
+    linear-gradient(180deg, rgba(255, 255, 255, .012), rgba(0, 0, 0, .08));
+  border: 1px solid rgba(248, 217, 138, 0.15);
+  backdrop-filter: blur(9px) saturate(1.12);
   box-shadow:
     inset 0 1px 0 rgba(255, 248, 223, 0.05),
     0 18px 60px rgba(0, 0, 0, 0.6);
@@ -132,7 +144,7 @@
 
 .nur-timeline-title h1 {
   margin: 0;
-  font-size: 27px;
+  font-size: 30px;
   letter-spacing: 0.055em;
   color: var(--tl-pearl);
   text-shadow: 0 0 26px rgba(255, 211, 90, 0.2);
@@ -140,7 +152,7 @@
 
 .nur-timeline-subtitle {
   margin: 0;
-  font-size: 11.5px;
+  font-size: 14.5px;
   letter-spacing: 0.13em;
   text-transform: uppercase;
   color: rgba(255, 248, 223, 0.5);
@@ -168,11 +180,12 @@
   border-radius: 999px;
   border: 1px solid rgba(248, 217, 138, 0.34);
   background:
-    radial-gradient(120% 160% at 50% -40%, rgba(255, 211, 90, 0.15), transparent 62%),
-    linear-gradient(180deg, rgba(6, 6, 43, 0.62), rgba(3, 3, 7, 0.9));
+    linear-gradient(108deg, rgba(255, 211, 90, .018), rgba(255, 82, 171, .01) 35%, rgba(79, 204, 255, .009) 65%, rgba(72, 235, 175, .011)),
+    rgba(0, 0, 0, .045);
+  backdrop-filter: blur(12px) saturate(1.25);
   color: var(--tl-pearl);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 15.5px;
   letter-spacing: 0.075em;
   cursor: pointer;
   overflow: hidden;
@@ -225,8 +238,8 @@
 .nur-timeline-capsule.is-active {
   border-color: rgba(255, 211, 90, 0.78);
   background:
-    radial-gradient(120% 170% at 50% -30%, rgba(255, 211, 90, 0.3), transparent 60%),
-    linear-gradient(180deg, rgba(16, 16, 82, 0.7), rgba(3, 3, 7, 0.92));
+    linear-gradient(108deg, rgba(255, 211, 90, .04), rgba(255, 82, 171, .025) 35%, rgba(79, 204, 255, .022) 65%, rgba(72, 235, 175, .026)),
+    rgba(0, 0, 0, .05);
   color: #fffdf4;
 }
 
@@ -258,7 +271,7 @@
 .nur-timeline-capsule-sm {
   padding: 5px 11px;
   min-height: 27px;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 /* ── search ───────────────────────────────────────────────────────────────── */
@@ -268,10 +281,10 @@
   -webkit-appearance: none !important;
   border: 1px solid rgba(248, 217, 138, 0.3) !important;
   border-radius: 999px !important;
-  background: linear-gradient(180deg, rgba(6, 6, 43, 0.6), rgba(3, 3, 7, 0.88));
+  background: linear-gradient(180deg, rgba(2, 2, 2, 0.6), rgba(3, 3, 7, 0.88));
   color: var(--tl-pearl);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 15.5px;
   letter-spacing: 0.04em;
   padding: 8px 15px;
   min-height: 34px;
@@ -292,7 +305,7 @@
 
 .nur-timeline-nav-label {
   margin: 0 0 9px;
-  font-size: 10px;
+  font-size: 13px;
   letter-spacing: 0.19em;
   text-transform: uppercase;
   color: rgba(255, 211, 90, 0.62);
@@ -325,19 +338,19 @@
   background: transparent;
   color: rgba(255, 248, 223, 0.86);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 15.5px;
   text-align: left;
   cursor: pointer;
   transition: background var(--tl-quick) ease, border-color var(--tl-quick) ease;
 }
 
 .nur-timeline-row:hover {
-  background: rgba(16, 16, 82, 0.4);
+  background: rgba(5, 5, 5, 0.4);
   border-color: rgba(248, 217, 138, 0.22);
 }
 
 .nur-timeline-row.is-selected {
-  background: linear-gradient(90deg, rgba(255, 211, 90, 0.16), rgba(16, 16, 82, 0.3));
+  background: linear-gradient(90deg, rgba(255, 211, 90, 0.16), rgba(5, 5, 5, 0.3));
   border-color: rgba(255, 211, 90, 0.5);
 }
 
@@ -348,7 +361,7 @@
 }
 
 .nur-timeline-row-meta {
-  font-size: 10.5px;
+  font-size: 13.5px;
   letter-spacing: 0.08em;
   color: rgba(255, 248, 223, 0.44);
   font-variant-numeric: tabular-nums;
@@ -372,12 +385,14 @@
   scrollbar-color: rgba(248, 217, 138, 0.28) transparent;
 }
 
-/* The temporal spine: one vertical luminous line the whole river hangs from. */
+/* The temporal tree: real entries alternate around one chronological trunk.
+ * The tree grows from the top on mount, while mobile returns to a one-sided
+ * river so every label retains a usable width. */
 .nur-timeline-spine {
   position: relative;
-  margin-left: 90px;
-  padding-left: 28px;
-  border-left: 1.5px solid rgba(248, 217, 138, 0.22);
+  margin: 0;
+  padding: 8px 20px 12px;
+  min-height: 100%;
 }
 
 .nur-timeline-spine::before {
@@ -385,7 +400,7 @@
    * Now, fading again into the future — the river's own light source. */
   content: "";
   position: absolute;
-  left: -1.5px;
+  left: calc(50% - .75px);
   top: 0;
   bottom: 0;
   width: 1.5px;
@@ -397,29 +412,44 @@
     rgba(33, 232, 255, 0.55) 55%,
     rgba(193, 107, 255, 0.3) 100%
   );
+  transform: scaleY(1);
+  transform-origin: 50% 0;
+  animation: nur-timeline-tree-grow 720ms cubic-bezier(.2, .72, .2, 1) both;
 }
 
-.nur-timeline-day-group { margin-bottom: 22px; }
+@keyframes nur-timeline-tree-grow {
+  from { transform: scaleY(0); opacity: 0; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+.nur-timeline-day-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 30px;
+}
 
 .nur-timeline-day-label {
-  position: absolute;
-  left: -90px;
-  width: 78px;
-  text-align: right;
-  font-size: 10.5px;
+  position: relative;
+  width: fit-content;
+  margin: 0 auto 12px;
+  padding: 3px 10px;
+  text-align: center;
+  font-size: 13.5px;
   letter-spacing: 0.08em;
   color: rgba(255, 248, 223, 0.42);
-  padding-top: 3px;
+  background: rgba(0, 0, 0, .86);
 }
 
 /* ── Now Horizon ──────────────────────────────────────────────────────────── */
 
 .nur-timeline-now-horizon {
   position: relative;
-  margin: 20px 0 26px -28px;
-  padding-left: 28px;
+  margin: 24px 0 30px;
+  padding: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
 }
 
@@ -453,7 +483,7 @@
 .nur-timeline-now-label {
   position: relative;
   z-index: 1;
-  font-size: 10.5px;
+  font-size: 13.5px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--tl-champagne);
@@ -477,26 +507,73 @@
   gap: 10px;
   margin-bottom: 10px;
   padding: 9px 13px;
+  width: calc(50% - 38px);
+  box-sizing: border-box;
   border-radius: 15px;
   cursor: pointer;
   transition: background var(--tl-quick) ease, opacity var(--tl-quick) ease;
 }
 
 .nur-timeline-entry::before {
-  /* A point on the spine, offset to the left of the card. */
+  /* A point on the temporal trunk. */
   content: "";
+  display: none;
   position: absolute;
-  left: -33px;
   top: 15px;
   width: 9px;
   height: 9px;
   border-radius: 50%;
 }
 
-.nur-timeline-entry:hover { background: rgba(16, 16, 82, 0.32); }
+.nur-timeline-entry[data-timeline-branch]::before { display: block; }
+
+.nur-timeline-entry[data-timeline-branch]::after {
+  content: "";
+  position: absolute;
+  top: 19px;
+  width: 28px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(248, 217, 138, .12), rgba(255, 211, 90, .48));
+  pointer-events: none;
+}
+
+.nur-timeline-entry.is-branch-left {
+  align-self: flex-start;
+  margin-right: 0;
+  text-align: right;
+}
+
+.nur-timeline-entry.is-branch-left .nur-timeline-entry-body {
+  order: -1;
+}
+
+.nur-timeline-entry.is-branch-left::before {
+  left: auto;
+  right: -43px;
+}
+
+.nur-timeline-entry.is-branch-left::after {
+  right: -38px;
+}
+
+.nur-timeline-entry.is-branch-right {
+  align-self: flex-end;
+  margin-left: 0;
+}
+
+.nur-timeline-entry.is-branch-right::before {
+  left: -43px;
+}
+
+.nur-timeline-entry.is-branch-right::after {
+  left: -38px;
+  transform: scaleX(-1);
+}
+
+.nur-timeline-entry:hover { background: rgba(5, 5, 5, 0.32); }
 
 .nur-timeline-entry.is-selected {
-  background: linear-gradient(90deg, rgba(255, 211, 90, 0.14), rgba(16, 16, 82, 0.26));
+  background: linear-gradient(90deg, rgba(255, 211, 90, 0.14), rgba(5, 5, 5, 0.26));
 }
 
 .nur-timeline-entry.is-dimmed { opacity: 0.35; }
@@ -504,7 +581,7 @@
 /* Past: crystallised — solid, defined, lower motion. */
 .nur-timeline-entry.is-past {
   border: 1px solid rgba(201, 148, 47, 0.28);
-  background: linear-gradient(180deg, rgba(6, 6, 43, 0.3), rgba(3, 3, 7, 0.5));
+  background: linear-gradient(180deg, rgba(2, 2, 2, 0.3), rgba(3, 3, 7, 0.5));
 }
 .nur-timeline-entry.is-past::before {
   background: var(--tl-antique-gold);
@@ -514,7 +591,7 @@
 /* Present: brightest, strongest contrast. */
 .nur-timeline-entry.is-present {
   border: 1px solid rgba(255, 211, 90, 0.55);
-  background: linear-gradient(180deg, rgba(16, 16, 82, 0.5), rgba(3, 3, 7, 0.6));
+  background: linear-gradient(180deg, rgba(5, 5, 5, 0.5), rgba(3, 3, 7, 0.6));
   box-shadow: 0 0 22px rgba(255, 211, 90, 0.12);
 }
 .nur-timeline-entry.is-present::before {
@@ -535,7 +612,7 @@
 /* Future: translucent, softer boundary, growing uncertainty with distance. */
 .nur-timeline-entry.is-future {
   border: 1px dashed rgba(193, 107, 255, 0.28);
-  background: linear-gradient(180deg, rgba(16, 16, 82, 0.18), rgba(3, 3, 7, 0.3));
+  background: linear-gradient(180deg, rgba(5, 5, 5, 0.18), rgba(3, 3, 7, 0.3));
   opacity: 0.86;
 }
 .nur-timeline-entry.is-future::before {
@@ -550,7 +627,7 @@
 }
 
 .nur-timeline-entry-glyph {
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1;
   margin-top: 1px;
   color: rgba(255, 248, 223, 0.7);
@@ -559,7 +636,7 @@
 .nur-timeline-entry-body { min-width: 0; flex: 1; }
 
 .nur-timeline-entry-title {
-  font-size: 13px;
+  font-size: 16px;
   color: rgba(255, 248, 223, 0.92);
   white-space: nowrap;
   overflow: hidden;
@@ -567,7 +644,7 @@
 }
 
 .nur-timeline-entry-meta {
-  font-size: 10.5px;
+  font-size: 13.5px;
   letter-spacing: 0.05em;
   color: rgba(255, 248, 223, 0.46);
   font-variant-numeric: tabular-nums;
@@ -596,7 +673,7 @@
 .nur-timeline-phase-label {
   position: sticky;
   top: 0;
-  font-size: 10px;
+  font-size: 13px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgba(255, 24, 200, 0.6);
@@ -629,7 +706,7 @@
 
 .nur-timeline-detail-kind {
   margin: 0 0 4px;
-  font-size: 10px;
+  font-size: 13px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: rgba(255, 211, 90, 0.66);
@@ -637,7 +714,7 @@
 
 .nur-timeline-detail-title {
   margin: 0 0 8px;
-  font-size: 19px;
+  font-size: 22px;
   letter-spacing: 0.02em;
   color: var(--tl-pearl);
   text-wrap: balance;
@@ -657,7 +734,7 @@
   background: transparent;
   color: rgba(255, 248, 223, 0.58);
   font-family: inherit;
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding: 5px 12px;
@@ -677,7 +754,7 @@
 
 .nur-timeline-field-label {
   margin: 0 0 4px;
-  font-size: 9.5px;
+  font-size: 12.5px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: rgba(255, 211, 90, 0.58);
@@ -685,7 +762,7 @@
 
 .nur-timeline-field-value {
   margin: 0;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.55;
   color: rgba(255, 248, 223, 0.88);
 }
@@ -697,7 +774,7 @@
 
 .nur-timeline-empty {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 15.5px;
   line-height: 1.6;
   color: rgba(255, 248, 223, 0.44);
   font-style: italic;
@@ -706,7 +783,7 @@
 .nur-timeline-card {
   border-radius: 15px;
   border: 1px solid rgba(248, 217, 138, 0.16);
-  background: linear-gradient(180deg, rgba(6, 6, 43, 0.44), rgba(3, 3, 7, 0.66));
+  background: linear-gradient(180deg, rgba(2, 2, 2, 0.44), rgba(3, 3, 7, 0.66));
   padding: 11px 13px;
   margin-bottom: 9px;
 }
@@ -721,7 +798,7 @@
 
 .nur-timeline-doubt-label {
   margin: 0 0 4px;
-  font-size: 9.5px;
+  font-size: 12.5px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--tl-lilac);
@@ -746,19 +823,19 @@
   overflow-y: auto;
   border-radius: 20px;
   border: 1px solid rgba(255, 211, 90, 0.35);
-  background: linear-gradient(180deg, rgba(16, 16, 82, 0.86), rgba(3, 3, 7, 0.96));
+  background: linear-gradient(180deg, rgba(5, 5, 5, 0.86), rgba(3, 3, 7, 0.96));
   padding: 20px;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
 }
 
 .nur-timeline-ripple-title {
   margin: 0 0 8px;
-  font-size: 16px;
+  font-size: 19px;
   color: var(--tl-pearl);
 }
 
 .nur-timeline-ripple-move {
-  font-size: 12.5px;
+  font-size: 15.5px;
   color: rgba(255, 248, 223, 0.7);
   margin: 0 0 12px;
 }
@@ -773,11 +850,11 @@
 }
 
 .nur-timeline-ripple-affected li {
-  font-size: 12px;
+  font-size: 15px;
   color: rgba(255, 248, 223, 0.8);
   padding: 6px 10px;
   border-radius: 10px;
-  background: rgba(6, 6, 43, 0.4);
+  background: rgba(2, 2, 2, 0.4);
 }
 
 .nur-timeline-ripple-actions {
@@ -797,30 +874,30 @@
 .nur-timeline-horizon-col {
   border-radius: 18px;
   border: 1px solid rgba(248, 217, 138, 0.15);
-  background: linear-gradient(180deg, rgba(6, 6, 43, 0.4), rgba(3, 3, 7, 0.6));
+  background: linear-gradient(180deg, rgba(2, 2, 2, 0.4), rgba(3, 3, 7, 0.6));
   padding: 12px;
   min-height: 120px;
 }
 
 .nur-timeline-horizon-label {
   margin: 0 0 10px;
-  font-size: 10px;
+  font-size: 13px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgba(255, 211, 90, 0.6);
 }
 
 .nur-timeline-horizon-item {
-  font-size: 11.5px;
+  font-size: 14.5px;
   color: rgba(255, 248, 223, 0.82);
   padding: 6px 8px;
   border-radius: 10px;
   margin-bottom: 5px;
-  background: rgba(16, 16, 82, 0.3);
+  background: rgba(5, 5, 5, 0.3);
   cursor: pointer;
 }
 
-.nur-timeline-horizon-item:hover { background: rgba(16, 16, 82, 0.5); }
+.nur-timeline-horizon-item:hover { background: rgba(5, 5, 5, 0.5); }
 
 .nur-timeline-drift {
   margin-top: 16px;
@@ -828,7 +905,7 @@
   border-radius: 15px;
   border: 1px solid rgba(255, 82, 111, 0.3);
   background: linear-gradient(180deg, rgba(44, 6, 18, 0.4), rgba(3, 3, 7, 0.6));
-  font-size: 12px;
+  font-size: 15px;
   color: rgba(255, 248, 223, 0.8);
 }
 
@@ -844,12 +921,12 @@
 .nur-timeline-stat {
   border-radius: 15px;
   border: 1px solid rgba(248, 217, 138, 0.15);
-  background: linear-gradient(180deg, rgba(6, 6, 43, 0.4), rgba(3, 3, 7, 0.6));
+  background: linear-gradient(180deg, rgba(2, 2, 2, 0.4), rgba(3, 3, 7, 0.6));
   padding: 12px 14px;
 }
 
 .nur-timeline-stat-label {
-  font-size: 9.5px;
+  font-size: 12.5px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: rgba(255, 211, 90, 0.55);
@@ -857,7 +934,7 @@
 }
 
 .nur-timeline-stat-value {
-  font-size: 20px;
+  font-size: 23px;
   color: var(--tl-pearl);
   font-variant-numeric: tabular-nums;
 }
@@ -869,7 +946,7 @@
 }
 
 .nur-timeline-calendar-date {
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: rgba(255, 211, 90, 0.6);
@@ -884,7 +961,7 @@
   background: linear-gradient(180deg, rgba(44, 6, 18, 0.5), rgba(3, 3, 7, 0.7));
   padding: 10px 13px;
   margin-bottom: 12px;
-  font-size: 12.5px;
+  font-size: 15.5px;
   color: rgba(255, 248, 223, 0.86);
 }
 
@@ -894,6 +971,54 @@
 }
 
 /* ── mobile: Flow-first, bottom sheet ─────────────────────────────────────── */
+
+@container nur-timeline (max-width: 1120px) {
+  #nur-timeline-root {
+    --tl-rail: 210px;
+    --tl-detail: 286px;
+    --tl-gap: 10px;
+    --tl-margin: 12px;
+  }
+
+  .nur-timeline-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .nur-timeline-header-actions:last-child {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .nur-timeline-flow-scroll {
+    padding-inline: 12px;
+  }
+
+  .nur-timeline-spine {
+    padding-inline: 10px;
+  }
+
+  .nur-timeline-entry {
+    width: calc(50% - 25px);
+  }
+
+  .nur-timeline-entry.is-branch-left::before {
+    right: -30px;
+  }
+
+  .nur-timeline-entry.is-branch-left::after {
+    right: -25px;
+    width: 19px;
+  }
+
+  .nur-timeline-entry.is-branch-right::before {
+    left: -30px;
+  }
+
+  .nur-timeline-entry.is-branch-right::after {
+    left: -25px;
+    width: 19px;
+  }
+}
 
 @media (max-width: 900px) {
   .nur-timeline-zones { grid-template-columns: minmax(0, 1fr); }
@@ -919,9 +1044,43 @@
 
   .nur-timeline-header-actions { justify-content: flex-start; }
 
-  .nur-timeline-spine { margin-left: 58px; }
-  .nur-timeline-day-label { left: -58px; width: 48px; }
-  .nur-timeline-entry::before { left: -25px; }
+  .nur-timeline-spine {
+    margin-left: 58px;
+    padding: 0 0 0 28px;
+  }
+  .nur-timeline-spine::before {
+    left: -.75px;
+    animation: none;
+    transform: none;
+  }
+  .nur-timeline-day-group { margin-bottom: 22px; }
+  .nur-timeline-day-label {
+    position: absolute;
+    left: -58px;
+    width: 48px;
+    margin: 0;
+    padding: 3px 0 0;
+    text-align: right;
+    background: transparent;
+  }
+  .nur-timeline-now-horizon {
+    margin: 20px 0 26px -28px;
+    padding-left: 28px;
+    justify-content: flex-start;
+  }
+  .nur-timeline-entry.is-branch-left,
+  .nur-timeline-entry.is-branch-right {
+    width: auto;
+    margin-left: 0;
+    margin-right: 0;
+    text-align: left;
+  }
+  .nur-timeline-entry.is-branch-left .nur-timeline-entry-body { order: initial; }
+  .nur-timeline-entry[data-timeline-branch]::before {
+    left: -33px;
+    right: auto;
+  }
+  .nur-timeline-entry[data-timeline-branch]::after { display: none; }
   .nur-timeline-dependency-line { left: -25px; }
   .nur-timeline-phase-band { left: -58px; }
 }
@@ -929,12 +1088,34 @@
 /* ── motion ───────────────────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
+  .nur-timeline-spine::before {
+    animation: none !important;
+    transform: none !important;
+  }
   .nur-timeline-now-sigil { animation: none !important; }
   .nur-timeline-capsule,
   .nur-timeline-row,
   .nur-timeline-tab,
   .nur-timeline-entry { transition: none !important; }
   .nur-timeline-capsule:hover { transform: none; }
+}
+
+/* Timeline controls and containers use borders and material contrast, not
+   blurred button or panel glow. Timeline nodes keep their semantic light. */
+#nur-timeline-root :is(button, [role="button"]) {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+}
+
+#nur-timeline-root :is(
+  .nur-timeline-pane,
+  .nur-timeline-panel,
+  .nur-timeline-drawer,
+  .nur-timeline-sheet
+) {
+  box-shadow: inset 0 1px 0 rgba(255, 248, 223, .045) !important;
+  filter: none !important;
 }
 
 /* ── accessible outline ───────────────────────────────────────────────────── */

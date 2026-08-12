@@ -34,16 +34,17 @@ test("bounded Community room and message persist through exact V197 controls", a
   await universe.locator("#nur-v197-room-title").fill(roomTitle);
   const createResponse = page.waitForResponse(response =>
     response.url().includes("/api/v1/community/rooms") && response.status() === 201);
-  await universe.locator('[data-action="community-create-room"]').click();
+  await universe.locator('[data-adjunct-action="community-room-create"]').click();
   await createResponse;
-  await expect(universe.locator("#universe-community")).toContainText(roomTitle);
-  await expect(universe.locator("#universe-community")).toContainText("your role owner");
+  await expect(page).toHaveURL(/\/universe\/community\/room\/[0-9a-f-]+$/);
+  await expect(universe.locator("#nur-v197-adjunct-root")).toContainText(roomTitle);
+  await expect(universe.locator("#nur-v197-adjunct-root")).toContainText("OWNER · GROUP");
 
   const messageBody = `One honest recovery line ${Date.now()}`;
   await universe.locator("#nur-v197-room-message").fill(messageBody);
   const messageResponse = page.waitForResponse(response =>
     response.url().includes("/messages") && response.status() === 201);
-  await universe.locator('[data-action="community-post-message"]').click();
+  await universe.locator('[data-adjunct-action="community-message-send"]').click();
   await messageResponse;
 
   // The message and its server-side Glow must be provable, not decorative.
@@ -64,35 +65,40 @@ test("bounded Community room and message persist through exact V197 controls", a
   expect(persisted.glow).toBeGreaterThan(0);
 
   // The privacy law stays visible: rooms never advertise fake people or feeds.
-  await expect(universe.locator("#universe-community")).toContainText("member content only");
+  await expect(universe.locator("#nur-v197-adjunct-root")).toContainText("Private Talk, Journal, Timeline, and Omega stay unreachable");
+  await expect(universe.locator("#nur-v197-adjunct-root")).toContainText("not_connected");
 
   // Membership grant to the second seeded demo account — the room becomes
   // genuinely multi-user through the V197 surface.
   await universe.locator("#nur-v197-member-email").fill("recipient@nur.app");
   const memberResponse = page.waitForResponse(response =>
     response.url().includes("/members") && response.status() === 201);
-  await universe.locator('[data-action="community-add-member"]').click();
+  await universe.locator('[data-adjunct-action="community-member-add"]').click();
   await memberResponse;
 
   // Council flow: start a Council, persist a position, record the decision.
   const councilTitle = `Recovery council ${Date.now()}`;
+  await page.goto("/universe/community", { waitUntil: "load" });
+  await expect(universe.locator("#nur-v197-community-controls")).toBeVisible();
   await universe.locator("#nur-v197-room-title").fill(councilTitle);
   const councilResponse = page.waitForResponse(response =>
     response.url().includes("/api/v1/community/rooms") && response.status() === 201);
-  await universe.locator('[data-action="community-create-council"]').click();
+  await universe.locator('[data-adjunct-action="community-council-create"]').click();
   await councilResponse;
-  await expect(universe.locator("#universe-community")).toContainText(councilTitle);
+  await expect(page).toHaveURL(/\/universe\/community\/room\/[0-9a-f-]+$/);
+  await expect(universe.locator("#nur-v197-adjunct-root")).toContainText(councilTitle);
+  await expect(universe.locator("#nur-v197-adjunct-root")).toContainText("OWNER · COUNCIL");
 
   await universe.locator("#nur-v197-council-position").fill("Repair before boundary.");
   const positionResponse = page.waitForResponse(response =>
     response.url().includes("/positions") && response.status() === 201);
-  await universe.locator('[data-action="council-add-position"]').click();
+  await universe.locator('[data-adjunct-action="council-position-add"]').click();
   await positionResponse;
 
   await universe.locator("#nur-v197-council-decision").fill("Attempt one bounded repair first.");
   const decisionResponse = page.waitForResponse(response =>
     response.url().includes("/decision") && response.status() === 201);
-  await universe.locator('[data-action="council-record-decision"]').click();
+  await universe.locator('[data-adjunct-action="council-decision-record"]').click();
   await decisionResponse;
 
   const council = await page.evaluate(async (expected) => {

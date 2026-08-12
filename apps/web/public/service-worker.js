@@ -16,7 +16,7 @@
 // Build assets are network-first now, falling back to cache only when the
 // network genuinely fails. The shell stays cached so the app still opens
 // offline.
-const VERSION = "v3";
+const VERSION = "v4";
 const CACHE = `nur-v197-shell-${VERSION}`;
 const SHELL = ["/", "/offline.html", "/manifest.webmanifest", "/nur-icon.svg"];
 

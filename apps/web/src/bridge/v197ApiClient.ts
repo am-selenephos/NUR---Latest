@@ -1,4 +1,53 @@
 import type { V197GlowAward, V197GlowSummary } from "./v197Rewards";
+import type {
+  V197AgenticApproval,
+  V197AgenticPolicy,
+  V197AgenticTool,
+  V197AgenticWorkflow,
+  V197AgenticWorkflowDetail,
+} from "./v197Agentic";
+
+export interface V197OwnerSession {
+  id: string;
+  created_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  current: boolean;
+  state: "active" | "expired" | "revoked" | string;
+}
+
+export interface V197AccountDeletionResult {
+  deleted: boolean;
+  revoked_session_count: number;
+  local_object_cleanup: {
+    requested: number;
+    deleted: number;
+    already_absent: number;
+    failed: number;
+  };
+  external_provider_deletion: {
+    status: "not_performed" | "not_applicable" | string;
+    providers: string[];
+    detail: string;
+  };
+  retained_audit: string;
+}
+
+export interface V197AgenticWorkflowCreate {
+  request_id: string;
+  title: string;
+  objective: string;
+  context_manifest: Record<string, unknown>;
+  success_criteria: string[];
+  proposed_steps: Array<{
+    key: string;
+    role: string;
+    tool_key: string;
+    depends_on: string[];
+    input_refs: Record<string, unknown>;
+    rationale: string;
+  }>;
+}
 
 export interface V197Profile {
   chosen_name?: string | null;
@@ -357,6 +406,123 @@ export interface V197ResearchBrief {
   created_at: string;
 }
 
+export interface V197ResearchJob {
+  id: string;
+  research_brief_id: string;
+  mode: "QUICK" | "DEEP" | string;
+  provider_name: "OWNER_SOURCES" | "EXTERNAL_WEB" | string;
+  status: string;
+  query_preview: string;
+  external_scope_approved: boolean;
+  failure_code: string | null;
+  failure_detail: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+}
+
+export interface V197ResearchSource {
+  id: string;
+  research_brief_id: string;
+  research_job_id: string | null;
+  title: string;
+  url: string;
+  publisher: string | null;
+  source_kind: string;
+  authority: string;
+  reliability: string;
+  retrieval_status: string;
+  excerpt: string;
+  published_at: string | null;
+  fetched_at: string | null;
+  untrusted_external_content: boolean;
+  provenance_label: string;
+  created_at: string;
+}
+
+export interface V197ResearchClaim {
+  id: string;
+  research_brief_id: string;
+  claim_text: string;
+  uncertainty: string;
+  citation_alignment: string;
+  status: string;
+  revision_number: number;
+  citations: Array<{
+    id: string;
+    source_id: string;
+    relationship: string;
+    locator: string | null;
+    note: string | null;
+    created_at: string;
+  }>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface V197ExpertProfile {
+  id: string;
+  display_name: string;
+  bio: string;
+  domains: string[];
+  verification_status: string;
+  verification_scope: string;
+  moderation_state: string;
+  conflicts: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface V197ExpertVerification {
+  id: string;
+  profile_id: string;
+  claim_type: string;
+  claim: string;
+  evidence_url: string;
+  method: string;
+  status: string;
+  reviewer_note: string | null;
+  expires_at: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export interface V197ExpertContribution {
+  id: string;
+  room_id: string;
+  profile_id: string;
+  body: string;
+  source_ids: string[];
+  conflict_disclosure: string;
+  verification_label: string;
+  moderation_state: string;
+  moderation_note: string | null;
+  created_at: string;
+}
+
+export interface V197CandidateInsight {
+  id: string;
+  orbit_id: string | null;
+  insight_type: string;
+  title: string;
+  claim: string;
+  tone: string;
+  confidence: number;
+  valence: string;
+  affected_system_slug: string | null;
+  evidence: Array<Record<string, unknown>>;
+  counter_evidence: Array<Record<string, unknown>>;
+  what_nur_may_be_wrong_about: string;
+  positive_interpretation: string | null;
+  hard_interpretation: string | null;
+  suggested_action: string | null;
+  status: string;
+  correction: string | null;
+  provenance_label: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface V197ProjectSummaryRow {
   id: string;
   orbit_id: string;
@@ -498,6 +664,24 @@ export interface V197CommunityRoomSummary {
   };
   truth_state: string;
   external_public_feed: string;
+}
+
+export interface V197CommunityMember {
+  id: string;
+  user_id: string;
+  role: "OWNER" | "MODERATOR" | "MEMBER" | "WITNESS";
+  joined_at: string;
+}
+
+export interface V197CouncilPosition {
+  id: string;
+  owner_user_id: string;
+  position: string;
+  evidence: Array<Record<string, unknown>>;
+  is_minority: boolean;
+  is_demo: boolean;
+  created_at: string;
+  glow?: V197CommunityGlowNote;
 }
 
 export interface V197CapsuleSource {
@@ -897,7 +1081,7 @@ function cookie(name: string): string | null {
 }
 
 export class V197ApiClient {
-  private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  private async response(path: string, init: RequestInit = {}): Promise<Response> {
     const controller = new AbortController();
     const timedOut = { value: false };
     const timeout = window.setTimeout(() => {
@@ -907,7 +1091,7 @@ export class V197ApiClient {
     const abortFromCaller = () => controller.abort();
     init.signal?.addEventListener("abort", abortFromCaller, { once: true });
     try {
-      const response = await fetch(`/api/v1${path}`, {
+      return await fetch(`/api/v1${path}`, {
         ...init,
         credentials: "include",
         signal: controller.signal,
@@ -917,6 +1101,21 @@ export class V197ApiClient {
           ...init.headers,
         },
       });
+    } catch (error) {
+      if (timedOut.value) {
+        throw new V197ApiError(`NUR API did not respond within ${REQUEST_TIMEOUT_MS / 1000} seconds. Check API readiness.`, 0);
+      }
+      if (init.signal?.aborted) throw new V197ApiError("The NUR request was cancelled.", 0);
+      throw new V197ApiError("NUR API is unreachable. Check that RUN_NUR.sh reports API ready.", 0);
+    } finally {
+      window.clearTimeout(timeout);
+      init.signal?.removeEventListener("abort", abortFromCaller);
+    }
+  }
+
+  private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    try {
+      const response = await this.response(path, init);
       if (response.status === 204) return undefined as T;
       const raw = await response.text();
       let body: unknown;
@@ -934,14 +1133,7 @@ export class V197ApiClient {
       return body as T;
     } catch (error) {
       if (error instanceof V197ApiError) throw error;
-      if (timedOut.value) {
-        throw new V197ApiError(`NUR API did not respond within ${REQUEST_TIMEOUT_MS / 1000} seconds. Check API readiness.`, 0);
-      }
-      if (init.signal?.aborted) throw new V197ApiError("The NUR request was cancelled.", 0);
-      throw new V197ApiError("NUR API is unreachable. Check that RUN_NUR.sh reports API ready.", 0);
-    } finally {
-      window.clearTimeout(timeout);
-      init.signal?.removeEventListener("abort", abortFromCaller);
+      throw error;
     }
   }
 
@@ -1001,6 +1193,64 @@ export class V197ApiClient {
     const session = await this.session();
     if (!session) throw new V197ApiError("The session was not established.", 401);
     return session;
+  }
+
+  forgotPassword(email: string): Promise<{ accepted: boolean; message: string }> {
+    return this.post<{ accepted: boolean; message: string }>(
+      "/auth/password/forgot",
+      { email },
+      false,
+    );
+  }
+
+  resetPassword(token: string, newPassword: string): Promise<void> {
+    return this.post<void>(
+      "/auth/password/reset",
+      { token, new_password: newPassword },
+      false,
+    );
+  }
+
+  changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    return this.post<void>("/auth/password/change", {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+  }
+
+  async downloadOwnerExport(): Promise<{ blob: Blob; checksum: string; filename: string }> {
+    const response = await this.response("/account/export", {
+      method: "POST",
+      headers: this.writeHeaders(),
+      body: JSON.stringify({}),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({})) as { detail?: unknown };
+      throw new V197ApiError(body.detail ? String(body.detail) : `Account export returned ${response.status}.`, response.status);
+    }
+    const disposition = response.headers.get("content-disposition") ?? "";
+    const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1] ?? "nur-owner-export-v1.json";
+    return {
+      blob: await response.blob(),
+      checksum: response.headers.get("x-nur-export-checksum") ?? "not-returned",
+      filename,
+    };
+  }
+
+  ownerSessions(): Promise<V197OwnerSession[]> {
+    return this.get<{ sessions: V197OwnerSession[] }>("/auth/sessions").then(result => result.sessions);
+  }
+
+  revokeOtherSessions(): Promise<{ revoked_session_count: number }> {
+    return this.post<{ revoked_session_count: number }>("/auth/sessions/revoke-others", {});
+  }
+
+  revokeSession(sessionId: string): Promise<{ revoked_session_count: number }> {
+    return this.delete<{ revoked_session_count: number }>(`/auth/sessions/${encodeURIComponent(sessionId)}`);
+  }
+
+  deleteAccount(password: string, confirmation: string): Promise<V197AccountDeletionResult> {
+    return this.delete<V197AccountDeletionResult>("/account", { password, confirmation });
   }
 
   logout(): Promise<void> {
@@ -1188,6 +1438,130 @@ export class V197ApiClient {
     return this.post<V197ResearchBrief>("/research/briefs", { question, orbit_id: orbitId });
   }
 
+  researchBriefs(): Promise<V197ResearchBrief[]> {
+    return this.get<V197ResearchBrief[]>("/research/briefs");
+  }
+
+  researchJobs(): Promise<V197ResearchJob[]> {
+    return this.get<V197ResearchJob[]>("/research/jobs");
+  }
+
+  createResearchJob(payload: {
+    research_brief_id: string;
+    mode: "QUICK" | "DEEP";
+    provider_name: "OWNER_SOURCES" | "EXTERNAL_WEB";
+    query_preview: string;
+    external_scope_approved: boolean;
+  }): Promise<V197ResearchJob> {
+    return this.post<V197ResearchJob>("/research/jobs", payload);
+  }
+
+  researchSources(briefId?: string): Promise<V197ResearchSource[]> {
+    const query = briefId ? `?research_brief_id=${encodeURIComponent(briefId)}` : "";
+    return this.get<V197ResearchSource[]>(`/research/sources${query}`);
+  }
+
+  addResearchSource(payload: {
+    research_brief_id: string;
+    research_job_id?: string | null;
+    title: string;
+    url: string;
+    publisher?: string | null;
+    source_kind: "WEB" | "RSS" | "API" | "OWNER_SOURCE" | "DOCUMENT";
+    authority: "PRIMARY" | "SECONDARY" | "TERTIARY" | "UNKNOWN";
+    reliability: "HIGH" | "MEDIUM" | "LOW" | "UNASSESSED";
+    excerpt: string;
+  }): Promise<V197ResearchSource> {
+    return this.post<V197ResearchSource>("/research/sources", payload);
+  }
+
+  researchClaims(briefId?: string): Promise<V197ResearchClaim[]> {
+    const query = briefId ? `?research_brief_id=${encodeURIComponent(briefId)}` : "";
+    return this.get<V197ResearchClaim[]>(`/research/claims${query}`);
+  }
+
+  createResearchClaim(payload: {
+    research_brief_id: string;
+    claim_text: string;
+    uncertainty: string;
+    citation_alignment: "HIGH" | "MEDIUM" | "LOW";
+    citations: Array<{
+      source_id: string;
+      relationship: "SUPPORTS" | "COUNTERS" | "CONTEXT";
+      locator?: string | null;
+      note?: string | null;
+    }>;
+  }): Promise<V197ResearchClaim> {
+    return this.post<V197ResearchClaim>("/research/claims", payload);
+  }
+
+  expertProfiles(): Promise<V197ExpertProfile[]> {
+    return this.get<V197ExpertProfile[]>("/experts/profiles");
+  }
+
+  createExpertProfile(payload: {
+    display_name: string;
+    bio: string;
+    domains: string[];
+    conflicts: string[];
+  }): Promise<V197ExpertProfile> {
+    return this.post<V197ExpertProfile>("/experts/profiles", payload);
+  }
+
+  expertVerifications(): Promise<V197ExpertVerification[]> {
+    return this.get<V197ExpertVerification[]>("/experts/verifications");
+  }
+
+  requestExpertVerification(profileId: string, payload: {
+    verifier_email: string;
+    claim_type: "IDENTITY" | "CREDENTIAL";
+    claim: string;
+    evidence_url: string;
+  }): Promise<V197ExpertVerification> {
+    return this.post<V197ExpertVerification>(
+      `/experts/profiles/${encodeURIComponent(profileId)}/verifications`,
+      payload,
+    );
+  }
+
+  expertContributions(roomId: string): Promise<V197ExpertContribution[]> {
+    return this.get<V197ExpertContribution[]>(
+      `/experts/rooms/${encodeURIComponent(roomId)}/contributions`,
+    );
+  }
+
+  createExpertContribution(roomId: string, payload: {
+    profile_id: string;
+    body: string;
+    source_ids: string[];
+    conflict_disclosure: string;
+  }): Promise<V197ExpertContribution> {
+    return this.post<V197ExpertContribution>(
+      `/experts/rooms/${encodeURIComponent(roomId)}/contributions`,
+      payload,
+    );
+  }
+
+  candidateInsights(status?: string): Promise<V197CandidateInsight[]> {
+    const query = new URLSearchParams({ limit: "80" });
+    if (status) query.set("status", status);
+    return this.get<V197CandidateInsight[]>(`/insights?${query.toString()}`);
+  }
+
+  generateCandidateInsight(systemSlug?: string): Promise<V197CandidateInsight> {
+    return this.post<V197CandidateInsight>("/insights/generate", {
+      system_slug: systemSlug || null,
+      preferred_type: null,
+    });
+  }
+
+  saveInsightToMemory(insightId: string): Promise<Record<string, unknown>> {
+    return this.post<Record<string, unknown>>(
+      `/insights/${encodeURIComponent(insightId)}/save-to-memory`,
+      {},
+    );
+  }
+
   createOrbit(title: string): Promise<V197Orbit> {
     return this.post<V197Orbit>("/orbits", { title, kind: "PROJECT", description: "Created from the V197 Systems field." });
   }
@@ -1215,6 +1589,42 @@ export class V197ApiClient {
     return this.get<V197CommunityMessage[]>(`/community/rooms/${encodeURIComponent(roomId)}/messages`);
   }
 
+  communityMembers(roomId: string): Promise<V197CommunityMember[]> {
+    return this.get<V197CommunityMember[]>(`/community/rooms/${encodeURIComponent(roomId)}/members`);
+  }
+
+  addCommunityMember(
+    roomId: string,
+    email: string,
+    role: "MODERATOR" | "MEMBER" | "WITNESS" = "MEMBER",
+  ): Promise<V197CommunityMember> {
+    return this.post<V197CommunityMember>(`/community/rooms/${encodeURIComponent(roomId)}/members`, {
+      email,
+      role,
+    });
+  }
+
+  communityPositions(roomId: string): Promise<V197CouncilPosition[]> {
+    return this.get<V197CouncilPosition[]>(`/community/rooms/${encodeURIComponent(roomId)}/positions`);
+  }
+
+  createCouncilPosition(roomId: string, position: string): Promise<V197CouncilPosition> {
+    return this.post<V197CouncilPosition>(`/community/rooms/${encodeURIComponent(roomId)}/positions`, {
+      position,
+      evidence: [],
+      is_minority: false,
+    });
+  }
+
+  createCouncilDecision(roomId: string, decision: string): Promise<Record<string, unknown>> {
+    return this.post<Record<string, unknown>>(`/community/rooms/${encodeURIComponent(roomId)}/decision`, {
+      decision,
+      rationale: null,
+      minority_opinion: null,
+      return_check_at: null,
+    });
+  }
+
   communityPosts(roomId: string): Promise<V197CommunityPost[]> {
     return this.get<V197CommunityPost[]>(`/community/rooms/${encodeURIComponent(roomId)}/posts`);
   }
@@ -1239,18 +1649,6 @@ export class V197ApiClient {
     return this.post<Record<string, unknown>>(`/community/rooms/${encodeURIComponent(roomId)}/reactions`, {
       target_kind: targetKind, target_id: targetId, reaction,
     });
-  }
-
-  addCommunityMember(roomId: string, email: string): Promise<{ id: string; room_id: string; user_id: string; role: string }> {
-    return this.post(`/community/rooms/${encodeURIComponent(roomId)}/members`, { email, role: "MEMBER" });
-  }
-
-  createCouncilPosition(roomId: string, position: string): Promise<Record<string, unknown>> {
-    return this.post(`/community/rooms/${encodeURIComponent(roomId)}/positions`, { position, evidence: [], is_minority: false });
-  }
-
-  createCouncilDecision(roomId: string, decision: string): Promise<Record<string, unknown>> {
-    return this.post(`/community/rooms/${encodeURIComponent(roomId)}/decision`, { decision });
   }
 
   capsuleView(capsuleId: string): Promise<V197CapsuleView> {
@@ -1609,6 +2007,77 @@ export class V197ApiClient {
     });
   }
 
+  agenticTools(): Promise<V197AgenticTool[]> {
+    return this.get<{ tools: V197AgenticTool[] }>("/agentic/tools").then(result => result.tools);
+  }
+
+  agenticPolicy(): Promise<V197AgenticPolicy> {
+    return this.get<V197AgenticPolicy>("/agentic/policy");
+  }
+
+  putAgenticPolicy(payload: Omit<V197AgenticPolicy, "id" | "scope" | "persisted" | "granted_capabilities">): Promise<V197AgenticPolicy> {
+    return this.put<V197AgenticPolicy>("/agentic/policy", payload);
+  }
+
+  agenticWorkflows(state?: string): Promise<V197AgenticWorkflow[]> {
+    const query = state ? `?state=${encodeURIComponent(state)}` : "";
+    return this.get<{ workflows: V197AgenticWorkflow[] }>(`/agentic/workflows${query}`).then(result => result.workflows);
+  }
+
+  agenticWorkflow(workflowId: string): Promise<V197AgenticWorkflowDetail> {
+    return this.get<V197AgenticWorkflowDetail>(`/agentic/workflows/${encodeURIComponent(workflowId)}`);
+  }
+
+  createAgenticWorkflow(payload: V197AgenticWorkflowCreate): Promise<V197AgenticWorkflowDetail> {
+    return this.post<V197AgenticWorkflowDetail>("/agentic/workflows", payload);
+  }
+
+  startAgenticWorkflow(workflowId: string, seenPlanVersion: number): Promise<V197AgenticWorkflowDetail> {
+    return this.post<V197AgenticWorkflowDetail>(
+      `/agentic/workflows/${encodeURIComponent(workflowId)}/start`,
+      { seen_plan_version: seenPlanVersion },
+    );
+  }
+
+  cancelAgenticWorkflow(workflowId: string): Promise<V197AgenticWorkflowDetail> {
+    return this.post<V197AgenticWorkflowDetail>(`/agentic/workflows/${encodeURIComponent(workflowId)}/cancel`, {});
+  }
+
+  retryAgenticStep(workflowId: string, stepId: string, seenAttempt: number, seenExecutionAttempt: string): Promise<V197AgenticWorkflowDetail> {
+    return this.post<V197AgenticWorkflowDetail>(
+      `/agentic/workflows/${encodeURIComponent(workflowId)}/steps/${encodeURIComponent(stepId)}/retry`,
+      { seen_attempt: seenAttempt, seen_execution_attempt: seenExecutionAttempt },
+    );
+  }
+
+  agenticWorkflowEvents(workflowId: string): Promise<Array<Record<string, unknown>>> {
+    return this.get<{ events: Array<Record<string, unknown>> }>(
+      `/agentic/workflows/${encodeURIComponent(workflowId)}/events`,
+    ).then(result => result.events);
+  }
+
+  agenticApprovals(): Promise<V197AgenticApproval[]> {
+    return this.get<{ approvals: V197AgenticApproval[] }>("/agentic/approvals").then(result => result.approvals);
+  }
+
+  decideAgenticApproval(
+    approval: V197AgenticApproval,
+    decision: "APPROVE" | "REJECT",
+    note?: string,
+  ): Promise<Record<string, unknown>> {
+    return this.post<Record<string, unknown>>(
+      `/agentic/approvals/${encodeURIComponent(approval.approval_id || approval.id)}/decide`,
+      {
+        decision,
+        seen_digest: approval.argument_digest,
+        seen_plan_version: approval.plan_version,
+        seen_call_version: approval.call_version,
+        note: note || null,
+        edited_arguments: null,
+      },
+    );
+  }
+
   async snapshot(session: V197Session): Promise<V197BridgeSnapshot> {
     const read = async <T>(path: string, fallback: T): Promise<T> => {
       try {
@@ -1640,7 +2109,7 @@ export class V197ApiClient {
       daily_quest: {},
       weekly_mission: {},
     };
-    const [health, live, ownerState, map, orbits, timeline, insights, mapGraph, scoreboard, preferences, talkThread, journal, plans, glow, researchBriefs, projects] = await Promise.all([
+    const [health, live, ownerState, map, orbits, timeline, insights, mapGraph, scoreboard, preferences, talkThread, journal, plans, glow, researchBriefs, projects, communityRooms] = await Promise.all([
       this.health().catch(() => null),
       required<V197LiveUniverse>("/universe/live"),
       required<V197OwnerState>("/orbits/current-state"),
@@ -1657,16 +2126,8 @@ export class V197ApiClient {
       read<V197GlowSummary>("/glow/summary", emptyGlow),
       read<V197ResearchBrief[]>("/research/briefs", []),
       read<V197ProjectSummary | null>("/projects/summary", null),
+      read<V197CommunityRoom[]>("/community/rooms", []),
     ]);
-    const communityRooms = await read<V197CommunityRoom[]>("/community/rooms", []);
-    const council = communityRooms.find(room => room.room_kind === "COUNCIL" && room.status === "ACTIVE");
-    const councilSummary = council
-      ? await read<V197CommunityRoomSummary | null>(`/community/rooms/${encodeURIComponent(council.id)}/summary`, null)
-      : null;
-    const latestRoom = communityRooms.find(room => room.status === "ACTIVE");
-    const communityMessages = latestRoom
-      ? await read<V197CommunityMessage[]>(`/community/rooms/${encodeURIComponent(latestRoom.id)}/messages?limit=25`, [])
-      : [];
 
     return {
       session,
@@ -1689,8 +2150,6 @@ export class V197ApiClient {
       researchBriefs,
       projects,
       communityRooms,
-      councilSummary,
-      communityMessages,
     };
   }
 }

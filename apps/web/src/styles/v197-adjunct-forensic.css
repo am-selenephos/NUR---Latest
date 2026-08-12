@@ -1,18 +1,53 @@
-/* Selected-state and card borders read gold, matching Entry.
-   These gradients carried hot pink (255,58,158), cyan (33,232,255) and
-   violet (193,107,255), which is what made the selected System card and
-   the active nav item glow magenta inside while Entry's equivalents are
-   gold. The gradients still shift; they shift through warm values now. */
 #nur-v197-adjunct-root {
+  /* Keep dedicated chambers above the canonical shell (260) and below the
+     untouched V197 galaxy canvas (280). */
+  --nur-layer-modal: 270;
   --adj-black: #000;
-  --adj-ink: #030307;
-  --adj-navy: #06062b;
+  --adj-ink: #010204;
   --adj-ivory: #fff8df;
   --adj-gold: #ffd35a;
   --adj-gold-soft: #f8d98a;
   --adj-pink: #ff3a9e;
   --adj-cyan: #21e8ff;
   --adj-violet: #843dff;
+  --adj-film: linear-gradient(
+    112deg,
+    rgba(255, 155, 168, .036),
+    rgba(255, 195, 157, .03) 14%,
+    rgba(255, 232, 163, .034) 28%,
+    rgba(159, 240, 206, .03) 42%,
+    rgba(155, 220, 255, .034) 56%,
+    rgba(173, 184, 255, .03) 70%,
+    rgba(223, 173, 255, .034) 84%,
+    rgba(255, 155, 168, .028)
+  );
+  --adj-film-strong: linear-gradient(
+    112deg,
+    rgba(255, 155, 168, .082),
+    rgba(255, 195, 157, .068) 14%,
+    rgba(255, 232, 163, .078) 28%,
+    rgba(159, 240, 206, .068) 42%,
+    rgba(155, 220, 255, .078) 56%,
+    rgba(173, 184, 255, .068) 70%,
+    rgba(223, 173, 255, .078) 84%,
+    rgba(255, 155, 168, .062)
+  );
+  --adj-gold-rim: linear-gradient(
+    112deg,
+    rgba(255, 249, 224, .72),
+    rgba(255, 225, 139, .86) 24%,
+    rgba(197, 143, 43, .48) 50%,
+    rgba(255, 213, 90, .82) 74%,
+    rgba(255, 245, 204, .68)
+  );
+  --adj-holo-glow:
+    -12px -5px 26px rgba(255, 155, 168, .042),
+    -8px 8px 28px rgba(255, 195, 157, .038),
+    -2px 12px 30px rgba(255, 232, 163, .036),
+    7px 10px 30px rgba(159, 240, 206, .038),
+    12px 3px 32px rgba(155, 220, 255, .04),
+    9px -7px 30px rgba(173, 184, 255, .038),
+    1px -11px 28px rgba(223, 173, 255, .04);
   --adj-muted: rgba(255, 248, 223, .62);
   position: fixed;
   inset: 0;
@@ -22,9 +57,12 @@
   overscroll-behavior: contain;
   color: var(--adj-ivory);
   background:
-    radial-gradient(ellipse at 50% 14%, rgba(255, 211, 90, .035), transparent 34%),
-    radial-gradient(ellipse at 82% 52%, rgba(255, 222, 150, .018), transparent 36%),
-    rgba(0, 0, 0, .965);
+    radial-gradient(ellipse at 18% 14%, rgba(255, 155, 168, .012), transparent 34%),
+    radial-gradient(ellipse at 36% 62%, rgba(255, 232, 163, .01), transparent 36%),
+    radial-gradient(ellipse at 54% 26%, rgba(159, 240, 206, .01), transparent 34%),
+    radial-gradient(ellipse at 72% 68%, rgba(155, 220, 255, .012), transparent 36%),
+    radial-gradient(ellipse at 88% 28%, rgba(223, 173, 255, .01), transparent 34%),
+    #000;
   font: 16px/1.45 "Crimson Pro", Georgia, serif;
   scrollbar-color: rgba(248, 217, 138, .34) #000;
   user-select: text;
@@ -75,10 +113,11 @@
   border: 1px solid transparent;
   border-radius: 7px;
   background:
-    linear-gradient(145deg, rgba(255, 248, 223, .025), rgba(3, 3, 7, .58) 52%, rgba(6, 6, 43, .18)) padding-box,
-    linear-gradient(110deg, rgba(248, 217, 138, .32), rgba(255, 190, 122, .14), rgba(255, 222, 150, .2)) border-box;
+    var(--adj-film) padding-box,
+    rgba(0, 0, 0, .62) padding-box,
+    var(--adj-gold-rim) border-box;
   color: rgba(255, 248, 223, .82);
-  box-shadow: inset 0 1px 0 rgba(255, 248, 223, .055), 0 8px 22px rgba(0, 0, 0, .22);
+  box-shadow: inset 0 1px 0 rgba(255, 248, 223, .055), 0 8px 22px rgba(0, 0, 0, .22), var(--adj-holo-glow);
   font: 600 13px/1 "Crimson Pro", serif;
   letter-spacing: .04em;
   cursor: pointer;
@@ -92,16 +131,21 @@
 .nur-adjunct-back:hover,
 .nur-adjunct-button:hover:not(:disabled) {
   color: var(--adj-ivory);
-  box-shadow: inset 0 1px 0 rgba(255, 248, 223, .09), 0 0 20px rgba(255, 211, 90, .07);
+  background:
+    var(--adj-film-strong) padding-box,
+    rgba(0, 0, 0, .56) padding-box,
+    var(--adj-gold-rim) border-box;
+  box-shadow: inset 0 1px 0 rgba(255, 248, 223, .09), 0 0 20px rgba(255, 211, 90, .08), var(--adj-holo-glow);
   transform: translateY(-1px);
 }
 
 .nur-adjunct-button.is-primary {
   background:
-    linear-gradient(135deg, rgba(255, 211, 90, .09), rgba(3, 3, 7, .58) 48%, rgba(255, 190, 122, .045)) padding-box,
-    linear-gradient(105deg, rgba(255, 211, 90, .72), rgba(255, 190, 122, .42), rgba(255, 222, 150, .48), rgba(248, 214, 140, .36)) border-box;
+    var(--adj-film-strong) padding-box,
+    rgba(0, 0, 0, .62) padding-box,
+    var(--adj-gold-rim) border-box;
   color: var(--adj-ivory);
-  box-shadow: inset 0 1px 0 rgba(255, 248, 223, .13), 0 0 24px rgba(255, 211, 90, .09), 0 0 30px rgba(255, 190, 122, .035);
+  box-shadow: inset 0 1px 0 rgba(255, 248, 223, .13), 0 0 24px rgba(255, 211, 90, .09), var(--adj-holo-glow);
 }
 
 .nur-adjunct-button:disabled {
@@ -156,6 +200,43 @@
   50% { background-position: 100% 50%; }
 }
 
+@keyframes nurAdjunctMaterialShift {
+  from { background-position: 0% 50%, 0 0, 0 0; }
+  to { background-position: 100% 50%, 0 0, 0 0; }
+}
+
+.nur-adjunct-universe-nav {
+  position: sticky;
+  top: 66px;
+  z-index: 3;
+  display: flex;
+  gap: 7px;
+  width: 100%;
+  padding: 10px 0;
+  overflow-x: auto;
+  border-bottom: 1px solid rgba(248, 217, 138, .12);
+  background: rgba(0, 0, 0, .9);
+  scrollbar-width: thin;
+  backdrop-filter: blur(14px);
+}
+
+.nur-adjunct-universe-nav .nur-adjunct-button {
+  flex: 0 0 auto;
+  min-height: 38px;
+}
+
+.nur-adjunct-universe-nav .nur-adjunct-button[aria-current="page"] {
+  color: var(--adj-ivory);
+  background:
+    var(--adj-film-strong) padding-box,
+    rgba(0, 0, 0, .62) padding-box,
+    var(--adj-gold-rim) border-box;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 223, .12),
+    0 0 18px rgba(255, 211, 90, .1),
+    var(--adj-holo-glow);
+}
+
 .nur-adjunct-privacy {
   justify-self: end;
   color: var(--adj-muted);
@@ -204,13 +285,20 @@
   border: 1px solid transparent;
   border-radius: 7px;
   background:
-    linear-gradient(145deg, rgba(255, 248, 223, .024), rgba(3, 3, 7, .56) 42%, rgba(6, 6, 43, .14)) padding-box,
-    linear-gradient(115deg, rgba(248, 217, 138, .3), rgba(255, 190, 122, .12), rgba(255, 222, 150, .16)) border-box;
-  box-shadow: inset 0 1px 0 rgba(255, 248, 223, .055), 0 18px 50px rgba(0, 0, 0, .25);
+    var(--adj-film) padding-box,
+    rgba(0, 0, 0, .72) padding-box,
+    var(--adj-gold-rim) border-box;
+  background-size: 280% 100%, auto, auto;
+  box-shadow: inset 0 1px 0 rgba(255, 248, 223, .055), 0 18px 50px rgba(0, 0, 0, .25), var(--adj-holo-glow);
+  animation: nurAdjunctMaterialShift 18s ease-in-out infinite alternate;
 }
 
 .nur-adjunct-panel.is-wide {
   grid-column: 1 / -1;
+}
+
+.nur-adjunct-panel.is-danger {
+  border-color: rgba(255, 122, 104, .34);
 }
 
 .nur-adjunct-panel h2 {
@@ -222,6 +310,39 @@
 .nur-adjunct-panel h3 {
   color: var(--adj-gold-soft);
   font: 500 20px/1.15 "Bodoni Moda", serif;
+}
+
+.nur-adjunct-candidate-claim {
+  margin: 18px 0;
+  padding-inline-start: 16px;
+  border-inline-start: 2px solid rgba(255, 211, 90, .58);
+  color: var(--adj-ivory);
+  font: 500 clamp(22px, 2.2vw, 31px)/1.25 "Bodoni Moda", Didot, serif;
+}
+
+.nur-adjunct-evidence-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.nur-adjunct-evidence-block {
+  grid-column: span 6;
+  min-width: 0;
+  padding: 14px 0;
+  border-top: 1px solid rgba(248, 217, 138, .12);
+  border-bottom: 1px solid rgba(248, 217, 138, .08);
+}
+
+.nur-adjunct-evidence-block h3 {
+  margin: 7px 0 10px;
+}
+
+.nur-adjunct-evidence-line {
+  margin: 0;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(248, 217, 138, .08);
+  color: rgba(255, 248, 223, .68);
+  overflow-wrap: anywhere;
 }
 
 .nur-adjunct-facts,
@@ -294,6 +415,33 @@
   flex-wrap: wrap;
   gap: 7px;
   margin-top: 14px;
+}
+
+.nur-agentic-policy-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-block: 14px;
+}
+
+.nur-agentic-tool-permissions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 18px;
+}
+
+.nur-agentic-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.nur-agentic-group {
+  min-width: 0;
+}
+
+.nur-agentic-group:first-child {
+  grid-column: 1 / -1;
 }
 
 .nur-adjunct-field {
@@ -611,9 +759,17 @@
     gap: 8px;
   }
 
+  .nur-adjunct-universe-nav {
+    top: 98px;
+  }
+
   .nur-adjunct-brand {
     justify-self: end;
     font-size: 23px;
+  }
+
+  .nur-adjunct-evidence-block {
+    grid-column: 1 / -1;
   }
 
   .nur-adjunct-privacy {
@@ -656,6 +812,16 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .nur-agentic-policy-controls,
+  .nur-agentic-tool-permissions,
+  .nur-agentic-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nur-agentic-group:first-child {
+    grid-column: 1;
+  }
+
   .nur-community-mode .nur-adjunct-status {
     text-align: start;
   }
@@ -678,7 +844,28 @@
 
 @media (prefers-reduced-motion: reduce) {
   .nur-adjunct-brand,
+  .nur-adjunct-panel,
   #nur-v197-adjunct-root .nur-star-seal {
     animation: none !important;
   }
+}
+
+/* Authenticated chambers use glass and hairlines without a luminous rectangle
+   around every control or panel. The galaxy remains the only ambient glow. */
+#nur-v197-adjunct-root :is(
+  .nur-adjunct-back,
+  .nur-adjunct-button
+) {
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+}
+
+#nur-v197-adjunct-root :is(
+  .nur-adjunct-panel,
+  .nur-adjunct-row,
+  .nur-adjunct-empty
+) {
+  box-shadow: inset 0 1px 0 rgba(255, 248, 223, .045) !important;
+  filter: none !important;
 }

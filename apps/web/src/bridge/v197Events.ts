@@ -1,3 +1,5 @@
+import { V197_WORLD_TABS } from "../v197/contract";
+
 export const V197_EVENTS = {
   ready: "NUR:READY",
   phaseOneReadOnlyBlocked: "NUR:PHASE1:READ_ONLY_BLOCKED",
@@ -57,8 +59,14 @@ export type V197NativeRoute =
   | "/universe/timeline"
   | "/universe/insights"
   | `/universe/insights/${string}`
+  | "/universe/insights/candidates"
+  | `/universe/insights/candidates/${string}`
+  | "/universe/consultation"
+  | `/universe/consultation/${string}`
   | "/universe/research"
   | "/universe/community"
+  | `/universe/community/${string}`
+  | "/universe/experts"
   | "/universe/web-signals"
   | "/settings"
   | "/memory"
@@ -88,15 +96,21 @@ const pageRoutes: Record<string, V197NativeRoute> = {
 };
 
 const worldRoutes: Record<string, V197NativeRoute> = {
-  universe: "/systems",
+  universe: "/universe",
+  consult: "/universe/consultation",
   map: "/universe/map",
   orbits: "/universe/orbits",
   timeline: "/universe/timeline",
-  insights: "/universe/insights",
+  insights: "/universe/insights/candidates",
   research: "/universe/research",
   community: "/universe/community",
+  experts: "/universe/experts",
   web: "/universe/web-signals",
 };
+
+const worldTabRoutes: Record<string, V197NativeRoute> = Object.fromEntries(
+  V197_WORLD_TABS.map(tab => [tab.focus, tab.path as V197NativeRoute]),
+);
 
 export function routeForPage(page: string): V197NativeRoute | null {
   return pageRoutes[page] ?? null;
@@ -104,6 +118,10 @@ export function routeForPage(page: string): V197NativeRoute | null {
 
 export function routeForWorldFocus(focus: string): V197NativeRoute | null {
   return worldRoutes[focus] ?? null;
+}
+
+export function routeForWorldTab(focus: string): V197NativeRoute | null {
+  return worldTabRoutes[focus] ?? null;
 }
 
 export function emitBridgeEvent(name: V197BridgeEventName, detail: Record<string, unknown> = {}): void {

@@ -1,6 +1,5 @@
 import type {
   V197BridgeSnapshot,
-  V197CommunityRoom,
   V197InsightDetail,
   V197InsightEvidenceResponse,
   V197InsightWhyChanged,
@@ -96,6 +95,7 @@ function renderTalk(document: Document, rows: V197TalkThreadRow[]): void {
     }
     const body = document.createElement("span");
     body.className = "talk-message-body";
+    body.dataset.nurPersistedTalkText = row.id;
     body.textContent = row.text || "Persisted response without display text.";
     message.append(body);
     stream.append(message);
@@ -1145,6 +1145,7 @@ function renderInsight(document: Document, snapshot: V197BridgeSnapshot): void {
     latestEvent ? `Latest persisted change: ${latestEvent.title}.` : `No persisted revision yet · ${reviewCount} awaiting review.`,
   );
   text(document.querySelector(".live-label"), "OWNER LEDGER");
+  ensureUniversePortal(document, ".candidate-insight", "Review candidates", "insights");
 }
 
 function makeHonestResult(document: Document, mark: string, title: string, detail: string): HTMLElement {
@@ -1164,113 +1165,55 @@ function makeHonestResult(document: Document, mark: string, title: string, detai
 }
 
 function renderResearch(document: Document, snapshot: V197BridgeSnapshot): void {
-  text(document.querySelector("#universe-research .universe-card-head h2"), "Saved research questions, held honestly.");
+  text(document.querySelector("#universe-research .universe-card-head h2"), "Research evidence, held honestly.");
   const results = document.querySelector<HTMLElement>("#universe-research .research-results");
-  if (!results) return;
-  empty(results);
-  if (snapshot.researchBriefs.length === 0) {
-    results.append(makeHonestResult(document, "⌕", "Research engine is not connected yet.", "Stage a question here; NUR saves it locally without inventing sources."));
-    return;
+  if (results) {
+    empty(results);
+    if (snapshot.researchBriefs.length === 0) {
+      results.append(makeHonestResult(
+        document,
+        "⌕",
+        "No persisted research question yet.",
+        "Open the Research chamber to stage a question without inventing sources.",
+      ));
+    } else {
+      snapshot.researchBriefs.slice(0, 2).forEach(row => {
+        results.append(makeHonestResult(
+          document,
+          "R",
+          row.question,
+          row.summary || `Status: ${row.status.toLowerCase()} · provider ${row.provider_status.toLowerCase()}`,
+        ));
+      });
+    }
   }
-  snapshot.researchBriefs.slice(0, 4).forEach(row => {
-    results.append(makeHonestResult(document, "R", row.question, row.summary || `Status: ${row.status.toLowerCase()} · provider ${row.provider_status.toLowerCase()}`));
-  });
+  ensureUniversePortal(document, "#universe-research", "Open Research", "research");
 }
 
-function ensureCommunityControls(document: Document, rooms: V197CommunityRoom[]): void {
-  const host = document.querySelector<HTMLElement>("#universe-community");
+function ensureUniversePortal(
+  document: Document,
+  hostSelector: string,
+  label: string,
+  focus: string,
+): void {
+  const host = document.querySelector<HTMLElement>(hostSelector);
   if (!host) return;
-  let controls = document.querySelector<HTMLElement>("#nur-v197-community-controls");
-  if (!controls) {
-    controls = document.createElement("div");
-    controls.id = "nur-v197-community-controls";
-    controls.className = "nur-v197-community-controls";
-    const title = document.createElement("input");
-    title.id = "nur-v197-room-title";
-    title.placeholder = "Name a bounded room";
-    title.maxLength = 240;
-    const actions = document.createElement("div");
-    actions.className = "nur-v197-community-actions";
-    const createRoom = document.createElement("button");
-    createRoom.dataset.action = "community-create-room";
-    createRoom.textContent = "Create Group room";
-    const createCouncil = document.createElement("button");
-    createCouncil.dataset.action = "community-create-council";
-    createCouncil.textContent = "Start Council";
-    actions.append(createRoom, createCouncil);
-    const message = document.createElement("input");
-    message.id = "nur-v197-room-message";
-    message.placeholder = "Write one honest line to your latest room";
-    message.maxLength = 12000;
-    const post = document.createElement("button");
-    post.dataset.action = "community-post-message";
-    post.textContent = "Post to room";
-    const memberEmail = document.createElement("input");
-    memberEmail.id = "nur-v197-member-email";
-    memberEmail.type = "email";
-    memberEmail.placeholder = "Invite by exact NUR account email";
-    memberEmail.maxLength = 320;
-    const addMember = document.createElement("button");
-    addMember.dataset.action = "community-add-member";
-    addMember.textContent = "Add member";
-    const councilPosition = document.createElement("input");
-    councilPosition.id = "nur-v197-council-position";
-    councilPosition.placeholder = "State a Council position";
-    councilPosition.maxLength = 12000;
-    const addPosition = document.createElement("button");
-    addPosition.dataset.action = "council-add-position";
-    addPosition.textContent = "Add position";
-    const councilDecision = document.createElement("input");
-    councilDecision.id = "nur-v197-council-decision";
-    councilDecision.placeholder = "Record the Council decision (room owner)";
-    councilDecision.maxLength = 12000;
-    const recordDecision = document.createElement("button");
-    recordDecision.dataset.action = "council-record-decision";
-    recordDecision.textContent = "Record decision";
-    const state = document.createElement("small");
-    state.className = "nur-v197-community-state";
-    controls.append(
-      title, actions, message, post, memberEmail, addMember,
-      councilPosition, addPosition, councilDecision, recordDecision, state,
-    );
-    host.append(controls);
+  const head = host.querySelector<HTMLElement>(".universe-card-head") ?? host;
+  let control = host.querySelector<HTMLButtonElement>("[data-nur-universe-portal]")
+    ?? head.querySelector<HTMLButtonElement>(":scope > .tiny-link");
+  if (!control) {
+    control = document.createElement("button");
+    control.type = "button";
+    control.className = "tiny-link";
+    head.append(control);
   }
-  const hasRoom = rooms.length > 0;
-  const council = rooms.find(room => room.room_kind === "COUNCIL");
-  const gate = (
-    selector: string,
-    enabled: boolean,
-    enabledTitle: string,
-    disabledTitle: string,
-  ): void => {
-    const node = controls?.querySelector<HTMLInputElement | HTMLButtonElement>(selector);
-    if (!node) return;
-    node.disabled = !enabled;
-    node.setAttribute("aria-disabled", String(!enabled));
-    node.title = enabled ? enabledTitle : disabledTitle;
-  };
-  gate("#nur-v197-room-message", hasRoom, "", "Create a room before posting a message.");
-  gate('[data-action="community-post-message"]', hasRoom,
-    hasRoom ? `Persist a message in ${rooms[0].title}.` : "",
-    "Create a room before posting a message.");
-  gate("#nur-v197-member-email", hasRoom, "", "Create a room before inviting a member.");
-  gate('[data-action="community-add-member"]', hasRoom,
-    hasRoom ? `Grant membership in ${rooms[0].title}; members see room content only.` : "",
-    "Create a room before inviting a member.");
-  gate("#nur-v197-council-position", Boolean(council), "", "Start a Council to add positions.");
-  gate('[data-action="council-add-position"]', Boolean(council),
-    council ? `Persist a position in ${council.title}; minority opinions stay on the ledger.` : "",
-    "Start a Council to add positions.");
-  gate("#nur-v197-council-decision", Boolean(council), "", "Start a Council to record a decision.");
-  gate('[data-action="council-record-decision"]', Boolean(council),
-    council ? `Only the owner of ${council.title} can record the decision.` : "",
-    "Start a Council to record a decision.");
-  text(
-    controls.querySelector(".nur-v197-community-state"),
-    hasRoom
-      ? `Messages and invitations act on “${rooms[0].title}” · Glow is server-verified and never invented.`
-      : "Rooms persist through your owner-scoped ledger; nothing here is public.",
-  );
+  control.dataset.nurUniversePortal = "true";
+  control.textContent = `${label} →`;
+  control.disabled = false;
+  control.removeAttribute("aria-disabled");
+  control.removeAttribute("data-action");
+  control.removeAttribute("data-research-submit");
+  control.dataset.worldFocus = focus;
 }
 
 function renderCommunity(document: Document, snapshot: V197BridgeSnapshot): void {
@@ -1292,7 +1235,7 @@ function renderCommunity(document: Document, snapshot: V197BridgeSnapshot): void
         "Rooms hold only explicitly shared content; private Talk, Journal, Timeline, and Omega stay sealed.",
       ));
     }
-    rooms.slice(0, 4).forEach(room => {
+    rooms.slice(0, 2).forEach(room => {
       community.append(makeHonestResult(
         document,
         room.room_kind === "COUNCIL" ? "⚖" : "◉",
@@ -1300,17 +1243,9 @@ function renderCommunity(document: Document, snapshot: V197BridgeSnapshot): void
         `${room.room_kind.toLowerCase()} room · your role ${room.current_user_role.toLowerCase()} · member content only`,
       ));
     });
-    // The latest room's persisted conversation, newest last — never invented.
-    (snapshot.communityMessages ?? []).slice(-3).forEach(message => {
-      community.append(makeHonestResult(
-        document,
-        "✎",
-        shorten(message.body, 90),
-        `${message.provenance_label.replaceAll("_", " ").toLowerCase()}${message.is_demo ? " · DEMO" : ""} · ${message.language_tag}`,
-      ));
-    });
   }
-  ensureCommunityControls(document, rooms);
+  document.getElementById("nur-v197-community-controls")?.remove();
+  ensureUniversePortal(document, "#universe-community", "Open Community", "community");
   document.querySelectorAll<HTMLElement>("[data-community-tab]").forEach(control => {
     control.setAttribute("aria-disabled", "true");
     if (control.tagName === "BUTTON") (control as HTMLButtonElement).disabled = true;
@@ -1318,19 +1253,17 @@ function renderCommunity(document: Document, snapshot: V197BridgeSnapshot): void
   });
 
   const council = (snapshot.communityRooms ?? []).find(room => room.room_kind === "COUNCIL" && room.status === "ACTIVE");
-  const councilCounts = snapshot.councilSummary?.counts;
   text(
     document.querySelector("#universe-consult .universe-card-head h2"),
-    council ? `Council: ${council.title}` : "No Council is open yet.",
+    council ? `Council: ${council.title}` : "No Consultation is open yet.",
   );
   text(
     document.querySelector("#universe-consult .consultation-question p"),
     council
-      ? councilCounts
-        ? `${councilCounts.positions} persisted ${councilCounts.positions === 1 ? "position" : "positions"} · ${councilCounts.decisions} recorded ${councilCounts.decisions === 1 ? "decision" : "decisions"} · minority opinions stay on the ledger.`
-        : "This Council persists positions and decisions through the owner-scoped room ledger."
-      : "Create a Council room to gather positions, evidence, and one owned decision — nothing is invented.",
+      ? "This bounded Council can hold real positions, evidence and an owner-recorded return."
+      : "Open the Consultation chamber to gather real context, evidence and one owned return.",
   );
+  ensureUniversePortal(document, "#universe-consult", "Open Consultation", "consult");
 }
 
 function renderHonestDisabledSurfaces(document: Document): void {

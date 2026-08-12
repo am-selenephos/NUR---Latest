@@ -101,13 +101,20 @@ function cloneV197StartupStar(document: Document, keepIntroPresentation: boolean
 
   star.removeAttribute("id");
   star.classList.remove("explode");
-  star.classList.add(V197_SIGIL_STAR_CLASS);
   if (keepIntroPresentation) {
-    star.classList.add("i-spark", "spark");
+    // The authenticated Universe source reuses #iSpark for its scaled hero and
+    // carries hero-only classes. A startup seal must retain the exact child
+    // structure while using only the canonical Entry loading-star classes,
+    // otherwise the three orbiting sparks receive two competing motion rigs.
+    star.className = `i-spark spark ${V197_SIGIL_STAR_CLASS}`;
+    star.removeAttribute("role");
+    star.removeAttribute("tabindex");
+    star.removeAttribute("aria-label");
+    star.setAttribute("aria-hidden", "true");
   } else {
     // This is the exact V197 mountMasterStar conversion used by the canonical runtime.
     star.classList.remove("i-spark");
-    star.classList.add("f4-master-star");
+    star.classList.add("f4-master-star", V197_SIGIL_STAR_CLASS);
     star.setAttribute("aria-hidden", "true");
   }
   return star;

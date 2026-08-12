@@ -1,6 +1,6 @@
 import { expect, test, type FrameLocator, type Locator, type Page } from "@playwright/test";
 
-import { installNurMocks } from "./helpers/nurMocks";
+import { installNurMocks, json } from "./helpers/nurMocks";
 
 const HOLOGRAPHIC_CONTROLS = [
   "button:not(.f4-brand)",
@@ -191,10 +191,11 @@ test("Entry keeps its copy while mind, sky, and star brain use the cool galaxy c
   expect(entryControlCoverage.badGlass).toEqual([]);
   expect(entryControlCoverage.badGoldRim).toEqual([]);
   expect(entryControlCoverage.opaqueFilm).toEqual([]);
-  await expect.poll(() => entry.locator("html").evaluate(element => (
-    getComputedStyle(element).animationName
-  ))).toContain("nurHoloGlobalPhase");
+  await expect(entry.locator("html")).toHaveCSS("animation-name", "none");
   const entryPrimaryFilm = entry.locator(".f4-primary > .nur-holo-film").first();
+  await expect.poll(() => entryPrimaryFilm.evaluate(element => (
+    getComputedStyle(element, "::before").animationName
+  ))).toContain("nurHoloEntryPhase");
   await expect(entry.locator(".f4-primary").first())
     .toHaveCSS("box-shadow", /rgba\(255, 211, 90, 0\.19\)/);
   const primaryTransformBefore = await entryPrimaryFilm.evaluate(element => (
@@ -361,6 +362,12 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
         .map(control => `${control.tagName.toLowerCase()}.${control.className}`),
       incompleteSpectrum: controls
         .filter(control => {
+          if (control.matches(
+            ".clean-nav-button[data-page='today'],"
+            + ".clean-nav-button[data-page='talk'],"
+            + ".clean-nav-button[data-page='journal'],"
+            + ".clean-nav-button[data-page='plan']",
+          )) return false;
           const film = control.querySelector(".nur-holo-film");
           const background = film ? getComputedStyle(film, "::before").backgroundImage : "";
           return !background.includes("255, 82, 111")
@@ -399,11 +406,23 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
           const film = control.querySelector<HTMLElement>(":scope > .nur-holo-film");
           return `${control.tagName.toLowerCase()}.${control.className}|film-shadow=${film ? getComputedStyle(film).boxShadow : "missing"}`;
         }),
+      glowingControls: controls
+        .filter(control => getComputedStyle(control).boxShadow !== "none")
+        .map(control => (
+          `${control.tagName.toLowerCase()}.${control.className}`
+          + `|shadow=${getComputedStyle(control).boxShadow}`
+        )),
       opaqueFilm: controls
         .filter(control => {
           const film = control.querySelector<HTMLElement>(":scope > .nur-holo-film");
           const selected = control.matches(
             ".active, .selected, .f4-primary, [aria-current='page'], [aria-selected='true'], [aria-checked='true']",
+          );
+          const quietPersonalOrbit = control.matches(
+            ".clean-nav-button[data-page='today'],"
+            + ".clean-nav-button[data-page='talk'],"
+            + ".clean-nav-button[data-page='journal'],"
+            + ".clean-nav-button[data-page='plan']",
           );
           const filmOpacity = film ? parseFloat(getComputedStyle(film).opacity) : 1;
           const fillOpacity = film ? parseFloat(getComputedStyle(film, "::before").opacity) : 1;
@@ -412,7 +431,7 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
             || filmOpacity > .09
             || filmOpacity * fillOpacity > .09
             || filmOpacity * rimOpacity > .09
-            || (selected && filmOpacity < .09);
+            || (selected && !quietPersonalOrbit && filmOpacity < .09);
         })
         .map(control => `${control.tagName.toLowerCase()}.${control.className}`),
     };
@@ -422,7 +441,35 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
   expect(controlCoverage.incompleteSpectrum).toEqual([]);
   expect(controlCoverage.badGlass).toEqual([]);
   expect(controlCoverage.badGoldRim).toEqual([]);
+  expect(controlCoverage.glowingControls).toEqual([]);
   expect(controlCoverage.opaqueFilm).toEqual([]);
+
+  const personalOrbitMaterials = await universe.locator(
+    ".clean-nav-button[data-page='today'],"
+    + ".clean-nav-button[data-page='talk'],"
+    + ".clean-nav-button[data-page='journal'],"
+    + ".clean-nav-button[data-page='plan']",
+  ).evaluateAll(controls => controls.map(control => {
+    const style = getComputedStyle(control);
+    const film = control.querySelector<HTMLElement>(":scope > .nur-holo-film");
+    return {
+      background: style.backgroundImage,
+      backgroundColor: style.backgroundColor,
+      shadow: style.boxShadow,
+      filmOpacity: film ? parseFloat(getComputedStyle(film).opacity) : 1,
+      filmSpectrum: film ? getComputedStyle(film, "::before").backgroundImage : "",
+    };
+  }));
+  expect(personalOrbitMaterials).toHaveLength(4);
+  for (const control of personalOrbitMaterials) {
+    expect(control.background).toContain("126, 211, 255");
+    expect(control.background).not.toContain("193, 96, 255");
+    expect(control.backgroundColor).toBe("rgba(0, 0, 0, 0.08)");
+    expect(control.shadow).toBe("none");
+    expect(control.filmOpacity).toBeLessThanOrEqual(.018);
+    expect(control.filmSpectrum).toContain("127, 214, 255");
+    expect(control.filmSpectrum).not.toContain("193, 96, 255");
+  }
 
   const italicGold = await universe.locator("#page-systems .nur-systems-epigraph").evaluate(element => {
     const style = getComputedStyle(element);
@@ -532,7 +579,8 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
   expect(quietHover.top).toBeCloseTo(quietDefault.top, 1);
   expect(quietHover.width).toBeCloseTo(quietDefault.width, 1);
   expect(quietHover.height).toBeCloseTo(quietDefault.height, 1);
-  expect(quietHover.shadow).not.toBe(quietDefault.shadow);
+  expect(quietDefault.shadow).toBe("none");
+  expect(quietHover.shadow).toBe("none");
   expect(quietHover.filmOpacity).toBeGreaterThan(quietDefault.filmOpacity);
 
   await page.mouse.move(1400, 8);
@@ -547,9 +595,10 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
   expect(activeFilmOpacity).toBeGreaterThan(quietDefault.filmOpacity);
   await quietNode.evaluate(node => node.blur());
 
-  await expect.poll(() => universe.locator("html").evaluate(element => (
-    getComputedStyle(element).animationName
-  ))).toContain("nurHoloGlobalPhase");
+  // Authenticated controls retain a complete translucent spectrum, but their
+  // film is deliberately still. Animating an inherited root custom property
+  // restyled the entire V197 tree every frame.
+  await expect(universe.locator("html")).toHaveCSS("animation-name", "none");
   const selectedControlFilm = universe.locator(
     "#page-systems .universe-system-node.active > .nur-holo-film",
   );
@@ -560,7 +609,10 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
   const selectedTransformAfter = await selectedControlFilm.evaluate(element => (
     getComputedStyle(element, "::before").transform
   ));
-  expect(selectedTransformAfter).not.toBe(selectedTransformBefore);
+  expect(selectedTransformAfter).toBe(selectedTransformBefore);
+  await expect.poll(() => selectedControlFilm.evaluate(element => (
+    getComputedStyle(element, "::before").backgroundImage
+  ))).toContain("linear-gradient");
 
   const mapGeometry = await universe.locator("#page-systems .universe-map-panel").evaluate(panel => {
     const panelRect = panel.getBoundingClientRect();
@@ -665,6 +717,7 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
           identity: `${element.tagName.toLowerCase()}.${Array.from(element.classList).join(".")}#${index}`,
           backgroundColor: style.backgroundColor,
           backgroundImage: style.backgroundImage,
+          shadow: style.boxShadow,
           sheenImage: getComputedStyle(element, "::before").backgroundImage,
         };
       });
@@ -677,6 +730,7 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
       Math.max(...channels) - Math.min(...channels),
       `${panel.identity} must remain neutral black, not blue-tinted: ${panel.backgroundColor}`,
     ).toBeLessThanOrEqual(1);
+    expect(panel.shadow, `${panel.identity} must not cast an authenticated panel glow`).toBe("none");
     expect(panel.sheenImage, `${panel.identity} must carry full-spectrum optical light`)
       .toContain("33, 232, 255");
   }
@@ -750,4 +804,250 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
   await universe.locator("#page-systems .universe-map-panel").screenshot({
     path: testInfo.outputPath("systems-expanded-star-brain-map.png"),
   });
+});
+
+test("Orbit uses the exact loading sigil and keeps its empty actions below the star field", async ({ page }, testInfo) => {
+  test.skip(
+    !["chromium-desktop", "chromium-mobile"].includes(testInfo.project.name),
+    "Orbit visual contract is owned by Chromium desktop and mobile.",
+  );
+  const mobile = testInfo.project.name === "chromium-mobile";
+  await installNurMocks(page);
+  await page.route("**/api/v1/orbit-field", route => json(route, {
+    people: [],
+    groups: [],
+    relationships: [],
+    layout: [],
+    thread_counts: {},
+  }));
+  await page.route("**/api/v1/orbit-threads", route => json(route, []));
+  await page.context().addCookies([
+    { name: "nur_session", value: "orbit-empty-mandate", url: "http://localhost:4173", httpOnly: true, sameSite: "Lax" },
+    { name: "nur_csrf", value: "orbit-empty-csrf", url: "http://localhost:4173", httpOnly: false, sameSite: "Lax" },
+  ]);
+  await page.setViewportSize(mobile ? { width: 393, height: 851 } : { width: 1440, height: 900 });
+  await page.goto("/universe/orbits", { waitUntil: "load" });
+
+  const universe = page.frameLocator("#nur-universe-stage");
+  const root = universe.locator("#nur-orbit-root");
+  await expect(root).toBeVisible({ timeout: 20_000 });
+  if (mobile) {
+    await root.locator('[data-orbit-view="orbit"]').click();
+  }
+  const anchor = root.locator(".nur-orbit-anchor-sigil");
+  const startup = anchor.locator(
+    ".nur-star-seal--startup[data-nur-v197-sigil-source='#iSpark']",
+  );
+  await expect(anchor).toHaveAttribute("data-nur-orbit-anchor", "v197-startup-sigil");
+  await expect(startup).toHaveCount(1);
+  const startupStar = startup.locator(":scope > .i-spark.spark.nur-v197-sigil-star");
+  await expect(startupStar).toHaveCount(1);
+  await expect(startupStar).not.toHaveClass(/f4-master-star|nur-v33-master|nur-v34-exact-symbol/);
+  await expect(startup.locator(".ray")).toHaveCount(12);
+  await expect(startup.locator(".ob")).toHaveCount(3);
+  const satelliteMotion = await startup.locator(".ob").evaluateAll(elements => elements.map(element => ({
+    classes: Array.from(element.classList),
+    animations: getComputedStyle(element).animationName,
+  })));
+  expect(satelliteMotion).toEqual([
+    { classes: ["ob", "ob1"], animations: expect.stringContaining("o1") },
+    { classes: ["ob", "ob2"], animations: expect.stringContaining("o2") },
+    { classes: ["ob", "ob3"], animations: expect.stringContaining("o3") },
+  ]);
+  await expect(startup.locator(".spark-glow, .spark-halo, .spark-h2, .spark-core")).toHaveCount(4);
+  await expect(startup.locator("svg, use")).toHaveCount(0);
+
+  const empty = root.locator(".nur-orbit-empty");
+  await expect(empty).toHaveAttribute("data-nur-orbit-empty-layout", "bottom-footer");
+  await expect(empty).toContainText(
+    "Your Orbit begins with one person, one signal, one shared field.",
+  );
+  await expect(empty.locator(".nur-orbit-empty-actions > button")).toHaveCount(2);
+
+  const layout = await root.evaluate(element => {
+    const rect = (selector: string) => {
+      const box = element.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+      if (!box) return null;
+      return {
+        left: box.left,
+        top: box.top,
+        right: box.right,
+        bottom: box.bottom,
+        width: box.width,
+        height: box.height,
+      };
+    };
+    const canvas = rect(".nur-orbit-canvas");
+    const sigil = rect(".nur-orbit-anchor-sigil");
+    const footer = rect(".nur-orbit-empty");
+    const footerMessage = rect(".nur-orbit-empty > p");
+    const footerActions = rect(".nur-orbit-empty-actions");
+    const actionButtons = Array.from(
+      element.querySelectorAll<HTMLElement>(".nur-orbit-empty-actions > button"),
+      button => button.getBoundingClientRect(),
+    );
+    const actionCluster = actionButtons.length > 0
+      ? {
+          left: Math.min(...actionButtons.map(button => button.left)),
+          right: Math.max(...actionButtons.map(button => button.right)),
+        }
+      : null;
+    const panelShadows = Array.from(element.querySelectorAll<HTMLElement>(
+      ".nur-orbit-field-surface,.nur-orbit-rail,.nur-orbit-detail",
+    )).map(panel => ({
+      className: panel.className,
+      shadow: getComputedStyle(panel).boxShadow,
+    }));
+    const controlShadows = Array.from(element.querySelectorAll<HTMLElement>("button"))
+      .filter(button => button.getBoundingClientRect().height > 0)
+      .map(button => ({
+        label: button.textContent?.trim() ?? "",
+        shadow: getComputedStyle(button).boxShadow,
+      }));
+    const ringLabel = element.querySelector<SVGTextElement>(".nur-orbit-ring-label");
+    return {
+      canvas,
+      sigil,
+      footer,
+      footerMessage,
+      footerActions,
+      actionCluster,
+      panelShadows,
+      controlShadows,
+      ringCount: element.querySelectorAll(".nur-orbit-ring").length,
+      ringFont: ringLabel ? getComputedStyle(ringLabel).fontFamily : "",
+      ringFontSize: ringLabel ? getComputedStyle(ringLabel).fontSize : "",
+    };
+  });
+  expect(layout.canvas).not.toBeNull();
+  expect(layout.sigil).not.toBeNull();
+  expect(layout.footer).not.toBeNull();
+  expect(layout.footerMessage).not.toBeNull();
+  expect(layout.footerActions).not.toBeNull();
+  expect(layout.actionCluster).not.toBeNull();
+  expect(layout.canvas!.bottom).toBeLessThanOrEqual(layout.footer!.top + 1);
+  expect(layout.footerMessage!.width).toBeGreaterThan(240);
+  expect(layout.footerActions!.top).toBeGreaterThanOrEqual(layout.footerMessage!.bottom - 1);
+  const footerCenter = layout.footer!.left + layout.footer!.width / 2;
+  expect(Math.abs(
+    layout.footerMessage!.left + layout.footerMessage!.width / 2 - footerCenter,
+  )).toBeLessThanOrEqual(1);
+  expect(Math.abs(
+    (layout.actionCluster!.left + layout.actionCluster!.right) / 2 - footerCenter,
+  )).toBeLessThanOrEqual(1);
+  expect(Math.abs(
+    layout.sigil!.left + layout.sigil!.width / 2
+    - (layout.canvas!.left + layout.canvas!.width / 2),
+  )).toBeLessThanOrEqual(1);
+  expect(Math.abs(
+    layout.sigil!.top + layout.sigil!.height / 2
+    - (layout.canvas!.top + layout.canvas!.height / 2),
+  )).toBeLessThanOrEqual(1);
+  expect(layout.ringCount).toBe(5);
+  expect(layout.ringFont).toContain("Crimson Pro");
+  expect(parseFloat(layout.ringFontSize)).toBeGreaterThanOrEqual(14);
+  expect(layout.panelShadows.filter(panel => panel.shadow !== "none")).toEqual([]);
+  expect(layout.controlShadows.filter(control => control.shadow !== "none")).toEqual([]);
+
+  if (mobile) {
+    await empty.scrollIntoViewIfNeeded();
+    await empty.evaluate(element => {
+      const footer = element.getBoundingClientRect();
+      const tabs = document.querySelector<HTMLElement>(".mobile-tabs")?.getBoundingClientRect();
+      const viewport = element.closest<HTMLElement>(".nur-viewport");
+      if (tabs && viewport && footer.bottom > tabs.top - 8) {
+        viewport.scrollTop += footer.bottom - tabs.top + 10;
+      }
+    });
+    const mobileClearance = await root.evaluate(element => {
+      const footer = element.querySelector<HTMLElement>(".nur-orbit-empty")?.getBoundingClientRect();
+      const tabs = document.querySelector<HTMLElement>(".mobile-tabs")?.getBoundingClientRect();
+      const composer = document.querySelector<HTMLElement>(".global-composer");
+      return {
+        footerBottom: footer?.bottom ?? Number.POSITIVE_INFINITY,
+        tabsTop: tabs?.top ?? Number.NEGATIVE_INFINITY,
+        composerDisplay: composer ? getComputedStyle(composer).display : "missing",
+      };
+    });
+    expect(mobileClearance.composerDisplay).toBe("none");
+    expect(mobileClearance.footerBottom).toBeLessThanOrEqual(mobileClearance.tabsTop - 8);
+  }
+
+  await page.screenshot({
+    path: testInfo.outputPath("orbit-loading-sigil-empty-footer.png"),
+  });
+});
+
+test("Orbit keeps populated field creation actions centered below the star", async ({ page }, testInfo) => {
+  test.skip(
+    !["chromium-desktop", "chromium-mobile"].includes(testInfo.project.name),
+    "Orbit visual contract is owned by Chromium desktop and mobile.",
+  );
+  const mobile = testInfo.project.name === "chromium-mobile";
+  await installNurMocks(page);
+  await page.route("**/api/v1/orbit-field", route => json(route, {
+    people: [{
+      id: "orbit-person-1",
+      display_name: "Amina",
+      handle: null,
+      relationship_type: "Friend",
+      orbit_level: "INNER",
+      orbit_level_suggestion: null,
+      orbit_level_suggestion_reason: null,
+      relational_state: "STEADY",
+      tags: [],
+      user_summary: null,
+      nur_summary: null,
+      avatar_ref: null,
+      memory_allowed: true,
+      inference_allowed: false,
+      sharing_allowed: false,
+      capsule_eligible: false,
+      archived_at: null,
+      last_interaction_at: "2026-07-30T12:00:00Z",
+      privacy_scope: "PRIVATE",
+    }],
+    groups: [],
+    relationships: [],
+    layout: [],
+    thread_counts: {},
+  }));
+  await page.route("**/api/v1/orbit-threads", route => json(route, []));
+  await page.context().addCookies([
+    { name: "nur_session", value: "orbit-populated-mandate", url: "http://localhost:4173", httpOnly: true, sameSite: "Lax" },
+    { name: "nur_csrf", value: "orbit-populated-csrf", url: "http://localhost:4173", httpOnly: false, sameSite: "Lax" },
+  ]);
+  await page.setViewportSize(mobile ? { width: 393, height: 851 } : { width: 1440, height: 900 });
+  await page.goto("/universe/orbits", { waitUntil: "load" });
+
+  const root = page.frameLocator("#nur-universe-stage").locator("#nur-orbit-root");
+  await expect(root).toBeVisible({ timeout: 20_000 });
+  if (mobile) await root.locator('[data-orbit-view="orbit"]').click();
+
+  const actions = root.locator(".nur-orbit-field-actions");
+  await expect(actions.locator(':scope > [data-orbit-action="add-person"]')).toHaveCount(1);
+  await expect(actions.locator(':scope > [data-orbit-action="create-group"]')).toHaveCount(1);
+  await expect(root.locator(".nur-orbit-header-actions")).toHaveCount(0);
+  await expect(root.locator('.nur-orbit-rail [data-orbit-action="add-person"], .nur-orbit-rail [data-orbit-action="create-group"]')).toHaveCount(0);
+
+  const layout = await root.evaluate(element => {
+    const box = (selector: string) => element.querySelector<HTMLElement>(selector)!.getBoundingClientRect();
+    const canvas = box(".nur-orbit-canvas");
+    const footer = box(".nur-orbit-field-actions");
+    const buttons = Array.from(
+      element.querySelectorAll<HTMLElement>(".nur-orbit-field-actions > button"),
+      button => button.getBoundingClientRect(),
+    );
+    return {
+      canvasBottom: canvas.bottom,
+      footerTop: footer.top,
+      footerCenter: footer.left + footer.width / 2,
+      actionsCenter: (
+        Math.min(...buttons.map(button => button.left))
+        + Math.max(...buttons.map(button => button.right))
+      ) / 2,
+    };
+  });
+  expect(layout.canvasBottom).toBeLessThanOrEqual(layout.footerTop + 1);
+  expect(Math.abs(layout.actionsCenter - layout.footerCenter)).toBeLessThanOrEqual(1);
 });

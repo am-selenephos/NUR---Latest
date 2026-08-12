@@ -19,6 +19,13 @@ type RuntimeSnapshot = {
   runningAnimations: number;
   runningAnimationDetails: Array<{ name: string; target: string }>;
   particleCount: number | null;
+  particleDiagnostics: {
+    total: number;
+    transient: number;
+    byKind: Record<string, number>;
+    shouldRender: boolean;
+    frameScheduled: boolean;
+  } | null;
   miniStarHosts: number;
   compactedMiniStars: number;
   rayCount: number;
@@ -318,7 +325,10 @@ async function snapshot(frame: Frame): Promise<RuntimeSnapshot> {
     };
     const global = window as typeof window & {
       __nurG04?: RuntimeCounters;
-      nurGalaxy?: { getParticleCount?: () => number };
+      nurGalaxy?: {
+        getParticleCount?: () => number;
+        getParticleDiagnostics?: () => RuntimeSnapshot["particleDiagnostics"];
+      };
     };
     const memory = performance as Performance & { memory?: { usedJSHeapSize: number } };
     const runningAnimationDetails = document.getAnimations()
@@ -344,6 +354,7 @@ async function snapshot(frame: Frame): Promise<RuntimeSnapshot> {
       runningAnimations: runningAnimationDetails.length,
       runningAnimationDetails,
       particleCount: global.nurGalaxy?.getParticleCount?.() ?? null,
+      particleDiagnostics: global.nurGalaxy?.getParticleDiagnostics?.() ?? null,
       miniStarHosts: document.querySelectorAll(".nur-exact-mini-host").length,
       compactedMiniStars: document.querySelectorAll('.nur-exact-mini-host[data-nur-mini-compacted="true"]').length,
       rayCount: document.querySelectorAll(".nur-exact-mini-host .ray").length,
@@ -485,6 +496,7 @@ test("G04 warm V197 runtime preserves identity, centring, and natural interactio
   const systemsInteractionMs = await routeWithBrowserTiming(frame, systemsSelector, "/systems");
   await expect(page).toHaveURL(/\/systems$/);
   await expect(frame.locator("#page-systems")).toBeVisible();
+  const measuredGeometry = await geometry(frame);
   const routeStates: RouteState[] = [await routeState(frame, "before-map")];
   const mapInteractionMs = await routeWithBrowserTiming(frame, "[data-world-tab='map']", "/universe/map");
   await expect(page).toHaveURL(/\/universe\/map$/);
@@ -494,7 +506,6 @@ test("G04 warm V197 runtime preserves identity, centring, and natural interactio
   const mapCadence = await measureCadence(frame);
   routeStates.push(await routeState(frame, "after-map-cadence"));
   const runtime = await snapshot(frame);
-  const measuredGeometry = await geometry(frame);
   const hostProfile = await page.locator("html").getAttribute("data-nur-runtime-profile");
   const routeDiagnostics = await page.evaluate(() => (
     window as typeof window & { __nurG04Routes?: unknown[] }
@@ -523,8 +534,25 @@ test("G04 warm V197 runtime preserves identity, centring, and natural interactio
   expect(runtime.canvasCount).toBe(2);
   expect(runtime.canvasOwners.sort()).toEqual(["nur-brain-canvas", "space3d"]);
   expect(runtime.runningAnimations).toBeLessThanOrEqual(testInfo.project.name.includes("mobile") ? 16 : 24);
-  expect(runtime.particleCount ?? 0).toBeGreaterThanOrEqual(1_160);
-  expect(runtime.particleCount ?? 0).toBeLessThanOrEqual(1_200);
+  const viewport = measuredGeometry.viewport as { width: number; height: number };
+  const densityScale = Math.min(2.2, Math.max(1, (viewport.width * viewport.height) / 1_600_000));
+  const expectedParticleTiers = viewport.width < 700
+    ? { galaxy: 520, far: 340, dust: 96, super: 26 }
+    : {
+        galaxy: Math.round(900 * densityScale),
+        far: Math.round(585 * densityScale),
+        dust: Math.round(165 * densityScale),
+        super: Math.round(48 * densityScale),
+      };
+  const expectedParticleCount = Object.values(expectedParticleTiers)
+    .reduce((total, count) => total + count, 0);
+  expect(runtime.particleCount).toBe(expectedParticleCount);
+  expect(runtime.particleDiagnostics).toMatchObject({
+    total: expectedParticleCount,
+    transient: 0,
+    byKind: expectedParticleTiers,
+    shouldRender: true,
+  });
   expect(runtime.compactedMiniStars).toBe(runtime.miniStarHosts);
   expect(runtime.rayCount).toBe(0);
   // Headed Chromium is the reference timing environment. Headless Firefox and
@@ -577,7 +605,29 @@ test("G04 reduced motion materially removes galaxy and decorative animation work
   await expect(page).toHaveURL(/\/universe\/map$/);
 
   const reduced = await frame.evaluate(() => {
-    const canvas = document.querySelector<HTMLElement>("#space3d");
+    const canvas = document.querySelector<HTMLCanvasElement>("#space3d");
+    const galaxy = (window as typeof window & {
+      nurGalaxy?: {
+        getParticleDiagnostics?: () => {
+          total: number;
+          shouldRender: boolean;
+          frameScheduled: boolean;
+        };
+      };
+    }).nurGalaxy;
+    const context = canvas?.getContext("2d");
+    const pixels = context && canvas
+      ? context.getImageData(0, 0, canvas.width, canvas.height).data
+      : null;
+    let canvasHasPaint = false;
+    if (pixels) {
+      for (let alpha = 3; alpha < pixels.length; alpha += 4) {
+        if (pixels[alpha] > 0) {
+          canvasHasPaint = true;
+          break;
+        }
+      }
+    }
     const animations = document.getAnimations()
       .filter(animation => animation.playState === "running")
       .map(animation => {
@@ -610,6 +660,8 @@ test("G04 reduced motion materially removes galaxy and decorative animation work
       });
     return {
       canvasDisplay: canvas ? getComputedStyle(canvas).display : "missing",
+      canvasHasPaint,
+      galaxy: galaxy?.getParticleDiagnostics?.() ?? null,
       runningAnimations: animations.length,
       // WebKit can retain the source keyframe duration in getComputedTiming()
       // after a reduced-motion !important override. Computed CSS is the value
@@ -623,7 +675,17 @@ test("G04 reduced motion materially removes galaxy and decorative animation work
   await writeFile(join(projectDir, "reduced-motion.json"), `${JSON.stringify(reduced, null, 2)}\n`, "utf8");
   await page.screenshot({ path: join(projectDir, "reduced-motion-map.png"), fullPage: false, animations: "allow" });
 
-  expect(reduced.canvasDisplay).toBe("none");
+  expect(reduced.canvasDisplay).toBe("block");
+  expect(reduced.canvasHasPaint).toBe(true);
+  const expectedParticleCount = testInfo.project.name.includes("mobile")
+    ? 520 + 340 + 96 + 26
+    : 900 + 585 + 165 + 48;
+  expect(reduced.galaxy).toMatchObject({
+    total: expectedParticleCount,
+    transient: 0,
+    shouldRender: true,
+    frameScheduled: false,
+  });
   expect(reduced.meaningfulAnimations).toBeLessThanOrEqual(2);
 });
 

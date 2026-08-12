@@ -91,7 +91,9 @@ test("real CPU cost per surface", async ({ page }) => {
   expect(hiddenEntryMotion.after).toEqual(hiddenEntryMotion.before);
 
   await page.goto("/systems");
+  await expect(page.locator("#nur-universe-stage")).toHaveClass(/is-visible/, { timeout: 25_000 });
   const universeStage = page.frameLocator("#nur-universe-stage");
+  await expect(universeStage.locator("#page-systems")).toBeVisible();
   let previousTransient: number | null = null;
   await expect.poll(
     async () => {

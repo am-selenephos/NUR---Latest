@@ -226,6 +226,14 @@ type MockState = {
   planStepDone: boolean;
   outcomePosts: number;
   preferences: Record<string, unknown>;
+  ownerSessions: Array<Record<string, unknown>>;
+  accountDeleted: boolean;
+  accountWrites: Array<{ path: string; body: Record<string, unknown> }>;
+  agenticPolicy: Record<string, unknown>;
+  agenticWorkflows: Array<Record<string, unknown>>;
+  agenticDetails: Record<string, Record<string, unknown>>;
+  agenticApprovals: Array<Record<string, unknown>>;
+  agenticWrites: Array<{ path: string; body: Record<string, unknown> }>;
 };
 
 export async function json(route: Route, body: unknown, status = 200) {
@@ -250,6 +258,22 @@ export async function installBundledFontPolicy(page: Page) {
 
 export async function installNurMocks(page: Page) {
   await installBundledFontPolicy(page);
+  await page.context().addCookies([
+    {
+      name: "nur_session",
+      value: "mock-owner-session",
+      url: "http://localhost:4173",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+    {
+      name: "nur_csrf",
+      value: "mock-owner-csrf",
+      url: "http://localhost:4173",
+      httpOnly: false,
+      sameSite: "Lax",
+    },
+  ]);
   const state: MockState = {
     planStepDone: false,
     outcomePosts: 1,
@@ -372,6 +396,30 @@ export async function installNurMocks(page: Page) {
       event("evt-community", "COMMUNITY_NOTE", "Ask a collaborator to inspect the boundary."),
       event("evt-web", "WEB_SIGNAL_QUESTION", "Check the outside signal later."),
     ],
+    ownerSessions: [
+      { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", created_at: now, expires_at: "2026-09-01T00:00:00Z", revoked_at: null, current: true, state: "active" },
+      { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", created_at: now, expires_at: "2026-09-01T00:00:00Z", revoked_at: null, current: false, state: "active" },
+    ],
+    accountDeleted: false,
+    accountWrites: [],
+    agenticPolicy: {
+      scope: "ACCOUNT",
+      persisted: false,
+      initiative_level: "SUGGEST",
+      max_risk_class: "R1_PRIVATE_DRAFT",
+      permitted_tools: [],
+      auto_run_tools: [],
+      denied_tools: [],
+      granted_capabilities: [],
+      daily_budget_cents: 0,
+      max_proposals_per_day: 3,
+      cooldown_minutes: 180,
+      quiet_hours: {},
+    },
+    agenticWorkflows: [],
+    agenticDetails: {},
+    agenticApprovals: [],
+    agenticWrites: [],
   };
 
   await page.route("**/healthz", route => json(route, { status: "ok", ai_provider: "disabled" }));
@@ -388,8 +436,166 @@ export async function installNurMocks(page: Page) {
     const path = url.pathname;
     const method = request.method();
 
+    if (path === "/api/v1/auth/me" && state.accountDeleted) return json(route, { detail: "Not authenticated" }, 401);
     if (path === "/api/v1/auth/me") return json(route, mockUser);
     if (path === "/api/v1/auth/logout") return json(route, undefined, 204);
+    if (path === "/api/v1/account/export" && method === "POST") {
+      state.accountWrites.push({ path, body: JSON.parse(request.postData() || "{}") as Record<string, unknown> });
+      const manifest = {
+        schema: "https://nur.app/schemas/owner-export-manifest/v1",
+        version: "1.0.0",
+        owner_user_id: mockUser.id,
+        provenance: { scope: "forced RLS plus explicit owner predicates" },
+        summary: { table_count: 2, row_count: 4, object_count: 0, object_bytes_included_count: 0, object_bytes_unavailable_count: 0 },
+        tables: [],
+        objects: [],
+        checksum: { algorithm: "sha256", covers: "entire manifest excluding checksum", value: "mock-owner-export-checksum" },
+      };
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: {
+          "content-disposition": 'attachment; filename="nur-owner-export-v1.json"',
+          "x-nur-export-checksum": "mock-owner-export-checksum",
+        },
+        body: JSON.stringify(manifest),
+      });
+    }
+    if (path === "/api/v1/auth/sessions" && method === "GET") return json(route, { sessions: state.ownerSessions });
+    if (path === "/api/v1/auth/sessions/revoke-others" && method === "POST") {
+      const activeOthers = state.ownerSessions.filter(row => !row.current && row.state === "active");
+      for (const row of activeOthers) {
+        row.state = "revoked";
+        row.revoked_at = now;
+      }
+      state.accountWrites.push({ path, body: JSON.parse(request.postData() || "{}") as Record<string, unknown> });
+      return json(route, { revoked_session_count: activeOthers.length });
+    }
+    if (path.startsWith("/api/v1/auth/sessions/") && method === "DELETE") {
+      const sessionId = path.split("/").at(-1);
+      const target = state.ownerSessions.find(row => row.id === sessionId && !row.current && row.state === "active");
+      if (!target) return json(route, { detail: "Session not found or already revoked." }, 404);
+      target.state = "revoked";
+      target.revoked_at = now;
+      state.accountWrites.push({ path, body: {} });
+      return json(route, { revoked_session_count: 1 });
+    }
+    if (path === "/api/v1/account" && method === "DELETE") {
+      const body = JSON.parse(request.postData() || "{}") as Record<string, unknown>;
+      state.accountWrites.push({ path, body });
+      if (body.password !== "owner-password" || body.confirmation !== "DELETE MY NUR ACCOUNT") {
+        return json(route, { detail: "Password is incorrect." }, 400);
+      }
+      state.accountDeleted = true;
+      return json(route, {
+        deleted: true,
+        revoked_session_count: 2,
+        local_object_cleanup: { requested: 0, deleted: 0, already_absent: 0, failed: 0 },
+        external_provider_deletion: { status: "not_applicable", providers: [], detail: "No external billing-provider identity was stored for this account." },
+        retained_audit: "One non-sensitive ACCOUNT_DELETED tombstone is retained without user id or email.",
+      });
+    }
+    if (path === "/api/v1/agentic/tools" && method === "GET") return json(route, {
+      tools: [
+        { key: "get_today_state", version: "1", risk_class: "R0_READ_ONLY", summary: "The owner's current day state and next move.", reads: ["Today"], writes: [], reversible: true, required_capabilities: ["read_today"], bound: true },
+        { key: "get_timeline", version: "1", risk_class: "R0_READ_ONLY", summary: "Timeline events in a bounded window.", reads: ["Timeline"], writes: [], reversible: true, required_capabilities: ["read_timeline"], bound: true },
+        { key: "create_draft_plan", version: "1", risk_class: "R1_PRIVATE_DRAFT", summary: "Draft a Plan for the owner to review.", reads: [], writes: ["Draft Plan"], reversible: true, required_capabilities: ["draft_plans"], bound: false },
+      ],
+      provenance_label: "First-party NUR tools. Unbound tools are declared but not callable.",
+    });
+    if (path === "/api/v1/agentic/policy" && method === "GET") return json(route, state.agenticPolicy);
+    if (path === "/api/v1/agentic/policy" && method === "PUT") {
+      const body = JSON.parse(request.postData() || "{}") as Record<string, unknown>;
+      state.agenticWrites.push({ path, body });
+      state.agenticPolicy = {
+        ...state.agenticPolicy,
+        ...body,
+        persisted: true,
+        granted_capabilities: (body.permitted_tools as string[] ?? []).map(key => key === "get_today_state" ? "read_today" : "read_timeline"),
+      };
+      return json(route, state.agenticPolicy);
+    }
+    if (path === "/api/v1/agentic/workflows" && method === "GET") return json(route, { workflows: state.agenticWorkflows, count: state.agenticWorkflows.length });
+    if (path === "/api/v1/agentic/workflows" && method === "POST") {
+      const body = JSON.parse(request.postData() || "{}") as Record<string, unknown>;
+      state.agenticWrites.push({ path, body });
+      const id = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+      const detail = {
+        id,
+        title: body.title,
+        objective: body.objective,
+        kind: "OWNER_DEFINED",
+        state: "PLAN_READY",
+        plan_version: 1,
+        context_manifest: body.context_manifest,
+        success_criteria: body.success_criteria,
+        cost_cents: 0,
+        failure_code: null,
+        idempotent_replay: false,
+        steps: [{
+          id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+          key: "step-1",
+          ordinal: 1,
+          state: "READY",
+          role: (body.proposed_steps as Array<Record<string, unknown>>)[0].role,
+          tool_key: (body.proposed_steps as Array<Record<string, unknown>>)[0].tool_key,
+          tool_version: "1",
+          risk_class: "R0_READ_ONLY",
+          approval_required: false,
+          depends_on: [],
+          input_refs: (body.proposed_steps as Array<Record<string, unknown>>)[0].input_refs,
+          verification_verdict: null,
+          attempt: 0,
+          execution_attempt: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+          idempotency_key: "owner-workflow:mock:1:step-1",
+          failure_code: null,
+          retryable: false,
+        }],
+      };
+      state.agenticDetails[id] = detail;
+      state.agenticWorkflows.unshift({ id, title: body.title, objective: body.objective, state: "PLAN_READY", kind: "OWNER_DEFINED", step_count: 1, steps_done: 0, cost_cents: 0, failure_code: null, updated_at: now });
+      return json(route, detail, 201);
+    }
+    const workflowMatch = path.match(/^\/api\/v1\/agentic\/workflows\/([^/]+)$/);
+    if (workflowMatch && method === "GET") {
+      const detail = state.agenticDetails[workflowMatch[1]];
+      return detail ? json(route, detail) : json(route, { detail: "workflow not found" }, 404);
+    }
+    const startMatch = path.match(/^\/api\/v1\/agentic\/workflows\/([^/]+)\/start$/);
+    if (startMatch && method === "POST") {
+      const body = JSON.parse(request.postData() || "{}") as Record<string, unknown>;
+      state.agenticWrites.push({ path, body });
+      const detail = state.agenticDetails[startMatch[1]];
+      if (!detail) return json(route, { detail: "workflow not found" }, 404);
+      detail.state = "QUEUED";
+      const listRow = state.agenticWorkflows.find(row => row.id === startMatch[1]);
+      if (listRow) listRow.state = "QUEUED";
+      return json(route, detail);
+    }
+    const cancelMatch = path.match(/^\/api\/v1\/agentic\/workflows\/([^/]+)\/cancel$/);
+    if (cancelMatch && method === "POST") {
+      const detail = state.agenticDetails[cancelMatch[1]];
+      if (!detail) return json(route, { detail: "workflow not found" }, 404);
+      state.agenticWrites.push({ path, body: JSON.parse(request.postData() || "{}") as Record<string, unknown> });
+      detail.state = "CANCEL_REQUESTED";
+      const listRow = state.agenticWorkflows.find(row => row.id === cancelMatch[1]);
+      if (listRow) listRow.state = "CANCEL_REQUESTED";
+      return json(route, detail);
+    }
+    const eventMatch = path.match(/^\/api\/v1\/agentic\/workflows\/([^/]+)\/events$/);
+    if (eventMatch && method === "GET") return json(route, {
+      events: [{ sequence: 1, event_type: "WORKFLOW_CREATED", from_state: null, to_state: "PLAN_READY", summary: "owner created an explicit workflow draft", actor: "OWNER", created_at: now }],
+      count: 1,
+      provenance_label: "Append-only run ledger",
+    });
+    if (path === "/api/v1/agentic/approvals" && method === "GET") return json(route, { approvals: state.agenticApprovals, count: state.agenticApprovals.length });
+    const approvalMatch = path.match(/^\/api\/v1\/agentic\/approvals\/([^/]+)\/decide$/);
+    if (approvalMatch && method === "POST") {
+      const body = JSON.parse(request.postData() || "{}") as Record<string, unknown>;
+      state.agenticWrites.push({ path, body });
+      state.agenticApprovals = state.agenticApprovals.filter(row => row.id !== approvalMatch[1]);
+      return json(route, { approval_id: approvalMatch[1], decision: body.decision, step_state: "QUEUED", workflow_state: "QUEUED", outbox_intent_id: "ffffffff-ffff-4fff-8fff-ffffffffffff" });
+    }
     if (path === "/api/v1/universe/live") return json(route, mockLiveUniverse);
     if (path === "/api/v1/map/views") return json(route, {
       default_view_id: "mock-map-view",

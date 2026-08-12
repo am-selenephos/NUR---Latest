@@ -409,7 +409,7 @@ async function assertEqualControlGroup(locator: Locator, count: number, label: s
   const heights = metrics.map(metric => metric.height);
   expect(Math.max(...widths) - Math.min(...widths), `${label} widths: ${JSON.stringify(metrics)}`).toBeLessThanOrEqual(1);
   expect(Math.max(...heights) - Math.min(...heights), `${label} heights: ${JSON.stringify(metrics)}`).toBeLessThanOrEqual(1);
-  expect(widths[0], `${label} uses the balanced shared action width`).toBeCloseTo(112, 0);
+  expect(widths[0], `${label} uses the balanced shared action width`).toBeCloseTo(144, 0);
   expect(heights[0], `${label} uses the shared control height`).toBeCloseTo(38, 0);
   for (const metric of metrics) {
     expect(metric.whiteSpace, `${label} ${metric.text} stays on one line`).toBe("nowrap");

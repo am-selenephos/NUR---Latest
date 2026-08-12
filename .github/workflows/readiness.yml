@@ -15,13 +15,12 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - name: Install secret scan dependency
-        run: sudo apt-get update && sudo apt-get install -y ripgrep
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
+      - name: Install secret scan dependency
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
       - run: npm run release:naming-scan
       - run: npm run secret-scan
-      - run: npm run release:naming-scan
       - run: npm run web:typecheck
       - run: npm run web:test
       - run: npm run web:build

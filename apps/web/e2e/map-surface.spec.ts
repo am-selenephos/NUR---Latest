@@ -629,10 +629,10 @@ test("nothing loops when reduced motion is requested", async ({ browser }) => {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     reducedMotion: "reduce",
+    storageState: await sharedContext.storageState(),
   });
   const page = await context.newPage();
   try {
-    await signIn(page);
     const frame = await openMap(page);
     const motion = await frame.evaluate(() => {
       const animated = Array.from(document.querySelectorAll(
@@ -653,10 +653,12 @@ test("nothing loops when reduced motion is requested", async ({ browser }) => {
 });
 
 test("mobile opens focus-first with a bottom sheet, not a shrunken galaxy", async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    storageState: await sharedContext.storageState(),
+  });
   const page = await context.newPage();
   try {
-    await signIn(page);
     const frame = await openMap(page);
     const layout = await frame.evaluate(() => {
       const root = document.getElementById("nur-map-root");

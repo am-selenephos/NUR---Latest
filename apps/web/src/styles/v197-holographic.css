@@ -41,9 +41,12 @@ body.universe-edition .share-sheet {
   /* The navy fill is replaced, not covered. Layering a sheen on top of
      rgb(69,99,160) still reads blue; the base has to become neutral dark glass
      so the spectral pass is the only colour in the panel. */
-  background-color: rgba(2, 2, 2, 0.82) !important;
-  background-image: none !important;
+  background-color: var(--nur-surface-unified, rgba(0, 0, 0, .72)) !important;
+  background-image: var(--nur-pastel-film) !important;
+  background-size: 280% 100% !important;
   border-color: rgba(248, 217, 138, 0.16) !important;
+  backdrop-filter: blur(8px) saturate(1.12);
+  -webkit-backdrop-filter: blur(8px) saturate(1.12);
 }
 
 body.universe-edition .universe-map-panel::before,
@@ -133,7 +136,7 @@ body.universe-edition .universe-composer-shell {
   box-shadow:
     0 1px 0 rgba(255, 248, 232, 0.05) inset,
     0 18px 44px rgba(0, 0, 0, 0.42),
-    0 0 24px rgba(255, 211, 90, 0.025) !important;
+    var(--nur-glow-holo) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -519,6 +522,67 @@ body.universe-edition {
 canvas#space3d {
   mix-blend-mode: normal !important;
   isolation: isolate;
+  background: none !important;
+}
+
+/* The nebula is static optical atmosphere, not particle state. Keeping its
+   seven gradients on the canvas made Chromium composite them again whenever
+   the canvas bitmap changed. The canonical `#atm` layer already sits directly
+   behind `#space3d`; moving the identical paint there preserves the image while
+   allowing one cached backdrop behind the moving stars. */
+body #atm {
+  opacity: 1 !important;
+  filter: none !important;
+  transition: none !important;
+  pointer-events: none !important;
+  contain: paint;
+  background:
+    radial-gradient(
+      circle at 63% 37%,
+      rgba(218, 162, 60, .052) 0,
+      rgba(175, 95, 210, .026) 18%,
+      rgba(20, 29, 55, .01) 46%,
+      rgba(2, 4, 13, .01) 78%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle at 72% 24%,
+      rgba(255, 195, 72, .028) 0,
+      rgba(255, 145, 185, .015) 40%,
+      transparent 70%
+    ),
+    radial-gradient(
+      circle at 20% 76%,
+      rgba(52, 172, 255, .024) 0,
+      rgba(32, 118, 200, .012) 45%,
+      transparent 72%
+    ),
+    radial-gradient(
+      circle at 14% 18%,
+      rgba(255, 52, 72, .01) 0,
+      rgba(185, 25, 52, .004) 55%,
+      transparent 72%
+    ),
+    radial-gradient(
+      circle at 84% 70%,
+      rgba(52, 218, 172, .015) 0,
+      rgba(28, 168, 128, .006) 50%,
+      transparent 74%
+    ),
+    linear-gradient(
+      180deg,
+      transparent 20%,
+      rgba(225, 205, 160, .018) 38%,
+      rgba(238, 218, 172, .028) 50%,
+      rgba(225, 205, 160, .018) 62%,
+      transparent 80%
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      transparent 0 62%,
+      rgba(10, 16, 42, .011) 82%,
+      rgba(4, 6, 22, .02) 100%
+    ) !important;
 }
 
 /* ── 8. Panels are glass, not tinted sheets ─────────────────────────────────
@@ -657,23 +721,19 @@ body.universe-edition .nur-viewport::after {
    instead, so a *full* spectrum spans the control at every instant and the
    drift changes which part of the wheel sits where.
 
-   Every control carries the complete rainbow at rest. One inherited optical
-   phase moves every film together: the interface gets a genuinely
-   colour-changing material without promoting sixty individual buttons to
-   sixty animation owners. */
-@property --nur-holo-global-x {
-  syntax: "<percentage>";
-  inherits: true;
-  initial-value: 0%;
-}
-
-@keyframes nurHoloGlobalPhase {
-  0%   { --nur-holo-global-x: 0%; }
-  100% { --nur-holo-global-x: -33.333%; }
-}
-
-:root:has(#nur-front-v61) {
-  animation: nurHoloGlobalPhase 18s linear infinite;
+   Every control carries the complete rainbow at rest. The authenticated
+   interface deliberately keeps that film still: animating an inherited custom
+   property on the document root forced Chromium to restyle the entire V197
+   tree every frame. Entry has only a handful of hero controls, so their film
+   can move directly on the compositor without making the full application a
+   style-animation owner. */
+@keyframes nurHoloEntryPhase {
+  from {
+    transform: translate3d(var(--nur-holo-local-x), 0, 0);
+  }
+  to {
+    transform: translate3d(calc(-33.333% + var(--nur-holo-local-x)), 0, 0);
+  }
 }
 
 .nur-holo-film {
@@ -690,7 +750,7 @@ body.universe-edition .nur-viewport::after {
     radial-gradient(circle at 89% 27%, rgba(255, 248, 223, .54) 0 .4px, rgba(255, 122, 196, .2) .7px, transparent 1.9px);
   box-shadow:
     inset 0 0 0 1px rgba(255, 222, 153, .24),
-    0 0 12px rgba(255, 211, 90, .09) !important;
+    var(--nur-glow-holo) !important;
   opacity: .075;
   transition: opacity 180ms ease, filter 180ms ease;
 }
@@ -699,8 +759,8 @@ body.universe-edition .nur-viewport::after {
   --nur-holo-local-x: 0%;
 }
 
-/* One shared phase keeps the cost bounded; small stable offsets stop adjacent
-   controls from reading like a single rainbow wallpaper sliced into boxes. */
+/* Small stable offsets stop adjacent controls from reading like a single
+   rainbow wallpaper sliced into boxes. */
 .nur-holo-control:nth-of-type(4n + 2) { --nur-holo-local-x: -5.5%; }
 .nur-holo-control:nth-of-type(4n + 3) { --nur-holo-local-x: -11%; }
 .nur-holo-control:nth-of-type(4n + 4) { --nur-holo-local-x: -16.5%; }
@@ -710,7 +770,7 @@ body.universe-edition .nur-viewport::after {
 body.universe-edition #nur-front-v61 .universe-system-node > .nur-holo-film {
   box-shadow:
     inset 0 0 0 1px rgba(255, 222, 153, .24),
-    0 0 12px rgba(255, 211, 90, .09) !important;
+    var(--nur-glow-holo) !important;
 }
 
 /* One full wheel per third of the surface — eleven stops, wrapping cleanly from
@@ -745,8 +805,23 @@ body.universe-edition #nur-front-v61 .universe-system-node > .nur-holo-film {
   );
   mix-blend-mode: screen;
   opacity: .72;
-  transform: translate3d(calc(var(--nur-holo-global-x) + var(--nur-holo-local-x)), 0, 0);
+  transform: translate3d(var(--nur-holo-local-x), 0, 0);
+}
+
+body.front-v61-active #nur-front-v61 .nur-holo-film::before {
+  animation: nurHoloEntryPhase 18s linear infinite;
   will-change: transform;
+}
+
+/* The closed auth sheet stays in layout for its entrance transition, so
+   `visibility: hidden` alone does not suspend descendant animations. Its
+   holographic films, button sheen and two three-satellite sigils were therefore
+   repainting behind Entry. Stop only that inert subtree; removing `aria-hidden`
+   when the sheet opens restores every effect from its first frame. */
+body.front-v61-active #nur-front-v61 #f4-sheet[aria-hidden="true"] *,
+body.front-v61-active #nur-front-v61 #f4-sheet[aria-hidden="true"] *::before,
+body.front-v61-active #nur-front-v61 #f4-sheet[aria-hidden="true"] *::after {
+  animation: none !important;
 }
 
 /* A brighter version of the same wheel is masked to a precise rim. */
@@ -758,23 +833,22 @@ body.universe-edition #nur-front-v61 .universe-system-node > .nur-holo-film {
   background: repeating-linear-gradient(
     104deg,
     rgba(255, 250, 225, .96)  0%,
-    rgba(255, 211, 90, .94)   2.78%,
-    rgba(255, 142, 53, .88)   5.56%,
-    rgba(255, 82, 111, .84)   8.33%,
-    rgba(255, 88, 190, .86)  11.11%,
-    rgba(193, 96, 255, .84)  13.89%,
-    rgba(103, 126, 255, .82) 16.67%,
-    rgba(60, 211, 255, .86)  19.44%,
-    rgba(64, 242, 213, .88)  22.22%,
-    rgba(102, 240, 145, .86) 25%,
-    rgba(215, 242, 105, .88) 27.78%,
-    rgba(255, 177, 57, .92)  30.56%,
+    rgba(255, 232, 166, .94)  2.78%,
+    rgba(255, 211, 90, .92)   5.56%,
+    rgba(225, 177, 74, .88)   8.33%,
+    rgba(197, 143, 43, .84)  11.11%,
+    rgba(255, 213, 90, .9)   13.89%,
+    rgba(255, 241, 195, .94) 16.67%,
+    rgba(255, 222, 132, .92) 19.44%,
+    rgba(211, 159, 53, .86)  22.22%,
+    rgba(255, 211, 90, .92)  25%,
+    rgba(255, 245, 204, .95) 27.78%,
+    rgba(232, 184, 77, .88)  30.56%,
     rgba(255, 250, 225, .96) 33.33%
   );
   opacity: .54;
   padding: 1px;
-  transform: translate3d(calc(var(--nur-holo-global-x) + var(--nur-holo-local-x)), 0, 0);
-  will-change: transform;
+  transform: translate3d(var(--nur-holo-local-x), 0, 0);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -823,7 +897,7 @@ body.universe-edition #nur-front-v61 .nur-holo-control:not(.active):not([aria-cu
   box-shadow:
     inset 0 0 0 1px rgba(255, 222, 153, .11),
     0 8px 24px rgba(0, 0, 0, .25),
-    0 0 18px rgba(255, 211, 90, .12) !important;
+    var(--nur-glow-holo) !important;
 }
 
 body.front-v61-active #nur-front-v61 .nur-holo-control:is(
@@ -846,7 +920,7 @@ body.universe-edition #nur-front-v61 .nur-holo-control:is(
   box-shadow:
     inset 0 0 0 1px rgba(255, 222, 153, .14),
     0 9px 28px rgba(0, 0, 0, .28),
-    0 0 24px rgba(255, 211, 90, .18) !important;
+    var(--nur-glow-holo) !important;
 }
 
 body.front-v61-active #nur-front-v61 .nur-holo-control:is(
@@ -943,7 +1017,7 @@ body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
   box-shadow:
     inset 0 0 18px rgba(255, 222, 153, .035),
     0 10px 26px rgba(0, 0, 0, .28),
-    0 0 24px rgba(255, 211, 90, .14) !important;
+    var(--nur-glow-holo) !important;
   backdrop-filter: blur(14px) saturate(1.16) contrast(1.05) !important;
   -webkit-backdrop-filter: blur(14px) saturate(1.16) contrast(1.05) !important;
   transition:
@@ -969,7 +1043,7 @@ body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
     inset 0 0 0 1px rgba(255, 222, 153, .14),
     inset 8px 0 18px rgba(255, 211, 90, .022),
     inset -8px 0 18px rgba(60, 211, 255, .018),
-    0 0 20px rgba(255, 211, 90, .12) !important;
+    var(--nur-glow-holo) !important;
 }
 
 body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
@@ -1008,8 +1082,7 @@ body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
     inset 0 1px 0 rgba(255, 255, 255, .14),
     inset 0 0 14px rgba(255, 222, 153, .035),
     0 12px 30px rgba(0, 0, 0, .32),
-    0 0 26px rgba(255, 211, 90, .17),
-    0 0 22px rgba(60, 211, 255, .025) !important;
+    var(--nur-glow-holo) !important;
 }
 
 body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
@@ -1045,8 +1118,7 @@ body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
   box-shadow:
     inset 0 0 16px rgba(255, 222, 153, .045),
     0 12px 32px rgba(0, 0, 0, .34),
-    0 0 30px rgba(255, 211, 90, .22),
-    0 0 26px rgba(60, 211, 255, .045) !important;
+    var(--nur-glow-holo) !important;
 }
 
 body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
@@ -1085,11 +1157,10 @@ body.front-v61-active #nur-front-v61
 body.universe-edition #nur-front-v61
   #f4-begin.f4-primary.nur-holo-control[data-nur-holographic-control="true"] {
   box-shadow:
+    inset 0 0 0 1px rgba(255, 211, 90, .19),
     inset 0 0 15px rgba(255, 222, 153, .045),
     0 12px 30px rgba(0, 0, 0, .32),
-    0 0 28px rgba(255, 211, 90, .19),
-    0 0 44px rgba(255, 88, 190, .055),
-    0 0 48px rgba(60, 211, 255, .04) !important;
+    var(--nur-glow-holo) !important;
 }
 
 body.front-v61-active #nur-front-v61
@@ -1097,11 +1168,10 @@ body.front-v61-active #nur-front-v61
 body.universe-edition #nur-front-v61
   #f4-begin.f4-primary.nur-holo-control[data-nur-holographic-control="true"]:is(:hover, :focus-visible) {
   box-shadow:
+    inset 0 0 0 1px rgba(255, 211, 90, .24),
     inset 0 0 18px rgba(255, 244, 210, .065),
     0 14px 34px rgba(0, 0, 0, .34),
-    0 0 36px rgba(255, 211, 90, .24),
-    0 0 52px rgba(255, 88, 190, .07),
-    0 0 56px rgba(60, 211, 255, .055) !important;
+    var(--nur-glow-holo) !important;
 }
 
 /* Add System shares the same material, one step quieter so the six existing
@@ -1115,7 +1185,7 @@ body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, .075),
     0 10px 26px rgba(0, 0, 0, .28),
-    0 0 22px rgba(255, 211, 90, .15) !important;
+    var(--nur-glow-holo) !important;
 }
 
 body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
@@ -1152,7 +1222,7 @@ body.front-v61-active #nur-front-v61 .f4-switch
   color: rgba(255, 245, 220, .94) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, .09),
-    0 0 18px rgba(255, 211, 90, .14) !important;
+    var(--nur-glow-holo) !important;
   backdrop-filter: blur(10px) saturate(1.14) !important;
   -webkit-backdrop-filter: blur(10px) saturate(1.14) !important;
 }
@@ -1190,14 +1260,240 @@ body.universe-edition #nur-front-v61 #page-systems :is(
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root:has(#nur-front-v61) {
-    animation: none;
-    --nur-holo-global-x: 0%;
+  /* Canonical V197 hides the entire galaxy canvas in reduced-motion mode.
+     Keep the complete field visible; the runtime profile paints one still
+     frame and stops, so the preference removes motion rather than content. */
+  #space3d,
+  canvas#space3d {
+    display: block !important;
   }
 
   .nur-holo-film::before,
   .nur-holo-film::after {
+    animation: none !important;
     transform: translate3d(0, 0, 0);
     will-change: auto;
   }
+}
+
+/* ── 15. Quiet authenticated material, no control or panel bloom ────────────
+   Entry keeps its original luminous controls. Inside the authenticated shell,
+   the spectral film and thin border remain part of the material, but blurred
+   shadows do not compete with the real stars. Focus stays visible through the
+   existing outline. */
+body.universe-edition #nur-front-v61
+  .nur-holo-control[data-nur-holographic-control="true"],
+body.universe-edition #nur-front-v61
+  .nur-holo-control[data-nur-holographic-control="true"]:not(.active):not([aria-current="page"]):not([aria-selected="true"]):not([aria-checked="true"]),
+body.universe-edition #nur-front-v61
+  .nur-holo-control[data-nur-holographic-control="true"]:is(
+    .active,
+    .selected,
+    [aria-current="page"],
+    [aria-selected="true"],
+    [aria-checked="true"],
+    [aria-pressed="true"],
+    :hover,
+    :focus-visible,
+    :active
+  ),
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node.nur-holo-control[data-nur-holographic-control="true"],
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-add-system.nur-holo-control[data-nur-holographic-control="true"] {
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+}
+
+body.universe-edition #nur-front-v61
+  .nur-holo-control[data-nur-holographic-control="true"] > .nur-holo-film,
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-add-system.nur-holo-control[data-nur-holographic-control="true"] > .nur-holo-film {
+  box-shadow: inset 0 0 0 1px rgba(255, 222, 153, .24) !important;
+}
+
+body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
+  .universe-system-node.nur-holo-control[data-nur-holographic-control="true"] > .nur-holo-film {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 222, 153, .14),
+    inset 8px 0 18px rgba(255, 211, 90, .022),
+    inset -8px 0 18px rgba(60, 211, 255, .018) !important;
+}
+
+body.universe-edition #nur-front-v61 :is(
+  .nur-rail,
+  .clean-left-rail,
+  .nur-topbar,
+  .nur-context,
+  .clean-right-rail,
+  .global-composer,
+  .universe-composer-shell,
+  .nur-panel,
+  .universe-card,
+  .clean-audit-card,
+  .context-rail-card,
+  .v172-context-card,
+  .universe-map-panel,
+  .universe-insight-panel,
+  .candidate-insight,
+  .universe-state-strip,
+  .talk-message,
+  .journal-entry,
+  .plan-step,
+  .lens-empty,
+  .scope-modal,
+  .modal,
+  .share-sheet
+) {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* Today, Talk, Journal and Plan remain transparent over the true galaxy. A
+   barely-there cool depth replaces the old purple/maroon wash without turning
+   the shell blue or hiding any canvas pixels. */
+body.universe-edition #nur-front-v61 .nur-viewport > :is(
+  #page-today,
+  #page-talk,
+  #page-journal,
+  #page-plan
+) {
+  background-color: transparent !important;
+  background-image:
+    radial-gradient(ellipse at 78% 18%, rgba(83, 188, 255, .013), transparent 42%),
+    radial-gradient(ellipse at 20% 82%, rgba(61, 155, 255, .009), transparent 46%) !important;
+}
+
+body.universe-edition #nur-front-v61 :is(
+  #page-today,
+  #page-talk,
+  #page-journal,
+  #page-plan
+) :is(
+  .nur-panel,
+  .clean-audit-card,
+  .context-rail-card,
+  .v172-context-card,
+  .talk-message,
+  .journal-entry,
+  .plan-step,
+  .today-grid > article,
+  .talk-chamber,
+  .journal-pad
+) {
+  background-color: rgba(0, 5, 9, .28) !important;
+  background-image:
+    linear-gradient(135deg, rgba(91, 198, 255, .012), transparent 46%),
+    linear-gradient(180deg, rgba(255, 255, 255, .008), rgba(0, 0, 0, .08)) !important;
+}
+
+/* The four personal-orbit commands are almost clear glass. Their tiny cool
+   reflection is deliberately blue-white only, so the old purple selected-card
+   wash cannot return through the shared full-spectrum film. */
+body.universe-edition #nur-front-v61 .clean-nav-button.nur-holo-control:is(
+  [data-page="today"],
+  [data-page="talk"],
+  [data-page="journal"],
+  [data-page="plan"]
+) {
+  background:
+    linear-gradient(132deg, rgba(126, 211, 255, .018), transparent 42%),
+    rgba(0, 0, 0, .08) !important;
+  background-color: rgba(0, 0, 0, .08) !important;
+  border-color: rgba(176, 221, 255, .12) !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+body.universe-edition #nur-front-v61 .clean-nav-button.nur-holo-control:is(
+  [data-page="today"],
+  [data-page="talk"],
+  [data-page="journal"],
+  [data-page="plan"]
+) > .nur-holo-film {
+  opacity: .018 !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 222, 153, .24) !important;
+}
+
+body.universe-edition #nur-front-v61 .clean-nav-button.nur-holo-control:is(
+  [data-page="today"],
+  [data-page="talk"],
+  [data-page="journal"],
+  [data-page="plan"]
+) > .nur-holo-film::before {
+  background: linear-gradient(
+    104deg,
+    rgba(255, 255, 255, .24),
+    rgba(127, 214, 255, .2) 48%,
+    rgba(255, 255, 255, .22)
+  ) !important;
+  opacity: .42 !important;
+}
+
+body.universe-edition #nur-front-v61 .clean-nav-button.nur-holo-control:is(
+  [data-page="today"],
+  [data-page="talk"],
+  [data-page="journal"],
+  [data-page="plan"]
+) > .nur-holo-film::after {
+  opacity: 0 !important;
+}
+
+/* Legacy selected, privacy and voice rules carry more selector weight than the
+   shared material rule above. Pin every authenticated control state to a
+   shadow-free surface here so no rectangular bloom can leak back in. */
+body.universe-edition #nur-front-v61 .clean-nav-button.active.nur-holo-control,
+body.universe-edition #nur-front-v61 .nur-scope.nur-holo-control,
+body.universe-edition #nur-front-v61 .voice-button.nur-holo-control,
+body.universe-edition #nur-front-v61 #scope-open.nur-holo-control,
+body.universe-edition #nur-front-v61 #page-systems .voice-button.nur-holo-control {
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+  transition: none !important;
+}
+
+body.universe-edition #nur-front-v61 button.nur-holo-control[data-nur-holographic-control="true"]:not(
+  .nur-scope,
+  .voice-button
+):is(
+  :hover,
+  :focus-visible,
+  :active
+) {
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+  transition:
+    transform var(--nur-motion-fast) var(--nur-ease),
+    border-color var(--nur-motion-fast) ease,
+    background-color var(--nur-motion-fast) ease,
+    color var(--nur-motion-fast) ease,
+    opacity var(--nur-motion-fast) ease !important;
+}
+
+body.universe-edition #nur-front-v61
+  button.nur-holo-control[data-nur-holographic-control="true"]:focus-visible {
+  outline: 1px solid rgba(255, 248, 223, .72) !important;
+  outline-offset: 3px !important;
+}
+
+/* The canonical Systems panel rule in the cosmic sheet is intentionally very
+   specific. Match that ownership boundary exactly and remove only its bloom;
+   backgrounds, borders, geometry and the real galaxy remain untouched. */
+body.universe-edition.nur-v197-systems-active #nur-front-v61 #page-systems :is(
+  .universe-map-panel,
+  .universe-insight-panel,
+  .universe-card,
+  .candidate-insight,
+  .context-rail-card,
+  .v172-context-card,
+  .clean-audit-card,
+  .nur-panel,
+  .universe-state-strip,
+  .universe-composer-shell
+) {
+  box-shadow: none !important;
+  filter: none !important;
 }

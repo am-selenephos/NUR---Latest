@@ -13,6 +13,7 @@ import {
   type V197MemorySensitivity,
   type V197MemoryType,
   type V197OwnedCapsule,
+  type V197Session,
   type V197TeachNURContribution,
   type V197TeachNURContributionKind,
 } from "./v197ApiClient";
@@ -20,6 +21,15 @@ import { applyV197Locale, directionForPreference, V197_LOCALE_META, type Writing
 import V197_ADJUNCT_FORENSIC_CSS from "../styles/v197-adjunct-forensic.css?raw";
 import { markV197HolographicWordmark } from "./v197Brand";
 import { createV197StarSeal } from "./v197StarSeal";
+import {
+  DRAWER_SECTIONS,
+  buildApprovalCard,
+  describeRisk,
+  groupWorkflows,
+  type AgenticRiskClass,
+  type V197AgenticPolicy,
+  type V197AgenticWorkflow,
+} from "./v197Agentic";
 
 const ROOT_ID = "nur-v197-adjunct-root";
 const STYLE_ID = "nur-v197-adjunct-style";
@@ -46,8 +56,26 @@ const TEACH_NUR_KINDS: readonly V197TeachNURContributionKind[] = [
   "MISUNDERSTANDING",
   "OUTCOME_EVIDENCE",
 ];
+type AdjunctBackgroundState = {
+  previousFocus: HTMLElement | null;
+  siblings: Map<HTMLElement, { inert: boolean; ariaHidden: string | null }>;
+};
+const adjunctBackgrounds = new WeakMap<Document, AdjunctBackgroundState>();
+const UNIVERSE_CHAMBERS = [
+  { route: "/universe", label: "Live Universe", glyph: "✦" },
+  { route: "/universe/consultation", label: "Consultation", glyph: "◌" },
+  { route: "/universe/research", label: "Research", glyph: "⌕" },
+  { route: "/universe/community", label: "Community", glyph: "◎" },
+  { route: "/universe/experts", label: "Experts", glyph: "✣" },
+  { route: "/universe/insights/candidates", label: "Candidates", glyph: "✧" },
+] as const;
 
 type RefreshSnapshot = () => Promise<V197BridgeSnapshot>;
+
+function isDocumentHTMLElement(document: Document, node: Element | null): node is HTMLElement {
+  const HTMLElementConstructor = document.defaultView?.HTMLElement;
+  return Boolean(HTMLElementConstructor && node instanceof HTMLElementConstructor);
+}
 
 function text(value: unknown, fallback = "Not recorded"): string {
   if (typeof value === "string" && value.trim()) return value;
@@ -168,6 +196,53 @@ function ensureStyle(document: Document): void {
   document.head.append(style);
 }
 
+function isolateAdjunctBackground(document: Document, root: HTMLElement): void {
+  let state = adjunctBackgrounds.get(document);
+  if (!state) {
+    state = {
+      previousFocus: isDocumentHTMLElement(document, document.activeElement) ? document.activeElement : null,
+      siblings: new Map(),
+    };
+    adjunctBackgrounds.set(document, state);
+  }
+  for (const child of Array.from(document.body.children)) {
+    if (!isDocumentHTMLElement(document, child) || child === root) continue;
+    if (!state.siblings.has(child)) {
+      state.siblings.set(child, { inert: child.inert, ariaHidden: child.getAttribute("aria-hidden") });
+    }
+    child.inert = true;
+    child.setAttribute("aria-hidden", "true");
+  }
+}
+
+function restoreAdjunctBackground(document: Document): void {
+  const state = adjunctBackgrounds.get(document);
+  if (!state) return;
+  for (const [sibling, previous] of state.siblings) {
+    sibling.inert = previous.inert;
+    if (previous.ariaHidden === null) sibling.removeAttribute("aria-hidden");
+    else sibling.setAttribute("aria-hidden", previous.ariaHidden);
+  }
+  adjunctBackgrounds.delete(document);
+  if (state.previousFocus?.isConnected) state.previousFocus.focus({ preventScroll: true });
+}
+
+function universeChamberNav(document: Document): HTMLElement {
+  const current = window.location.pathname;
+  const nav = element(document, "nav", "nur-adjunct-universe-nav");
+  nav.setAttribute("aria-label", "Universe chambers");
+  for (const chamber of UNIVERSE_CHAMBERS) {
+    const control = button(document, `${chamber.glyph} ${chamber.label}`, `universe-chamber-${chamber.label.toLowerCase()}`);
+    const selected = chamber.route === "/universe"
+      ? current === chamber.route
+      : current === chamber.route || current.startsWith(`${chamber.route}/`);
+    if (selected) control.setAttribute("aria-current", "page");
+    control.addEventListener("click", () => navigate(chamber.route));
+    nav.append(control);
+  }
+  return nav;
+}
+
 function mount(document: Document, title: string, subtitle: string, backRoute = "/systems"): HTMLElement {
   document.getElementById(ROOT_ID)?.remove();
   ensureStyle(document);
@@ -176,7 +251,12 @@ function mount(document: Document, title: string, subtitle: string, backRoute = 
   root.dataset.v197NativeAdjunct = "true";
   const shell = element(document, "main", "nur-adjunct-shell");
   const topbar = element(document, "header", "nur-adjunct-topbar");
-  const back = element(document, "button", "nur-adjunct-back", "← Return to NUR");
+  const back = element(
+    document,
+    "button",
+    "nur-adjunct-back",
+    backRoute.startsWith("/universe") ? "← Live Universe" : "← Return to NUR",
+  );
   back.type = "button";
   back.dataset.adjunctRoute = backRoute;
   const brand = element(document, "div", "nur-adjunct-brand", "NUR");
@@ -189,9 +269,13 @@ function mount(document: Document, title: string, subtitle: string, backRoute = 
   hero.append(element(document, "p", "nur-adjunct-eyebrow", "Neural Upgrade Rewiring"));
   hero.append(element(document, "h1", undefined, title));
   hero.append(element(document, "p", "nur-adjunct-subtitle", subtitle));
-  shell.append(topbar, hero);
+  shell.append(topbar);
+  if (window.location.pathname.startsWith("/universe/")) shell.append(universeChamberNav(document));
+  shell.append(hero);
   root.append(shell);
   document.body.append(root);
+  isolateAdjunctBackground(document, root);
+  back.focus({ preventScroll: true });
   back.addEventListener("click", () => {
     window.history.pushState({}, "", backRoute);
     window.dispatchEvent(new PopStateEvent("popstate"));
@@ -264,15 +348,188 @@ async function renderSettings(
     toggle("Omega research memory", "omega", snapshot.preferences?.omega_enabled ?? true),
   );
 
-  const ownership = panel(document, "Owner controls", "Export and deletion boundaries");
-  ownership.append(empty(document, "Not exposed in this beta", "Data export and account deletion require a complete verified owner flow. These controls remain honestly unavailable instead of pretending to work."));
-  const disabledActions = element(document, "div", "nur-adjunct-actions");
+  const ownership = panel(document, "Owner data", "Export the complete owner-scoped ledger");
+  ownership.append(element(document, "p", "nur-adjunct-boundary", "The download includes deterministic JSON, a SHA-256 manifest checksum, and explicit status for any unavailable stored object. Secret hashes are excluded."));
+  const ownershipActions = element(document, "div", "nur-adjunct-actions");
   const exportButton = button(document, "Export my NUR", "settings-export");
-  const deleteButton = button(document, "Delete account", "settings-delete");
-  exportButton.disabled = true;
-  deleteButton.disabled = true;
-  disabledActions.append(exportButton, deleteButton);
-  ownership.append(disabledActions);
+  const exportState = status(document, "Nothing is marked exported until the API returns the real owner manifest.");
+  ownershipActions.append(exportButton);
+  ownership.append(ownershipActions, exportState);
+  exportButton.addEventListener("click", async () => {
+    exportButton.disabled = true;
+    exportState.textContent = "Preparing the owner-scoped export…";
+    try {
+      const exported = await api.downloadOwnerExport();
+      const href = URL.createObjectURL(exported.blob);
+      const anchor = element(document, "a") as HTMLAnchorElement;
+      anchor.href = href;
+      anchor.download = exported.filename;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(href), 0);
+      exportState.textContent = `Export downloaded. SHA-256 ${exported.checksum}.`;
+      exportState.className = "nur-adjunct-status is-good";
+    } catch (error) {
+      exportState.textContent = error instanceof Error ? error.message : "Owner export could not be prepared.";
+      exportState.className = "nur-adjunct-status is-warn";
+    } finally {
+      exportButton.disabled = false;
+    }
+  });
+
+  const security = panel(document, "Password", "Change it and revoke every active session");
+  const passwordField = (label: string, control: string) => {
+    const field = element(document, "label", "nur-adjunct-field");
+    field.append(element(document, "span", undefined, label));
+    const input = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+    input.type = "password";
+    input.autocomplete = control === "current-password" || control === "delete-password"
+      ? "current-password"
+      : "new-password";
+    input.minLength = 8;
+    input.maxLength = 256;
+    input.dataset.adjunctControl = control;
+    field.append(input);
+    return field;
+  };
+  security.append(
+    passwordField("Current password", "current-password"),
+    passwordField("New password", "new-password"),
+    passwordField("Confirm new password", "confirm-password"),
+  );
+  const securityActions = element(document, "div", "nur-adjunct-actions");
+  const changePassword = button(document, "Change password", "settings-change-password", true);
+  const securityState = status(document, "A successful change signs every device out, including this one.");
+  securityActions.append(changePassword);
+  security.append(securityActions, securityState);
+  changePassword.addEventListener("click", async () => {
+    const current = (security.querySelector('[data-adjunct-control="current-password"]') as HTMLInputElement).value;
+    const next = (security.querySelector('[data-adjunct-control="new-password"]') as HTMLInputElement).value;
+    const confirmation = (security.querySelector('[data-adjunct-control="confirm-password"]') as HTMLInputElement).value;
+    if (current.length < 1 || next.length < 8) {
+      securityState.textContent = "Enter the current password and a new password of at least 8 characters.";
+      securityState.className = "nur-adjunct-status is-warn";
+      return;
+    }
+    if (next !== confirmation) {
+      securityState.textContent = "The two new passwords do not match.";
+      securityState.className = "nur-adjunct-status is-warn";
+      return;
+    }
+    changePassword.disabled = true;
+    securityState.textContent = "Changing password and revoking sessions…";
+    try {
+      await api.changePassword(current, next);
+      securityState.textContent = "Password changed. Returning to Sign in…";
+      securityState.className = "nur-adjunct-status is-good";
+      window.setTimeout(() => window.location.replace("/auth"), 400);
+    } catch (error) {
+      securityState.textContent = error instanceof Error ? error.message : "Password could not be changed.";
+      securityState.className = "nur-adjunct-status is-warn";
+      changePassword.disabled = false;
+    }
+  });
+
+  const sessionsPanel = panel(document, "Sessions", "Devices with access to this Orbit");
+  const sessionList = element(document, "div", "nur-adjunct-list");
+  const sessionActions = element(document, "div", "nur-adjunct-actions");
+  const revokeOthers = button(document, "Sign out other devices", "settings-revoke-other-sessions");
+  const sessionState = status(document, "Loading the real session ledger…");
+  sessionActions.append(revokeOthers);
+  sessionsPanel.append(sessionList, sessionActions, sessionState);
+  const loadSessions = async () => {
+    sessionList.replaceChildren();
+    try {
+      const sessions = await api.ownerSessions();
+      for (const ownerSession of sessions) {
+        const row = element(document, "div", "nur-adjunct-row");
+        const heading = element(document, "div", "nur-adjunct-row-head");
+        heading.append(
+          element(document, "strong", undefined, ownerSession.current ? "This device" : "Signed-in device"),
+          element(document, "span", "nur-adjunct-chip", ownerSession.state),
+        );
+        row.append(heading, element(document, "p", undefined, `Started ${date(ownerSession.created_at)} · Expires ${date(ownerSession.expires_at)}`));
+        if (!ownerSession.current && ownerSession.state === "active") {
+          const revoke = button(document, "Revoke session", `settings-revoke-session-${ownerSession.id}`);
+          revoke.addEventListener("click", async () => {
+            revoke.disabled = true;
+            try {
+              await api.revokeSession(ownerSession.id);
+              await loadSessions();
+              sessionState.textContent = "Session revoked.";
+              sessionState.className = "nur-adjunct-status is-good";
+            } catch (error) {
+              sessionState.textContent = error instanceof Error ? error.message : "Session could not be revoked.";
+              sessionState.className = "nur-adjunct-status is-warn";
+              revoke.disabled = false;
+            }
+          });
+          row.append(element(document, "div", "nur-adjunct-actions"));
+          row.querySelector(".nur-adjunct-actions")?.append(revoke);
+        }
+        sessionList.append(row);
+      }
+      if (!sessions.length) sessionList.append(empty(document, "No session row returned", "The API did not report an active browser session."));
+      sessionState.textContent = `${sessions.length} owner-scoped session${sessions.length === 1 ? "" : "s"}.`;
+    } catch (error) {
+      sessionList.append(empty(document, "Session ledger unavailable", "No device is shown without an API response."));
+      sessionState.textContent = error instanceof Error ? error.message : "Sessions could not be loaded.";
+      sessionState.className = "nur-adjunct-status is-warn";
+    }
+  };
+  revokeOthers.addEventListener("click", async () => {
+    revokeOthers.disabled = true;
+    try {
+      const result = await api.revokeOtherSessions();
+      await loadSessions();
+      sessionState.textContent = `${result.revoked_session_count} other session${result.revoked_session_count === 1 ? "" : "s"} revoked.`;
+      sessionState.className = "nur-adjunct-status is-good";
+    } catch (error) {
+      sessionState.textContent = error instanceof Error ? error.message : "Other sessions could not be revoked.";
+      sessionState.className = "nur-adjunct-status is-warn";
+    } finally {
+      revokeOthers.disabled = false;
+    }
+  });
+  await loadSessions();
+
+  const deletion = panel(document, "Danger zone", "Permanently delete this NUR account");
+  deletion.classList.add("is-danger");
+  const deletionPassword = passwordField("Current password", "delete-password");
+  const deletionConfirmationField = element(document, "label", "nur-adjunct-field");
+  deletionConfirmationField.append(element(document, "span", undefined, "Type DELETE MY NUR ACCOUNT"));
+  const deletionConfirmation = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+  deletionConfirmation.autocomplete = "off";
+  deletionConfirmation.dataset.adjunctControl = "delete-confirmation";
+  deletionConfirmation.maxLength = 64;
+  deletionConfirmationField.append(deletionConfirmation);
+  const deletionActions = element(document, "div", "nur-adjunct-actions");
+  const deleteButton = button(document, "Delete account permanently", "settings-delete");
+  const deletionState = status(document, "Local files must be removed before the database account can be deleted. External provider erasure is never claimed unless a provider adapter performs it.");
+  deletionActions.append(deleteButton);
+  deletion.append(deletionPassword, deletionConfirmationField, deletionActions, deletionState);
+  deleteButton.addEventListener("click", async () => {
+    const password = (deletion.querySelector('[data-adjunct-control="delete-password"]') as HTMLInputElement).value;
+    if (!password || deletionConfirmation.value !== "DELETE MY NUR ACCOUNT") {
+      deletionState.textContent = 'Enter the current password and type "DELETE MY NUR ACCOUNT" exactly.';
+      deletionState.className = "nur-adjunct-status is-warn";
+      return;
+    }
+    if (!window.confirm("Permanently delete this NUR account and all owner-scoped data? This cannot be undone.")) return;
+    deleteButton.disabled = true;
+    deletionState.textContent = "Deleting owner data and revoking sessions…";
+    try {
+      const result = await api.deleteAccount(password, deletionConfirmation.value);
+      deletionState.textContent = result.external_provider_deletion.detail;
+      deletionState.className = "nur-adjunct-status is-good";
+      window.setTimeout(() => window.location.replace("/auth"), 900);
+    } catch (error) {
+      deletionState.textContent = error instanceof Error ? error.message : "Account deletion did not complete.";
+      deletionState.className = "nur-adjunct-status is-warn";
+      deleteButton.disabled = false;
+    }
+  });
 
   const savePanel = panel(document, "Persisted owner preference", "Return with the same language");
   savePanel.classList.add("is-wide");
@@ -308,7 +565,7 @@ async function renderSettings(
     }
   });
 
-  grid.append(provider, language, experience, ownership, savePanel);
+  grid.append(provider, language, experience, security, sessionsPanel, ownership, deletion, savePanel);
 }
 
 async function renderMemory(document: Document, api: V197ApiClient, snapshot: V197BridgeSnapshot): Promise<void> {
@@ -1458,6 +1715,652 @@ async function renderOmegaWhyChanged(document: Document, api: V197ApiClient, cla
   grid.append(claim, changed, evidencePanel);
 }
 
+function conciseRecord(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (!value || typeof value !== "object") return "No detail recorded";
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, item]) => typeof item === "string" || typeof item === "number" || typeof item === "boolean")
+    .slice(0, 4)
+    .map(([key, item]) => `${key.replaceAll("_", " ")}: ${String(item)}`);
+  return entries.join(" · ") || "Structured owner evidence";
+}
+
+function listValues(value: string): string[] {
+  return value.split(",").map(item => item.trim()).filter(Boolean);
+}
+
+async function renderResearchWorkspace(
+  document: Document,
+  api: V197ApiClient,
+  orbitId: string,
+): Promise<void> {
+  const [briefs, jobs, sources, claims] = await Promise.all([
+    api.researchBriefs(),
+    api.researchJobs(),
+    api.researchSources(),
+    api.researchClaims(),
+  ]);
+  const requestedBrief = new URL(window.location.href).searchParams.get("brief");
+  const selected = briefs.find(row => row.id === requestedBrief) ?? briefs[0] ?? null;
+  const selectedJobs = selected ? jobs.filter(row => row.research_brief_id === selected.id) : [];
+  const selectedSources = selected ? sources.filter(row => row.research_brief_id === selected.id) : [];
+  const selectedClaims = selected ? claims.filter(row => row.research_brief_id === selected.id) : [];
+  const shell = mount(
+    document,
+    "Research that shows its evidence.",
+    "Questions, owner-supplied sources, uncertainty and citations stay separate. NUR never presents a disconnected web provider as live research.",
+    "/universe",
+  );
+  const grid = element(document, "div", "nur-adjunct-grid");
+  shell.append(grid);
+
+  const boundary = panel(document, "Research boundary", selected?.question ?? "No research brief selected");
+  boundary.classList.add("is-wide");
+  const facts = element(document, "div", "nur-adjunct-facts");
+  facts.append(
+    fact(document, "Briefs", String(briefs.length)),
+    fact(document, "Owner sources", String(sources.length)),
+    fact(document, "Evidence-linked claims", String(claims.length)),
+    fact(document, "External web", "Not connected"),
+  );
+  boundary.append(
+    facts,
+    status(
+      document,
+      "Only owner-submitted source records appear as evidence. URLs and excerpts remain marked untrusted until the owner assesses them.",
+    ),
+  );
+
+  const ledger = panel(document, "Owner research ledger", `Questions · ${briefs.length}`);
+  const briefList = element(document, "div", "nur-adjunct-list");
+  if (!briefs.length) {
+    briefList.append(empty(document, "No persisted research question", "Stage one exact question. NUR will not manufacture sources or results."));
+  }
+  for (const brief of briefs) {
+    const row = element(document, "article", "nur-adjunct-row");
+    const head = element(document, "div", "nur-adjunct-row-head");
+    head.append(
+      element(document, "strong", undefined, brief.question),
+      element(document, "span", "nur-adjunct-chip", `${brief.status} · ${brief.provider_status}`),
+    );
+    row.append(head, element(document, "p", undefined, brief.summary ?? "No synthesis has been persisted."));
+    const open = button(document, brief.id === selected?.id ? "Selected" : "Open evidence", `research-open-${brief.id}`);
+    if (brief.id === selected?.id) open.setAttribute("aria-current", "page");
+    open.addEventListener("click", () => navigate(`/universe/research?brief=${encodeURIComponent(brief.id)}`));
+    row.append(open);
+    briefList.append(row);
+  }
+  const question = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+  question.placeholder = "What precise question should the owner ledger hold?";
+  const createBrief = button(document, "Stage research question", "research-create-brief", true);
+  const briefState = status(document, "Staging a question creates no claim about external evidence.");
+  ledger.append(briefList, labeledControl(document, "New question", question), createBrief, briefState);
+  createBrief.addEventListener("click", async () => {
+    if (!question.value.trim()) {
+      briefState.textContent = "Write the research question first.";
+      briefState.className = "nur-adjunct-status is-warn";
+      return;
+    }
+    createBrief.disabled = true;
+    try {
+      const created = await api.createResearchBrief(question.value.trim(), orbitId);
+      navigate(`/universe/research?brief=${encodeURIComponent(created.id)}`);
+    } catch (error) {
+      briefState.textContent = error instanceof Error ? error.message : "Research question was not saved.";
+      briefState.className = "nur-adjunct-status is-warn";
+      createBrief.disabled = false;
+    }
+  });
+
+  const provider = panel(document, "Provider truth", `Jobs · ${selectedJobs.length}`);
+  const jobList = element(document, "div", "nur-adjunct-list");
+  if (!selected) {
+    jobList.append(empty(document, "Select a brief first", "Provider state belongs to one persisted research question."));
+  } else if (!selectedJobs.length) {
+    jobList.append(empty(document, "No research job yet", "Start an owner-source job to gather evidence without claiming web retrieval."));
+  }
+  for (const job of selectedJobs) {
+    const row = element(document, "article", "nur-adjunct-row");
+    const head = element(document, "div", "nur-adjunct-row-head");
+    head.append(
+      element(document, "strong", undefined, `${job.mode} · ${job.provider_name}`),
+      element(document, "span", "nur-adjunct-chip", job.status),
+    );
+    row.append(head, element(document, "p", undefined, job.failure_detail ?? job.query_preview));
+    jobList.append(row);
+  }
+  const startOwnerJob = button(document, "Start owner-source job", "research-start-owner-job", true);
+  startOwnerJob.disabled = !selected;
+  const providerState = status(document, "External web remains visibly unavailable; no browsing success is fabricated.");
+  provider.append(jobList, startOwnerJob, providerState);
+  startOwnerJob.addEventListener("click", async () => {
+    if (!selected) return;
+    startOwnerJob.disabled = true;
+    try {
+      await api.createResearchJob({
+        research_brief_id: selected.id,
+        mode: "QUICK",
+        provider_name: "OWNER_SOURCES",
+        query_preview: selected.question,
+        external_scope_approved: false,
+      });
+      await renderResearchWorkspace(document, api, orbitId);
+    } catch (error) {
+      providerState.textContent = error instanceof Error ? error.message : "Research job was not staged.";
+      providerState.className = "nur-adjunct-status is-warn";
+      startOwnerJob.disabled = false;
+    }
+  });
+
+  const sourcePanel = panel(document, "Source ledger", `Sources · ${selectedSources.length}`);
+  const sourceList = element(document, "div", "nur-adjunct-list");
+  if (!selectedSources.length) {
+    sourceList.append(empty(document, "No owner source attached", "Add a real URL and excerpt. NUR records provenance without pretending it fetched or verified the page."));
+  }
+  for (const source of selectedSources) {
+    const row = element(document, "article", "nur-adjunct-row");
+    const head = element(document, "div", "nur-adjunct-row-head");
+    const link = element(document, "a", undefined, source.title);
+    link.href = source.url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    head.append(link, element(document, "span", "nur-adjunct-chip", `${source.authority} · ${source.reliability}`));
+    row.append(
+      head,
+      element(document, "p", undefined, source.excerpt),
+      status(document, `${source.provenance_label} · ${source.retrieval_status}${source.untrusted_external_content ? " · untrusted external content" : ""}`),
+    );
+    sourceList.append(row);
+  }
+  const sourceTitle = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+  sourceTitle.placeholder = "Source title";
+  const sourceUrl = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+  sourceUrl.type = "url";
+  sourceUrl.placeholder = "https://…";
+  const publisher = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+  publisher.placeholder = "Publisher, if known";
+  const excerpt = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+  excerpt.placeholder = "Exact owner-supplied excerpt or note";
+  const addSource = button(document, "Attach owner source", "research-add-source", true);
+  addSource.disabled = !selected;
+  const sourceState = status(document, "The source is persisted as owner supplied, not independently verified.");
+  sourcePanel.append(
+    sourceList,
+    labeledControl(document, "Title", sourceTitle),
+    labeledControl(document, "URL", sourceUrl),
+    labeledControl(document, "Publisher", publisher),
+    labeledControl(document, "Excerpt", excerpt),
+    addSource,
+    sourceState,
+  );
+  addSource.addEventListener("click", async () => {
+    if (!selected) return;
+    if (!sourceTitle.value.trim() || !sourceUrl.value.trim() || !excerpt.value.trim()) {
+      sourceState.textContent = "Title, URL and excerpt are required.";
+      sourceState.className = "nur-adjunct-status is-warn";
+      return;
+    }
+    addSource.disabled = true;
+    try {
+      const runningJob = selectedJobs.find(job => job.status === "RUNNING" && job.provider_name === "OWNER_SOURCES");
+      await api.addResearchSource({
+        research_brief_id: selected.id,
+        research_job_id: runningJob?.id ?? null,
+        title: sourceTitle.value.trim(),
+        url: sourceUrl.value.trim(),
+        publisher: publisher.value.trim() || null,
+        source_kind: "OWNER_SOURCE",
+        authority: "UNKNOWN",
+        reliability: "UNASSESSED",
+        excerpt: excerpt.value.trim(),
+      });
+      await renderResearchWorkspace(document, api, orbitId);
+    } catch (error) {
+      sourceState.textContent = error instanceof Error ? error.message : "Source was not attached.";
+      sourceState.className = "nur-adjunct-status is-warn";
+      addSource.disabled = false;
+    }
+  });
+
+  const claimPanel = panel(document, "Evidence-linked claims", `Claims · ${selectedClaims.length}`);
+  claimPanel.classList.add("is-wide");
+  const claimList = element(document, "div", "nur-adjunct-list");
+  if (!selectedClaims.length) {
+    claimList.append(empty(document, "No research claim yet", "A claim requires uncertainty and at least one supporting source citation."));
+  }
+  const sourcesById = new Map(sources.map(source => [source.id, source]));
+  for (const claim of selectedClaims) {
+    const row = element(document, "article", "nur-adjunct-row");
+    const head = element(document, "div", "nur-adjunct-row-head");
+    head.append(
+      element(document, "strong", undefined, claim.claim_text),
+      element(document, "span", "nur-adjunct-chip", `${claim.status} · ${claim.citation_alignment}`),
+    );
+    row.append(head, element(document, "p", undefined, `Uncertainty: ${claim.uncertainty}`));
+    const citationLine = claim.citations
+      .map(citation => `${citation.relationship}: ${sourcesById.get(citation.source_id)?.title ?? citation.source_id}`)
+      .join(" · ");
+    row.append(status(document, citationLine || "No citation returned by the server.", citationLine ? "good" : "warn"));
+    claimList.append(row);
+  }
+  const claimText = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+  claimText.placeholder = "What does the cited evidence support?";
+  const uncertainty = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+  uncertainty.placeholder = "What remains uncertain or could be wrong?";
+  const sourceSelect = element(document, "select", "nur-adjunct-select") as HTMLSelectElement;
+  if (!selectedSources.length) sourceSelect.append(element(document, "option", undefined, "Attach a source first"));
+  for (const source of selectedSources) {
+    const option = element(document, "option", undefined, source.title) as HTMLOptionElement;
+    option.value = source.id;
+    sourceSelect.append(option);
+  }
+  const createClaim = button(document, "Persist cited claim", "research-create-claim", true);
+  createClaim.disabled = !selected || !selectedSources.length;
+  const claimState = status(document, "The claim remains revisable and explicitly uncertain.");
+  claimPanel.append(
+    claimList,
+    labeledControl(document, "Claim", claimText),
+    labeledControl(document, "Uncertainty", uncertainty),
+    labeledControl(document, "Supporting source", sourceSelect),
+    createClaim,
+    claimState,
+  );
+  createClaim.addEventListener("click", async () => {
+    if (!selected || !sourceSelect.value) return;
+    if (!claimText.value.trim() || !uncertainty.value.trim()) {
+      claimState.textContent = "Claim and uncertainty are both required.";
+      claimState.className = "nur-adjunct-status is-warn";
+      return;
+    }
+    createClaim.disabled = true;
+    try {
+      await api.createResearchClaim({
+        research_brief_id: selected.id,
+        claim_text: claimText.value.trim(),
+        uncertainty: uncertainty.value.trim(),
+        citation_alignment: "MEDIUM",
+        citations: [{ source_id: sourceSelect.value, relationship: "SUPPORTS" }],
+      });
+      await renderResearchWorkspace(document, api, orbitId);
+    } catch (error) {
+      claimState.textContent = error instanceof Error ? error.message : "Claim was not persisted.";
+      claimState.className = "nur-adjunct-status is-warn";
+      createClaim.disabled = false;
+    }
+  });
+
+  grid.append(boundary, ledger, provider, sourcePanel, claimPanel);
+}
+
+async function renderExpertsWorkspace(
+  document: Document,
+  api: V197ApiClient,
+): Promise<void> {
+  const [profiles, verifications, rooms, sources] = await Promise.all([
+    api.expertProfiles(),
+    api.expertVerifications(),
+    api.communityRooms(),
+    api.researchSources(),
+  ]);
+  const activeRooms = rooms.filter(room => room.status === "ACTIVE");
+  const requestedRoom = new URL(window.location.href).searchParams.get("room");
+  const selectedRoom = activeRooms.find(room => room.id === requestedRoom) ?? activeRooms[0] ?? null;
+  const contributions = selectedRoom
+    ? await api.expertContributions(selectedRoom.id)
+    : [];
+  const shell = mount(
+    document,
+    "Expert voice with provenance attached.",
+    "NUR distinguishes self-declared profiles, peer attestations, source-backed room contributions and moderation state. It never impersonates or silently upgrades an expert claim.",
+    "/universe",
+  );
+  const grid = element(document, "div", "nur-adjunct-grid");
+  shell.append(grid);
+
+  const truth = panel(document, "Expert boundary", "No pedestal without proof");
+  truth.classList.add("is-wide");
+  const facts = element(document, "div", "nur-adjunct-facts");
+  facts.append(
+    fact(document, "Profiles in your ledger", String(profiles.length)),
+    fact(document, "Attestation records", String(verifications.length)),
+    fact(document, "Bounded rooms", String(activeRooms.length)),
+    fact(document, "Visible contributions", String(contributions.length)),
+  );
+  truth.append(facts, status(document, "Verification labels describe only the persisted method and scope; they are not credentialing claims."));
+
+  const profilePanel = panel(document, "Expert profiles", `Owner-scoped · ${profiles.length}`);
+  const profileList = element(document, "div", "nur-adjunct-list");
+  if (!profiles.length) profileList.append(empty(document, "No expert profile yet", "Create only a real self-declared profile. NUR will not invent an outside expert."));
+  for (const profile of profiles) {
+    const row = element(document, "article", "nur-adjunct-row");
+    const head = element(document, "div", "nur-adjunct-row-head");
+    head.append(
+      element(document, "strong", undefined, profile.display_name),
+      element(document, "span", "nur-adjunct-chip", `${profile.verification_status} · ${profile.verification_scope}`),
+    );
+    row.append(
+      head,
+      element(document, "p", undefined, profile.bio),
+      status(document, `Domains: ${profile.domains.join(", ")} · Conflicts: ${profile.conflicts.join(", ") || "none declared"}`),
+    );
+    profileList.append(row);
+  }
+  const displayName = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+  displayName.placeholder = "Real display name";
+  const bio = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+  bio.placeholder = "Self-declared experience and scope";
+  const domains = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+  domains.placeholder = "Domains, comma separated";
+  const conflicts = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+  conflicts.placeholder = "Conflicts, comma separated";
+  const createProfile = button(document, "Create self-declared profile", "expert-profile-create", true);
+  const profileState = status(document, "A new profile begins SELF_DECLARED and unverified.");
+  profilePanel.append(
+    profileList,
+    labeledControl(document, "Display name", displayName),
+    labeledControl(document, "Bio", bio),
+    labeledControl(document, "Domains", domains),
+    labeledControl(document, "Conflicts", conflicts),
+    createProfile,
+    profileState,
+  );
+  createProfile.addEventListener("click", async () => {
+    if (!displayName.value.trim() || !bio.value.trim() || !listValues(domains.value).length) {
+      profileState.textContent = "Display name, bio and at least one domain are required.";
+      profileState.className = "nur-adjunct-status is-warn";
+      return;
+    }
+    createProfile.disabled = true;
+    try {
+      await api.createExpertProfile({
+        display_name: displayName.value.trim(),
+        bio: bio.value.trim(),
+        domains: listValues(domains.value),
+        conflicts: listValues(conflicts.value),
+      });
+      await renderExpertsWorkspace(document, api);
+    } catch (error) {
+      profileState.textContent = error instanceof Error ? error.message : "Expert profile was not created.";
+      profileState.className = "nur-adjunct-status is-warn";
+      createProfile.disabled = false;
+    }
+  });
+
+  const verificationPanel = panel(document, "Peer attestations", `Records · ${verifications.length}`);
+  const verificationList = element(document, "div", "nur-adjunct-list");
+  if (!verifications.length) verificationList.append(empty(document, "No attestation yet", "An attestation needs an exact NUR account and external evidence URL."));
+  for (const verification of verifications) {
+    const row = element(document, "article", "nur-adjunct-row");
+    const head = element(document, "div", "nur-adjunct-row-head");
+    const evidence = element(document, "a", undefined, verification.claim);
+    evidence.href = verification.evidence_url;
+    evidence.target = "_blank";
+    evidence.rel = "noopener noreferrer";
+    head.append(evidence, element(document, "span", "nur-adjunct-chip", `${verification.method} · ${verification.status}`));
+    row.append(head, status(document, verification.reviewer_note ?? `Claim type: ${verification.claim_type}`));
+    verificationList.append(row);
+  }
+  const profileSelect = element(document, "select", "nur-adjunct-select") as HTMLSelectElement;
+  if (!profiles.length) profileSelect.append(element(document, "option", undefined, "Create a profile first"));
+  for (const profile of profiles) {
+    const option = element(document, "option", undefined, profile.display_name) as HTMLOptionElement;
+    option.value = profile.id;
+    profileSelect.append(option);
+  }
+  const verifierEmail = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+  verifierEmail.type = "email";
+  verifierEmail.placeholder = "Exact verifier NUR email";
+  const verificationClaim = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+  verificationClaim.placeholder = "Identity or credential claim";
+  const evidenceUrl = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+  evidenceUrl.type = "url";
+  evidenceUrl.placeholder = "https:// evidence URL";
+  const requestVerification = button(document, "Request peer attestation", "expert-verification-request", true);
+  requestVerification.disabled = !profiles.length;
+  const verificationState = status(document, "Self-attestation is rejected by the server.");
+  verificationPanel.append(
+    verificationList,
+    labeledControl(document, "Profile", profileSelect),
+    labeledControl(document, "Verifier", verifierEmail),
+    labeledControl(document, "Claim", verificationClaim),
+    labeledControl(document, "Evidence URL", evidenceUrl),
+    requestVerification,
+    verificationState,
+  );
+  requestVerification.addEventListener("click", async () => {
+    if (!profileSelect.value || !verifierEmail.value.trim() || !verificationClaim.value.trim() || !evidenceUrl.value.trim()) {
+      verificationState.textContent = "Profile, verifier email, claim and evidence URL are required.";
+      verificationState.className = "nur-adjunct-status is-warn";
+      return;
+    }
+    requestVerification.disabled = true;
+    try {
+      await api.requestExpertVerification(profileSelect.value, {
+        verifier_email: verifierEmail.value.trim(),
+        claim_type: "CREDENTIAL",
+        claim: verificationClaim.value.trim(),
+        evidence_url: evidenceUrl.value.trim(),
+      });
+      await renderExpertsWorkspace(document, api);
+    } catch (error) {
+      verificationState.textContent = error instanceof Error ? error.message : "Attestation request was not created.";
+      verificationState.className = "nur-adjunct-status is-warn";
+      requestVerification.disabled = false;
+    }
+  });
+
+  const contributionPanel = panel(document, "Bounded expert contributions", selectedRoom?.title ?? "No active room");
+  contributionPanel.classList.add("is-wide");
+  const roomSelect = element(document, "select", "nur-adjunct-select") as HTMLSelectElement;
+  if (!activeRooms.length) roomSelect.append(element(document, "option", undefined, "Create a Community room first"));
+  for (const room of activeRooms) {
+    const option = element(document, "option", undefined, `${room.title} · ${room.current_user_role}`) as HTMLOptionElement;
+    option.value = room.id;
+    option.selected = room.id === selectedRoom?.id;
+    roomSelect.append(option);
+  }
+  roomSelect.addEventListener("change", () => navigate(`/universe/experts?room=${encodeURIComponent(roomSelect.value)}`));
+  const contributionList = element(document, "div", "nur-adjunct-list");
+  if (!contributions.length) contributionList.append(empty(document, "No visible contribution", "Room membership and moderation state determine what can appear."));
+  for (const contribution of contributions) {
+    const profile = profiles.find(row => row.id === contribution.profile_id);
+    const row = element(document, "article", "nur-adjunct-row");
+    const head = element(document, "div", "nur-adjunct-row-head");
+    head.append(
+      element(document, "strong", undefined, profile?.display_name ?? "Profile unavailable"),
+      element(document, "span", "nur-adjunct-chip", `${contribution.verification_label} · ${contribution.moderation_state}`),
+    );
+    row.append(
+      head,
+      element(document, "p", undefined, contribution.body),
+      status(document, `Conflict disclosure: ${contribution.conflict_disclosure}`),
+    );
+    contributionList.append(row);
+  }
+  const contributionProfile = profileSelect.cloneNode(true) as HTMLSelectElement;
+  const contributionSource = element(document, "select", "nur-adjunct-select") as HTMLSelectElement;
+  if (!sources.length) contributionSource.append(element(document, "option", undefined, "Attach a Research source first"));
+  for (const source of sources) {
+    const option = element(document, "option", undefined, source.title) as HTMLOptionElement;
+    option.value = source.id;
+    contributionSource.append(option);
+  }
+  const contributionBody = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+  contributionBody.placeholder = "Source-backed expert contribution";
+  const disclosure = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+  disclosure.placeholder = "Conflict disclosure, including none known";
+  const contribute = button(document, "Submit for room moderation", "expert-contribution-create", true);
+  contribute.disabled = !selectedRoom || !profiles.length || !sources.length;
+  const contributionState = status(document, "Submission remains pending until the room's moderation policy allows it.");
+  contributionPanel.append(
+    labeledControl(document, "Room", roomSelect),
+    contributionList,
+    labeledControl(document, "Profile", contributionProfile),
+    labeledControl(document, "Source", contributionSource),
+    labeledControl(document, "Contribution", contributionBody),
+    labeledControl(document, "Conflict disclosure", disclosure),
+    contribute,
+    contributionState,
+  );
+  contribute.addEventListener("click", async () => {
+    if (!selectedRoom || !contributionProfile.value || !contributionSource.value) return;
+    if (!contributionBody.value.trim() || !disclosure.value.trim()) {
+      contributionState.textContent = "Contribution and conflict disclosure are required.";
+      contributionState.className = "nur-adjunct-status is-warn";
+      return;
+    }
+    contribute.disabled = true;
+    try {
+      await api.createExpertContribution(selectedRoom.id, {
+        profile_id: contributionProfile.value,
+        body: contributionBody.value.trim(),
+        source_ids: [contributionSource.value],
+        conflict_disclosure: disclosure.value.trim(),
+      });
+      await renderExpertsWorkspace(document, api);
+    } catch (error) {
+      contributionState.textContent = error instanceof Error ? error.message : "Contribution was not submitted.";
+      contributionState.className = "nur-adjunct-status is-warn";
+      contribute.disabled = false;
+    }
+  });
+
+  grid.append(truth, profilePanel, verificationPanel, contributionPanel);
+}
+
+async function renderCandidateInsights(
+  document: Document,
+  api: V197ApiClient,
+): Promise<void> {
+  const insights = await api.candidateInsights();
+  const shell = mount(
+    document,
+    "Candidate insight, never silent truth.",
+    "Every inference keeps its evidence, counter-evidence, uncertainty, provenance and owner decision. Acceptance is explicit; correction preserves the original audit trail.",
+    "/universe",
+  );
+  const grid = element(document, "div", "nur-adjunct-grid");
+  shell.append(grid);
+
+  const overview = panel(document, "Owner review queue", `Candidates · ${insights.length}`);
+  overview.classList.add("is-wide");
+  const counts = insights.reduce<Record<string, number>>((result, insight) => {
+    result[insight.status] = (result[insight.status] ?? 0) + 1;
+    return result;
+  }, {});
+  const facts = element(document, "div", "nur-adjunct-facts");
+  facts.append(
+    fact(document, "Candidate", String(counts.CANDIDATE ?? counts.PENDING ?? 0)),
+    fact(document, "Accepted", String(counts.ACCEPTED ?? 0)),
+    fact(document, "Corrected", String(counts.CORRECTED ?? 0)),
+    fact(document, "Rejected", String(counts.REJECTED ?? 0)),
+  );
+  const generate = button(document, "Generate from owner ledger", "candidate-generate", true);
+  const generateState = status(document, "Generation may honestly refuse when the owner ledger has insufficient evidence.");
+  overview.append(facts, generate, generateState);
+  generate.addEventListener("click", async () => {
+    generate.disabled = true;
+    try {
+      await api.generateCandidateInsight();
+      await renderCandidateInsights(document, api);
+    } catch (error) {
+      generateState.textContent = error instanceof Error ? error.message : "Candidate insight was not generated.";
+      generateState.className = "nur-adjunct-status is-warn";
+      generate.disabled = false;
+    }
+  });
+  grid.append(overview);
+
+  if (!insights.length) {
+    const quiet = panel(document, "Honest state", "No candidate insight yet");
+    quiet.classList.add("is-wide");
+    quiet.append(empty(document, "The review queue is empty", "NUR will not invent a pattern merely to populate this page."));
+    grid.append(quiet);
+    return;
+  }
+
+  for (const insight of insights) {
+    const card = panel(document, `${insight.insight_type} · ${insight.provenance_label}`, insight.title);
+    card.classList.add("is-wide", "nur-candidate-card");
+    const facts = element(document, "div", "nur-adjunct-facts");
+    facts.append(
+      fact(document, "Status", insight.status),
+      fact(document, "Confidence", `${Math.round(insight.confidence * 100)}%`),
+      fact(document, "System", insight.affected_system_slug ?? "Not linked"),
+      fact(document, "Updated", date(insight.updated_at)),
+    );
+    const claim = element(document, "blockquote", "nur-adjunct-candidate-claim", insight.claim);
+    const interpretations = element(document, "div", "nur-adjunct-grid nur-adjunct-evidence-grid");
+    const evidence = element(document, "section", "nur-adjunct-evidence-block");
+    evidence.append(
+      element(document, "p", "nur-adjunct-eyebrow", "Evidence"),
+      element(document, "h3", undefined, `${insight.evidence.length} linked`),
+    );
+    const evidenceList = element(document, "div", "nur-adjunct-list");
+    for (const item of insight.evidence) evidenceList.append(element(document, "p", "nur-adjunct-evidence-line", conciseRecord(item)));
+    if (!insight.evidence.length) evidenceList.append(status(document, "No evidence record was returned.", "warn"));
+    evidence.append(evidenceList);
+    const counter = element(document, "section", "nur-adjunct-evidence-block");
+    counter.append(
+      element(document, "p", "nur-adjunct-eyebrow", "Counter-evidence"),
+      element(document, "h3", undefined, `${insight.counter_evidence.length} linked`),
+    );
+    const counterList = element(document, "div", "nur-adjunct-list");
+    for (const item of insight.counter_evidence) counterList.append(element(document, "p", "nur-adjunct-evidence-line", conciseRecord(item)));
+    if (!insight.counter_evidence.length) counterList.append(status(document, "No counter-evidence record was returned."));
+    counter.append(counterList);
+    interpretations.append(evidence, counter);
+
+    const uncertainty = element(document, "p", "nur-adjunct-boundary", `What NUR may be wrong about: ${insight.what_nur_may_be_wrong_about}`);
+    const reading = element(
+      document,
+      "p",
+      undefined,
+      [insight.positive_interpretation, insight.hard_interpretation, insight.suggested_action].filter(Boolean).join(" · "),
+    );
+    const correction = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+    correction.placeholder = "Correct the candidate without erasing its original record";
+    correction.value = insight.correction ?? "";
+    const actions = element(document, "div", "nur-adjunct-actions");
+    const accept = button(document, "Accept", `candidate-accept-${insight.id}`, true);
+    const reject = button(document, "Reject", `candidate-reject-${insight.id}`);
+    const correct = button(document, "Persist correction", `candidate-correct-${insight.id}`);
+    const plan = button(document, "Convert to plan", `candidate-plan-${insight.id}`);
+    const timeline = button(document, "Add review to Timeline", `candidate-timeline-${insight.id}`);
+    const memory = button(document, "Save as memory candidate", `candidate-memory-${insight.id}`);
+    memory.disabled = insight.status !== "ACCEPTED";
+    actions.append(accept, reject, correct, plan, timeline, memory);
+    const actionState = status(document, "Every action writes through the owner-scoped API.");
+    const act = async (control: HTMLButtonElement, task: () => Promise<unknown>) => {
+      control.disabled = true;
+      try {
+        await task();
+        await renderCandidateInsights(document, api);
+      } catch (error) {
+        actionState.textContent = error instanceof Error ? error.message : "Insight action failed.";
+        actionState.className = "nur-adjunct-status is-warn";
+        control.disabled = false;
+      }
+    };
+    accept.addEventListener("click", () => void act(accept, () => api.acceptInsight(insight.id)));
+    reject.addEventListener("click", () => void act(reject, () => api.rejectInsight(insight.id)));
+    correct.addEventListener("click", () => {
+      if (!correction.value.trim()) {
+        actionState.textContent = "Write the correction first.";
+        actionState.className = "nur-adjunct-status is-warn";
+        return;
+      }
+      void act(correct, () => api.correctInsight(insight.id, correction.value.trim()));
+    });
+    plan.addEventListener("click", () => void act(plan, () => api.convertInsightToPlan(insight.id)));
+    timeline.addEventListener("click", () => void act(timeline, () => api.addInsightToTimeline(insight.id)));
+    memory.addEventListener("click", () => void act(memory, () => api.saveInsightToMemory(insight.id)));
+    card.append(facts, claim, interpretations, uncertainty, reading, correction, actions, actionState);
+    grid.append(card);
+  }
+}
+
 function consultationStages(document: Document, detail: V197ConsultationDetail): HTMLElement {
   const rail = element(document, "div", "nur-adjunct-actions");
   const completed = new Set(detail.completed_stages.map(row => row.stage));
@@ -1472,10 +2375,13 @@ function consultationStages(document: Document, detail: V197ConsultationDetail):
 async function renderConsultationIndex(
   document: Document,
   api: V197ApiClient,
-  snapshot: V197BridgeSnapshot,
+  orbitId: string,
 ): Promise<void> {
-  const rows = await api.consultations();
-  const shell = mount(document, "A question moves when context returns.", "Consultation keeps lived experience, constraints, disagreement, evidence and the final outcome inside one bounded ORIENT → RETURN path.");
+  const [rows, communityRooms] = await Promise.all([
+    api.consultations(),
+    api.communityRooms(),
+  ]);
+  const shell = mount(document, "A question moves when context returns.", "Consultation keeps lived experience, constraints, disagreement, evidence and the final outcome inside one bounded ORIENT → RETURN path.", "/universe");
   const grid = element(document, "div", "nur-adjunct-grid");
   shell.append(grid);
 
@@ -1489,7 +2395,7 @@ async function renderConsultationIndex(
     item.append(head, element(document, "p", undefined, row.question));
     const actions = element(document, "div", "nur-adjunct-actions");
     const open = button(document, "Enter Consultation", `consultation-open-${row.id}`);
-    open.addEventListener("click", () => navigate(`/consultations/${row.id}`));
+    open.addEventListener("click", () => navigate(`/universe/consultation/${row.id}`));
     actions.append(open);
     item.append(actions);
     list.append(item);
@@ -1515,7 +2421,7 @@ async function renderConsultationIndex(
   const room = element(document, "select", "nur-adjunct-select") as HTMLSelectElement;
   room.append(element(document, "option", undefined, "Private owner Consultation"));
   room.options[0].value = "";
-  for (const candidate of snapshot.communityRooms ?? []) {
+  for (const candidate of communityRooms) {
     const option = element(document, "option", undefined, `${candidate.title} · ${candidate.current_user_role}`) as HTMLOptionElement;
     option.value = candidate.id;
     room.append(option);
@@ -1538,9 +2444,9 @@ async function renderConsultationIndex(
       const created = await api.createConsultation({
         title: values[0], question: values[1], purpose: values[2], desired_outcome: values[3],
         scope_statement: values[4], room_id: room.value || null,
-        orbit_id: snapshot.session.orbit.id, system_slug: "quiet-ambition",
+        orbit_id: orbitId, system_slug: "quiet-ambition",
       });
-      navigate(`/consultations/${created.id}`);
+      navigate(`/universe/consultation/${created.id}`);
     } catch (error) {
       createState.textContent = error instanceof Error ? error.message : "Consultation could not be opened.";
       createState.className = "nur-adjunct-status is-warn";
@@ -1553,7 +2459,7 @@ async function renderConsultationIndex(
 async function renderConsultationDetail(document: Document, api: V197ApiClient, consultationId: string): Promise<void> {
   const detail = await api.consultation(consultationId);
   const row = detail.consultation;
-  const shell = mount(document, row.title, row.question, "/consultations");
+  const shell = mount(document, row.title, row.question, "/universe/consultation");
   const grid = element(document, "div", "nur-adjunct-grid");
   shell.append(grid);
 
@@ -1658,7 +2564,7 @@ async function loadCommunityFeed(api: V197ApiClient): Promise<{
 
 async function renderCommunityIndex(document: Document, api: V197ApiClient, route: string): Promise<void> {
   const { rooms, posts } = await loadCommunityFeed(api);
-  const shell = mount(document, "Shared signal without private spill.", "Community is built from real bounded rooms and persisted contributions. No fake people, replies, activity or live public count appears here.");
+  const shell = mount(document, "Shared signal without private spill.", "Community is built from real bounded rooms and persisted contributions. No fake people, replies, activity or live public count appears here.", "/universe");
   const grid = element(document, "div", "nur-adjunct-grid");
   shell.append(grid);
 
@@ -1668,7 +2574,7 @@ async function renderCommunityIndex(document: Document, api: V197ApiClient, rout
     unavailable.append(empty(document, "Not connected in this build", "This route has no fabricated records. Bounded rooms, posts, comments, reactions and Consultations remain available."));
     const actions = element(document, "div", "nur-adjunct-actions");
     const back = button(document, "Open bounded Community", "community-return", true);
-    back.addEventListener("click", () => navigate("/community"));
+    back.addEventListener("click", () => navigate("/universe/community"));
     actions.append(back);
     unavailable.append(actions);
     grid.append(unavailable);
@@ -1676,6 +2582,7 @@ async function renderCommunityIndex(document: Document, api: V197ApiClient, rout
   }
 
   const roomPanel = panel(document, "Group NUR boundaries", `Rooms · ${rooms.length}`);
+  roomPanel.id = "nur-v197-community-controls";
   const roomList = element(document, "div", "nur-adjunct-list");
   if (!rooms.length) roomList.append(empty(document, "No bounded room yet", "Create one real room. NUR will not invent a community around you."));
   for (const room of rooms) {
@@ -1685,33 +2592,45 @@ async function renderCommunityIndex(document: Document, api: V197ApiClient, rout
     row.append(head, element(document, "p", undefined, room.description ?? room.privacy));
     const actions = element(document, "div", "nur-adjunct-actions");
     const open = button(document, "Enter bounded room", `community-room-${room.id}`);
-    open.addEventListener("click", () => navigate(`/community/room/${room.id}`));
+    open.addEventListener("click", () => navigate(`/universe/community/room/${room.id}`));
     actions.append(open);
     row.append(actions);
     roomList.append(row);
   }
   roomPanel.append(roomList);
   const roomTitle = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+  roomTitle.id = "nur-v197-room-title";
   roomTitle.placeholder = "Name one bounded room";
   const createRoom = button(document, "Create Group NUR room", "community-room-create", true);
+  const createCouncil = button(document, "Start a Council room", "community-council-create");
   const roomState = status(document, "The creator becomes owner. Membership is explicit and server-enforced.");
-  roomPanel.append(roomTitle, createRoom, roomState);
-  createRoom.addEventListener("click", async () => {
+  const roomActions = element(document, "div", "nur-adjunct-actions");
+  roomActions.append(createRoom, createCouncil);
+  roomPanel.append(roomTitle, roomActions, roomState);
+  const createBoundedRoom = async (
+    control: HTMLButtonElement,
+    roomKind: "GROUP" | "COUNCIL",
+  ): Promise<void> => {
     if (!roomTitle.value.trim()) {
       roomState.textContent = "Name the room first.";
       roomState.className = "nur-adjunct-status is-warn";
       return;
     }
     createRoom.disabled = true;
+    createCouncil.disabled = true;
     try {
-      const created = await api.createCommunityRoom(roomTitle.value.trim(), "GROUP");
-      navigate(`/community/room/${created.id}`);
+      const created = await api.createCommunityRoom(roomTitle.value.trim(), roomKind);
+      navigate(`/universe/community/room/${created.id}`);
     } catch (error) {
       roomState.textContent = error instanceof Error ? error.message : "Room was not created.";
       roomState.className = "nur-adjunct-status is-warn";
+      control.focus();
       createRoom.disabled = false;
+      createCouncil.disabled = false;
     }
-  });
+  };
+  createRoom.addEventListener("click", () => { void createBoundedRoom(createRoom, "GROUP"); });
+  createCouncil.addEventListener("click", () => { void createBoundedRoom(createCouncil, "COUNCIL"); });
 
   const feed = panel(document, "Persisted signal feed", `Posts · ${posts.length}`);
   const postList = element(document, "div", "nur-adjunct-list");
@@ -1724,7 +2643,7 @@ async function renderCommunityIndex(document: Document, api: V197ApiClient, rout
     row.append(head, element(document, "p", undefined, post.body));
     const actions = element(document, "div", "nur-adjunct-actions");
     const open = button(document, "Open thread", `community-post-${post.id}`);
-    open.addEventListener("click", () => navigate(`/community/post/${post.id}?room=${post.room_id}`));
+    open.addEventListener("click", () => navigate(`/universe/community/post/${post.id}?room=${post.room_id}`));
     actions.append(open);
     row.append(actions);
     postList.append(row);
@@ -1738,7 +2657,7 @@ async function renderCommunityRoom(document: Document, api: V197ApiClient, roomI
     api.get<Record<string, unknown>>(`/community/rooms/${encodeURIComponent(roomId)}`),
     api.communityRoomSummary(roomId), api.communityMessages(roomId), api.communityPosts(roomId),
   ]);
-  const shell = mount(document, text(room.title), text(room.description, "A bounded Group NUR room."), "/community");
+  const shell = mount(document, text(room.title), text(room.description, "A bounded Group NUR room."), "/universe/community");
   const grid = element(document, "div", "nur-adjunct-grid");
   shell.append(grid);
   const boundary = panel(document, "Room boundary", `${text(room.current_user_role)} · ${text(room.room_kind)}`);
@@ -1748,11 +2667,39 @@ async function renderCommunityRoom(document: Document, api: V197ApiClient, roomI
   boundary.append(facts, element(document, "p", "nur-adjunct-boundary", text(room.privacy)));
   const boundaryActions = element(document, "div", "nur-adjunct-actions");
   const consultation = button(document, "Start Consultation", "community-start-consultation", true);
-  consultation.addEventListener("click", () => navigate("/consultations"));
+  consultation.addEventListener("click", () => navigate("/universe/consultation"));
   boundaryActions.append(consultation);
   boundary.append(boundaryActions);
+  if (text(room.current_user_role) === "OWNER") {
+    const memberEmail = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+    memberEmail.id = "nur-v197-member-email";
+    memberEmail.type = "email";
+    memberEmail.autocomplete = "off";
+    memberEmail.placeholder = "Exact NUR account email";
+    const addMember = button(document, "Add member", "community-member-add");
+    const memberState = status(document, "Only an existing NUR account can cross this room boundary.");
+    boundary.append(memberEmail, addMember, memberState);
+    addMember.addEventListener("click", async () => {
+      if (!memberEmail.value.trim()) {
+        memberState.textContent = "Enter the exact account email first.";
+        memberState.className = "nur-adjunct-status is-warn";
+        return;
+      }
+      addMember.disabled = true;
+      try {
+        await api.addCommunityMember(roomId, memberEmail.value.trim());
+        memberState.textContent = "Member added to this boundary.";
+        memberState.className = "nur-adjunct-status is-good";
+      } catch (error) {
+        memberState.textContent = error instanceof Error ? error.message : "Member was not added.";
+        memberState.className = "nur-adjunct-status is-warn";
+        addMember.disabled = false;
+      }
+    });
+  }
 
   const conversation = panel(document, "Group NUR", `Conversation · ${messages.length}`);
+  conversation.id = "universe-community";
   const messageList = element(document, "div", "nur-adjunct-list");
   if (!messages.length) messageList.append(empty(document, "No room message yet", "NUR stays quiet until a member contributes."));
   for (const message of messages) {
@@ -1761,6 +2708,7 @@ async function renderCommunityRoom(document: Document, api: V197ApiClient, roomI
     messageList.append(item);
   }
   const messageInput = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+  messageInput.id = "nur-v197-room-message";
   messageInput.placeholder = "Write inside this room boundary…";
   const sendMessage = button(document, "Send to room", "community-message-send", true);
   const messageState = status(document, "A persisted real message may earn server-verified Glow. DEMO messages never do.");
@@ -1788,7 +2736,7 @@ async function renderCommunityRoom(document: Document, api: V197ApiClient, roomI
     head.append(element(document, "strong", undefined, post.title), element(document, "span", "nur-adjunct-chip", post.is_demo ? "DEMO" : post.provenance_label));
     item.append(head, element(document, "p", undefined, post.body));
     const open = button(document, "Open thread", `community-post-${post.id}`);
-    open.addEventListener("click", () => navigate(`/community/post/${post.id}?room=${roomId}`));
+    open.addEventListener("click", () => navigate(`/universe/community/post/${post.id}?room=${roomId}`));
     item.append(open);
     threadList.append(item);
   }
@@ -1808,7 +2756,7 @@ async function renderCommunityRoom(document: Document, api: V197ApiClient, roomI
     publish.disabled = true;
     try {
       const saved = await api.createCommunityPost(roomId, postTitle.value.trim(), postBody.value.trim(), document.documentElement.lang || "en");
-      navigate(`/community/post/${saved.id}?room=${roomId}`);
+      navigate(`/universe/community/post/${saved.id}?room=${roomId}`);
     } catch (error) {
       postState.textContent = error instanceof Error ? error.message : "Thread was not published.";
       postState.className = "nur-adjunct-status is-warn";
@@ -1816,6 +2764,60 @@ async function renderCommunityRoom(document: Document, api: V197ApiClient, roomI
     }
   });
   grid.append(boundary, conversation, threads);
+
+  if (text(room.room_kind) === "COUNCIL") {
+    const positions = await api.communityPositions(roomId);
+    const council = panel(document, "Council ledger", `Positions · ${positions.length} · Decisions · ${text(summary.counts.decisions, "0")}`);
+    council.classList.add("is-wide");
+    const positionList = element(document, "div", "nur-adjunct-list");
+    if (!positions.length) {
+      positionList.append(empty(document, "No position yet", "A Council preserves disagreement before it records a decision."));
+    }
+    for (const position of positions) {
+      const row = element(document, "article", "nur-adjunct-row");
+      row.append(element(document, "p", undefined, position.position));
+      if (position.is_minority) row.append(element(document, "span", "nur-adjunct-chip", "MINORITY POSITION"));
+      positionList.append(row);
+    }
+    const positionInput = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+    positionInput.id = "nur-v197-council-position";
+    positionInput.placeholder = "State one position without erasing disagreement";
+    const addPosition = button(document, "Add position", "council-position-add", true);
+    const councilState = status(document, "Every position is persisted with its real owner.");
+    council.append(positionList, positionInput, addPosition, councilState);
+    addPosition.addEventListener("click", async () => {
+      if (!positionInput.value.trim()) return;
+      addPosition.disabled = true;
+      try {
+        await api.createCouncilPosition(roomId, positionInput.value.trim());
+        await renderCommunityRoom(document, api, roomId);
+      } catch (error) {
+        councilState.textContent = error instanceof Error ? error.message : "Position was not saved.";
+        councilState.className = "nur-adjunct-status is-warn";
+        addPosition.disabled = false;
+      }
+    });
+    if (text(room.current_user_role) === "OWNER") {
+      const decisionInput = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+      decisionInput.id = "nur-v197-council-decision";
+      decisionInput.placeholder = "Record the bounded Council decision";
+      const recordDecision = button(document, "Record decision", "council-decision-record");
+      council.append(decisionInput, recordDecision);
+      recordDecision.addEventListener("click", async () => {
+        if (!decisionInput.value.trim()) return;
+        recordDecision.disabled = true;
+        try {
+          await api.createCouncilDecision(roomId, decisionInput.value.trim());
+          await renderCommunityRoom(document, api, roomId);
+        } catch (error) {
+          councilState.textContent = error instanceof Error ? error.message : "Decision was not saved.";
+          councilState.className = "nur-adjunct-status is-warn";
+          recordDecision.disabled = false;
+        }
+      });
+    }
+    grid.append(council);
+  }
 }
 
 async function renderCommunityPost(document: Document, api: V197ApiClient, postId: string): Promise<void> {
@@ -1832,7 +2834,7 @@ async function renderCommunityPost(document: Document, api: V197ApiClient, postI
   }
   if (!post || !roomId) throw new Error("This thread is not available inside your room memberships.");
   const comments = await api.communityComments(roomId, postId);
-  const shell = mount(document, post.title, post.body, `/community/room/${roomId}`);
+  const shell = mount(document, post.title, post.body, `/universe/community/room/${roomId}`);
   const grid = element(document, "div", "nur-adjunct-grid");
   shell.append(grid);
   const thread = panel(document, "Bounded thread", `${post.is_demo ? "DEMO · " : ""}${post.provenance_label}`);
@@ -2418,6 +3420,423 @@ async function renderNotifications(document: Document, api: V197ApiClient): Prom
   grid.append(inbox, controls, reminder);
 }
 
+const AGENTIC_TERMINAL_STATES = new Set(["SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"]);
+
+function agenticField(
+  document: Document,
+  label: string,
+  control: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
+): HTMLElement {
+  const field = element(document, "label", "nur-adjunct-field");
+  field.append(element(document, "span", undefined, label), control);
+  return field;
+}
+
+function agenticSelect(document: Document, action: string): HTMLSelectElement {
+  const select = element(document, "select", "nur-adjunct-select") as HTMLSelectElement;
+  select.dataset.adjunctControl = action;
+  return select;
+}
+
+function agenticOption(document: Document, value: string, label = value): HTMLOptionElement {
+  const option = element(document, "option", undefined, label);
+  option.value = value;
+  return option;
+}
+
+function agenticWorkflowRows(
+  document: Document,
+  workflows: V197AgenticWorkflow[],
+): HTMLElement {
+  const grouped = groupWorkflows(workflows);
+  const container = element(document, "div", "nur-agentic-groups");
+  for (const section of DRAWER_SECTIONS) {
+    const group = element(document, "section", "nur-agentic-group");
+    group.append(element(document, "h3", undefined, `${section.label} · ${grouped[section.id].length}`));
+    const list = element(document, "div", "nur-adjunct-list");
+    for (const workflow of grouped[section.id]) {
+      const row = element(document, "div", "nur-adjunct-row");
+      const head = element(document, "div", "nur-adjunct-row-head");
+      head.append(
+        element(document, "strong", undefined, workflow.title),
+        element(document, "span", "nur-adjunct-chip", workflow.state),
+      );
+      const progress = `${workflow.steps_done}/${workflow.step_count} steps · ${workflow.cost_cents} cents recorded`;
+      const actions = element(document, "div", "nur-adjunct-actions");
+      const open = button(document, "Open run ledger", `agentic-open-${workflow.id}`);
+      open.addEventListener("click", () => navigate(`/agents/${workflow.id}`));
+      actions.append(open);
+      row.append(head, element(document, "p", undefined, workflow.objective), element(document, "p", undefined, progress), actions);
+      list.append(row);
+    }
+    if (!grouped[section.id].length) list.append(empty(document, `Nothing ${section.label.toLowerCase()}`, "No owner-scoped workflow is placed here."));
+    group.append(list);
+    container.append(group);
+  }
+  return container;
+}
+
+async function renderAgents(
+  document: Document,
+  api: V197ApiClient,
+  session: V197Session,
+): Promise<void> {
+  const [tools, policy, workflows, approvals] = await Promise.all([
+    api.agenticTools(),
+    api.agenticPolicy(),
+    api.agenticWorkflows(),
+    api.agenticApprovals(),
+  ]);
+  const shell = mount(
+    document,
+    "Agency under your authority.",
+    "NUR can only run a bounded, owner-authored plan through the persisted policy, approval ledger and durable outbox.",
+    "/systems",
+  );
+  const grid = element(document, "div", "nur-adjunct-grid");
+  shell.append(grid);
+
+  const policyPanel = panel(document, "Owner policy", "What NUR may prepare or run");
+  policyPanel.classList.add("is-wide");
+  const policyFacts = element(document, "div", "nur-adjunct-facts");
+  policyFacts.append(
+    fact(document, "Scope", "Account only"),
+    fact(document, "Persisted", policy.persisted ? "Yes" : "No policy row yet"),
+    fact(document, "Capabilities", policy.granted_capabilities.join(", ") || "None"),
+  );
+  const initiative = agenticSelect(document, "agentic-initiative");
+  for (const level of ["OFF", "SUGGEST", "PREPARE", "INTERNAL", "CONNECTED", "DELEGATED"] as const) {
+    const option = agenticOption(document, level, level.replace(/_/g, " "));
+    option.selected = policy.initiative_level === level;
+    initiative.append(option);
+  }
+  const maxRisk = agenticSelect(document, "agentic-max-risk");
+  for (const risk of ["R0_READ_ONLY", "R1_PRIVATE_DRAFT", "R2_DURABLE_PRIVATE", "R3_EXTERNAL", "R4_IRREVERSIBLE"] as AgenticRiskClass[]) {
+    const option = agenticOption(document, risk, describeRisk(risk, true).split(".")[0]);
+    option.selected = policy.max_risk_class === risk;
+    maxRisk.append(option);
+  }
+  const dailyBudget = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+  dailyBudget.type = "number";
+  dailyBudget.min = "0";
+  dailyBudget.max = "10000000";
+  dailyBudget.step = "1";
+  dailyBudget.value = String(policy.daily_budget_cents);
+  dailyBudget.dataset.adjunctControl = "agentic-daily-budget";
+  const policyControls = element(document, "div", "nur-agentic-policy-controls");
+  policyControls.append(
+    agenticField(document, "Initiative level", initiative),
+    agenticField(document, "Maximum risk class", maxRisk),
+    agenticField(document, "Daily cost ceiling in cents", dailyBudget),
+  );
+  const toolList = element(document, "div", "nur-adjunct-list");
+  for (const tool of tools) {
+    const row = element(document, "div", "nur-adjunct-row nur-agentic-tool");
+    const head = element(document, "div", "nur-adjunct-row-head");
+    head.append(
+      element(document, "strong", undefined, tool.key.replace(/_/g, " ")),
+      element(document, "span", "nur-adjunct-chip", tool.bound ? tool.risk_class : "UNBOUND"),
+    );
+    const permissions = element(document, "div", "nur-agentic-tool-permissions");
+    const permitLabel = element(document, "label", "nur-adjunct-toggle");
+    permitLabel.append(element(document, "span", undefined, "Permit this tool"));
+    const permit = element(document, "input") as HTMLInputElement;
+    permit.type = "checkbox";
+    permit.checked = tool.bound && policy.permitted_tools.includes(tool.key);
+    permit.disabled = !tool.bound;
+    permit.dataset.agenticPermit = tool.key;
+    permitLabel.append(permit);
+    const autoLabel = element(document, "label", "nur-adjunct-toggle");
+    autoLabel.append(element(document, "span", undefined, "Allow policy auto-run"));
+    const auto = element(document, "input") as HTMLInputElement;
+    auto.type = "checkbox";
+    auto.checked = tool.bound && policy.auto_run_tools.includes(tool.key);
+    auto.disabled = !tool.bound || !permit.checked;
+    auto.dataset.agenticAuto = tool.key;
+    permit.addEventListener("change", () => {
+      auto.disabled = !permit.checked;
+      if (!permit.checked) auto.checked = false;
+    });
+    autoLabel.append(auto);
+    permissions.append(permitLabel, autoLabel);
+    row.append(head, element(document, "p", undefined, tool.summary), element(document, "p", undefined, describeRisk(tool.risk_class, tool.reversible)), permissions);
+    toolList.append(row);
+  }
+  const policyActions = element(document, "div", "nur-adjunct-actions");
+  const savePolicy = button(document, "Save agency policy", "agentic-policy-save", true);
+  const policyState = status(document, "Unbound tools stay visible but cannot be permitted or called.");
+  policyActions.append(savePolicy);
+  policyPanel.append(policyFacts, policyControls, toolList, policyActions, policyState);
+  savePolicy.addEventListener("click", async () => {
+    savePolicy.disabled = true;
+    const permitted = [...policyPanel.querySelectorAll<HTMLInputElement>("[data-agentic-permit]:checked")]
+      .map(input => input.dataset.agenticPermit ?? "").filter(Boolean);
+    const autoRun = [...policyPanel.querySelectorAll<HTMLInputElement>("[data-agentic-auto]:checked")]
+      .map(input => input.dataset.agenticAuto ?? "").filter(key => key && permitted.includes(key));
+    try {
+      const next = await api.putAgenticPolicy({
+        initiative_level: initiative.value as V197AgenticPolicy["initiative_level"],
+        max_risk_class: maxRisk.value as AgenticRiskClass,
+        permitted_tools: permitted,
+        auto_run_tools: autoRun,
+        denied_tools: policy.denied_tools.filter(key => !permitted.includes(key)),
+        daily_budget_cents: Math.max(0, Number.parseInt(dailyBudget.value || "0", 10)),
+        max_proposals_per_day: policy.max_proposals_per_day,
+        cooldown_minutes: policy.cooldown_minutes,
+        quiet_hours: policy.quiet_hours && Object.keys(policy.quiet_hours).length ? policy.quiet_hours : null,
+      });
+      policy.permitted_tools = next.permitted_tools;
+      policy.auto_run_tools = next.auto_run_tools;
+      policyState.textContent = "Owner policy persisted. No workflow was started.";
+      policyState.className = "nur-adjunct-status is-good";
+    } catch (error) {
+      policyState.textContent = error instanceof Error ? error.message : "Agency policy could not be saved.";
+      policyState.className = "nur-adjunct-status is-warn";
+    } finally {
+      savePolicy.disabled = false;
+    }
+  });
+
+  const builder = panel(document, "Owner-authored workflow", "One bounded step at a time");
+  const title = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+  title.dataset.adjunctControl = "agentic-title";
+  title.placeholder = "Name this workflow";
+  title.maxLength = 400;
+  const objective = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+  objective.dataset.adjunctControl = "agentic-objective";
+  objective.placeholder = "What exact result should this workflow pursue?";
+  objective.maxLength = 5000;
+  const success = element(document, "input", "nur-adjunct-input") as HTMLInputElement;
+  success.dataset.adjunctControl = "agentic-success";
+  success.placeholder = "What observable result counts as done?";
+  success.maxLength = 500;
+  const toolSelect = agenticSelect(document, "agentic-tool");
+  for (const tool of tools.filter(row => row.bound)) toolSelect.append(agenticOption(document, tool.key, tool.key.replace(/_/g, " ")));
+  const role = agenticSelect(document, "agentic-role");
+  for (const value of ["operator", "researcher", "implementer", "writer", "translator", "verifier", "critic", "qa", "security_reviewer", "visual_reviewer"]) {
+    role.append(agenticOption(document, value, value.replace(/_/g, " ")));
+  }
+  const argumentsInput = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+  argumentsInput.dataset.adjunctControl = "agentic-arguments";
+  argumentsInput.value = "{}";
+  argumentsInput.spellcheck = false;
+  const rationale = element(document, "textarea", "nur-adjunct-textarea") as HTMLTextAreaElement;
+  rationale.dataset.adjunctControl = "agentic-rationale";
+  rationale.placeholder = "Why is this step necessary?";
+  rationale.maxLength = 2000;
+  const create = button(document, "Compile workflow draft", "agentic-workflow-create", true);
+  const createState = status(document, "Create compiles and persists a draft. It does not start execution.");
+  const createActions = element(document, "div", "nur-adjunct-actions");
+  createActions.append(create);
+  builder.append(
+    agenticField(document, "Title", title),
+    agenticField(document, "Objective", objective),
+    agenticField(document, "Success criterion", success),
+    agenticField(document, "Bound tool", toolSelect),
+    agenticField(document, "Role", role),
+    agenticField(document, "Tool arguments as JSON", argumentsInput),
+    agenticField(document, "Rationale", rationale),
+    createActions,
+    createState,
+  );
+  create.addEventListener("click", async () => {
+    if (!title.value.trim() || !objective.value.trim() || !success.value.trim() || !rationale.value.trim()) {
+      createState.textContent = "Title, objective, success criterion and rationale are required.";
+      createState.className = "nur-adjunct-status is-warn";
+      return;
+    }
+    if (!policy.permitted_tools.includes(toolSelect.value)) {
+      createState.textContent = "Permit the selected tool in the owner policy before compiling this workflow.";
+      createState.className = "nur-adjunct-status is-warn";
+      return;
+    }
+    let inputRefs: Record<string, unknown>;
+    try {
+      const parsed = JSON.parse(argumentsInput.value) as unknown;
+      if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") throw new Error("Tool arguments must be a JSON object.");
+      inputRefs = parsed as Record<string, unknown>;
+    } catch (error) {
+      createState.textContent = error instanceof Error ? error.message : "Tool arguments must be valid JSON.";
+      createState.className = "nur-adjunct-status is-warn";
+      return;
+    }
+    create.disabled = true;
+    try {
+      const created = await api.createAgenticWorkflow({
+        request_id: crypto.randomUUID(),
+        title: title.value.trim(),
+        objective: objective.value.trim(),
+        context_manifest: { source: "owner-authored V197 agency chamber", orbit_id: session.orbit.id },
+        success_criteria: [success.value.trim()],
+        proposed_steps: [{
+          key: "step-1",
+          role: role.value,
+          tool_key: toolSelect.value,
+          depends_on: [],
+          input_refs: inputRefs,
+          rationale: rationale.value.trim(),
+        }],
+      });
+      navigate(`/agents/${created.id}`);
+    } catch (error) {
+      createState.textContent = error instanceof Error ? error.message : "Workflow did not compile.";
+      createState.className = "nur-adjunct-status is-warn";
+      create.disabled = false;
+    }
+  });
+
+  const approvalPanel = panel(document, "Waiting for you", `Approvals · ${approvals.length}`);
+  const approvalList = element(document, "div", "nur-adjunct-list");
+  for (const approval of approvals) {
+    const card = buildApprovalCard(approval);
+    const row = element(document, "div", "nur-adjunct-row");
+    const head = element(document, "div", "nur-adjunct-row-head");
+    head.append(element(document, "strong", undefined, approval.workflow_title ?? `Workflow ${approval.workflow_id.slice(0, 8)}`), element(document, "span", "nur-adjunct-chip", approval.risk_class));
+    const exactArguments = element(document, "pre", "nur-adjunct-json", JSON.stringify(approval.redacted_arguments, null, 2));
+    const decisionState = status(document, card.expiryNote ?? "This decision is bound to the displayed plan, call version and argument digest.");
+    const decisions = element(document, "div", "nur-adjunct-actions");
+    if (card.actionable) {
+      const approve = button(document, "Approve exact call", `agentic-approval-approve-${approval.id}`, true);
+      const reject = button(document, "Reject", `agentic-approval-reject-${approval.id}`);
+      const decide = async (choice: "APPROVE" | "REJECT") => {
+        approve.disabled = true;
+        reject.disabled = true;
+        try {
+          await api.decideAgenticApproval(approval, choice);
+          await renderAgents(document, api, session);
+        } catch (error) {
+          decisionState.textContent = error instanceof Error ? error.message : "Approval decision did not persist.";
+          decisionState.className = "nur-adjunct-status is-warn";
+          approve.disabled = false;
+          reject.disabled = false;
+        }
+      };
+      approve.addEventListener("click", () => void decide("APPROVE"));
+      reject.addEventListener("click", () => void decide("REJECT"));
+      decisions.append(approve, reject);
+    }
+    row.append(
+      head,
+      element(document, "p", undefined, card.why),
+      fact(document, "Tool", card.toolLabel),
+      fact(document, "Scope", card.scope),
+      fact(document, "Risk", card.risk),
+      fact(document, "Expected", card.expected),
+      exactArguments,
+      decisions,
+      decisionState,
+    );
+    approvalList.append(row);
+  }
+  if (!approvals.length) approvalList.append(empty(document, "No approval is waiting", "NUR has no pending call that requires your consent."));
+  approvalPanel.append(approvalList);
+
+  const workflowPanel = panel(document, "Run ledger", `Owner workflows · ${workflows.length}`);
+  workflowPanel.classList.add("is-wide");
+  workflowPanel.append(agenticWorkflowRows(document, workflows));
+  grid.append(policyPanel, builder, approvalPanel, workflowPanel);
+}
+
+async function renderAgenticDetail(
+  document: Document,
+  api: V197ApiClient,
+  session: V197Session,
+  workflowId: string,
+): Promise<void> {
+  const [workflow, events] = await Promise.all([
+    api.agenticWorkflow(workflowId),
+    api.agenticWorkflowEvents(workflowId),
+  ]);
+  const shell = mount(document, workflow.title, workflow.objective, "/agents");
+  const grid = element(document, "div", "nur-adjunct-grid");
+  shell.append(grid);
+  const statePanel = panel(document, "Workflow state", workflow.state);
+  statePanel.classList.add("is-wide");
+  const stateFacts = element(document, "div", "nur-adjunct-facts");
+  stateFacts.append(
+    fact(document, "Plan version", String(workflow.plan_version)),
+    fact(document, "Cost recorded", `${workflow.cost_cents} cents`),
+    fact(document, "Success", workflow.success_criteria.join(" · ")),
+  );
+  const lifecycleActions = element(document, "div", "nur-adjunct-actions");
+  const lifecycleState = status(document, "Every lifecycle write is owner-scoped, version-fenced and append-only in the run ledger.");
+  if (workflow.state === "PLAN_READY") {
+    const start = button(document, "Start this plan", "agentic-workflow-start", true);
+    start.addEventListener("click", async () => {
+      start.disabled = true;
+      try {
+        await api.startAgenticWorkflow(workflow.id, workflow.plan_version);
+        await renderAgenticDetail(document, api, session, workflow.id);
+      } catch (error) {
+        lifecycleState.textContent = error instanceof Error ? error.message : "Workflow did not start.";
+        lifecycleState.className = "nur-adjunct-status is-warn";
+        start.disabled = false;
+      }
+    });
+    lifecycleActions.append(start);
+  }
+  if (!AGENTIC_TERMINAL_STATES.has(workflow.state)) {
+    const cancel = button(document, "Cancel workflow", "agentic-workflow-cancel");
+    cancel.addEventListener("click", async () => {
+      cancel.disabled = true;
+      try {
+        await api.cancelAgenticWorkflow(workflow.id);
+        await renderAgenticDetail(document, api, session, workflow.id);
+      } catch (error) {
+        lifecycleState.textContent = error instanceof Error ? error.message : "Cancellation did not persist.";
+        lifecycleState.className = "nur-adjunct-status is-warn";
+        cancel.disabled = false;
+      }
+    });
+    lifecycleActions.append(cancel);
+  }
+  statePanel.append(stateFacts, lifecycleActions, lifecycleState);
+
+  const stepsPanel = panel(document, "Compiled plan", `Steps · ${workflow.steps.length}`);
+  const stepList = element(document, "div", "nur-adjunct-list");
+  for (const step of workflow.steps) {
+    const row = element(document, "div", "nur-adjunct-row");
+    const head = element(document, "div", "nur-adjunct-row-head");
+    head.append(element(document, "strong", undefined, `${step.ordinal}. ${step.key}`), element(document, "span", "nur-adjunct-chip", step.state));
+    row.append(head, element(document, "p", undefined, `${step.role} · ${step.tool_key ?? "No tool"} v${step.tool_version ?? "none"}`));
+    row.append(element(document, "pre", "nur-adjunct-json", JSON.stringify(step.input_refs, null, 2)));
+    if (step.retryable) {
+      const actions = element(document, "div", "nur-adjunct-actions");
+      const retry = button(document, "Retry fenced attempt", `agentic-step-retry-${step.id}`);
+      retry.addEventListener("click", async () => {
+        retry.disabled = true;
+        try {
+          await api.retryAgenticStep(workflow.id, step.id, step.attempt, step.execution_attempt);
+          await renderAgenticDetail(document, api, session, workflow.id);
+        } catch (error) {
+          lifecycleState.textContent = error instanceof Error ? error.message : "Step retry was refused.";
+          lifecycleState.className = "nur-adjunct-status is-warn";
+          retry.disabled = false;
+        }
+      });
+      actions.append(retry);
+      row.append(actions);
+    }
+    stepList.append(row);
+  }
+  stepsPanel.append(stepList);
+
+  const eventPanel = panel(document, "Append-only evidence", `Run events · ${events.length}`);
+  const eventList = element(document, "div", "nur-adjunct-list");
+  for (const event of events) {
+    const row = element(document, "div", "nur-adjunct-row");
+    row.append(
+      element(document, "strong", undefined, text(event.event_type)),
+      element(document, "p", undefined, text(event.summary)),
+      element(document, "p", undefined, `${text(event.actor)} · ${date(event.created_at)}`),
+    );
+    eventList.append(row);
+  }
+  if (!events.length) eventList.append(empty(document, "No event returned", "The API did not return an append-only event for this workflow."));
+  eventPanel.append(eventList);
+  grid.append(statePanel, stepsPanel, eventPanel);
+}
+
 function renderError(document: Document, error: unknown, backRoute = "/systems"): void {
   const shell = mount(document, "This chamber could not open.", "NUR kept the boundary closed instead of inventing data.", backRoute);
   const grid = element(document, "div", "nur-adjunct-grid");
@@ -2432,8 +3851,9 @@ export async function renderV197Adjunct(
   document: Document,
   route: string,
   api: V197ApiClient,
-  snapshot: V197BridgeSnapshot,
+  snapshot: V197BridgeSnapshot | null,
   refreshSnapshot: RefreshSnapshot,
+  session: V197Session,
 ): Promise<boolean> {
   const existing = document.getElementById(ROOT_ID);
   const isAdjunct = route === "/settings"
@@ -2441,7 +3861,17 @@ export async function renderV197Adjunct(
     || route === "/teach-nur"
     || route === "/billing"
     || route === "/capsules"
+    || route === "/agents"
+    || route.startsWith("/agents/")
     || route.startsWith("/capsule/")
+    || route === "/universe/consultation"
+    || route.startsWith("/universe/consultation/")
+    || route === "/universe/research"
+    || route === "/universe/community"
+    || route.startsWith("/universe/community/")
+    || route === "/universe/experts"
+    || route === "/universe/insights/candidates"
+    || route.startsWith("/universe/insights/candidates/")
     || route === "/consultations"
     || route.startsWith("/consultations/")
     || route === "/community"
@@ -2455,30 +3885,63 @@ export async function renderV197Adjunct(
     || route.startsWith("/universe/omega/why-changed/");
   if (!isAdjunct) {
     existing?.remove();
+    restoreAdjunctBackground(document);
     return false;
   }
 
   try {
-    if (route === "/settings") await renderSettings(document, api, snapshot, refreshSnapshot);
-    else if (route === "/memory") await renderMemory(document, api, snapshot);
-    else if (route === "/teach-nur") await renderTeachNUR(document, api, snapshot);
+    if (route === "/settings") {
+      if (!snapshot) throw new Error("Settings require the full owner snapshot.");
+      await renderSettings(document, api, snapshot, refreshSnapshot);
+    }
+    else if (route === "/memory") {
+      if (!snapshot) throw new Error("Memory requires the full owner snapshot.");
+      await renderMemory(document, api, snapshot);
+    }
+    else if (route === "/teach-nur") {
+      if (!snapshot) throw new Error("Teach NUR requires the full owner snapshot.");
+      await renderTeachNUR(document, api, snapshot);
+    }
     else if (route === "/billing") await renderBilling(document, api);
-    else if (route === "/capsules") await renderOwnerCapsules(document, api, snapshot);
+    else if (route === "/capsules") {
+      if (!snapshot) throw new Error("Capsules require the full owner snapshot.");
+      await renderOwnerCapsules(document, api, snapshot);
+    }
+    else if (route === "/agents") await renderAgents(document, api, session);
+    else if (route.startsWith("/agents/")) await renderAgenticDetail(document, api, session, decodeURIComponent(route.slice("/agents/".length)));
     else if (route.startsWith("/capsule/")) await renderCapsule(document, api, decodeURIComponent(route.slice("/capsule/".length)));
-    else if (route === "/consultations") await renderConsultationIndex(document, api, snapshot);
+    else if (route === "/universe/consultation" || route === "/consultations") await renderConsultationIndex(document, api, session.orbit.id);
+    else if (route.startsWith("/universe/consultation/")) await renderConsultationDetail(document, api, decodeURIComponent(route.split("/")[3] ?? ""));
     else if (route.startsWith("/consultations/")) await renderConsultationDetail(document, api, decodeURIComponent(route.split("/")[2] ?? ""));
+    else if (route === "/universe/research") await renderResearchWorkspace(document, api, session.orbit.id);
+    else if (route === "/universe/experts") await renderExpertsWorkspace(document, api);
+    else if (route === "/universe/insights/candidates" || route.startsWith("/universe/insights/candidates/")) await renderCandidateInsights(document, api);
+    else if (route.startsWith("/universe/community/room/")) await renderCommunityRoom(document, api, decodeURIComponent(route.split("/")[4] ?? ""));
+    else if (route.startsWith("/universe/community/post/")) await renderCommunityPost(document, api, decodeURIComponent(route.split("/")[4] ?? ""));
+    else if (route === "/universe/community") await renderCommunityIndex(document, api, route);
     else if (route.startsWith("/community/room/")) await renderCommunityRoom(document, api, decodeURIComponent(route.split("/")[3] ?? ""));
     else if (route.startsWith("/community/post/")) await renderCommunityPost(document, api, decodeURIComponent(route.split("/")[3] ?? ""));
     else if (route === "/community" || route.startsWith("/community/")) await renderCommunityIndex(document, api, route);
     else if (route === "/projects" || route === "/projects/new") await renderProjectsIndex(document, api);
     else if (route.startsWith("/projects/")) await renderProjectDetail(document, api, decodeURIComponent(route.split("/")[2] ?? ""), route);
-    else if (route === "/glow") renderGlow(document, snapshot);
+    else if (route === "/glow") {
+      if (!snapshot) throw new Error("Glow requires the full owner snapshot.");
+      renderGlow(document, snapshot);
+    }
     else if (route === "/notifications") await renderNotifications(document, api);
     else if (route === "/universe/omega/review") await renderOmegaReview(document, api);
     else if (route.startsWith("/universe/omega/why-changed/")) await renderOmegaWhyChanged(document, api, decodeURIComponent(route.slice("/universe/omega/why-changed/".length)));
     else await renderOmegaDashboard(document, api);
   } catch (error) {
-    renderError(document, error, route.startsWith("/universe/omega") ? "/universe/omega" : "/systems");
+    renderError(
+      document,
+      error,
+      route.startsWith("/universe/omega")
+        ? "/universe/omega"
+        : route.startsWith("/universe/")
+          ? "/universe"
+          : "/systems",
+    );
   }
   return true;
 }

@@ -31,8 +31,8 @@
   /* Canonical palette, the subset Map uses. */
   --map-void: #000000;
   --map-glass: #030307;
-  --map-navy: #06062b;
-  --map-abyss: #101052;
+  --map-navy: #020202;
+  --map-abyss: #050505;
 
   --map-pearl: #fff8df;
   --map-champagne: #f8d98a;
@@ -46,6 +46,14 @@
   --map-fuchsia: #ff18c8;
   --map-rose: #ff3a9e;
   --map-coral: #ff526f;
+  --map-spectrum-glass:
+    radial-gradient(82% 120% at 2% 2%, rgba(255, 70, 86, .015), transparent 56%),
+    radial-gradient(82% 120% at 18% 98%, rgba(255, 145, 72, .017), transparent 56%),
+    radial-gradient(82% 120% at 34% 2%, rgba(255, 220, 92, .021), transparent 56%),
+    radial-gradient(82% 120% at 51% 98%, rgba(72, 235, 175, .015), transparent 56%),
+    radial-gradient(82% 120% at 68% 2%, rgba(79, 204, 255, .014), transparent 56%),
+    radial-gradient(82% 120% at 84% 98%, rgba(90, 112, 255, .013), transparent 56%),
+    radial-gradient(82% 120% at 98% 2%, rgba(193, 107, 255, .014), transparent 56%);
 
   --map-rail: 264px;
   --map-detail: 376px;
@@ -71,6 +79,7 @@
   background: transparent;
   color: var(--map-pearl);
   font-family: "Bodoni Moda", Georgia, serif;
+  container: nur-map / inline-size;
 }
 
 /* ── shell and the three zones ────────────────────────────────────────────── */
@@ -88,7 +97,8 @@
   display: grid;
   grid-template-columns: var(--map-rail) minmax(0, 1fr) var(--map-detail);
   gap: var(--map-gap);
-  min-height: 0;
+  height: calc(100vh - 190px);
+  min-height: 420px;
 }
 
 /* Faint glass fields emerging from the void, never dashboard slabs. The border
@@ -97,8 +107,10 @@
   position: relative;
   border-radius: 22px;
   background:
-    linear-gradient(180deg, rgba(6, 6, 43, 0.5), rgba(3, 3, 7, 0.72));
-  border: 1px solid rgba(248, 217, 138, 0.13);
+    var(--map-spectrum-glass),
+    linear-gradient(180deg, rgba(255, 255, 255, .012), rgba(0, 0, 0, .08));
+  border: 1px solid rgba(248, 217, 138, 0.15);
+  backdrop-filter: blur(9px) saturate(1.12);
   box-shadow:
     inset 0 1px 0 rgba(255, 248, 223, 0.05),
     0 18px 60px rgba(0, 0, 0, 0.6);
@@ -120,35 +132,39 @@
 
 .nur-map-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title tools"
+    "modes tools";
+  align-items: end;
+  gap: 8px 16px;
 }
 
 .nur-map-title {
+  grid-area: title;
   display: flex;
-  align-items: baseline;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
   min-width: 0;
 }
 
 .nur-map-title h1 {
   margin: 0;
-  font-size: 27px;
+  font-size: 30px;
   letter-spacing: 0.055em;
-  color: var(--map-pearl);
+  color: var(--map-gold);
   text-shadow: 0 0 26px rgba(255, 211, 90, 0.2);
 }
 
 .nur-map-subtitle {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 15.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgba(255, 248, 223, 0.5);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .nur-map-header-actions {
@@ -157,6 +173,27 @@
   align-items: center;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.nur-map-header > .nur-map-header-actions:nth-child(2) {
+  grid-area: modes;
+  justify-content: flex-start;
+}
+
+.nur-map-header > .nur-map-header-actions:last-child {
+  grid-area: tools;
+  max-width: min(100%, 620px);
+}
+
+.nur-map-header [data-map-mode="universe"][aria-selected="true"] {
+  color: var(--map-gold);
+  border-color: rgba(255, 211, 90, .58);
+  box-shadow: inset 0 1px 0 rgba(255, 248, 223, .14), 0 0 18px rgba(255, 211, 90, .09);
+}
+
+#nur-map-root .nur-map-header .nur-map-search {
+  width: clamp(170px, 18vw, 228px) !important;
+  min-width: 0;
 }
 
 /* ── the capsule: the only control shape in this file ─────────────────────── */
@@ -173,11 +210,12 @@
   border-radius: 999px;
   border: 1px solid rgba(248, 217, 138, 0.34);
   background:
-    radial-gradient(120% 160% at 50% -40%, rgba(255, 211, 90, 0.15), transparent 62%),
-    linear-gradient(180deg, rgba(6, 6, 43, 0.62), rgba(3, 3, 7, 0.9));
+    linear-gradient(108deg, rgba(255, 211, 90, .018), rgba(255, 82, 171, .01) 35%, rgba(79, 204, 255, .009) 65%, rgba(72, 235, 175, .011)),
+    rgba(0, 0, 0, .045);
+  backdrop-filter: blur(12px) saturate(1.25);
   color: var(--map-pearl);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 15.5px;
   letter-spacing: 0.075em;
   cursor: pointer;
   overflow: hidden;
@@ -232,8 +270,8 @@
 .nur-map-capsule.is-active {
   border-color: rgba(255, 211, 90, 0.78);
   background:
-    radial-gradient(120% 170% at 50% -30%, rgba(255, 211, 90, 0.3), transparent 60%),
-    linear-gradient(180deg, rgba(16, 16, 82, 0.7), rgba(3, 3, 7, 0.92));
+    linear-gradient(108deg, rgba(255, 211, 90, .04), rgba(255, 82, 171, .025) 35%, rgba(79, 204, 255, .022) 65%, rgba(72, 235, 175, .026)),
+    rgba(0, 0, 0, .05);
   color: #fffdf4;
 }
 
@@ -266,7 +304,7 @@
 .nur-map-capsule-sm {
   padding: 5px 11px;
   min-height: 27px;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 /* Small sigil control for the canvas: circular, icon-only, still a capsule. */
@@ -275,7 +313,7 @@
   min-height: 34px;
   padding: 0;
   justify-content: center;
-  font-size: 14px;
+  font-size: 17px;
   letter-spacing: 0;
 }
 
@@ -293,10 +331,10 @@
   border: 1px solid rgba(248, 217, 138, 0.3) !important;
   border-radius: 999px !important;
   background:
-    linear-gradient(180deg, rgba(6, 6, 43, 0.6), rgba(3, 3, 7, 0.88));
+    linear-gradient(180deg, rgba(2, 2, 2, 0.6), rgba(3, 3, 7, 0.88));
   color: var(--map-pearl);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 15.5px;
   letter-spacing: 0.04em;
   padding: 8px 15px;
   min-height: 34px;
@@ -320,7 +358,7 @@
 
 .nur-map-nav-label {
   margin: 0 0 9px;
-  font-size: 10px;
+  font-size: 13px;
   letter-spacing: 0.19em;
   text-transform: uppercase;
   color: rgba(255, 211, 90, 0.62);
@@ -353,20 +391,20 @@
   background: transparent;
   color: rgba(255, 248, 223, 0.86);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 15.5px;
   text-align: left;
   cursor: pointer;
   transition: background var(--map-quick) ease, border-color var(--map-quick) ease;
 }
 
 .nur-map-row:hover {
-  background: rgba(16, 16, 82, 0.4);
+  background: rgba(5, 5, 5, 0.4);
   border-color: rgba(248, 217, 138, 0.22);
 }
 
 .nur-map-row.is-selected {
   background:
-    linear-gradient(90deg, rgba(255, 211, 90, 0.16), rgba(16, 16, 82, 0.3));
+    linear-gradient(90deg, rgba(255, 211, 90, 0.16), rgba(5, 5, 5, 0.3));
   border-color: rgba(255, 211, 90, 0.5);
 }
 
@@ -377,7 +415,7 @@
 }
 
 .nur-map-row-meta {
-  font-size: 10.5px;
+  font-size: 13.5px;
   letter-spacing: 0.08em;
   color: rgba(255, 248, 223, 0.44);
   font-variant-numeric: tabular-nums;
@@ -417,8 +455,8 @@
   padding: 10px 12px;
   border-radius: 16px;
   border: 1px solid rgba(248, 217, 138, 0.14);
-  background: linear-gradient(180deg, rgba(6, 6, 43, 0.62), rgba(3, 3, 7, 0.82));
-  font-size: 10px;
+  background: linear-gradient(180deg, rgba(2, 2, 2, 0.62), rgba(3, 3, 7, 0.82));
+  font-size: 13px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: rgba(255, 248, 223, 0.6);
@@ -438,14 +476,14 @@
 .nur-map-region-halo { pointer-events: none; }
 
 .nur-map-region-label {
-  font-size: 11.5px;
+  font-size: 14.5px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   fill: rgba(255, 248, 223, 0.72);
 }
 
 .nur-map-region-state {
-  font-size: 9.5px;
+  font-size: 12.5px;
   letter-spacing: 0.13em;
   text-transform: uppercase;
   fill: rgba(255, 211, 90, 0.66);
@@ -461,7 +499,7 @@
   touch-action: none;
 }
 .nur-map-node-label {
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.045em;
   fill: rgba(255, 248, 223, 0.84);
   pointer-events: none;
@@ -534,7 +572,7 @@
 
 .nur-map-detail-kind {
   margin: 0 0 4px;
-  font-size: 10px;
+  font-size: 13px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: rgba(255, 211, 90, 0.66);
@@ -542,7 +580,7 @@
 
 .nur-map-detail-title {
   margin: 0 0 8px;
-  font-size: 19px;
+  font-size: 22px;
   letter-spacing: 0.02em;
   color: var(--map-pearl);
   text-wrap: balance;
@@ -562,7 +600,7 @@
   background: transparent;
   color: rgba(255, 248, 223, 0.58);
   font-family: inherit;
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding: 5px 12px;
@@ -582,7 +620,7 @@
 
 .nur-map-field-label {
   margin: 0 0 4px;
-  font-size: 9.5px;
+  font-size: 12.5px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: rgba(255, 211, 90, 0.58);
@@ -590,14 +628,14 @@
 
 .nur-map-field-value {
   margin: 0;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.55;
   color: rgba(255, 248, 223, 0.88);
 }
 
 .nur-map-empty {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 15.5px;
   line-height: 1.6;
   color: rgba(255, 248, 223, 0.44);
   font-style: italic;
@@ -607,7 +645,7 @@
 .nur-map-card {
   border-radius: 15px;
   border: 1px solid rgba(248, 217, 138, 0.16);
-  background: linear-gradient(180deg, rgba(6, 6, 43, 0.44), rgba(3, 3, 7, 0.66));
+  background: linear-gradient(180deg, rgba(2, 2, 2, 0.44), rgba(3, 3, 7, 0.66));
   padding: 11px 13px;
   margin-bottom: 9px;
 }
@@ -616,7 +654,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 9.5px;
+  font-size: 12.5px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   margin-bottom: 5px;
@@ -645,7 +683,7 @@
 
 .nur-map-doubt-label {
   margin: 0 0 4px;
-  font-size: 9.5px;
+  font-size: 12.5px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--map-lilac);
@@ -663,19 +701,19 @@
   border-radius: 20px;
   border: 1px solid rgba(248, 217, 138, 0.17);
   background:
-    linear-gradient(100deg, rgba(16, 16, 82, 0.42), rgba(3, 3, 7, 0.76));
+    linear-gradient(100deg, rgba(5, 5, 5, 0.42), rgba(3, 3, 7, 0.76));
   padding: 15px 17px;
 }
 
 .nur-map-lane-name {
   margin: 0 0 3px;
-  font-size: 15.5px;
+  font-size: 18.5px;
   color: var(--map-pearl);
 }
 
 .nur-map-lane-strategy {
   margin: 0 0 12px;
-  font-size: 11.5px;
+  font-size: 14.5px;
   letter-spacing: 0.09em;
   color: rgba(255, 248, 223, 0.5);
 }
@@ -687,14 +725,14 @@
 }
 
 .nur-map-dim-label {
-  font-size: 9.5px;
+  font-size: 12.5px;
   letter-spacing: 0.17em;
   text-transform: uppercase;
   color: rgba(255, 211, 90, 0.55);
 }
 
 .nur-map-dim-value {
-  font-size: 12.5px;
+  font-size: 15.5px;
   color: rgba(255, 248, 223, 0.88);
   font-variant-numeric: tabular-nums;
 }
@@ -721,7 +759,7 @@
   padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid rgba(248, 217, 138, 0.2);
-  font-size: 11px;
+  font-size: 14px;
   color: rgba(255, 248, 223, 0.7);
 }
 
@@ -741,7 +779,7 @@
 .nur-map-matrix {
   border-collapse: collapse;
   min-width: 100%;
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .nur-map-matrix th,
@@ -754,7 +792,7 @@
 }
 
 .nur-map-matrix th {
-  font-size: 9.5px;
+  font-size: 12.5px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: rgba(255, 211, 90, 0.6);
@@ -780,7 +818,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 9.5px;
+  font-size: 12.5px;
   letter-spacing: 0.17em;
   text-transform: uppercase;
   color: var(--map-lilac);
@@ -802,7 +840,7 @@
   background: linear-gradient(180deg, rgba(44, 6, 18, 0.5), rgba(3, 3, 7, 0.7));
   padding: 10px 13px;
   margin-bottom: 12px;
-  font-size: 12.5px;
+  font-size: 15.5px;
   color: rgba(255, 248, 223, 0.86);
 }
 
@@ -812,6 +850,32 @@
 }
 
 /* ── mobile: focus-first, bottom sheet ────────────────────────────────────── */
+
+@container nur-map (max-width: 1120px) {
+  #nur-map-root {
+    --map-rail: 210px;
+    --map-detail: 286px;
+    --map-gap: 10px;
+    --map-margin: 12px;
+  }
+
+  .nur-map-header {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "title"
+      "modes"
+      "tools";
+  }
+
+  .nur-map-header > .nur-map-header-actions:last-child {
+    max-width: 100%;
+    justify-content: flex-start;
+  }
+
+  #nur-map-root .nur-map-header .nur-map-search {
+    width: min(100%, 220px) !important;
+  }
+}
 
 @media (max-width: 900px) {
   .nur-map-zones {
@@ -884,6 +948,19 @@
   }
 
   .nur-map-capsule:hover { transform: none; }
+}
+
+/* Surface controls stay optically quiet; selection is carried by the rim,
+   fill, label and glyph rather than a blurred rectangular aura. */
+#nur-map-root :is(button, .nur-map-capsule, [role="button"]) {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+}
+
+#nur-map-root .nur-map-pane {
+  box-shadow: inset 0 1px 0 rgba(255, 248, 223, .045) !important;
+  filter: none !important;
 }
 
 /* The accessible outline: a real parallel representation, not a hidden label.

@@ -41,6 +41,22 @@ const GALAXY_STAR_PAINT_REPLACEMENT: Replacement = [
 ];
 
 /*
+ * The nebula is seven full-viewport gradient fills. Rebuilding those gradients
+ * on every frame costs more than the projected stars themselves and does not
+ * add useful motion: at its canonical rates the wash shifts by less than a
+ * pixel between frames. Presentation paints the same deep-space wash as the
+ * canvas' static CSS backdrop, while this guard preserves canonical drawing as
+ * an automatic fallback whenever that backdrop has not been installed.
+ *
+ * Star positions, density, twinkle, depth sorting, parallax and interaction all
+ * remain live in the single canonical canvas.
+ */
+const GALAXY_STATIC_NEBULA_REPLACEMENT: Replacement = [
+  "if(profile.nebula>.48)drawNebula(t);",
+  'if(profile.nebula>.48&&canvas.dataset.nurNebulaBackdrop!=="css-static-v1")drawNebula(t);',
+];
+
+/*
  * Rendering used to be gated on the exact class `is-visible`. Any lifecycle
  * hiccup that left the class off — a transition interrupted, a route restored
  * from history, a stage attached before the class is applied — froze the canvas
@@ -111,12 +127,54 @@ const ENTRY_STAGE_VISIBILITY_REPLACEMENT: Replacement = [
  */
 const GALAXY_STAGE_OBSERVER_REPLACEMENT: Replacement = [
   'document.addEventListener("visibilitychange",()=>{if(document.hidden){last=0}else{last=0;wakeGalaxy()}},{passive:true});',
-  'document.addEventListener("visibilitychange",()=>{if(document.hidden){last=0}else{last=0;__nurStageVisAt=0;wakeGalaxy()}},{passive:true});const galaxyStage=frameElement;if(galaxyStage)new MutationObserver(()=>{__nurStageVisAt=0;if(shouldRenderGalaxy()){last=0;wakeGalaxy()}else{if(frameRAF)cancelAnimationFrame(frameRAF);frameRAF=0;last=0}}).observe(galaxyStage,{attributes:true,attributeFilter:["class","aria-hidden"]});setInterval(()=>{if(!frameRAF&&shouldRenderGalaxy()){last=0;wakeGalaxy()}},1000);',
+  'document.addEventListener("visibilitychange",()=>{if(document.hidden){last=0}else{last=0;__nurStageVisAt=0;wakeGalaxy()}},{passive:true});const galaxyStage=frameElement;if(galaxyStage)new MutationObserver(()=>{__nurStageVisAt=0;if(shouldRenderGalaxy()){last=0;wakeGalaxy()}else{if(frameRAF)cancelAnimationFrame(frameRAF);frameRAF=0;last=0}}).observe(galaxyStage,{attributes:true,attributeFilter:["class","aria-hidden"]});setInterval(()=>{if(!reduced&&!frameRAF&&shouldRenderGalaxy()){last=0;wakeGalaxy()}},1000);if(reduced){let reducedPaintAttempts=0;const reducedPaintTimer=setInterval(()=>{__nurStageVisAt=0;if(shouldRenderGalaxy()){last=0;wakeGalaxy();clearInterval(reducedPaintTimer)}else if(++reducedPaintAttempts>=24)clearInterval(reducedPaintTimer)},250)}',
 ];
 
+/*
+ * Reduced motion means a still galaxy, not an absent galaxy.
+ *
+ * Canonical V197 checks `reduced` before scheduling its first frame, so a
+ * browser profile with reduced motion enabled seeds every particle but leaves
+ * the transparent canvas completely unpainted. The brain uses a separate
+ * renderer and remains visible, producing the exact "brain but no 3D rig"
+ * failure seen in the founder browser.
+ *
+ * Paint one complete frame in reduced mode, then stop. Resize, visibility and
+ * explicit interaction wakes repaint that static scene without starting a
+ * continuous animation. Geometry, particles, projection and star paint remain
+ * canonical.
+ */
+const GALAXY_REDUCED_MOTION_REPLACEMENTS: readonly Replacement[] = [
+  [
+    "function scheduleFrame(){if(reduced||frameRAF)return;frameRAF=requestAnimationFrame(frame)}",
+    "function scheduleFrame(){if(frameRAF)return;frameRAF=requestAnimationFrame(frame)}",
+  ],
+  [
+    "function wakeGalaxy(){if(reduced||!shouldRenderGalaxy())return;if(!last)last=performance.now()-FRAME_MS;scheduleFrame()}",
+    "function wakeGalaxy(){if(!shouldRenderGalaxy())return;if(!last)last=performance.now()-FRAME_MS;scheduleFrame()}",
+  ],
+  [
+    '}scheduleFrame()}addEventListener("resize"',
+    '}if(!reduced)scheduleFrame()}addEventListener("resize"',
+  ],
+] as const;
+
+const GALAXY_REDUCED_BURST_REPLACEMENTS: readonly Replacement[] = [
+  [
+    "window.nur3dBurst=(sx=W/2,sy=H/2,intensity=1)=>{energy=",
+    "window.nur3dBurst=(sx=W/2,sy=H/2,intensity=1)=>{if(reduced)return;energy=",
+  ],
+  [
+    "window.nur3dWordmarkBurst=rect=>{if(!rect)return;",
+    "window.nur3dWordmarkBurst=rect=>{if(reduced||!rect)return;",
+  ],
+] as const;
+
+/* Keep motion delta bounded, but retire finite bursts by elapsed time so a
+ * throttled iframe cannot hold login or route particles for tens of seconds. */
 const GALAXY_PARTICLE_COMPACTION_REPLACEMENT: Replacement = [
   "particles=particles.filter(p=>p.life===Infinity||p.life>0);for(const p of particles){if(p.life!==Infinity){const s=dt/16.67;p.x+=p.vx*s;p.y+=p.vy*s;p.z+=p.vz*s;p.vx*=.986;p.vy*=.986;p.vz*=.982;p.life-=s}}",
-  "let aliveCount=0;for(let particleIndex=0;particleIndex<particles.length;particleIndex++){const p=particles[particleIndex];if(p.life!==Infinity){const s=dt/16.67;p.x+=p.vx*s;p.y+=p.vy*s;p.z+=p.vz*s;p.vx*=.986;p.vy*=.986;p.vz*=.982;p.life-=s;if(p.life<=0)continue}particles[aliveCount++]=p}particles.length=aliveCount;",
+  "let aliveCount=0;for(let particleIndex=0;particleIndex<particles.length;particleIndex++){const p=particles[particleIndex];if(p.life!==Infinity){const s=dt/16.67,lifeStep=Math.max(s,rawDt/16.67);p.x+=p.vx*s;p.y+=p.vy*s;p.z+=p.vz*s;p.vx*=.986;p.vy*=.986;p.vz*=.982;p.life-=lifeStep;if(p.life<=0)continue}particles[aliveCount++]=p}particles.length=aliveCount;",
 ];
 
 const GALAXY_RUNTIME_DIAGNOSTIC_REPLACEMENT: Replacement = [
@@ -170,8 +228,15 @@ const ENTRY_REPLACEMENTS: readonly Replacement[] = [
   GALAXY_PARTICLE_COMPACTION_REPLACEMENT,
   GALAXY_RUNTIME_DIAGNOSTIC_REPLACEMENT,
   GALAXY_STAR_PAINT_REPLACEMENT,
+  GALAXY_STATIC_NEBULA_REPLACEMENT,
   ENTRY_STAGE_VISIBILITY_REPLACEMENT,
   GALAXY_STAGE_OBSERVER_REPLACEMENT,
+  ...GALAXY_REDUCED_MOTION_REPLACEMENTS,
+  ...GALAXY_REDUCED_BURST_REPLACEMENTS,
+  [
+    "function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const rawDt=now-last;",
+    "function frame(now){frameRAF=0;if(!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const rawDt=now-last;",
+  ],
 ] as const;
 
 /*
@@ -224,11 +289,14 @@ const UNIVERSE_REPLACEMENTS: readonly Replacement[] = [
   GALAXY_PARTICLE_COMPACTION_REPLACEMENT,
   GALAXY_RUNTIME_DIAGNOSTIC_REPLACEMENT,
   GALAXY_STAR_PAINT_REPLACEMENT,
+  GALAXY_STATIC_NEBULA_REPLACEMENT,
   UNIVERSE_STAGE_VISIBILITY_REPLACEMENT,
   GALAXY_STAGE_OBSERVER_REPLACEMENT,
+  ...GALAXY_REDUCED_MOTION_REPLACEMENTS,
+  ...GALAXY_REDUCED_BURST_REPLACEMENTS,
   [
     "function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;const rawDt=now-last;",
-    "function frame(now){frameRAF=0;if(reduced||!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;if(innerWidth<700&&now-last<33){scheduleFrame();return}const rawDt=now-last;",
+    "function frame(now){frameRAF=0;if(!shouldRenderGalaxy())return;if(!last)last=now-FRAME_MS;if(innerWidth<700&&now-last<33){scheduleFrame();return}const rawDt=now-last;",
   ],
 ] as const;
 

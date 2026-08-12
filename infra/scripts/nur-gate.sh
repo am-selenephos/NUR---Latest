@@ -282,9 +282,10 @@ gate_G15_SCALE_OPS() {
 gate_G16_FULL_RELEASE() {
   GATE_VERDICT_OVERRIDE="FOUNDER_ACTION_REQUIRED"
   note "FOUNDER_ACTION_REQUIRED_RELEASE_APPROVAL — and G00..G15 are not all PASS"
+  run release_package_contract bash infra/tests/release-package-contract.test.sh
   skip all_gates_pass "prerequisite gates are not all PASS (G16-002)"
-  skip package_release "infra/scripts/package-release.sh not implemented (G16-012)"
-  skip verify_release_package "infra/scripts/verify-release-package.sh does not exist (G16-013)"
+  skip package_release "package emission waits for one exact candidate with all prerequisite gates PASS (G16-012)"
+  skip verify_release_package "independent verification waits for that candidate package (G16-013)"
   skip sbom "no SBOM generator (G16-006)"
   skip status_ledger_v6 "docs/v6/NUR_EXACT_STATUS_LEDGER_V6.md not authored (G16-011)"
 }
@@ -369,7 +370,7 @@ case "${1:-}" in
     for g in "${GATES[@]}"; do
       if [ "$g" = "$1" ]; then mkdir -p "$EVIDENCE_ROOT"; run_gate "$g"; exit $?; fi
     done
-    echo "unknown gate: $1" >&2
+    echo "Unknown NUR gate: $1" >&2
     printf '%s\n' "${GATES[@]}" >&2
     exit 2 ;;
 esac

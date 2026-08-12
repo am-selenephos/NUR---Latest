@@ -1,0 +1,164 @@
+/* Bridge-owned adaptive rendering budget. This layer changes paint cost and
+ * hit areas only; canonical geometry, particles, canvases and route content
+ * remain owned by V197. */
+
+/* The shell has an opaque-enough black film plus its own prism layer. A second
+ * full-height moving-galaxy blur on each rail/topbar is redundant. Dialog and
+ * sheet backdrops intentionally retain their blur. */
+body.universe-edition #nur-front-v61 :is(
+  .nur-rail,
+  .clean-left-rail,
+  .nur-topbar,
+  .nur-context,
+  .clean-right-rail,
+  .global-composer,
+  .universe-composer-shell
+) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Invisible routes and iframe stages must not keep decorative timelines alive.
+ * The V43 runtime mirrors the observable parent-stage state onto the iframe's
+ * root class; no canonical element or route class is rewritten. */
+body.universe-edition #nur-front-v61 .nur-page:not(.active),
+body.universe-edition #nur-front-v61 .nur-page:not(.active) *,
+body.universe-edition #nur-front-v61 .nur-page:not(.active) *::before,
+body.universe-edition #nur-front-v61 .nur-page:not(.active) *::after,
+html.nur-stage-inactive *,
+html.nur-stage-inactive *::before,
+html.nur-stage-inactive *::after {
+  animation-play-state: paused !important;
+}
+
+/* Canonical star/wordmark effects arrive later with important animation
+ * shorthands. Match their ID weight so a hidden iframe cannot restart them. */
+html.nur-stage-inactive body #nur-front-v61#nur-front-v61#nur-front-v61 *,
+html.nur-stage-inactive body #nur-front-v61#nur-front-v61#nur-front-v61 *::before,
+html.nur-stage-inactive body #nur-front-v61#nur-front-v61#nur-front-v61 *::after {
+  animation-play-state: paused !important;
+}
+
+/* A single selected unresolved decision can pulse. Twelve simultaneous pulses
+ * conveyed the same state twelve times and forced continuous SVG repainting. */
+body.universe-edition #nur-front-v61 #nur-map-root
+  .nur-map-node.is-unresolved:not(.is-selected) .nur-map-node-body {
+  animation: none !important;
+}
+
+/* Large shell material keeps its exact resting spectrum without continuously
+ * repainting full-height surfaces. Interactive control sheen remains intact. */
+body.universe-edition #nur-front-v61 :is(
+  .nur-rail,
+  .clean-left-rail,
+  .nur-topbar,
+  .nur-context,
+  .clean-right-rail,
+  .global-composer
+) {
+  animation: none !important;
+  background-position: 50% 50%, 0 0 !important;
+}
+
+/* Systems keeps motion where it communicates interaction: the brain/halos and
+ * holographic controls. Its full-panel material already has a complete resting
+ * spectrum, so continuously shifting those large layers only repaints hundreds
+ * of thousands of pixels behind the same content. */
+body.universe-edition #nur-front-v61 #page-systems.active :is(
+  .universe-map-panel,
+  .universe-map-fog,
+  .universe-insight-panel,
+  #universe-consult,
+  #universe-research,
+  #universe-community,
+  .universe-card.expert-card,
+  .universe-composer-shell
+),
+body.universe-edition #nur-front-v61 #page-systems.active :is(
+  .universe-map-panel,
+  .universe-map-fog,
+  .universe-insight-panel,
+  #universe-consult,
+  #universe-research,
+  #universe-community,
+  .universe-card.expert-card,
+  .universe-composer-shell
+)::before,
+body.universe-edition #nur-front-v61 #page-systems.active :is(
+  .universe-map-panel,
+  .universe-map-fog,
+  .universe-insight-panel,
+  #universe-consult,
+  #universe-research,
+  #universe-community,
+  .universe-card.expert-card,
+  .universe-composer-shell,
+  .universe-map-mantra
+)::after {
+  animation: none !important;
+  background-position: 50% 50%, 0 0 !important;
+}
+
+@media (max-width: 900px), (pointer: coarse) {
+  /* Audit the final hit box, so every real coarse-pointer action gets both
+   * dimensions rather than only the handful named by older selector lists. */
+  body #nur-front-v61 :is(
+    a[href],
+    button,
+    input:not([type="hidden"]),
+    textarea,
+    select,
+    summary,
+    [role="button"],
+    [tabindex]:not([tabindex="-1"])
+  ),
+  body.universe-edition #nur-front-v61 :is(
+    a[href],
+    button,
+    input:not([type="hidden"]),
+    textarea,
+    select,
+    summary,
+    [role="button"],
+    [tabindex]:not([tabindex="-1"])
+  ) {
+    box-sizing: border-box !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
+  body.universe-edition #nur-front-v61 :is(
+    .universe-nav-tabs button,
+    #scope-open
+  ) {
+    width: 44px !important;
+    min-width: 44px !important;
+  }
+
+  /* The compact topbar is scaled as a unit on phone widths. Give its owner
+   * action enough pre-transform height for the final hit box to remain 44px. */
+  body.universe-edition #nur-front-v61 .nur-user {
+    min-height: 52px !important;
+    scale: 1 1.158 !important;
+    transform-origin: center !important;
+  }
+
+  body.universe-edition #nur-front-v61 .nur-user > .nur-signout-label {
+    scale: 1 0.864 !important;
+    transform-origin: center !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* This file is injected last. Reassert the preference here so later
+   * !important wordmark and italic-gold loops cannot revive infinite motion. */
+  body #nur-front-v61#nur-front-v61#nur-front-v61 *,
+  body #nur-front-v61#nur-front-v61#nur-front-v61 *::before,
+  body #nur-front-v61#nur-front-v61#nur-front-v61 *::after,
+  body.universe-edition #nur-front-v61#nur-front-v61#nur-front-v61 *,
+  body.universe-edition #nur-front-v61#nur-front-v61#nur-front-v61 *::before,
+  body.universe-edition #nur-front-v61#nur-front-v61#nur-front-v61 *::after {
+    animation: none !important;
+    animation-iteration-count: 1 !important;
+  }
+}

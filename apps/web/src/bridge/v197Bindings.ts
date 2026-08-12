@@ -141,6 +141,7 @@ export class V197ActionBindings {
       ["Teach NUR", "/teach-nur"],
       ["Billing", "/billing"],
       ["Capsules", "/capsules"],
+      ["Agents", "/agents"],
       ["Projects", "/projects"],
       ["Notifications", "/notifications"],
       ["Glow", "/glow"],
@@ -158,6 +159,16 @@ export class V197ActionBindings {
     logout.textContent = "Sign out of NUR";
     menu.append(note, navigation, logout);
     this.document.body.append(menu);
+  }
+
+  private placeOwnerAuthMenu(trigger: HTMLElement, menu: HTMLElement): void {
+    const view = this.universeWindow();
+    const rect = trigger.getBoundingClientRect();
+    const viewportWidth = view?.innerWidth ?? this.document.documentElement.clientWidth;
+    const menuWidth = Math.min(260, Math.max(220, viewportWidth - 24));
+    const left = Math.max(12, Math.min(viewportWidth - menuWidth - 12, rect.right - menuWidth));
+    menu.style.setProperty("--nur-owner-menu-top", `${Math.round(rect.bottom + 8)}px`);
+    menu.style.setProperty("--nur-owner-menu-left", `${Math.round(left)}px`);
   }
 
   private universeWindow(): V197UniverseWindow | null {
@@ -747,7 +758,12 @@ export class V197ActionBindings {
     if (ownerButton) {
       this.blockNative(event);
       const menu = this.document.getElementById("nur-v197-owner-auth-menu");
-      if (menu) menu.hidden = !menu.hidden;
+      if (menu) {
+        const opening = menu.hidden;
+        if (opening) this.placeOwnerAuthMenu(ownerButton, menu);
+        menu.hidden = !opening;
+        ownerButton.setAttribute("aria-expanded", String(opening));
+      }
       return;
     }
 
@@ -974,11 +990,193 @@ export function bindV197Actions(
   ).bind();
 }
 
+type V197EntryAuthApi = Pick<
+  V197ApiClient,
+  "register" | "login" | "forgotPassword" | "resetPassword"
+>;
+
+const V197_RECOVERY_DIALOG_ID = "nur-v197-password-recovery";
+
+function bindV197PasswordRecovery(
+  document: Document,
+  api: V197EntryAuthApi,
+): () => void {
+  const signInForm = document.querySelector<HTMLFormElement>("#f4-signin-form");
+  if (!signInForm) return () => undefined;
+
+  const switchRow = document.createElement("p");
+  switchRow.className = "f4-switch nur-v197-recovery-switch";
+  const openButton = document.createElement("button");
+  openButton.type = "button";
+  openButton.dataset.passwordRecoveryOpen = "true";
+  openButton.textContent = "Reset your password";
+  switchRow.append("Cannot enter? ", openButton);
+  signInForm.insertAdjacentElement("afterend", switchRow);
+
+  const dialog = document.createElement("dialog");
+  dialog.id = V197_RECOVERY_DIALOG_ID;
+  dialog.className = "nur-v197-recovery-dialog";
+  dialog.setAttribute("aria-labelledby", "nur-v197-recovery-title");
+  const chamber = document.createElement("section");
+  chamber.className = "nur-v197-recovery-chamber";
+  dialog.append(chamber);
+  document.body.append(dialog);
+
+  let activeToken: string | null = null;
+
+  const close = () => {
+    if (typeof dialog.close === "function" && dialog.open) dialog.close();
+    else dialog.removeAttribute("open");
+    openButton.focus({ preventScroll: true });
+  };
+  const show = () => {
+    if (typeof dialog.showModal === "function") dialog.showModal();
+    else dialog.setAttribute("open", "");
+    dialog.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+  };
+
+  const render = (token: string | null) => {
+    activeToken = token;
+    chamber.replaceChildren();
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.className = "nur-v197-recovery-close";
+    closeButton.dataset.passwordRecoveryClose = "true";
+    closeButton.setAttribute("aria-label", "Close password recovery");
+    closeButton.textContent = "Close";
+    const title = document.createElement("h2");
+    title.id = "nur-v197-recovery-title";
+    title.textContent = token ? "Choose a new password." : "Return to your Orbit.";
+    const copy = document.createElement("p");
+    copy.textContent = token
+      ? "Set a new password for this one-time recovery link."
+      : "Enter your account email. NUR will send instructions if an Orbit matches it.";
+    const form = document.createElement("form");
+    form.id = token ? "nur-v197-reset-form" : "nur-v197-forgot-form";
+    const field = document.createElement("label");
+    field.className = "nur-v197-recovery-field";
+    const fieldName = document.createElement("span");
+    fieldName.textContent = token ? "new password" : "email";
+    const input = document.createElement("input");
+    input.required = true;
+    if (token) {
+      input.id = "nur-v197-reset-password";
+      input.type = "password";
+      input.autocomplete = "new-password";
+      input.minLength = 8;
+      input.maxLength = 256;
+    } else {
+      input.id = "nur-v197-forgot-email";
+      input.type = "email";
+      input.autocomplete = "email";
+      input.value = inputValue(document, "#f4-signin-email");
+    }
+    field.append(fieldName, input);
+    form.append(field);
+    if (token) {
+      const confirmationField = document.createElement("label");
+      confirmationField.className = "nur-v197-recovery-field";
+      const confirmationName = document.createElement("span");
+      confirmationName.textContent = "confirm password";
+      const confirmation = document.createElement("input");
+      confirmation.id = "nur-v197-reset-confirmation";
+      confirmation.type = "password";
+      confirmation.autocomplete = "new-password";
+      confirmation.required = true;
+      confirmation.minLength = 8;
+      confirmation.maxLength = 256;
+      form.append(confirmationField);
+      confirmationField.append(confirmationName, confirmation);
+    }
+    const submit = document.createElement("button");
+    submit.type = "submit";
+    submit.className = "f4-primary";
+    submit.textContent = token ? "Set new password" : "Send reset instructions";
+    const status = document.createElement("p");
+    status.className = "nur-v197-recovery-status";
+    status.dataset.passwordRecoveryStatus = "true";
+    status.setAttribute("role", "status");
+    status.setAttribute("aria-live", "polite");
+    form.append(submit);
+    chamber.append(closeButton, title, copy, form, status);
+  };
+
+  const url = new URL(window.location.href);
+  const resetToken = url.pathname === "/reset-password" ? url.searchParams.get("token") : null;
+  render(resetToken);
+
+  const clickHandler = (event: Event) => {
+    const target = event.target as Element | null;
+    if (target?.closest('[data-password-recovery-open="true"]')) {
+      render(null);
+      show();
+    } else if (target?.closest('[data-password-recovery-close="true"]')) {
+      close();
+    }
+  };
+  const submitHandler = (event: SubmitEvent) => {
+    const form = event.target as HTMLFormElement | null;
+    if (!form || !["nur-v197-forgot-form", "nur-v197-reset-form"].includes(form.id)) return;
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    const status = dialog.querySelector<HTMLElement>('[data-password-recovery-status="true"]');
+    const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+    submit?.setAttribute("aria-busy", "true");
+    if (submit) submit.disabled = true;
+    if (status) {
+      status.textContent = "Working…";
+      status.className = "nur-v197-recovery-status";
+      status.setAttribute("role", "status");
+    }
+
+    const task = form.id === "nur-v197-forgot-form"
+      ? api.forgotPassword(inputValue(document, "#nur-v197-forgot-email")).then(result => result.message)
+      : (() => {
+          const password = inputValue(document, "#nur-v197-reset-password");
+          const confirmation = inputValue(document, "#nur-v197-reset-confirmation");
+          if (password !== confirmation) return Promise.reject(new Error("The two passwords do not match."));
+          if (!activeToken) return Promise.reject(new Error("This recovery link is missing its one-time token."));
+          return api.resetPassword(activeToken, password).then(() => {
+            window.history.replaceState({}, "", "/auth");
+            activeToken = null;
+            return "Password changed. Sign in to return to your Orbit.";
+          });
+        })();
+
+    void task.then(message => {
+      if (status) {
+        status.textContent = message;
+        status.classList.add("is-good");
+      }
+    }).catch(error => {
+      if (status) {
+        status.textContent = errorMessage(error);
+        status.classList.add("is-warn");
+        status.setAttribute("role", "alert");
+      }
+    }).finally(() => {
+      submit?.removeAttribute("aria-busy");
+      if (submit) submit.disabled = false;
+    });
+  };
+
+  document.addEventListener("click", clickHandler, true);
+  document.addEventListener("submit", submitHandler, true);
+  if (resetToken) window.setTimeout(show, 0);
+  return () => {
+    document.removeEventListener("click", clickHandler, true);
+    document.removeEventListener("submit", submitHandler, true);
+    switchRow.remove();
+    dialog.remove();
+  };
+}
+
 export function bindV197EntryAuth(
   document: Document,
-  api: Pick<V197ApiClient, "register" | "login">,
+  api: V197EntryAuthApi,
   onAuthenticated: (session: V197Session) => Promise<void>,
 ): () => void {
+  const recoveryCleanup = bindV197PasswordRecovery(document, api);
   const waitLayer = ensureV197AuthWaitLayer(document);
   const handler = (event: Event) => {
     const form = event.target as HTMLFormElement | null;
@@ -1054,7 +1252,10 @@ export function bindV197EntryAuth(
     });
   };
   document.addEventListener("submit", handler, true);
-  return () => document.removeEventListener("submit", handler, true);
+  return () => {
+    document.removeEventListener("submit", handler, true);
+    recoveryCleanup();
+  };
 }
 
 const V197_AUTH_WAIT_ID = "nur-v197-auth-wait";

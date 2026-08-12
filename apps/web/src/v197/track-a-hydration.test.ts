@@ -345,16 +345,17 @@ describe("Track A V197 persisted hydration", () => {
     expect(community?.textContent).toContain("Rebuild circle");
     expect(community?.textContent).toContain("Walkthrough room · DEMO");
     expect(community?.textContent).toContain("your role member");
-    expect(community?.textContent).toContain("First honest group line.");
-    expect(community?.textContent).toContain("owner written");
+    expect(community?.textContent).not.toContain("First honest group line.");
+    expect(community?.textContent).not.toContain("owner written");
     expect(community?.textContent).not.toContain("142 fake replies");
-    const postButton = document.querySelector<HTMLButtonElement>('[data-action="community-post-message"]');
-    expect(postButton?.disabled).toBe(false);
-    expect(document.querySelector<HTMLInputElement>("#nur-v197-room-title")).not.toBeNull();
-    // Member and Council controls are live because a room and a Council exist.
-    expect(document.querySelector<HTMLButtonElement>('[data-action="community-add-member"]')?.disabled).toBe(false);
-    expect(document.querySelector<HTMLButtonElement>('[data-action="council-add-position"]')?.disabled).toBe(false);
-    expect(document.querySelector<HTMLButtonElement>('[data-action="council-record-decision"]')?.disabled).toBe(false);
+    expect(community?.querySelector('[data-world-focus="community"]')?.textContent)
+      .toContain("Open Community");
+    expect(document.querySelector("#nur-v197-community-controls")).toBeNull();
+    expect(document.querySelector('[data-action="community-post-message"]')).toBeNull();
+    expect(document.querySelector("#nur-v197-room-title")).toBeNull();
+    expect(document.querySelector('[data-action="community-add-member"]')).toBeNull();
+    expect(document.querySelector('[data-action="council-add-position"]')).toBeNull();
+    expect(document.querySelector('[data-action="council-record-decision"]')).toBeNull();
 
     renderWorldLens(document, state, "community");
     expect(document.querySelector(".system-badge")?.textContent).toContain("Community lens");
@@ -364,17 +365,19 @@ describe("Track A V197 persisted hydration", () => {
     expect(document.querySelector(".universe-system-lane")?.textContent).toContain("Repair council");
   });
 
-  it("keeps the community composer honestly disabled until a room exists", () => {
+  it("keeps empty Community honest and routes all writing to its dedicated workspace", () => {
     const document = fixture();
     const state = snapshot();
     state.communityRooms = [];
     hydrateTrackAV197(document, state);
-    const postButton = document.querySelector<HTMLButtonElement>('[data-action="community-post-message"]');
-    expect(postButton?.disabled).toBe(true);
-    expect(postButton?.title).toContain("Create a room before posting");
-    expect(document.querySelector<HTMLButtonElement>('[data-action="community-add-member"]')?.disabled).toBe(true);
-    expect(document.querySelector<HTMLButtonElement>('[data-action="council-add-position"]')?.disabled).toBe(true);
-    expect(document.querySelector<HTMLButtonElement>('[data-action="council-record-decision"]')?.title).toContain("Start a Council");
-    expect(document.querySelector("#universe-community")?.textContent).toContain("No fake people, replies, or rooms.");
+    const community = document.querySelector("#universe-community");
+    expect(community?.textContent).toContain("No fake people, replies, or rooms.");
+    expect(community?.querySelector('[data-world-focus="community"]')?.textContent)
+      .toContain("Open Community");
+    expect(document.querySelector("#nur-v197-community-controls")).toBeNull();
+    expect(document.querySelector('[data-action="community-post-message"]')).toBeNull();
+    expect(document.querySelector('[data-action="community-add-member"]')).toBeNull();
+    expect(document.querySelector('[data-action="council-add-position"]')).toBeNull();
+    expect(document.querySelector('[data-action="council-record-decision"]')).toBeNull();
   });
 });

@@ -27,7 +27,7 @@ describe("V197 deterministic runtime performance profile", () => {
     const result = applyV197PerformanceProfile(canonical, "entry");
 
     expect(result.applied).toBe(true);
-    expect(result.replacementCount).toBe(17);
+    expect(result.replacementCount).toBe(24);
 
     // Optimisations that cost nothing visible are kept.
     expect(result.source).toContain("const mobile=Math.max(innerWidth,parent.innerWidth||0)<700");
@@ -38,6 +38,7 @@ describe("V197 deterministic runtime performance profile", () => {
     expect(result.source).toContain("let aliveCount=0");
     expect(result.source).not.toContain("particles=particles.filter");
     expect(result.source).toContain("getTransientParticleCount");
+    expect(result.source).toContain("lifeStep=Math.max(s,rawDt/16.67)");
 
     // Four-point stars are the visual target, not an optimisation.
     expect(result.source).toContain('if(!isS&&p.kind==="galaxy")');
@@ -74,6 +75,27 @@ describe("V197 deterministic runtime performance profile", () => {
     // No hand-rolled frame cap: 34ms held Entry at 29 FPS.
     expect(result.source).not.toContain("minFrameGap");
 
+    // Reduced motion keeps the complete rig as a still frame instead of
+    // suppressing the first paint and leaving a transparent canvas.
+    expect(result.source).toContain(
+      "function scheduleFrame(){if(frameRAF)return;frameRAF=requestAnimationFrame(frame)}",
+    );
+    expect(result.source).toContain(
+      "function frame(now){frameRAF=0;if(!shouldRenderGalaxy())return;",
+    );
+    expect(result.source).toContain("if(!reduced)scheduleFrame()");
+    expect(result.source).toContain("reducedPaintAttempts>=24");
+    expect(result.source).toContain("clearInterval(reducedPaintTimer)");
+    expect(result.source).toContain(
+      "window.nur3dBurst=(sx=W/2,sy=H/2,intensity=1)=>{if(reduced)return;",
+    );
+    expect(result.source).toContain(
+      "window.nur3dWordmarkBurst=rect=>{if(reduced||!rect)return;",
+    );
+    expect(result.source).toContain(
+      'canvas.dataset.nurNebulaBackdrop!=="css-static-v1"',
+    );
+
     // Visibility is decided by observable display state, not a class name.
     expect(result.source).toContain("__nurStageVisible");
     expect(result.source).toContain("now-__nurStageVisAt<250");
@@ -86,10 +108,13 @@ describe("V197 deterministic runtime performance profile", () => {
     const result = applyV197PerformanceProfile(canonical, "universe");
 
     expect(result.applied).toBe(true);
-    expect(result.replacementCount).toBe(15);
+    expect(result.replacementCount).toBe(21);
 
-    // The three deletions that removed depth outright.
-    expect(result.source).toContain("if(profile.nebula>.48)drawNebula(t);");
+    // The deep-space wash remains present as a static CSS backdrop. Canonical
+    // canvas paint is retained as a fallback if presentation did not install it.
+    expect(result.source).toContain(
+      'if(profile.nebula>.48&&canvas.dataset.nurNebulaBackdrop!=="css-static-v1")drawNebula(t);',
+    );
     expect(result.source).not.toContain("if(false)drawNebula(t);");
     expect(result.source).toContain("if(farAlpha>.095&&farR>.7)spike(");
     expect(result.source).toContain("Math.max(1,Math.min(devicePixelRatio||1,1.5");
@@ -107,7 +132,19 @@ describe("V197 deterministic runtime performance profile", () => {
     expect(result.source).not.toContain("minFrameGap");
     expect(result.source).toContain("innerWidth<700&&now-last<33");
     expect(result.source).toContain(
-      "function scheduleFrame(){if(reduced||frameRAF)return;frameRAF=requestAnimationFrame(frame)}",
+      "function scheduleFrame(){if(frameRAF)return;frameRAF=requestAnimationFrame(frame)}",
+    );
+    expect(result.source).toContain(
+      "function frame(now){frameRAF=0;if(!shouldRenderGalaxy())return;",
+    );
+    expect(result.source).toContain("if(!reduced)scheduleFrame()");
+    expect(result.source).toContain("reducedPaintAttempts>=24");
+    expect(result.source).toContain("clearInterval(reducedPaintTimer)");
+    expect(result.source).toContain(
+      "window.nur3dBurst=(sx=W/2,sy=H/2,intensity=1)=>{if(reduced)return;",
+    );
+    expect(result.source).toContain(
+      "window.nur3dWordmarkBurst=rect=>{if(reduced||!rect)return;",
     );
 
     // Kept optimisations.
@@ -115,6 +152,7 @@ describe("V197 deterministic runtime performance profile", () => {
     expect(result.source).toContain("nodes=nodeCache");
     expect(result.source).toContain("projectionCache=[]");
     expect(result.source).toContain("let aliveCount=0");
+    expect(result.source).toContain("lifeStep=Math.max(s,rawDt/16.67)");
     expect(result.source).toContain("getTransientParticleCount");
     expect(result.source).toContain('if(!isS&&p.kind==="galaxy")');
 

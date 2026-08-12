@@ -253,14 +253,17 @@ body.universe-edition .nur-viewport {
 
 #nur-v197-owner-auth-menu {
   position: fixed;
-  inset-block-start: 58px;
-  inset-inline-end: 18px;
+  inset-block-start: var(--nur-owner-menu-top, 68px);
+  inset-inline-start: var(--nur-owner-menu-left, auto);
+  inset-inline-end: auto;
   z-index: var(--nur-layer-popover);
   width: min(260px, calc(100vw - 36px));
   padding: 14px;
   border: 1px solid var(--nur-line);
   border-radius: var(--nur-radius-control);
-  background: rgba(3, 3, 7, .94);
+  background:
+    linear-gradient(110deg, rgba(255, 70, 86, .012), rgba(255, 220, 92, .018), rgba(72, 235, 175, .012), rgba(79, 204, 255, .011), rgba(90, 112, 255, .01), rgba(193, 107, 255, .011)),
+    rgba(0, 0, 0, .96);
   box-shadow: var(--nur-panel-shadow);
   color: var(--nur-text);
   font: 16px/1.35 "Crimson Pro", serif;
@@ -296,6 +299,100 @@ body.universe-edition .nur-viewport {
     inset 0 -1px 0 rgba(255, 222, 150, .13),
     var(--nur-control-shadow);
   cursor: pointer;
+}
+
+.nur-v197-recovery-switch {
+  margin-block-start: 12px !important;
+}
+
+.nur-v197-recovery-dialog {
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--nur-line);
+  border-radius: var(--nur-radius-panel);
+  background:
+    linear-gradient(120deg, rgba(255, 85, 115, .018), rgba(255, 218, 100, .02), rgba(73, 230, 180, .015), rgba(78, 205, 255, .016), rgba(188, 105, 255, .016)),
+    rgba(0, 0, 0, .975);
+  color: var(--nur-text);
+  box-shadow: var(--nur-panel-shadow);
+}
+
+.nur-v197-recovery-dialog::backdrop {
+  background: rgba(0, 0, 0, .84);
+  backdrop-filter: blur(8px);
+}
+
+.nur-v197-recovery-chamber {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  padding: 28px;
+}
+
+.nur-v197-recovery-chamber h2,
+.nur-v197-recovery-chamber p {
+  margin: 0;
+}
+
+.nur-v197-recovery-chamber h2 {
+  padding-inline-end: 72px;
+  color: var(--nur-text);
+  font: 500 34px/1.05 "Bodoni Moda", serif;
+}
+
+.nur-v197-recovery-chamber > p {
+  color: var(--nur-text-soft);
+  font: 16px/1.45 "Crimson Pro", serif;
+}
+
+.nur-v197-recovery-close {
+  position: absolute;
+  inset-block-start: 18px;
+  inset-inline-end: 18px;
+  min-height: 38px;
+  padding-inline: 13px;
+}
+
+.nur-v197-recovery-chamber form,
+.nur-v197-recovery-field {
+  display: grid;
+  gap: 10px;
+}
+
+.nur-v197-recovery-chamber form {
+  gap: 14px;
+}
+
+.nur-v197-recovery-field span {
+  color: var(--nur-champagne);
+  font: italic 15px/1 "Crimson Pro", serif;
+}
+
+.nur-v197-recovery-field input {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--nur-line);
+  border-radius: var(--nur-radius-control);
+  background: rgba(0, 0, 0, .52);
+  color: var(--nur-text);
+  font: 17px/1.2 "Crimson Pro", serif;
+}
+
+.nur-v197-recovery-status {
+  min-height: 22px;
+  color: var(--nur-text-soft) !important;
+}
+
+.nur-v197-recovery-status.is-good {
+  color: var(--nur-success) !important;
+}
+
+.nur-v197-recovery-status.is-warn {
+  color: var(--nur-gold) !important;
 }
 
 #nur-v197-auth-wait {

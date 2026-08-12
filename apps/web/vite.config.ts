@@ -11,6 +11,7 @@ const canonicalV197Filename = "NUR_V197_CHECKBOX_TICK_RESTORED.html";
 const nativeV197Routes = new Set([
   "/",
   "/auth",
+  "/reset-password",
   "/onboarding",
   "/today",
   "/talk",
@@ -22,14 +23,18 @@ const nativeV197Routes = new Set([
   "/universe/orbits",
   "/universe/timeline",
   "/universe/insights",
+  "/universe/insights/candidates",
+  "/universe/consultation",
   "/universe/research",
   "/universe/community",
+  "/universe/experts",
   "/universe/web-signals",
   "/settings",
   "/memory",
   "/teach-nur",
   "/billing",
   "/capsules",
+  "/agents",
   "/universe/omega",
   "/universe/omega/review",
 ]);
@@ -45,12 +50,16 @@ function isNativeV197Route(value: string): boolean {
     || value.startsWith("/plan/")
     || value.startsWith("/systems/")
     || value === "/universe/life"
+    || value.startsWith("/universe/consultation/")
+    || value.startsWith("/universe/community/")
+    || value.startsWith("/universe/insights/candidates/")
     || value.startsWith("/capsule/")
     || value === "/consultations"
     || value.startsWith("/consultations/")
     || value === "/community"
     || value.startsWith("/community/")
     || value === "/projects"
+    || value.startsWith("/agents/")
     || value.startsWith("/projects/")
     || value === "/glow"
     || value === "/notifications"
@@ -62,13 +71,22 @@ function composedV197Document(sourcePath: string): string {
   const bridge = '<script type="module" src="/assets/v197-bridge.js"></script>';
   const pwa = '<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#000000">';
   const performanceProfile = buildV197PerformanceBootstrap();
+  const presentationGuard = [
+    '<style id="nur-v197-presentation-guard">',
+    'html:not([data-nur-entry-polished="true"]) #nur-entry-stage,',
+    'html:not([data-nur-universe-polished="true"]) #nur-universe-stage {',
+    'visibility:hidden!important;opacity:0!important;pointer-events:none!important',
+    '}',
+    '</style>',
+  ].join("");
   if (!source.includes("</body>")) throw new Error("Canonical V197 source is missing its closing body tag.");
   // Preserve the canonical file byte-for-byte on disk and at /v197/. Native
   // product routes add only a deterministic runtime quality profile, PWA
-  // metadata, and the nonvisual bridge. The profile runs before V197 assigns
-  // either srcdoc and falls back to canonical bytes if a signature drifts.
+  // metadata, a reveal guard, and the nonvisual bridge. The profile and guard
+  // run before V197 assigns either srcdoc, so an unpolished legacy frame can
+  // never flash underneath the current presentation.
   return source
-    .replace("</head>", `${pwa}${performanceProfile}</head>`)
+    .replace("</head>", `${pwa}${performanceProfile}${presentationGuard}</head>`)
     .replace("</body>", `${bridge}</body>`);
 }
 

@@ -24,23 +24,33 @@ async function installMocks(page: Page): Promise<{
   communityWrites: Array<{ path: string; body: Record<string, unknown> }>;
   projectWrites: Array<{ path: string; body: Record<string, unknown> }>;
   notificationWrites: Array<{ path: string; body: Record<string, unknown> }>;
+  passwordWrites: Array<Record<string, unknown>>;
 }> {
   const preferenceWrites: Array<Record<string, unknown>> = [];
   const consultationWrites: Array<{ path: string; body: Record<string, unknown> }> = [];
   const communityWrites: Array<{ path: string; body: Record<string, unknown> }> = [];
   const projectWrites: Array<{ path: string; body: Record<string, unknown> }> = [];
   const notificationWrites: Array<{ path: string; body: Record<string, unknown> }> = [];
+  const passwordWrites: Array<Record<string, unknown>> = [];
+  let notificationRead = false;
+  let passwordChanged = false;
   await page.context().addCookies([{ name: "nur_csrf", value: "adjunct-proof", domain: "localhost", path: "/" }]);
   await page.route("**/healthz", route => json(route, { status: "healthy", ai_provider: "openai" }));
   await page.route("**/api/v1/**", async route => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace("/api/v1", "");
+    if (path === "/auth/me" && passwordChanged) return json(route, { detail: "Not authenticated" }, 401);
     if (path === "/auth/me") return json(route, {
       id: ownerId,
       email: "owner@nur.app",
       profile: { chosen_name: "Mahnoor", locale: "en", writing_preference: "default" },
       orbit: { id: orbitId, title: "Private Orbit", kind: "PERSONAL", status: "ACTIVE" },
     });
+    if (path === "/auth/password/change" && request.method() === "POST") {
+      passwordWrites.push(request.postDataJSON() as Record<string, unknown>);
+      passwordChanged = true;
+      return route.fulfill({ status: 204, body: "" });
+    }
     if (path === "/profile/preferences" && request.method() === "PATCH") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       preferenceWrites.push(payload);
@@ -51,6 +61,49 @@ async function installMocks(page: Page): Promise<{
       reduced_effects: false, omega_enabled: true, timezone: "Asia/Karachi",
     });
     if (path === "/orbits/current-state") return json(route, { active_systems: 7, outcomes_returned: 2, insights_evolving: 1, open_questions: 1, research_staged: 1, plans_active: 1, live_status: "OWNER_LEDGER" });
+    if (path === "/universe/live") return json(route, {
+      generated_at: new Date().toISOString(),
+      provenance_label: "OWNER_LEDGER_AGGREGATE",
+      owner: {
+        id: ownerId,
+        email: "owner@nur.app",
+        chosen_name: "Mahnoor",
+        timezone: "Asia/Karachi",
+        locale: "en",
+        writing_preference: "default",
+        default_boundary: "PRIVATE_ORBIT",
+      },
+      state: {
+        summary: "Six founder-locked Systems are active.",
+        source_count: 1,
+        confidence: 1,
+        confidence_kind: "source_coverage_not_truth_probability",
+        last_updated: new Date().toISOString(),
+        today: null,
+        provenance_label: "DETERMINISTIC_OWNER_LEDGER_SYNTHESIS",
+      },
+      active_systems: [],
+      active_goals: [],
+      active_objectives: [],
+      active_plans: [],
+      people_orbits: [],
+      group_orbits: [],
+      projects: [],
+      latest_insights: [],
+      timeline_highlights: [],
+      open_loops: [],
+      next_moves: [],
+      glow: { today_points: 0 },
+      signals: [],
+      community: {
+        live_connected: false,
+        status: "LOCAL_NOTES_ONLY",
+        note_count: 0,
+        latest_note: null,
+        honest_state: "No live community activity is invented.",
+      },
+      what_changed: [],
+    });
     if (path === "/universe/map-summary") return json(route, { provenance_label: "OWNER_LEDGER", counts: [], nodes: [] });
     if (path === "/universe/orbits-summary") return json(route, { provenance_label: "OWNER_LEDGER", orbits: [] });
     if (path === "/universe/timeline") return json(route, { provenance_label: "OWNER_LEDGER", items: [] });
@@ -144,7 +197,8 @@ async function installMocks(page: Page): Promise<{
       id: notificationId, category: "PROGRESS", title: "Return to one real move",
       body: "One owner-written reminder is waiting.", route: "/plan",
       source_type: "OWNER_REMINDER", provenance_label: "OWNER_WRITTEN",
-      delivery_state: "IN_APP", is_demo: false, read_at: null,
+      delivery_state: "IN_APP", is_demo: false,
+      read_at: notificationRead ? new Date().toISOString() : null,
       created_at: new Date().toISOString(),
     }]);
     if (path === "/notifications/reminders" && request.method() === "POST") {
@@ -153,6 +207,7 @@ async function installMocks(page: Page): Promise<{
       return json(route, { id: "notification-2", ...payload, source_type: "OWNER_REMINDER", provenance_label: "OWNER_WRITTEN", delivery_state: "IN_APP", read_at: null, created_at: new Date().toISOString() }, 201);
     }
     if (path === `/notifications/${notificationId}/read` && request.method() === "POST") {
+      notificationRead = true;
       notificationWrites.push({ path, body: request.postDataJSON() as Record<string, unknown> });
       return json(route, { id: notificationId, read_at: new Date().toISOString() });
     }
@@ -160,7 +215,7 @@ async function installMocks(page: Page): Promise<{
     if (["/universe/live", "/map", "/glow/scoreboard", "/projects/summary"].includes(path)) return json(route, null);
     return json(route, request.method() === "GET" ? [] : {}, request.method() === "POST" ? 201 : 200);
   });
-  return { preferenceWrites, consultationWrites, communityWrites, projectWrites, notificationWrites };
+  return { preferenceWrites, consultationWrites, communityWrites, projectWrites, notificationWrites, passwordWrites };
 }
 
 async function screenshot(page: Page, name: string): Promise<void> {
@@ -168,6 +223,121 @@ async function screenshot(page: Page, name: string): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   await page.screenshot({ path, fullPage: true, animations: "disabled" });
 }
+
+test("dedicated Universe chambers fetch only their scoped owner data", async ({ page }) => {
+  test.slow();
+  const requested: string[] = [];
+  page.on("request", request => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/v1/")) {
+      requested.push(`${request.method()} ${url.pathname}${url.search}`);
+    }
+  });
+  await installMocks(page);
+  const chambers = [
+    {
+      route: "/universe/consultation",
+      title: "A question moves when context returns.",
+      current: "◌ Consultation",
+      requests: [
+        "GET /api/v1/auth/me",
+        "GET /api/v1/consultations",
+        "GET /api/v1/community/rooms",
+      ],
+    },
+    {
+      route: "/universe/research",
+      title: "Research that shows its evidence.",
+      current: "⌕ Research",
+      requests: [
+        "GET /api/v1/auth/me",
+        "GET /api/v1/research/briefs",
+        "GET /api/v1/research/jobs",
+        "GET /api/v1/research/sources",
+        "GET /api/v1/research/claims",
+      ],
+    },
+    {
+      route: "/universe/community",
+      title: "Shared signal without private spill.",
+      current: "◎ Community",
+      requests: [
+        "GET /api/v1/auth/me",
+        "GET /api/v1/community/rooms",
+        `GET /api/v1/community/rooms/${roomId}/posts`,
+      ],
+    },
+    {
+      route: "/universe/experts",
+      title: "Expert voice with provenance attached.",
+      current: "✣ Experts",
+      requests: [
+        "GET /api/v1/auth/me",
+        "GET /api/v1/experts/profiles",
+        "GET /api/v1/experts/verifications",
+        "GET /api/v1/community/rooms",
+        "GET /api/v1/research/sources",
+        `GET /api/v1/experts/rooms/${roomId}/contributions`,
+      ],
+    },
+    {
+      route: "/universe/insights/candidates",
+      title: "Candidate insight, never silent truth.",
+      current: "✧ Candidates",
+      requests: [
+        "GET /api/v1/auth/me",
+        "GET /api/v1/insights?limit=80",
+      ],
+    },
+  ] as const;
+  const universe = page.frameLocator("#nur-universe-stage");
+
+  for (const chamber of chambers) {
+    requested.length = 0;
+    await page.goto(chamber.route, { waitUntil: "networkidle" });
+    const root = universe.locator("#nur-v197-adjunct-root");
+    await expect(root).toBeVisible();
+    await expect(root.locator("h1")).toHaveText(chamber.title);
+    await expect(root.locator('.nur-adjunct-universe-nav [aria-current="page"]'))
+      .toHaveText(chamber.current);
+    expect([...new Set(requested)].sort()).toEqual([...chamber.requests].sort());
+    const geometry = await universe.locator("body").evaluate(() => {
+      const ids = [...document.querySelectorAll("[id]")].map(node => node.id);
+      const visible = (selector: string) => {
+        const node = document.querySelector<HTMLElement>(selector);
+        if (!node) return false;
+        const style = getComputedStyle(node);
+        const rect = node.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden"
+          && Number(style.opacity) > 0 && rect.width > 1 && rect.height > 1;
+      };
+      return {
+        documentWidth: document.documentElement.scrollWidth,
+        viewportWidth: innerWidth,
+        duplicateIds: [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))],
+        galaxy: visible("#space3d"),
+        brain: visible("#nur-brain-canvas"),
+      };
+    });
+    expect(geometry.documentWidth).toBe(geometry.viewportWidth);
+    expect(geometry.duplicateIds).toEqual([]);
+    expect(geometry.galaxy).toBe(true);
+    expect(geometry.brain).toBe(true);
+  }
+
+  requested.length = 0;
+  await universe.locator(".nur-adjunct-universe-nav button").first().click();
+  await expect(page).toHaveURL(/\/universe$/);
+  await expect(universe.locator("#nur-v197-adjunct-root")).toHaveCount(0);
+  await expect(universe.locator("#nur-brain-canvas")).toBeVisible();
+  await expect(universe.locator("body"))
+    .toHaveAttribute("data-nur-live-provenance", "OWNER_LEDGER_AGGREGATE");
+  await expect(universe.locator("#page-systems .page-sub"))
+    .toContainText("Six founder-locked Systems are active.");
+  expect(requested).toContain("GET /api/v1/universe/live");
+  expect(requested).toContain("GET /api/v1/cognition/talk-thread");
+  expect(requested).toContain("GET /api/v1/community/rooms");
+});
 
 test("Settings is a real V197-native owner surface and persists language", async ({ page }, testInfo) => {
   const state = await installMocks(page);
@@ -184,6 +354,84 @@ test("Settings is a real V197-native owner surface and persists language", async
   await expect.poll(() => state.preferenceWrites.length).toBe(1);
   expect(state.preferenceWrites[0]).toMatchObject({ locale: "ur", writing_preference: "roman" });
   await screenshot(page, `${testInfo.project.name}-settings-v197-native.png`);
+});
+
+test("owner menu discovers adjunct chambers without a direct URL", async ({ page }) => {
+  await installMocks(page);
+  await page.goto("/today");
+  const universe = page.frameLocator("#nur-universe-stage");
+  await universe.locator(".nur-user").click();
+  await expect(universe.locator("#nur-v197-owner-auth-menu")).toBeVisible();
+  await universe.locator('[data-owner-route="/settings"]').click();
+  await expect(page).toHaveURL(/\/settings$/);
+  await expect(universe.locator("#nur-v197-adjunct-root")).toBeVisible();
+  await expect(universe.locator("#nur-v197-adjunct-root h1")).toHaveText("Your NUR, held on your terms.");
+});
+
+test("Settings changes the password and returns to the signed-out Entry", async ({ page }) => {
+  const state = await installMocks(page);
+  await page.goto("/settings");
+  const universe = page.frameLocator("#nur-universe-stage");
+  await universe.locator('[data-adjunct-control="current-password"]').fill("current-private-password");
+  await universe.locator('[data-adjunct-control="new-password"]').fill("new-private-password-2026");
+  await universe.locator('[data-adjunct-control="confirm-password"]').fill("new-private-password-2026");
+  await universe.locator('[data-adjunct-action="settings-change-password"]').click();
+
+  await expect.poll(() => state.passwordWrites.length).toBe(1);
+  expect(state.passwordWrites[0]).toEqual({
+    current_password: "current-private-password",
+    new_password: "new-private-password-2026",
+  });
+  await expect(page).toHaveURL(/\/auth$/);
+  await expect(page.frameLocator("#nur-entry-stage").locator("#f4-signin")).toBeVisible();
+});
+
+test("full-screen adjuncts isolate and restore the canonical keyboard surface", async ({ page }) => {
+  await installMocks(page);
+  await page.goto("/settings");
+  const universe = page.frameLocator("#nur-universe-stage");
+  const adjunct = universe.locator("#nur-v197-adjunct-root");
+  await expect(adjunct).toBeVisible();
+
+  const isolated = await universe.locator("body").evaluate(() => {
+    const root = document.getElementById("nur-v197-adjunct-root");
+    const canonical = document.getElementById("nur-front-v61");
+    const background = Array.from(document.body.children)
+      .filter((node): node is HTMLElement => node instanceof HTMLElement && node !== root);
+    return {
+      backgroundCount: background.length,
+      background: background.map(node => ({
+        tag: node.tagName,
+        id: node.id,
+        className: node.className.toString(),
+        inert: node.inert,
+        ariaHidden: node.getAttribute("aria-hidden"),
+      })),
+      allBackgroundInert: background.every(node => node.inert),
+      allBackgroundHidden: background.every(node => node.getAttribute("aria-hidden") === "true"),
+      canonicalEffectivelyInert: Boolean(canonical?.closest("[inert]")),
+      focusInsideAdjunct: Boolean(root?.contains(document.activeElement)),
+    };
+  });
+  expect(isolated.backgroundCount).toBeGreaterThan(0);
+  expect(isolated.allBackgroundInert, JSON.stringify(isolated.background)).toBe(true);
+  expect(isolated.allBackgroundHidden, JSON.stringify(isolated.background)).toBe(true);
+  expect(isolated.canonicalEffectivelyInert).toBe(true);
+  expect(isolated.focusInsideAdjunct).toBe(true);
+
+  await page.keyboard.press("Tab");
+  await expect.poll(() => universe.locator("body").evaluate(() => (
+    Boolean(document.getElementById("nur-v197-adjunct-root")?.contains(document.activeElement))
+  ))).toBe(true);
+
+  await universe.locator('[data-adjunct-route="/systems"]').click();
+  await expect(adjunct).toHaveCount(0);
+  const restored = await universe.locator("body").evaluate(() => ({
+    canonicalEffectivelyInert: Boolean(document.getElementById("nur-front-v61")?.closest("[inert]")),
+    inertBodyChildren: Array.from(document.body.children)
+      .filter(node => node instanceof HTMLElement && node.inert).length,
+  }));
+  expect(restored).toEqual({ canonicalEffectivelyInert: false, inertBodyChildren: 0 });
 });
 
 test("Capsule adjunct answers only from the approved source", async ({ page }, testInfo) => {
@@ -226,7 +474,7 @@ test("Consultation adjunct preserves disagreement and persists stage movement", 
   const universe = page.frameLocator("#nur-universe-stage");
   await expect(universe.locator("#nur-v197-adjunct-root")).toContainText("A question moves when context returns");
   await universe.locator(`[data-adjunct-action="consultation-open-${consultationId}"]`).click();
-  await expect(page).toHaveURL(new RegExp(`/consultations/${consultationId}$`));
+  await expect(page).toHaveURL(new RegExp(`/universe/consultation/${consultationId}$`));
   await expect(universe.locator("#nur-v197-adjunct-root")).toContainText("A green visual test does not replace privacy proof");
   await universe.locator('textarea[placeholder^="Add only what belongs"]').fill("The source-bound flow worked.");
   await universe.locator('[data-adjunct-action="consultation-contribute"]').click();
@@ -278,6 +526,7 @@ test("Notifications are owner-written, persisted, and never fake social pressure
 
   await universe.locator('[data-adjunct-action="notification-read-88888888-8888-8888-8888-888888888888"]').click();
   await expect.poll(() => state.notificationWrites.some(row => row.path.endsWith("/read"))).toBe(true);
+  await expect(universe.locator('[data-adjunct-action="notification-read-88888888-8888-8888-8888-888888888888"]')).toHaveCount(0);
 
   await universe.locator('[data-adjunct-control="notification-frequency"]').selectOption("QUIET");
   await universe.locator('[data-adjunct-action="notification-preferences-save"]').click();

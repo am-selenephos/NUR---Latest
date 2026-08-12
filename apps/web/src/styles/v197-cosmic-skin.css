@@ -1,8 +1,3 @@
-/* Selected-state and card borders read gold, matching Entry.
-   These gradients carried hot pink (255,58,158), cyan (33,232,255) and
-   violet (193,107,255), which is what made the selected System card and
-   the active nav item glow magenta inside while Entry's equivalents are
-   gold. The gradients still shift; they shift through warm values now. */
 /*
  * NUR forensic presentation layer.
  *
@@ -13,10 +8,10 @@
 
 :root {
   /* Canonical color primitives. */
-  --nur-black: #000000;
-  --nur-ink: #000000;
-  --nur-navy: #06062b;
-  --nur-indigo: #101052;
+  --nur-black: #000102;
+  --nur-ink: #000102;
+  --nur-navy: #010207;
+  --nur-indigo: #11162e;
   --nur-violet-deep: #32106e;
   --nur-violet: #843dff;
   --nur-lilac: #c16bff;
@@ -34,12 +29,27 @@
   --nur-gold-deep: #c9942f;
   --nur-amber: #ffad32;
   --nur-tangerine: #ff7a45;
+  --nur-spectrum-red: #ff4656;
+  --nur-spectrum-orange: #ff9148;
+  --nur-spectrum-yellow: #ffdc5c;
+  --nur-spectrum-green: #48ebaf;
+  --nur-spectrum-blue: #4fccff;
+  --nur-spectrum-indigo: #5a70ff;
+  --nur-spectrum-violet: #c16bff;
+  --nur-pastel-red: #ff9ba8;
+  --nur-pastel-orange: #ffc39d;
+  --nur-pastel-yellow: #ffe8a3;
+  --nur-pastel-green: #9ff0ce;
+  --nur-pastel-blue: #9bdcff;
+  --nur-pastel-indigo: #adb8ff;
+  --nur-pastel-violet: #dfadff;
 
   /* Semantic color roles. */
   --nur-world: var(--nur-black);
   --nur-surface-0: rgba(0, 0, 0, .42);
   --nur-surface-1: rgba(0, 0, 0, .62);
   --nur-surface-2: rgba(0, 0, 0, .82);
+  --nur-surface-unified: rgba(0, 0, 0, .72);
   --nur-line-faint: rgba(248, 217, 138, .1);
   --nur-line: rgba(248, 217, 138, .2);
   --nur-line-strong: rgba(255, 211, 90, .48);
@@ -53,42 +63,52 @@
   --nur-spectrum: linear-gradient(
     105deg,
     var(--nur-ivory) 0%,
-    var(--nur-gold) 13%,
-    var(--nur-amber) 23%,
-    var(--nur-tangerine) 32%,
-    var(--nur-coral) 41%,
-    var(--nur-pink) 51%,
-    var(--nur-lilac) 62%,
-    var(--nur-cyan) 75%,
-    var(--nur-aqua) 84%,
-    var(--nur-gold) 94%,
+    var(--nur-spectrum-red) 10%,
+    var(--nur-spectrum-orange) 21%,
+    var(--nur-spectrum-yellow) 33%,
+    var(--nur-spectrum-green) 45%,
+    var(--nur-spectrum-blue) 57%,
+    var(--nur-spectrum-indigo) 69%,
+    var(--nur-spectrum-violet) 81%,
+    var(--nur-gold) 92%,
     var(--nur-ivory) 100%
   );
-  --nur-spectrum-border: linear-gradient(
-    110deg,
-    rgba(255, 248, 223, .82),
-    rgba(255, 211, 90, .8) 18%,
-    rgba(255, 122, 69, .66) 35%,
-    rgba(255, 190, 122, .64) 54%,
-    rgba(132, 61, 255, .58) 70%,
-    rgba(255, 222, 150, .68) 86%,
-    rgba(255, 211, 90, .76)
-  );
-  --nur-selected-rim: linear-gradient(
+  --nur-pastel-film: linear-gradient(
     112deg,
-    rgba(255, 248, 223, .86) 0%,
-    rgba(255, 211, 90, .88) 14%,
-    rgba(255, 173, 50, .82) 28%,
-    rgba(255, 82, 111, .76) 43%,
-    rgba(255, 190, 122, .78) 58%,
-    rgba(248, 214, 140, .72) 72%,
-    rgba(105, 240, 180, .7) 86%,
-    rgba(255, 211, 90, .84) 100%
+    rgba(255, 155, 168, .036) 0%,
+    rgba(255, 195, 157, .03) 14%,
+    rgba(255, 232, 163, .034) 28%,
+    rgba(159, 240, 206, .03) 42%,
+    rgba(155, 220, 255, .034) 56%,
+    rgba(173, 184, 255, .03) 70%,
+    rgba(223, 173, 255, .034) 84%,
+    rgba(255, 155, 168, .028) 100%
   );
+  --nur-pastel-film-strong: linear-gradient(
+    112deg,
+    rgba(255, 155, 168, .082) 0%,
+    rgba(255, 195, 157, .068) 14%,
+    rgba(255, 232, 163, .078) 28%,
+    rgba(159, 240, 206, .068) 42%,
+    rgba(155, 220, 255, .078) 56%,
+    rgba(173, 184, 255, .068) 70%,
+    rgba(223, 173, 255, .078) 84%,
+    rgba(255, 155, 168, .062) 100%
+  );
+  --nur-gold-rim: linear-gradient(
+    112deg,
+    rgba(255, 249, 224, .72) 0%,
+    rgba(255, 225, 139, .86) 24%,
+    rgba(197, 143, 43, .48) 50%,
+    rgba(255, 213, 90, .82) 74%,
+    rgba(255, 245, 204, .68) 100%
+  );
+  --nur-spectrum-border: var(--nur-gold-rim);
+  --nur-selected-rim: var(--nur-gold-rim);
   --nur-entry-atmosphere:
     radial-gradient(ellipse 44% 54% at 71% 43%, rgba(255, 222, 150, .018), transparent 72%),
     radial-gradient(ellipse 35% 46% at 18% 58%, rgba(94, 134, 255, .014), transparent 74%),
-    linear-gradient(180deg, rgba(0, 1, 4, .18), rgba(0, 0, 2, .34));
+    linear-gradient(180deg, rgba(0, 2, 7, .15), rgba(0, 1, 4, .28));
 
   /* Geometry. */
   --nur-radius-control: 7px;
@@ -96,7 +116,7 @@
   --nur-radius-round: 999px;
   --nur-control-h: 38px;
   --nur-control-h-compact: 32px;
-  --nur-secondary-action-w: 112px;
+  --nur-secondary-action-w: 144px;
   --nur-shell-gap: clamp(10px, 1vw, 16px);
   --nur-page-pad: clamp(16px, 2vw, 30px);
   --nur-left-rail: clamp(204px, 15.75vw, 232px);
@@ -117,19 +137,21 @@
   --nur-control-holo-edge:
     inset 0 1px 0 rgba(255, 248, 223, .3),
     inset 0 2px 0 rgba(255, 211, 90, .12),
-    inset -1px 0 0 rgba(255, 190, 122, .1),
-    inset 0 -1px 0 rgba(105, 240, 180, .1),
-    inset 1px 0 0 rgba(255, 122, 69, .1);
-  --nur-glow-gold:
-    0 0 13px rgba(255, 248, 223, .06),
-    0 0 25px rgba(255, 211, 90, .14);
+    inset -1px 0 0 rgba(255, 225, 139, .1),
+    inset 0 -1px 0 rgba(197, 143, 43, .1),
+    inset 1px 0 0 rgba(255, 245, 204, .1);
+  --nur-glow-gold: 0 0 0 rgba(0, 0, 0, 0);
   --nur-glow-holo:
-    0 0 24px rgba(255, 190, 122, .055),
-    0 0 36px rgba(105, 240, 180, .04);
+    -12px -5px 26px rgba(255, 155, 168, .042),
+    -8px 8px 28px rgba(255, 195, 157, .038),
+    -2px 12px 30px rgba(255, 232, 163, .036),
+    7px 10px 30px rgba(159, 240, 206, .038),
+    12px 3px 32px rgba(155, 220, 255, .04),
+    9px -7px 30px rgba(173, 184, 255, .038),
+    1px -11px 28px rgba(223, 173, 255, .04);
   --nur-focus:
     0 0 0 2px rgba(0, 0, 0, .9),
-    0 0 0 4px rgba(255, 211, 90, .72),
-    0 0 24px rgba(255, 222, 150, .13);
+    0 0 0 4px rgba(255, 248, 223, .68);
 
   /* Motion and layers. */
   --nur-motion-fast: 140ms;
@@ -950,11 +972,12 @@ body.universe-edition :is(
 ) {
   border-color: var(--nur-line-faint) !important;
   background:
-    linear-gradient(145deg, rgba(255, 248, 223, .024), transparent 35%),
-    rgba(0, 0, 0, .68) !important;
+    var(--nur-pastel-film),
+    var(--nur-surface-unified) !important;
   box-shadow:
     inset 0 1px 0 rgba(248, 217, 138, .06),
-    0 20px 54px rgba(0, 0, 0, .32) !important;
+    0 20px 54px rgba(0, 0, 0, .32),
+    var(--nur-glow-holo) !important;
   backdrop-filter: blur(var(--nur-glass-blur)) saturate(1.06) !important;
   -webkit-backdrop-filter: blur(var(--nur-glass-blur)) saturate(1.06) !important;
 }
@@ -979,11 +1002,47 @@ body.universe-edition :is(
   border-color: var(--nur-line-faint) !important;
   border-radius: var(--nur-radius-panel) !important;
   background:
-    linear-gradient(145deg, rgba(255, 248, 223, .026), transparent 32%),
-    rgba(0, 0, 0, .48) !important;
-  box-shadow: var(--nur-panel-shadow) !important;
+    var(--nur-pastel-film),
+    var(--nur-surface-unified) !important;
+  box-shadow: var(--nur-panel-shadow), var(--nur-glow-holo) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+
+/* One slow refracted-light pass gives every NUR window the same seven-color
+ * material. The film remains below ten percent opacity; gold continues to own
+ * the physical rim and focus hierarchy. */
+body.universe-edition :is(
+  .nur-rail,
+  .clean-left-rail,
+  .nur-topbar,
+  .nur-context,
+  .clean-right-rail,
+  .global-composer,
+  .universe-composer-shell,
+  .nur-panel,
+  .universe-card,
+  .clean-audit-card,
+  .context-rail-card,
+  .v172-context-card,
+  .universe-map-panel,
+  .universe-insight-panel,
+  .candidate-insight,
+  .talk-message,
+  .journal-entry,
+  .plan-step,
+  .lens-empty,
+  .scope-modal,
+  .modal,
+  .share-sheet
+) {
+  background-size: 280% 100%, auto !important;
+  animation: nurPastelMaterialShift 18s ease-in-out infinite alternate !important;
+}
+
+@keyframes nurPastelMaterialShift {
+  from { background-position: 0% 50%, 0 0; }
+  to { background-position: 100% 50%, 0 0; }
 }
 
 body.universe-edition :is(.scope-backdrop, .modal-backdrop, .sheet-backdrop, .share-sheet-backdrop) {
@@ -1000,8 +1059,7 @@ body #nur-front-v61 :is(.f4-sheet, .f4-success) {
     rgba(0, 0, 0, .9) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 248, 223, .06),
-    0 24px 74px rgba(0, 0, 0, .68),
-    0 0 42px rgba(255, 211, 90, .045) !important;
+    0 24px 74px rgba(0, 0, 0, .68) !important;
   backdrop-filter: blur(12px) saturate(1.06) !important;
   -webkit-backdrop-filter: blur(12px) saturate(1.06) !important;
 }
@@ -1067,7 +1125,7 @@ body.universe-edition #nur-front-v61 :is(.send-button, .universe-send, .thought-
   isolation: isolate !important;
   overflow: hidden !important;
   min-height: var(--nur-control-h) !important;
-  border: 1px solid rgba(255, 226, 147, .42) !important;
+  border: 1px solid rgba(255, 226, 147, .54) !important;
   border-radius: var(--nur-radius-control) !important;
   background: rgba(0, 0, 0, .3) !important;
   color: var(--nur-text) !important;
@@ -1075,7 +1133,6 @@ body.universe-edition #nur-front-v61 :is(.send-button, .universe-send, .thought-
   box-shadow:
     var(--nur-control-holo-edge),
     var(--nur-control-shadow),
-    var(--nur-glow-gold),
     var(--nur-glow-holo) !important;
   text-shadow: 0 0 13px rgba(255, 248, 223, .14) !important;
 }
@@ -1091,10 +1148,13 @@ body.universe-edition #nur-front-v61 :is(.send-button, .universe-send, .thought-
   background-image: linear-gradient(
     108deg,
     transparent 14%,
-    rgba(255, 211, 90, .08) 40%,
-    rgba(255, 248, 223, .16) 48%,
-    rgba(105, 240, 180, .07) 54%,
-    rgba(255, 190, 122, .06) 61%,
+    rgba(255, 155, 168, .075) 26%,
+    rgba(255, 195, 157, .07) 34%,
+    rgba(255, 232, 163, .09) 42%,
+    rgba(159, 240, 206, .075) 50%,
+    rgba(155, 220, 255, .08) 58%,
+    rgba(173, 184, 255, .07) 66%,
+    rgba(223, 173, 255, .075) 74%,
     transparent 82%
   ) !important;
   opacity: .36 !important;
@@ -1134,7 +1194,9 @@ body.universe-edition #nur-front-v61 :is(
   min-height: var(--nur-control-h-compact) !important;
   border: 1px solid var(--nur-line) !important;
   border-radius: var(--nur-radius-control) !important;
-  background: var(--nur-control-glass) !important;
+  background:
+    var(--nur-pastel-film),
+    var(--nur-control-glass) !important;
   color: var(--nur-text-soft) !important;
   -webkit-text-fill-color: currentColor !important;
   box-shadow: var(--nur-control-holo-edge), var(--nur-control-shadow) !important;
@@ -1168,8 +1230,10 @@ body.universe-edition #nur-front-v61 :is(
   .mobile-tabs button,
   .audit-tabs button
 ):hover {
-  border-color: var(--nur-line) !important;
-  background: rgba(255, 248, 223, .035) !important;
+  border-color: rgba(255, 226, 147, .38) !important;
+  background:
+    var(--nur-pastel-film-strong),
+    rgba(0, 0, 0, .2) !important;
   color: var(--nur-text) !important;
   transform: none !important;
 }
@@ -1187,15 +1251,13 @@ body.universe-edition #nur-front-v61 :is(
 ) {
   border-color: transparent !important;
   background:
-    linear-gradient(102deg, rgba(255, 211, 90, .1), rgba(255, 190, 122, .06) 54%, rgba(105, 240, 180, .075)) padding-box,
-    linear-gradient(145deg, rgba(5, 5, 5, .92), rgba(0, 0, 0, .96) 56%, rgba(4, 4, 3, .92)) padding-box,
+    var(--nur-pastel-film-strong) padding-box,
+    linear-gradient(145deg, rgba(4, 4, 5, .78), rgba(0, 0, 0, .9) 56%, rgba(4, 4, 5, .76)) padding-box,
     var(--nur-selected-rim) border-box !important;
   color: var(--nur-text) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 248, 223, .08),
-    0 0 14px rgba(255, 190, 122, .065),
-    0 0 20px rgba(105, 240, 180, .045),
-    0 0 24px rgba(255, 211, 90, .045) !important;
+    var(--nur-glow-holo) !important;
 }
 
 /* Icon actions keep a stable square target and no pill silhouette. */
@@ -1270,8 +1332,7 @@ body.universe-edition #nur-front-v61 :is(
     var(--nur-selected-rim) border-box !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 248, 223, .07),
-    0 0 16px rgba(255, 190, 122, .06),
-    0 0 22px rgba(255, 222, 150, .05) !important;
+    var(--nur-glow-holo) !important;
 }
 
 body.universe-edition #nur-front-v61 :is(.journal-tag, .scope-chip, .quiet-chip, .system-badge) {
@@ -1291,13 +1352,11 @@ body.universe-edition #nur-front-v61 :is([data-action*="delete"], [data-action*=
 
 body #nur-front-v61 button:not(.f4-brand):hover,
 body.universe-edition #nur-front-v61 button:hover {
-  border-color: rgba(255, 229, 153, .62) !important;
+  border-color: rgba(255, 229, 153, .68) !important;
   color: #fffdf4 !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, .12),
-    0 0 20px rgba(255, 211, 90, .12),
-    0 0 30px rgba(255, 190, 122, .045),
-    0 0 36px rgba(255, 222, 150, .035) !important;
+    var(--nur-glow-holo) !important;
   transform: translateY(-1px) !important;
 }
 
@@ -1323,14 +1382,12 @@ body.universe-edition #nur-front-v61 :is(
 ):is(:hover, :focus-visible) {
   border-color: transparent !important;
   background:
-    linear-gradient(102deg, rgba(255, 211, 90, .13), rgba(255, 190, 122, .085) 54%, rgba(255, 222, 150, .13)) padding-box,
-    linear-gradient(145deg, rgba(9, 9, 14, .88), rgba(0, 0, 0, .93) 54%, rgba(4, 11, 14, .88)) padding-box,
+    var(--nur-pastel-film-strong) padding-box,
+    linear-gradient(145deg, rgba(5, 5, 6, .78), rgba(0, 0, 0, .9) 54%, rgba(4, 4, 5, .76)) padding-box,
     var(--nur-selected-rim) border-box !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 248, 223, .1),
-    0 0 18px rgba(255, 190, 122, .09),
-    0 0 24px rgba(255, 222, 150, .08),
-    0 0 28px rgba(255, 211, 90, .055) !important;
+    var(--nur-glow-holo) !important;
 }
 
 body #nur-front-v61 button:not(.f4-brand):focus-visible,
@@ -1372,24 +1429,17 @@ body.front-v61-active #nur-front-v61 .f4-primary {
   min-height: 48px !important;
   padding: 0 22px !important;
   background:
-    linear-gradient(180deg, rgba(8, 8, 10, .7), rgba(0, 0, 0, .86)) padding-box,
-    linear-gradient(
-      118deg,
-      rgba(255, 211, 90, .76),
-      rgba(255, 121, 200, .4) 34%,
-      rgba(255, 222, 150, .4) 64%,
-      rgba(255, 211, 90, .72)
-    ) border-box !important;
+    var(--nur-pastel-film-strong) padding-box,
+    linear-gradient(180deg, rgba(5, 5, 7, .7), rgba(0, 0, 0, .86)) padding-box,
+    var(--nur-gold-rim) border-box !important;
   background-size: 100% 100%, 220% 100% !important;
   color: #fff8df !important;
   font-weight: 600 !important;
   letter-spacing: .01em !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 248, 223, .16),
-    inset 0 0 18px rgba(255, 211, 90, .07),
-    0 0 18px rgba(255, 173, 50, .12),
-    0 0 34px rgba(255, 24, 200, .055),
-    0 0 42px rgba(255, 222, 150, .045) !important;
+    inset 0 0 18px rgba(255, 211, 90, .04),
+    var(--nur-glow-holo) !important;
   text-shadow:
     0 0 10px rgba(255, 211, 90, .18),
     0 0 18px rgba(255, 248, 223, .1) !important;
@@ -1447,8 +1497,9 @@ body.front-v61-active #nur-front-v61 .f4-link {
   min-height: 48px !important;
   padding: 0 18px !important;
   background:
+    var(--nur-pastel-film) padding-box,
     linear-gradient(180deg, rgba(4, 4, 6, .42), rgba(0, 0, 0, .58)) padding-box,
-    linear-gradient(118deg, rgba(248, 217, 138, .34), rgba(255, 121, 200, .16), rgba(255, 222, 150, .18), rgba(248, 217, 138, .28)) border-box !important;
+    var(--nur-gold-rim) border-box !important;
   color: rgba(255, 248, 223, .92) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, .08),
@@ -1460,8 +1511,9 @@ body.front-v61-active #nur-front-v61 .f4-signin {
   min-height: 38px !important;
   padding: 0 16px !important;
   background:
+    var(--nur-pastel-film) padding-box,
     linear-gradient(180deg, rgba(4, 4, 6, .4), rgba(0, 0, 0, .62)) padding-box,
-    linear-gradient(118deg, rgba(248, 217, 138, .28), rgba(255, 121, 200, .11), rgba(255, 222, 150, .13), rgba(248, 217, 138, .22)) border-box !important;
+    var(--nur-gold-rim) border-box !important;
   color: rgba(255, 248, 223, .94) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, .075),
@@ -1548,9 +1600,9 @@ body.universe-edition #nur-front-v61 :is(
   .global-composer,
   .research-search
 ) {
-  border: 1px solid rgba(138, 245, 255, .13) !important;
+  border: 1px solid rgba(248, 217, 138, .13) !important;
   border-radius: var(--nur-radius-panel) !important;
-  background: rgba(0, 2, 6, .72) !important;
+  background: rgba(0, 0, 0, .72) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035) !important;
 }
 
@@ -1610,8 +1662,8 @@ body.universe-edition #nur-front-v61 :is(
   .global-composer,
   .research-search
 ):focus-within {
-  border-color: rgba(138, 245, 255, .13) !important;
-  background: rgba(0, 2, 6, .72) !important;
+  border-color: rgba(248, 217, 138, .13) !important;
+  background: rgba(0, 0, 0, .72) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035) !important;
 }
 
@@ -1678,10 +1730,12 @@ body.universe-edition #nur-front-v61 .universe-map-panel .universe-system-node {
   border: 1px solid rgba(248, 217, 138, .2) !important;
   border-radius: 8px !important;
   background:
-    linear-gradient(145deg, rgba(255, 248, 223, .035), rgba(0, 0, 0, .72) 48%, rgba(255, 222, 150, .025)) !important;
+    var(--nur-pastel-film),
+    rgba(0, 0, 0, .62) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 248, 223, .055),
-    0 10px 28px rgba(0, 0, 0, .26) !important;
+    0 10px 28px rgba(0, 0, 0, .26),
+    var(--nur-glow-holo) !important;
   backdrop-filter: blur(8px) saturate(1.12) !important;
   animation: none !important;
   transition:
@@ -1762,14 +1816,12 @@ body.universe-edition #nur-front-v61 .universe-map-panel .universe-system-node.n
 body.universe-edition #nur-front-v61 .universe-map-panel .universe-system-node.active {
   border-color: transparent !important;
   background:
-    linear-gradient(102deg, rgba(255, 211, 90, .1), rgba(255, 190, 122, .07) 54%, rgba(255, 222, 150, .11)) padding-box,
-    linear-gradient(145deg, rgba(8, 8, 13, .9), rgba(0, 0, 0, .95) 52%, rgba(4, 10, 13, .9)) padding-box,
+    var(--nur-pastel-film-strong) padding-box,
+    linear-gradient(145deg, rgba(5, 5, 7, .78), rgba(0, 0, 0, .9) 52%, rgba(4, 4, 6, .76)) padding-box,
     var(--nur-selected-rim) border-box !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 248, 223, .1),
-    0 0 18px rgba(255, 190, 122, .08),
-    0 0 24px rgba(255, 222, 150, .07),
-    0 0 28px rgba(255, 211, 90, .06) !important;
+    var(--nur-glow-holo) !important;
 }
 
 /* The optimized seal is the icon. Remove the inherited circular badge that
@@ -2448,9 +2500,11 @@ body.universe-edition #nur-front-v61 .nur-shell {
   min-height: 0 !important;
   overflow: hidden !important;
   background:
-    radial-gradient(44% 58% at 46% 16%, rgba(255, 211, 90, .014), transparent 70%),
-    radial-gradient(34% 46% at 68% 76%, rgba(255, 190, 122, .008), transparent 78%),
-    radial-gradient(30% 40% at 82% 28%, rgba(105, 240, 180, .006), transparent 80%),
+    radial-gradient(44% 58% at 18% 18%, rgba(255, 155, 168, .009), transparent 70%),
+    radial-gradient(34% 46% at 34% 76%, rgba(255, 232, 163, .008), transparent 78%),
+    radial-gradient(30% 40% at 51% 24%, rgba(159, 240, 206, .008), transparent 80%),
+    radial-gradient(38% 48% at 68% 72%, rgba(155, 220, 255, .009), transparent 78%),
+    radial-gradient(30% 42% at 84% 28%, rgba(223, 173, 255, .008), transparent 80%),
     linear-gradient(90deg, rgba(0, 0, 0, .74), rgba(0, 0, 0, .08) 50%, rgba(0, 0, 0, .66)) !important;
 }
 
@@ -2464,8 +2518,8 @@ body.universe-edition #nur-front-v61 :is(
   .candidate-insight
 ) {
   background:
-    linear-gradient(145deg, rgba(255, 248, 223, .022), transparent 32%),
-    rgba(0, 0, 0, .52) !important;
+    var(--nur-pastel-film),
+    var(--nur-surface-unified) !important;
 }
 
 /* The shared shell is cool black on every route; spectral color stays in
@@ -2477,6 +2531,25 @@ body.universe-edition .nur-v178-warmth-film {
 body.universe-edition.nur-v197-systems-active #space3d {
   opacity: 1 !important;
   filter: brightness(1.08) contrast(1.18) saturate(1.24) !important;
+}
+
+/* Systems inherits Entry's true-black stage. Keep the page layers transparent
+ * so the canonical galaxy canvas at z280 remains visible instead of painting a
+ * black sheet over it. */
+body.universe-edition.nur-v197-systems-active,
+body.universe-edition.nur-v197-systems-active #nur-front-v61,
+body.universe-edition.nur-v197-systems-active #nur-front-v61 .nur-shell {
+  background-color: #000 !important;
+  background-image: none !important;
+}
+
+body.universe-edition.nur-v197-systems-active #nur-front-v61 :is(
+  .nur-main,
+  .nur-viewport,
+  #page-systems
+) {
+  background-color: transparent !important;
+  background-image: none !important;
 }
 
 body.universe-edition.nur-v197-systems-active #nur-front-v61 #page-systems {
@@ -2496,21 +2569,13 @@ body.universe-edition.nur-v197-systems-active #nur-front-v61 #page-systems :is(
   .universe-composer-shell
 ) {
   background:
-    linear-gradient(
-      118deg,
-      rgba(255, 248, 223, .018),
-      rgba(255, 211, 90, .009) 20%,
-      rgba(255, 82, 111, .007) 38%,
-      rgba(255, 190, 122, .006) 56%,
-      rgba(105, 240, 180, .006) 78%,
-      transparent
-    ),
-    rgba(0, 0, 0, .38) !important;
+    var(--nur-pastel-film),
+    var(--nur-surface-unified) !important;
   border-color: rgba(248, 217, 138, .17) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 248, 223, .055),
     0 18px 44px rgba(0, 0, 0, .42),
-    0 0 24px rgba(255, 211, 90, .025) !important;
+    var(--nur-glow-holo) !important;
 }
 
 body.universe-edition #nur-front-v61 .clean-left-rail,
@@ -2626,6 +2691,13 @@ body.universe-edition #nur-front-v61 .universe-top-tools {
   justify-content: flex-end !important;
   gap: 6px !important;
   min-width: 0 !important;
+}
+
+body.universe-edition #nur-front-v61 .universe-top-tools > .universe-search {
+  flex: 0 1 168px !important;
+  width: clamp(128px, 11vw, 168px) !important;
+  min-width: 0 !important;
+  max-width: 168px !important;
 }
 
 body.universe-edition #nur-front-v61 .universe-top-tools > :is(button, .nur-user, label) {

@@ -104,6 +104,8 @@ function collect(): Probe {
     hardwareConcurrency: navigator.hardwareConcurrency,
     reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
     serviceWorkerControlled: Boolean(navigator.serviceWorker?.controller),
+    runtimeProfile: document.documentElement.dataset.nurRuntimeProfile ?? null,
+    runtimeProfileError: document.documentElement.dataset.nurRuntimeProfileError ?? null,
   };
 
   for (const id of ["nur-entry-stage", "nur-universe-stage"]) {
@@ -135,6 +137,7 @@ export function installV197Diagnostics(): void {
   if (!new URLSearchParams(location.search).has(PARAM)) return;
   if (document.getElementById(PANEL_ID)) return;
 
+  document.title = `NUR DIAG RM:${matchMedia("(prefers-reduced-motion: reduce)").matches ? "1" : "0"}`;
   const panel = document.createElement("div");
   panel.id = PANEL_ID;
   panel.setAttribute("role", "region");
@@ -150,7 +153,20 @@ export function installV197Diagnostics(): void {
   ].join(";");
 
   const render = () => {
-    const text = JSON.stringify(collect(), null, 2);
+    const report = collect();
+    const universe = report["nur-universe-stage"] as {
+      galaxy?: { litPixels?: unknown; shouldRender?: unknown; frameScheduled?: unknown };
+    } | undefined;
+    const galaxy = universe?.galaxy;
+    document.title = [
+      `NUR P:${String(report.runtimeProfile ?? "?")}`,
+      `E:${String(report.runtimeProfileError ?? "-")}`,
+      `RM:${report.reducedMotion ? "1" : "0"}`,
+      `L:${String(galaxy?.litPixels ?? "?")}`,
+      `R:${String(galaxy?.shouldRender ?? "?")}`,
+      `F:${String(galaxy?.frameScheduled ?? "?")}`,
+    ].join(" ");
+    const text = JSON.stringify(report, null, 2);
     panel.textContent = "";
     const bar = document.createElement("div");
     bar.style.cssText = "display:flex;gap:8px;margin-bottom:8px";

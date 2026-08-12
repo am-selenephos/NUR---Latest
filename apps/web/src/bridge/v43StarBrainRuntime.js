@@ -233,6 +233,7 @@
   // which is how the interface ended up with several engines animating at once.
   let rafHandle=null;
   let stageVis=true, stageVisAt=0;
+  let staticFramePainted=false;
   let disposed=false;
   const teardown=[];
   const frameStage=window.frameElement;
@@ -263,8 +264,13 @@
     }
     return true;
   }
+  function syncStageAnimationState(visible){
+    document.documentElement.classList.toggle('nur-stage-inactive',!visible);
+  }
   function requestBrainFrame(){
-    if(disposed || rafHandle!==null || !stageIsVisible()) return;
+    const visible=stageIsVisible();
+    syncStageAnimationState(visible);
+    if(disposed || rafHandle!==null || !visible || (REDUCED&&staticFramePainted)) return;
     rafHandle=requestAnimationFrame(frame);
   }
   let energy=0;                  // storm brightness boost
@@ -291,7 +297,10 @@
   // the host lives inside #welcome which starts display:none - the first real
   // measurement only exists once the front page reveals, so watch the box itself
   if(typeof ResizeObserver!=='undefined'){
-    const ro=new ResizeObserver(resize); ro.observe(host);
+    const ro=new ResizeObserver(()=>{
+      resize();
+      if(REDUCED){ staticFramePainted=false; requestBrainFrame(); }
+    }); ro.observe(host);
     teardown.push(()=>ro.disconnect());
   }
   if(typeof IntersectionObserver!=='undefined'){
@@ -303,7 +312,10 @@
   }
   if(frameStage && typeof MutationObserver!=='undefined'){
     const stageObserver=new MutationObserver(()=>{
-      if(stageIsVisible()) requestBrainFrame();
+      stageVisAt=0;
+      const visible=stageIsVisible();
+      syncStageAnimationState(visible);
+      if(visible) requestBrainFrame();
       else if(rafHandle!==null){
         cancelAnimationFrame(rafHandle);
         rafHandle=null;
@@ -313,6 +325,7 @@
     stageObserver.observe(frameStage,{attributes:true,attributeFilter:['class','aria-hidden']});
     teardown.push(()=>stageObserver.disconnect());
   }
+  syncStageAnimationState(stageIsVisible());
 
   function project(p,out){
     const X=p.x+p.ox, Y=p.y+p.oy, Z=p.z+p.oz;
@@ -481,7 +494,15 @@
     canvas.remove();
     if(window.nurStarBrain && window.nurStarBrain.dispose===dispose) delete window.nurStarBrain;
   }
-  window.nurStarBrain={ storm, absorb, shatter, firePulse, dispose };
+  function getDiagnostics(){
+    return {
+      reducedMotion:REDUCED,
+      frameScheduled:rafHandle!==null,
+      staticFramePainted,
+      stageVisible:stageIsVisible()
+    };
+  }
+  window.nurStarBrain={ storm, absorb, shatter, firePulse, dispose, getDiagnostics };
 
   // map the existing V4/V5 class rituals onto the brain:
   // single click ritual (.is-bursting) = dissolve into stardust and reform;
@@ -538,8 +559,10 @@
   function frame(now){
     rafHandle=null;
     if(disposed) return;
-    if(document.hidden || !stageIsVisible()) return;
-    rafHandle=requestAnimationFrame(frame);
+    const visible=stageIsVisible();
+    syncStageAnimationState(visible);
+    if(document.hidden || !visible) return;
+    if(!REDUCED) rafHandle=requestAnimationFrame(frame);
     if(!host.isConnected || !onscreen) return;
     if(lastFrame&&now-lastFrame<MIN_FRAME_GAP) return;
     lastFrame=now;
@@ -647,7 +670,7 @@
       const starR=r*(1+glint*.48);
       if(cohesion<1) p.tw+=p.tws*(1-cohesion)*1.6;
       const starCol=(p.prism&&!isDust)
-        ?prismShift(p.prismPhase+now*p.prismSpeed+p.gl*.18)
+        ?prismShift(p.prismPhase+(REDUCED?0:now)*p.prismSpeed+p.gl*.18)
         :p.col;
       paintGalaxyStar(q.x,q.y,starR,a,starCol);
     }
@@ -691,6 +714,7 @@
       const q=projected[i];
       if(q.z>-.2) emitMote(pts[i],q.x,q.y);
     }
+    if(REDUCED) staticFramePainted=true;
   }
   requestBrainFrame();
 
@@ -701,6 +725,7 @@
   // exactly how the galaxy used to fail before it gained the same guard.
   const brainWatchdog=setInterval(()=>{
     if(disposed){ clearInterval(brainWatchdog); return; }
+    if(REDUCED&&staticFramePainted) return;
     if(rafHandle!==null || document.hidden) return;
     if(stageIsVisible()) requestBrainFrame();
   },1000);

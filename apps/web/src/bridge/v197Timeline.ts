@@ -640,10 +640,14 @@ export async function renderV197Timeline(
     return `${presentation.glyph} ${presentation.word}`;
   }
 
-  function entryRow(entry: Entry, lane: string): HTMLElement {
+  function entryRow(entry: Entry, lane: string, branchIndex: number | null = null): HTMLElement {
     const row = el(doc, "div", `nur-timeline-entry is-${lane}`);
     row.dataset.timelineEntry = entry.ref;
     row.dataset.timelineLane = lane;
+    if (branchIndex !== null) {
+      row.dataset.timelineBranch = branchIndex % 2 === 0 ? "left" : "right";
+      row.classList.add(branchIndex % 2 === 0 ? "is-branch-left" : "is-branch-right");
+    }
     row.setAttribute("tabindex", "0");
     row.setAttribute("role", "button");
     if (state.selected === entry.ref) row.classList.add("is-selected");
@@ -771,6 +775,7 @@ export async function renderV197Timeline(
     let insertedNow = false;
     let currentKey: string | null = null;
     let group: HTMLElement | null = null;
+    let branchIndex = 0;
 
     for (const entry of sorted) {
       const when = entry.scheduled_for ? new Date(entry.scheduled_for).getTime() : nowMs;
@@ -788,7 +793,8 @@ export async function renderV197Timeline(
         spine.append(group);
         currentKey = key;
       }
-      group.append(entryRow(entry, laneOf(entry, nowMs)));
+      group.append(entryRow(entry, laneOf(entry, nowMs), branchIndex));
+      branchIndex += 1;
     }
     if (!insertedNow) spine.append(nowHorizon());
 

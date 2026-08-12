@@ -21,12 +21,13 @@
 
 import ORBIT_CSS from "../styles/v197-orbit.css?raw";
 import { markV197HolographicWordmark } from "./v197Brand";
-import { createV197StarSeal } from "./v197StarSeal";
+import { createV197StartupStar } from "./v197StarSeal";
 import { claimV197SurfaceHost, releaseV197SurfaceHost } from "./v197SurfaceHost";
 import type { V197ApiClient } from "./v197ApiClient";
 
 const ROOT_ID = "nur-orbit-root";
 const STYLE_ID = "nur-orbit-style";
+const BODY_CLASS = "nur-v197-orbit-active";
 
 export const ORBIT_ROUTE = "/universe/orbits";
 
@@ -272,6 +273,23 @@ function relativeDate(value: string | null): string {
   return parsed.toLocaleDateString();
 }
 
+function orbitCreationActions(
+  doc: Document,
+  actions: Actions,
+  className: string,
+): HTMLElement {
+  const row = el(doc, "div", className);
+  const addPerson = capsule(doc, "✦ Add a person", "primary");
+  addPerson.dataset.orbitAction = "add-person";
+  addPerson.addEventListener("click", () => actions.addPerson());
+
+  const createGroup = capsule(doc, "Create Group");
+  createGroup.dataset.orbitAction = "create-group";
+  createGroup.addEventListener("click", () => actions.createGroup());
+  row.append(addPerson, createGroup);
+  return row;
+}
+
 // ── header ───────────────────────────────────────────────────────────────────
 
 function orbitHeader(doc: Document, state: OrbitState, actions: Actions): HTMLElement {
@@ -311,15 +329,9 @@ function orbitHeader(doc: Document, state: OrbitState, actions: Actions): HTMLEl
   search.addEventListener("input", () => actions.setQuery(search.value));
   header.append(search);
 
-  const addPerson = capsule(doc, "✦ Add a person", "primary");
-  addPerson.dataset.orbitAction = "add-person";
-  addPerson.addEventListener("click", () => actions.addPerson());
-  header.append(addPerson);
-
-  const createGroup = capsule(doc, "Create Group");
-  createGroup.dataset.orbitAction = "create-group";
-  createGroup.addEventListener("click", () => actions.createGroup());
-  header.append(createGroup);
+  if (state.view !== "orbit") {
+    header.append(orbitCreationActions(doc, actions, "nur-orbit-header-actions"));
+  }
 
   return header;
 }
@@ -378,14 +390,7 @@ function orbitLeftRail(doc: Document, state: OrbitState, actions: Actions): HTML
   rail.append(segments);
 
   const create = el(doc, "section", "nur-orbit-rail-section");
-  create.append(el(doc, "h2", "nur-orbit-rail-heading", "Build your Orbit"));
-  const addBtn = capsule(doc, "✦ Add a person", "primary");
-  addBtn.style.width = "100%";
-  addBtn.addEventListener("click", () => actions.addPerson());
-  const groupBtn = capsule(doc, "Create Group Orbit", "quiet");
-  groupBtn.style.width = "100%";
-  groupBtn.style.marginTop = "6px";
-  groupBtn.addEventListener("click", () => actions.createGroup());
+  create.append(el(doc, "h2", "nur-orbit-rail-heading", "Context"));
   // Import is declared and honestly disabled: suggesting people from Talk and
   // Journal requires an approval step that does not exist yet, and adding
   // inferred people without it is exactly what the spec forbids.
@@ -396,7 +401,7 @@ function orbitLeftRail(doc: Document, state: OrbitState, actions: Actions): HTML
   importBtn.title =
     "Not connected yet. Importing would add people NUR inferred from Talk and Journal, "
     + "and that needs an explicit approval step before anything is stored.";
-  create.append(addBtn, groupBtn, importBtn);
+  create.append(importBtn);
   rail.append(create);
 
   return rail;
@@ -408,10 +413,7 @@ function orbitCanvas(doc: Document, state: OrbitState, actions: Actions): HTMLEl
   const surface = el(doc, "section", "nur-orbit-field-surface");
 
   const visible = visiblePeople(state);
-  if (visible.length === 0 && state.field.groups.length === 0) {
-    surface.append(orbitEmptyState(doc, state, actions));
-    return surface;
-  }
+  const fieldIsEmpty = visible.length === 0 && state.field.groups.length === 0;
 
   const width = 900;
   const height = 620;
@@ -430,15 +432,36 @@ function orbitCanvas(doc: Document, state: OrbitState, actions: Actions): HTMLEl
   );
   if (state.selected) canvas.dataset.hasSelection = "true";
 
+  const defs = svg(doc, "defs");
+  const ringSpectrum = svg(doc, "linearGradient", {
+    id: "nur-orbit-ring-spectrum",
+    x1: "0%", y1: "18%", x2: "100%", y2: "82%",
+  });
+  for (const [offset, color] of [
+    ["0%", "#ffd35a"],
+    ["18%", "#ff7a45"],
+    ["35%", "#ff52ab"],
+    ["52%", "#b66cff"],
+    ["68%", "#4fccff"],
+    ["84%", "#48ebaf"],
+    ["100%", "#f8d98a"],
+  ]) {
+    ringSpectrum.append(svg(doc, "stop", { offset, "stop-color": color }));
+  }
+  defs.append(ringSpectrum);
+  canvas.append(defs);
+
   // Layer 1 — deep space. A fixed, deterministic scatter: a random field would
   // shift on every re-render and read as flicker.
-  const stars = svg(doc, "g", {});
-  for (let i = 0; i < 90; i += 1) {
+  const stars = svg(doc, "g", { class: "nur-orbit-deep-stars" });
+  const starColors = ["#fff8df", "#ffd35a", "#ff7a45", "#ff52ab", "#b66cff", "#4fccff", "#48ebaf"];
+  for (let i = 0; i < 180; i += 1) {
     const t = (i * 2654435761) % 100000;
     stars.append(svg(doc, "circle", {
       cx: (t % width), cy: ((t * 7) % height),
-      r: i % 9 === 0 ? 1.1 : 0.6,
-      fill: "rgba(255,248,223,0.22)",
+      r: i % 17 === 0 ? 1.25 : i % 7 === 0 ? 0.8 : 0.45,
+      fill: starColors[i % starColors.length],
+      opacity: i % 11 === 0 ? 0.42 : 0.2,
     }));
   }
   canvas.append(stars);
@@ -448,7 +471,9 @@ function orbitCanvas(doc: Document, state: OrbitState, actions: Actions): HTMLEl
   for (const band of BANDS) {
     const rx = BAND_RADIUS[band] * (width / 2) * 0.92;
     const ry = BAND_RADIUS[band] * (height / 2) * 0.92;
-    const ring = svg(doc, "ellipse", { cx, cy, rx, ry, class: "nur-orbit-ring" });
+    const ring = svg(doc, "ellipse", {
+      cx, cy, rx, ry, class: "nur-orbit-ring", stroke: "url(#nur-orbit-ring-spectrum)",
+    });
     ring.setAttribute("data-band", band);
     rings.append(ring);
     const label = svg(doc, "text", {
@@ -516,30 +541,9 @@ function orbitCanvas(doc: Document, state: OrbitState, actions: Actions): HTMLEl
   }
   canvas.append(edges);
 
-  // Layer 4 — the You anchor. Restrained: a small NUR seal, not a giant avatar.
-  const anchor = svg(doc, "g", {});
-  anchor.append(svg(doc, "circle", {
-    cx, cy, r: 30, fill: "rgba(255,211,90,0.05)",
-    stroke: "rgba(255,211,90,0.28)", "stroke-width": 1,
-  }));
-  anchor.append(svg(doc, "circle", {
-    cx, cy, r: 15, fill: "rgba(255,248,223,0.9)",
-  }));
-  anchor.append(svg(doc, "circle", {
-    cx, cy, r: 22, fill: "none",
-    stroke: "rgba(33,232,255,0.24)", "stroke-width": 1, "stroke-dasharray": "2 8",
-  }));
-  const anchorLabel = svg(doc, "text", {
-    x: cx, y: cy + 48, class: "nur-orbit-anchor-label", "text-anchor": "middle",
-  });
-  anchorLabel.textContent = "You";
-  anchor.append(anchorLabel);
-  const anchorTitle = svg(doc, "title", {});
-  anchorTitle.textContent = "Your relational center";
-  anchor.append(anchorTitle);
-  canvas.append(anchor);
-
-  // Person and group nodes.
+  // Layer 4 — person and group nodes. The relational center is mounted as the
+  // exact loading-screen sigil after the SVG so it keeps the canonical DOM,
+  // rays and three orbits instead of becoming a simplified circle drawing.
   const nodes = svg(doc, "g", {});
   for (const person of visible) {
     const at = positions.get(person.id);
@@ -624,13 +628,27 @@ function orbitCanvas(doc: Document, state: OrbitState, actions: Actions): HTMLEl
   }
   canvas.append(nodes);
   surface.append(canvas);
+
+  const anchor = el(doc, "div", "nur-orbit-anchor-sigil");
+  anchor.setAttribute("role", "img");
+  anchor.setAttribute("aria-label", "You - your relational center");
+  anchor.dataset.nurOrbitAnchor = "v197-startup-sigil";
+  anchor.append(createV197StartupStar(doc));
+  surface.append(anchor);
+
+  if (fieldIsEmpty) {
+    surface.classList.add("is-empty");
+    surface.append(orbitEmptyState(doc, state, actions));
+  } else {
+    surface.classList.add("has-field-actions");
+    surface.append(orbitCreationActions(doc, actions, "nur-orbit-field-actions"));
+  }
   return surface;
 }
 
 function orbitEmptyState(doc: Document, _state: OrbitState, actions: Actions): HTMLElement {
   const empty = el(doc, "div", "nur-orbit-empty");
-  const seal = createV197StarSeal(doc, 32, true);
-  empty.append(seal);
+  empty.dataset.nurOrbitEmptyLayout = "bottom-footer";
   empty.append(el(doc, "p", undefined,
     "Your Orbit begins with one person, one signal, one shared field."));
   const row = el(doc, "div", "nur-orbit-empty-actions");
@@ -673,6 +691,7 @@ function orbitListView(doc: Document, state: OrbitState, actions: Actions): HTML
   const rows = visiblePeople(state);
 
   if (rows.length === 0 && state.field.groups.length === 0) {
+    surface.classList.add("is-empty");
     surface.append(orbitEmptyState(doc, state, actions));
     return surface;
   }
@@ -1159,6 +1178,7 @@ export async function renderV197Orbit(
   doc: Document, route: string, api: V197ApiClient,
 ): Promise<boolean> {
   if (route !== ORBIT_ROUTE) {
+    doc.body.classList.remove(BODY_CLASS);
     doc.getElementById(ROOT_ID)?.remove();
     // Give the canonical content region back, or leaving this route would leave
     // the canonical page hidden behind a removed surface.
@@ -1171,12 +1191,14 @@ export async function renderV197Orbit(
   // stay, and this surface takes only the content region. See v197SurfaceHost.
   const claimed = claimV197SurfaceHost(doc);
   if (claimed === null) {
+    doc.body.classList.remove(BODY_CLASS);
     // No canonical viewport means no honest place to render. Falling back to a
     // full-screen overlay is exactly the behaviour this replaced.
     releaseV197SurfaceHost(doc);
     return false;
   }
   const host: HTMLElement = claimed;
+  doc.body.classList.add(BODY_CLASS);
 
   const state: OrbitState = {
     view: doc.defaultView && doc.defaultView.innerWidth <= 900 ? "list" : "orbit",

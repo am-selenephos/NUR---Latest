@@ -2,6 +2,7 @@ import V197_FUNCTIONAL_CSS from "../styles/v197-functional.css?raw";
 import V197_COSMIC_SKIN_CSS from "../styles/v197-cosmic-skin.css?raw";
 import V197_STAR_SEAL_CSS from "../styles/v197-star-seal.css?raw";
 import V197_HOLOGRAPHIC_CSS from "../styles/v197-holographic.css?raw";
+import V197_ADAPTIVE_PERFORMANCE_CSS from "../styles/v197-adaptive-performance.css?raw";
 import { lockV197BrandIdentity } from "./v197Brand";
 import { V197_FONT_FACE_CSS } from "./v197Fonts";
 import { ensureV197BlackGalaxy, ensureV197StarBrain } from "./v197StarBrain";
@@ -23,6 +24,7 @@ const V197_PRESENTATION_CSS = [
   V197_STAR_SEAL_CSS,
   V197_COSMIC_SKIN_CSS,
   V197_HOLOGRAPHIC_CSS,
+  V197_ADAPTIVE_PERFORMANCE_CSS,
 ].join("\n");
 
 function ensureStableMapWordmark(document: Document): HTMLElement | null {

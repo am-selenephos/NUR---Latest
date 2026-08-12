@@ -22,8 +22,8 @@
   /* Canonical palette, the subset Orbit uses. */
   --orbit-void: #000000;
   --orbit-glass: #030307;
-  --orbit-haze: #06062b;
-  --orbit-shadow: #101052;
+  --orbit-haze: #020202;
+  --orbit-shadow: #050505;
 
   --orbit-pearl: #fff8df;
   --orbit-champagne: #f8d98a;
@@ -38,6 +38,14 @@
   --orbit-fuchsia: #ff18c8;
   --orbit-rose: #ff3a9e;
   --orbit-coral: #ff526f;
+  --orbit-spectrum-glass:
+    radial-gradient(82% 120% at 2% 2%, rgba(255, 70, 86, .015), transparent 56%),
+    radial-gradient(82% 120% at 18% 98%, rgba(255, 145, 72, .017), transparent 56%),
+    radial-gradient(82% 120% at 34% 2%, rgba(255, 220, 92, .021), transparent 56%),
+    radial-gradient(82% 120% at 51% 98%, rgba(72, 235, 175, .015), transparent 56%),
+    radial-gradient(82% 120% at 68% 2%, rgba(79, 204, 255, .014), transparent 56%),
+    radial-gradient(82% 120% at 84% 98%, rgba(90, 112, 255, .013), transparent 56%),
+    radial-gradient(82% 120% at 98% 2%, rgba(193, 107, 255, .014), transparent 56%);
 
   --orbit-rail: 264px;
   --orbit-detail: 368px;
@@ -64,6 +72,7 @@
   background: transparent;
   color: var(--orbit-pearl);
   font-family: "Bodoni Moda", Georgia, serif;
+  container: nur-orbit / inline-size;
 }
 
 /* ── the three zones ──────────────────────────────────────────────────────── */
@@ -81,19 +90,24 @@
   display: grid;
   grid-template-columns: var(--orbit-rail) minmax(0, 1fr) var(--orbit-detail);
   gap: var(--orbit-gap);
-  min-height: 0;
+  height: calc(100vh - 204px);
+  min-height: 420px;
 }
 
 /* A faint field, not a card. The gradient is what keeps it reading as part of
  * the void instead of a panel laid over it. */
 .nur-orbit-field-surface {
   position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
   border-radius: 20px;
   background:
-    radial-gradient(120% 90% at 50% 40%, rgba(6, 6, 43, 0.55), rgba(0, 0, 0, 0) 70%),
-    linear-gradient(180deg, rgba(3, 3, 7, 0.9), rgba(0, 0, 0, 0.98));
-  border: 1px solid rgba(248, 217, 138, 0.09);
+    var(--orbit-spectrum-glass),
+    linear-gradient(180deg, rgba(255, 255, 255, .01), rgba(0, 0, 0, .07));
+  border: 1px solid rgba(248, 217, 138, 0.14);
+  backdrop-filter: blur(8px) saturate(1.12);
   overflow: hidden;
 }
 
@@ -103,8 +117,11 @@
   overflow-y: auto;
   padding: 16px 14px;
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(3, 3, 7, 0.82), rgba(0, 0, 0, 0.94));
-  border: 1px solid rgba(248, 217, 138, 0.07);
+  background:
+    var(--orbit-spectrum-glass),
+    linear-gradient(180deg, rgba(255, 255, 255, .012), rgba(0, 0, 0, .08));
+  border: 1px solid rgba(248, 217, 138, 0.14);
+  backdrop-filter: blur(9px) saturate(1.12);
   scrollbar-width: thin;
   scrollbar-color: rgba(248, 217, 138, 0.2) transparent;
 }
@@ -127,7 +144,7 @@
 
 .nur-orbit-title {
   margin: 0;
-  font-size: 30px;
+  font-size: 33px;
   font-weight: 400;
   letter-spacing: 0.04em;
   color: var(--orbit-pearl);
@@ -135,7 +152,7 @@
 
 .nur-orbit-subtitle {
   margin: 0;
-  font-size: 12px;
+  font-size: 15px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: rgba(255, 248, 223, 0.46);
@@ -143,6 +160,13 @@
 }
 
 .nur-orbit-header-spacer { flex: 1 1 auto; }
+
+.nur-orbit-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 
 /* ── the glass capsule control system ─────────────────────────────────────── */
 
@@ -159,12 +183,13 @@
   padding: 0 20px;
   border-radius: 999px;
   font-family: system-ui, sans-serif;
-  font-size: 13px;
+  font-size: 16px;
   letter-spacing: 0.06em;
   color: rgba(255, 248, 223, 0.9);
   background:
-    linear-gradient(180deg, rgba(255, 211, 90, 0.05), rgba(255, 173, 50, 0.02)),
-    linear-gradient(180deg, rgba(3, 3, 7, 0.94), rgba(0, 0, 0, 0.96));
+    linear-gradient(108deg, rgba(255, 211, 90, .018), rgba(255, 82, 171, .01) 35%, rgba(79, 204, 255, .009) 65%, rgba(72, 235, 175, .011)),
+    rgba(0, 0, 0, .045);
+  backdrop-filter: blur(12px) saturate(1.25);
   /* The rim: champagne-gold inside, a whisper of holographic trace outside. */
   box-shadow:
     inset 0 0 0 1px rgba(248, 217, 138, 0.34),
@@ -248,7 +273,7 @@
 .nur-orbit-capsule.is-quiet {
   min-height: 38px;
   padding: 0 14px;
-  font-size: 12px;
+  font-size: 15px;
   color: rgba(255, 248, 223, 0.72);
   box-shadow:
     inset 0 0 0 1px rgba(248, 217, 138, 0.2),
@@ -298,7 +323,7 @@
 .nur-orbit-segmented .nur-orbit-capsule {
   min-height: 36px;
   padding: 0 16px;
-  font-size: 12px;
+  font-size: 15px;
   box-shadow: none;
   background: transparent;
 }
@@ -337,7 +362,7 @@
   border: 0 !important;
   border-radius: 999px !important;
   font-family: system-ui, sans-serif;
-  font-size: 13px;
+  font-size: 16px;
   color: var(--orbit-pearl);
   background: linear-gradient(180deg, rgba(3, 3, 7, 0.94), rgba(0, 0, 0, 0.96));
   box-shadow: inset 0 0 0 1px rgba(248, 217, 138, 0.24);
@@ -362,7 +387,7 @@
 .nur-orbit-rail-heading {
   margin: 0 0 8px;
   font-family: system-ui, sans-serif;
-  font-size: 10px;
+  font-size: 13px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: rgba(255, 248, 223, 0.34);
@@ -378,7 +403,7 @@
   padding: 0 12px;
   border-radius: 999px;
   font-family: system-ui, sans-serif;
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.04em;
   color: rgba(255, 248, 223, 0.66);
   background: rgba(3, 3, 7, 0.9);
@@ -413,12 +438,12 @@
   align-items: center;
   padding: 10px 12px;
   font-family: system-ui, sans-serif;
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .nur-orbit-list-head {
   color: rgba(255, 248, 223, 0.34);
-  font-size: 10px;
+  font-size: 13px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   position: sticky;
@@ -456,12 +481,12 @@
 }
 
 .nur-orbit-row:hover {
-  background: rgba(6, 6, 43, 0.34);
+  background: rgba(2, 2, 2, 0.34);
   box-shadow: inset 0 0 0 1px rgba(248, 217, 138, 0.2);
 }
 
 .nur-orbit-row[aria-selected="true"] {
-  background: rgba(6, 6, 43, 0.5);
+  background: rgba(2, 2, 2, 0.5);
   box-shadow:
     inset 0 0 0 1px rgba(255, 211, 90, 0.44),
     0 0 18px rgba(255, 211, 90, 0.07);
@@ -471,7 +496,7 @@
 
 .nur-orbit-row-name strong {
   font-family: "Bodoni Moda", Georgia, serif;
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 400;
   color: var(--orbit-pearl);
 }
@@ -482,7 +507,7 @@
   display: inline-block;
   padding: 3px 9px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: 13px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -516,7 +541,7 @@
 
 /* Privacy is a word plus a mark, never a colour alone. */
 .nur-orbit-privacy {
-  font-size: 10px;
+  font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: rgba(255, 248, 223, 0.46);
@@ -527,28 +552,35 @@
 
 /* ── the field: rings, edges, nodes ───────────────────────────────────────── */
 
-.nur-orbit-canvas { display: block; width: 100%; height: 100%; }
+.nur-orbit-canvas {
+  display: block;
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
 
 .nur-orbit-ring {
   fill: none;
   stroke-width: 1;
-  /* 0.08–0.18 opacity: present, never a Saturn ring. */
+  stroke: url(#nur-orbit-ring-spectrum);
 }
-.nur-orbit-ring[data-band="INNER"] { stroke: rgba(255, 211, 90, 0.18); }
-.nur-orbit-ring[data-band="NEAR"] { stroke: rgba(248, 217, 138, 0.14); }
-.nur-orbit-ring[data-band="OUTER"] { stroke: rgba(33, 232, 255, 0.11); }
-.nur-orbit-ring[data-band="PERIPHERAL"] { stroke: rgba(132, 61, 255, 0.1); }
+.nur-orbit-ring[data-band="INNER"] { opacity: .42; }
+.nur-orbit-ring[data-band="NEAR"] { opacity: .32; }
+.nur-orbit-ring[data-band="OUTER"] { opacity: .25; }
+.nur-orbit-ring[data-band="PERIPHERAL"] { opacity: .2; }
 .nur-orbit-ring[data-band="DORMANT"] {
-  stroke: rgba(255, 248, 223, 0.08);
+  opacity: .14;
   stroke-dasharray: 3 7;
 }
 
 .nur-orbit-ring-label {
-  font-family: system-ui, sans-serif;
-  font-size: 9px;
-  letter-spacing: 0.18em;
+  font-family: "Crimson Pro", Georgia, serif;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  fill: rgba(255, 248, 223, 0.26);
+  fill: rgba(255, 248, 223, 0.54);
 }
 
 /* Edge treatments. Hue AND dash pattern differ for every meaning. */
@@ -580,10 +612,11 @@
 .nur-orbit-node-halo { pointer-events: none; }
 
 .nur-orbit-node-label {
-  font-family: system-ui, sans-serif;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  fill: rgba(255, 248, 223, 0.78);
+  font-family: "Crimson Pro", Georgia, serif;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  fill: rgba(255, 248, 223, 0.82);
   pointer-events: none;
 }
 
@@ -591,12 +624,15 @@
 .nur-orbit-canvas[data-has-selection="true"] .nur-orbit-node:not([data-selected="true"]):not([data-connected="true"]) { opacity: 0.5; }
 .nur-orbit-canvas[data-has-selection="true"] .nur-orbit-edge:not([data-connected="true"]) { opacity: 0.28; }
 
-.nur-orbit-anchor-label {
-  font-family: system-ui, sans-serif;
-  font-size: 10px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  fill: rgba(255, 248, 223, 0.6);
+.nur-orbit-anchor-sigil {
+  grid-area: 1 / 1;
+  place-self: center;
+  position: relative;
+  z-index: 3;
+  width: 100px;
+  height: 100px;
+  pointer-events: none;
+  isolation: isolate;
 }
 
 /* ── detail panel ─────────────────────────────────────────────────────────── */
@@ -605,14 +641,14 @@
   margin: 0;
   padding: 24px 6px;
   font-family: system-ui, sans-serif;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.6;
   color: rgba(255, 248, 223, 0.4);
 }
 
 .nur-orbit-detail-name {
   margin: 0 0 2px;
-  font-size: 22px;
+  font-size: 25px;
   font-weight: 400;
   color: var(--orbit-pearl);
 }
@@ -620,7 +656,7 @@
 .nur-orbit-detail-meta {
   margin: 0 0 12px;
   font-family: system-ui, sans-serif;
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   color: rgba(255, 248, 223, 0.5);
 }
@@ -642,7 +678,7 @@
   padding: 0 12px;
   border-radius: 999px;
   font-family: system-ui, sans-serif;
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.06em;
   color: rgba(255, 248, 223, 0.56);
   background: transparent;
@@ -661,7 +697,7 @@
   margin-bottom: 8px;
   padding: 11px 12px;
   border-radius: 14px;
-  background: linear-gradient(180deg, rgba(6, 6, 43, 0.3), rgba(0, 0, 0, 0.4));
+  background: linear-gradient(180deg, rgba(2, 2, 2, 0.3), rgba(0, 0, 0, 0.4));
   box-shadow: inset 0 0 0 1px rgba(248, 217, 138, 0.1);
   font-family: system-ui, sans-serif;
 }
@@ -674,7 +710,7 @@
 }
 
 .nur-orbit-signal-name {
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgba(255, 248, 223, 0.6);
@@ -682,7 +718,7 @@
 
 .nur-orbit-signal-value {
   font-family: "Bodoni Moda", Georgia, serif;
-  font-size: 19px;
+  font-size: 22px;
   color: var(--orbit-pearl);
   font-variant-numeric: tabular-nums;
 }
@@ -694,7 +730,7 @@
   margin-top: 6px;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -718,7 +754,7 @@
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.5);
   box-shadow: inset 0 0 0 1px rgba(132, 61, 255, 0.16);
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.6;
   color: rgba(255, 248, 223, 0.7);
 }
@@ -740,14 +776,14 @@
   background: rgba(3, 3, 7, 0.7);
   box-shadow: inset 0 0 0 1px rgba(248, 217, 138, 0.08);
   font-family: system-ui, sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.55;
   color: rgba(255, 248, 223, 0.76);
 }
 
 .nur-orbit-item-meta {
   margin-top: 5px;
-  font-size: 10px;
+  font-size: 13px;
   letter-spacing: 0.06em;
   color: rgba(255, 248, 223, 0.4);
 }
@@ -755,7 +791,7 @@
 .nur-orbit-note {
   margin: 0;
   font-family: system-ui, sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.6;
   color: rgba(255, 248, 223, 0.44);
 }
@@ -763,33 +799,72 @@
 /* ── empty and error states ───────────────────────────────────────────────── */
 
 .nur-orbit-empty {
-  position: absolute;
-  inset: 0;
+  grid-column: 1;
+  grid-row: 2;
   display: flex;
-  flex-direction: column;
   align-items: center;
+  flex-direction: column;
   justify-content: center;
-  gap: 14px;
-  text-align: center;
-  padding: 32px;
+  gap: 13px;
+  min-height: 132px;
+  padding: 18px 24px 20px;
+  border-top: 1px solid rgba(248, 217, 138, .1);
+  background:
+    linear-gradient(105deg, rgba(79, 204, 255, .012), transparent 36%),
+    rgba(0, 0, 0, .54);
+  box-sizing: border-box;
+}
+
+.nur-orbit-field-surface.is-empty {
+  grid-template-rows: minmax(0, 1fr) auto;
 }
 
 .nur-orbit-empty p {
   margin: 0;
-  max-width: 34ch;
-  font-size: 16px;
-  line-height: 1.7;
-  color: rgba(255, 248, 223, 0.66);
+  width: 100%;
+  max-width: 720px;
+  text-align: center;
+  font-family: "Crimson Pro", Georgia, serif;
+  font-size: 18px;
+  line-height: 1.35;
+  color: rgba(255, 248, 223, 0.76);
 }
 
-.nur-orbit-empty-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.nur-orbit-empty-actions {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.nur-orbit-field-surface.has-field-actions {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.nur-orbit-field-actions {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 66px;
+  padding: 10px 18px 12px;
+  border-top: 1px solid rgba(248, 217, 138, .1);
+  background:
+    linear-gradient(105deg, rgba(79, 204, 255, .012), transparent 36%),
+    rgba(0, 0, 0, .54);
+  box-sizing: border-box;
+}
 
 .nur-orbit-inline-error {
   margin: 8px 0 0;
   padding: 10px 12px;
   border-radius: 12px;
   font-family: system-ui, sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   color: rgba(255, 190, 122, 0.9);
   background: rgba(0, 0, 0, 0.6);
   box-shadow: inset 0 0 0 1px rgba(255, 82, 111, 0.28);
@@ -822,11 +897,94 @@
   .nur-orbit-node .nur-orbit-node-halo { animation: none !important; opacity: 0.6 !important; }
   .nur-orbit-capsule:hover { transform: none; }
   .nur-orbit-capsule::after { display: none; }
+
+  /* Motion reduction must not erase the static control boundary. */
+  body.universe-edition #nur-front-v61 #nur-orbit-root .nur-orbit-capsule {
+    box-shadow: inset 0 0 0 1px rgba(255, 224, 158, .28) !important;
+  }
+}
+
+/* Keep the Orbit's stars and focus halos luminous while its controls and glass
+   panes remain free of rectangular bloom. */
+#nur-orbit-root :is(button, [role="button"]) {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+}
+
+#nur-orbit-root :is(
+  .nur-orbit-field-surface,
+  .nur-orbit-rail,
+  .nur-orbit-detail,
+  .nur-orbit-pane,
+  .nur-orbit-panel,
+  .nur-orbit-drawer,
+  .nur-orbit-sheet
+) {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+#nur-orbit-root :is(button, [role="button"], input):focus-visible {
+  outline: 1px solid rgba(255, 248, 223, .72) !important;
+  outline-offset: 3px !important;
+  box-shadow:
+    0 0 0 2px rgba(255, 248, 223, .34),
+    0 0 0 5px rgba(94, 214, 255, .16) !important;
+}
+
+/* The authenticated holographic material intentionally removes button bloom
+   with a higher-specificity rule. Keyboard focus is the one exception: keep a
+   crisp, non-animated ring on Orbit controls so the active target never gets
+   lost against the star field. */
+body.universe-edition #nur-front-v61 #nur-orbit-root
+  :is(button, [role="button"], input).nur-holo-control[data-nur-holographic-control="true"]:focus-visible {
+  box-shadow:
+    0 0 0 2px rgba(255, 248, 223, .34),
+    0 0 0 5px rgba(94, 214, 255, .16) !important;
 }
 
 /* ── mobile: list first ───────────────────────────────────────────────────── */
 
+@container nur-orbit (max-width: 1120px) {
+  #nur-orbit-root {
+    --orbit-rail: 210px;
+    --orbit-detail: 286px;
+    --orbit-gap: 10px;
+    --orbit-margin: 12px;
+  }
+
+  .nur-orbit-header {
+    gap: 9px;
+  }
+
+  .nur-orbit-title {
+    flex-basis: 100%;
+    color: var(--orbit-gold);
+  }
+
+  .nur-orbit-subtitle {
+    order: 2;
+  }
+
+  .nur-orbit-header-spacer {
+    display: none;
+  }
+}
+
 @media (max-width: 900px) {
+  /* Orbit owns its own search and creation controls. The canonical mobile
+     composer otherwise sits fixed over the field footer and makes the empty
+     message/actions unreadable. Keep the bottom navigation, reserve its hit
+     area, and remove only that redundant overlay while Orbit is mounted. */
+  body.universe-edition.nur-v197-orbit-active #nur-front-v61 .global-composer {
+    display: none !important;
+  }
+
+  .nur-orbit-shell {
+    padding-bottom: calc(var(--orbit-margin) + 86px);
+  }
+
   .nur-orbit-workspace { grid-template-columns: minmax(0, 1fr); }
   /* The rail collapses into the header's controls rather than stacking a second
    * column the thumb has to scroll past. */
@@ -856,7 +1014,16 @@
     grid-auto-rows: min-content;
     row-gap: 4px;
   }
-  .nur-orbit-title { font-size: 24px; }
+  .nur-orbit-title { font-size: 27px; }
+
+  .nur-orbit-empty {
+    align-items: center;
+    flex-direction: column;
+  }
+
+  .nur-orbit-empty-actions {
+    justify-content: center;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

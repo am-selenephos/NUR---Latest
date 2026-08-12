@@ -405,11 +405,16 @@ test("talk mocked semantic stream preserves structured result and plan/correctio
   await expect.poll(() => mocks.planCreated()).toBe(true);
 
   await universe.locator('[data-page="systems"]:visible').first().click();
-  await universe.locator('[data-world-tab="insights"]').click();
-  const correction = universe.locator("#nur-v197-insight-correction");
+  await universe.locator('.world-command[data-world-focus="insights"]').click();
+  await expect(page).toHaveURL(/\/universe\/insights\/candidates$/);
+  const candidate = universe.locator(".nur-candidate-card").filter({
+    hasText: "Source-faithful movement",
+  });
+  await expect(candidate).toBeVisible();
+  const correction = candidate.locator("textarea.nur-adjunct-textarea");
   await expect(correction).toBeEnabled();
   await correction.fill("Do not infer urgency without evidence.");
-  await universe.locator('[data-action="insight-correct"]').click();
+  await candidate.locator('[data-adjunct-action="candidate-correct-insight-1"]').click();
   await expect.poll(() => mocks.correctionSaved()).toBe(true);
 });
 

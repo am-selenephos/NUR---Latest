@@ -1,10 +1,17 @@
 import { V197ApiClient, type V197BridgeSnapshot, type V197Session } from "./v197ApiClient";
 import { renderV197Adjunct } from "./v197Adjuncts";
-import { renderV197Orbit } from "./v197Orbit";
-import { renderV197Map } from "./v197Map";
-import { renderV197Timeline } from "./v197Timeline";
+import { ORBIT_ROUTE, renderV197Orbit } from "./v197Orbit";
+import { MAP_ROUTE, renderV197Map } from "./v197Map";
+import { TIMELINE_ROUTE, renderV197Timeline } from "./v197Timeline";
 import { bindV197Actions, bindV197EntryAuth } from "./v197Bindings";
-import { emitBridgeEvent, routeForPage, routeForWorldFocus, V197_EVENTS, type V197NativeRoute } from "./v197Events";
+import {
+  emitBridgeEvent,
+  routeForPage,
+  routeForWorldFocus,
+  routeForWorldTab,
+  V197_EVENTS,
+  type V197NativeRoute,
+} from "./v197Events";
 import { hydrateTrackAV197, renderInsightInspection, renderWorldLens } from "./v197Hydration";
 import {
   compactV197MiniStars,
@@ -12,6 +19,29 @@ import {
   ensureV197PremiumPolish,
 } from "./v197Polish";
 import { selectRequired, V197_SELECTORS } from "./v197Selectors";
+
+/** Routes a bridge-native surface owns end to end.
+ *
+ * Sourced from each surface's own exported constant so this list cannot drift
+ * from what the surfaces actually claim.
+ */
+const SURFACE_ROOTS: readonly (readonly [string, string])[] = [
+  [ORBIT_ROUTE, "nur-orbit-root"],
+  [MAP_ROUTE, "nur-map-root"],
+  [TIMELINE_ROUTE, "nur-timeline-root"],
+];
+
+function isDedicatedUniverseRoute(route: string): boolean {
+  return route === "/universe/consultation"
+    || route.startsWith("/universe/consultation/")
+    || route === "/universe/research"
+    || route === "/universe/community"
+    || route.startsWith("/universe/community/")
+    || route === "/universe/experts"
+    || route === "/universe/insights/candidates"
+    || route.startsWith("/universe/insights/candidates/");
+}
+
 
 type V197HostApi = {
   verifySources: () => Promise<{ pass: boolean }>;
@@ -89,11 +119,23 @@ async function waitForEntryPresentation(
   throw new Error("Canonical V197 Entry presentation did not settle.");
 }
 
+function suspendEntryStage(frame: HTMLIFrameElement): void {
+  frame.style.display = "none";
+  frame.dataset.nurStageSuspended = "true";
+}
+
+function resumeEntryStage(frame: HTMLIFrameElement): void {
+  frame.style.removeProperty("display");
+  delete frame.dataset.nurStageSuspended;
+}
+
 export class V197Bridge {
   private readonly api = new V197ApiClient();
   private applyingRoute = false;
   private universeDocument: Document | null = null;
+  private session: V197Session | null = null;
   private snapshot: V197BridgeSnapshot | null = null;
+  private fullSnapshotHydrated = false;
   private actionCleanup: (() => void) | null = null;
   private entryAuthDocument: Document | null = null;
   private entryAuthCleanup: (() => void) | null = null;
@@ -114,8 +156,10 @@ export class V197Bridge {
     const integrity = await hostApi.verifySources();
     if (!integrity.pass) throw new Error("Canonical V197 source verification failed.");
     const entryFrame = selectRequired<HTMLIFrameElement>(this.hostDocument, V197_SELECTORS.entryStage);
+    resumeEntryStage(entryFrame);
     const entryDocument = await waitForFrameDocument(entryFrame, "#nur-front-v61", "Canonical V197 entry");
     ensureV197EntryPolish(entryDocument);
+    this.hostDocument.documentElement.dataset.nurEntryPolished = "true";
     this.ensureEntryAuthBinding(entryDocument, hostApi);
     this.installStageGuard(hostApi);
 
@@ -153,7 +197,6 @@ export class V197Bridge {
     if (!["/", "/auth", "/onboarding"].includes(window.location.pathname)) {
       (entryDocument.defaultView as V197EntryWindow | null)?.nurShowFront?.();
     }
-
   }
 
   private ensureEntryAuthBinding(entryDocument: Document, hostApi: V197HostApi): void {
@@ -166,7 +209,7 @@ export class V197Bridge {
   }
 
   async applyCurrentRoute(): Promise<void> {
-    if (!this.universeDocument || !this.snapshot) return;
+    if (!this.universeDocument || !this.session) return;
     const route = nativeRoute(window.location.pathname);
     const canonicalRoute: V197NativeRoute = route.startsWith("/talk/")
       ? "/talk"
@@ -176,8 +219,14 @@ export class V197Bridge {
           ? "/plan"
           : route.startsWith("/systems/")
             ? "/systems"
-            : route.startsWith("/universe/insights/")
-              ? "/universe/insights"
+            : route.startsWith("/universe/consultation/")
+              ? "/universe/consultation"
+              : route.startsWith("/universe/community/")
+                ? "/universe/community"
+                : route.startsWith("/universe/insights/candidates/")
+                  ? "/universe/insights/candidates"
+                  : route.startsWith("/universe/insights/")
+                    ? "/universe/insights"
             : route === "/universe/life"
               ? "/universe"
               : route;
@@ -196,21 +245,39 @@ export class V197Bridge {
       "/universe/orbits": "orbits",
       "/universe/timeline": "timeline",
       "/universe/insights": "insights",
+      "/universe/insights/candidates": "insights",
+      "/universe/consultation": "consult",
       "/universe/research": "research",
       "/universe/community": "community",
+      "/universe/experts": "experts",
       "/universe/web-signals": "web",
     };
+    const routeSurface = worldByRoute[canonicalRoute] ?? pageByRoute[canonicalRoute] ?? "today";
+    this.universeDocument.body.dataset.nurWorldSurface = routeSurface;
 
     this.applyingRoute = true;
     try {
+      if (!isDedicatedUniverseRoute(route)) {
+        await this.ensureFullSnapshot();
+      }
       const adjunctRendered = await renderV197Adjunct(
         this.universeDocument,
         route,
         this.api,
         this.snapshot,
         async () => this.refreshSnapshot(),
+        this.session,
       );
       if (adjunctRendered) return;
+      // Clear any surface root that does not own this route, *before* the chain
+      // below. Each surface removes its own root only when it is called with a
+      // non-matching route, and the chain early-returns as soon as one matches —
+      // so going from Map to Orbits left `#nur-map-root` behind, with two
+      // surfaces mounted at once. Only the roots are removed here, never the
+      // host, which the matching surface is about to claim.
+      for (const [surfaceRoute, rootId] of SURFACE_ROOTS) {
+        if (route !== surfaceRoute) this.universeDocument.getElementById(rootId)?.remove();
+      }
       // Orbit is a bridge-native surface like the other adjuncts: plain DOM and
       // SVG in the canonical document, never a React tree owning a product page.
       const orbitRendered = await renderV197Orbit(this.universeDocument, route, this.api);
@@ -264,16 +331,16 @@ export class V197Bridge {
   }
 
   private async activateSession(hostApi: V197HostApi, session: V197Session): Promise<void> {
-    // Verify owner data before the canonical host reveals the protected
-    // Universe. A failed snapshot therefore returns to the visible auth state
-    // instead of leaving a staged or indefinitely loading interior.
-    this.snapshot = await this.api.snapshot(session);
-    if (!this.snapshot.preferences?.timezone) {
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (timezone) {
-        await this.api.patchPreferences({ timezone });
-        this.snapshot = await this.api.snapshot(session);
-      }
+    this.hostDocument.documentElement.dataset.nurUniversePolished = "false";
+    this.session = session;
+    this.snapshot = null;
+    this.fullSnapshotHydrated = false;
+    const initialRoute = nativeRoute(window.location.pathname);
+    // Canonical worlds need the complete owner ledger before the protected
+    // frame is revealed. Dedicated Universe chambers fetch only their own
+    // records and defer this snapshot until the owner returns to Live Universe.
+    if (!isDedicatedUniverseRoute(initialRoute)) {
+      await this.loadFullSnapshot(session);
     }
     this.authenticatedSessionActive = true;
     let universeDocument: Document;
@@ -290,18 +357,43 @@ export class V197Bridge {
       window.history.replaceState({}, "", "/today");
     }
     this.bindNativeNavigation(universeDocument);
-    hydrateTrackAV197(universeDocument, this.snapshot);
+    if (this.snapshot) await this.ensureFullSnapshot();
     // Hydration paints the default live-System summary. Apply the requested
     // route afterwards so direct /universe/* loads retain their distinct lens
     // instead of being overwritten by the default System view.
     await this.applyCurrentRoute();
     this.compactRenderedMiniStars(universeDocument);
+    this.hostDocument.documentElement.dataset.nurUniversePolished = "true";
+  }
 
+  private async loadFullSnapshot(session: V197Session): Promise<V197BridgeSnapshot> {
+    if (this.snapshot) return this.snapshot;
+    let snapshot = await this.api.snapshot(session);
+    if (!snapshot.preferences?.timezone) {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (timezone) {
+        await this.api.patchPreferences({ timezone });
+        snapshot = await this.api.snapshot(session);
+      }
+    }
+    this.snapshot = snapshot;
+    return snapshot;
+  }
+
+  private async ensureFullSnapshot(): Promise<V197BridgeSnapshot> {
+    const hostApi = this.hostWindow.NURConsolidated;
+    if (!hostApi) throw new Error("Canonical V197 host did not initialize.");
+    if (!this.session) throw new Error("Your local Orbit session ended. Sign in again.");
+    if (!this.universeDocument) throw new Error("Canonical V197 Universe is not ready.");
+    const snapshot = await this.loadFullSnapshot(this.session);
+    if (this.fullSnapshotHydrated) return snapshot;
+    hydrateTrackAV197(this.universeDocument, snapshot);
+    this.compactRenderedMiniStars(this.universeDocument);
     this.actionCleanup?.();
     this.actionCleanup = bindV197Actions(
-      universeDocument,
+      this.universeDocument,
       this.api,
-      this.snapshot,
+      snapshot,
       async () => {
         const currentSession = await this.api.session();
         if (!currentSession) throw new Error("Your local Orbit session ended. Sign in again.");
@@ -312,7 +404,9 @@ export class V197Bridge {
       async () => {
         this.actionCleanup?.();
         this.actionCleanup = null;
+        this.session = null;
         this.snapshot = null;
+        this.fullSnapshotHydrated = false;
         this.universeDocument = null;
         this.authenticatedSessionActive = false;
         window.history.replaceState({}, "", "/");
@@ -329,7 +423,9 @@ export class V197Bridge {
       undefined,
       async () => this.applyCurrentRoute(),
     );
-    emitBridgeEvent(V197_EVENTS.sessionHydrate, this.snapshotEventDetail(this.snapshot));
+    this.fullSnapshotHydrated = true;
+    emitBridgeEvent(V197_EVENTS.sessionHydrate, this.snapshotEventDetail(snapshot));
+    return snapshot;
   }
 
   private async enterAuthenticatedUniverse(hostApi: V197HostApi, hostDocument: Document, session: V197Session): Promise<Document> {
@@ -343,6 +439,7 @@ export class V197Bridge {
     const universeDocument = await waitForFrameDocument(universeFrame, "#page-systems", "Canonical V197 universe frame");
     const entryFrame = selectRequired<HTMLIFrameElement>(hostDocument, V197_SELECTORS.entryStage);
     await waitForUniversePresentation(hostApi, entryFrame, universeFrame);
+    suspendEntryStage(entryFrame);
     return universeDocument;
   }
 
@@ -359,7 +456,10 @@ export class V197Bridge {
       const world = control.dataset.worldFocus ?? control.dataset.worldTab;
       const route = control.dataset.ownerRoute
         ? nativeRoute(control.dataset.ownerRoute)
-        : routeForPage(control.dataset.page ?? "") ?? routeForWorldFocus(world ?? "");
+        : routeForPage(control.dataset.page ?? "")
+          ?? (control.dataset.worldTab
+            ? routeForWorldTab(control.dataset.worldTab)
+            : routeForWorldFocus(world ?? ""));
       if (!route) return;
       window.setTimeout(() => {
         this.pushRoute(route);
@@ -382,7 +482,11 @@ export class V197Bridge {
     universeDocument.addEventListener("nur:world-focus", event => {
       if (this.applyingRoute) return;
       const focus = (event as CustomEvent<{ focus?: string }>).detail?.focus ?? "";
-      const route = routeForWorldFocus(focus);
+      // Native V197 emits the same focus name for a top-level world tab and a
+      // lower workspace command. Route the event to the canonical world lens;
+      // the real clicked control is resolved separately above and can then
+      // choose a dedicated workspace such as Candidate Insights.
+      const route = routeForWorldTab(focus) ?? routeForWorldFocus(focus);
       if (route) this.pushRoute(route);
     });
   }
@@ -410,6 +514,7 @@ export class V197Bridge {
     const entryFrame = selectRequired<HTMLIFrameElement>(this.hostDocument, V197_SELECTORS.entryStage);
     const universeFrame = selectRequired<HTMLIFrameElement>(this.hostDocument, V197_SELECTORS.universeStage);
     const transition = (async () => {
+      resumeEntryStage(entryFrame);
       hostApi.showEntry();
       await waitForEntryPresentation(hostApi, entryFrame, universeFrame);
     })();
@@ -486,6 +591,13 @@ export class V197Bridge {
   private pushRoute(route: V197NativeRoute): void {
     if (window.location.pathname === route) return;
     window.history.pushState({}, "", route);
+    // `pushState` does NOT fire `popstate` — that event is only for back/forward.
+    // The bridge listened for `popstate` alone, so every in-app navigation changed
+    // the URL and then rendered nothing: clicking Map, Orbits or Timeline in the
+    // canonical top nav landed on the right address with the canonical Systems
+    // page still on screen. Direct loads worked only because boot calls
+    // `applyCurrentRoute` itself. Applying the route here is what makes the nav
+    // actually navigate.
     void this.applyCurrentRoute();
   }
 

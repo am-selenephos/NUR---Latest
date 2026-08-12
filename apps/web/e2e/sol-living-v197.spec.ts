@@ -210,7 +210,8 @@ test("SOL living backend hydrates and moves the exact V197 presentation", async 
   await universe.locator('[data-page="systems"]:visible').first().click();
   await universe.locator('[data-world-tab="map"]').click();
   await expect(page).toHaveURL(/\/universe\/map$/);
-  await expect(universe.locator(".universe-insight-panel")).toContainText("persisted Map nodes");
+  await expect(universe.locator("#nur-map-root")).toBeVisible({ timeout: 20_000 });
+  await expect(universe.locator("#nur-map-root")).toHaveAttribute("data-map-loaded", "true");
   const graph = await page.evaluate(async () => {
     const response = await fetch("/api/v1/map");
     return response.json() as Promise<{ counts: { systems: number; goals: number; open_predictions: number }; nodes: Array<{ kind: string }> }>;
@@ -219,11 +220,16 @@ test("SOL living backend hydrates and moves the exact V197 presentation", async 
   expect(graph.counts.goals).toBeGreaterThan(0);
   expect(graph.counts.open_predictions).toBeGreaterThan(0);
   expect(graph.nodes.some(node => node.kind === "GLOW_MILESTONE")).toBe(true);
+  await expect.poll(async () => universe.locator("#nur-map-root [data-map-node]").count())
+    .toBeGreaterThanOrEqual(graph.counts.systems);
   await shot(page, "04-map-derived-graph-and-paths");
 
   await universe.locator('[data-world-tab="timeline"]').click();
   await expect(page).toHaveURL(/\/universe\/timeline$/);
-  await expect(universe.locator(".universe-insight-panel")).toContainText(/completed|checkin|diagnostic/i);
+  await expect(universe.locator("#nur-timeline-root")).toBeVisible({ timeout: 20_000 });
+  await expect(universe.locator("#nur-timeline-root")).toHaveAttribute("data-timeline-loaded", "true");
+  await expect.poll(async () => universe.locator("#nur-timeline-root [data-timeline-entry]").count())
+    .toBeGreaterThan(0);
   // The demo owner's ledger legitimately accumulates across runs; the law is
   // that the composed timeline SURFACES these kinds, so it is asserted over
   // the endpoint's full documented window (limit caps at 200), not the

@@ -41,10 +41,73 @@ export interface V197AgenticWorkflow {
   updated_at: string;
 }
 
+export interface V197AgenticStep {
+  id: string;
+  key: string;
+  ordinal: number;
+  state: string;
+  role: string;
+  tool_key: string | null;
+  tool_version: string | null;
+  risk_class: AgenticRiskClass;
+  approval_required: boolean;
+  depends_on: string[];
+  input_refs: Record<string, unknown>;
+  verification_verdict?: string | null;
+  attempt: number;
+  execution_attempt: string;
+  idempotency_key: string;
+  failure_code?: string | null;
+  retryable: boolean;
+}
+
+export interface V197AgenticWorkflowDetail {
+  id: string;
+  title: string;
+  objective: string;
+  state: AgenticWorkflowState;
+  kind: string;
+  plan_version: number;
+  context_manifest: Record<string, unknown>;
+  success_criteria: string[];
+  cost_cents: number;
+  failure_code?: string | null;
+  idempotent_replay?: boolean;
+  steps: V197AgenticStep[];
+}
+
+export interface V197AgenticTool {
+  key: string;
+  version: string;
+  risk_class: AgenticRiskClass;
+  summary: string;
+  reads: string[];
+  writes: string[];
+  reversible: boolean;
+  required_capabilities: string[];
+  bound: boolean;
+}
+
+export interface V197AgenticPolicy {
+  id?: string;
+  scope: "ACCOUNT";
+  persisted: boolean;
+  initiative_level: "OFF" | "SUGGEST" | "PREPARE" | "INTERNAL" | "CONNECTED" | "DELEGATED";
+  max_risk_class: AgenticRiskClass;
+  permitted_tools: string[];
+  auto_run_tools: string[];
+  denied_tools: string[];
+  granted_capabilities: string[];
+  daily_budget_cents: number;
+  max_proposals_per_day: number;
+  cooldown_minutes: number;
+  quiet_hours: Record<string, unknown> | null;
+}
+
 export interface V197AgenticApproval {
   id: string;
   workflow_id: string;
-  workflow_title: string;
+  workflow_title?: string;
   tool_key: string;
   tool_version: string;
   /** Already redacted server-side. The client never sees raw secrets. */
@@ -56,6 +119,11 @@ export interface V197AgenticApproval {
   scope_summary?: string | null;
   cost_ceiling_cents: number;
   expires_at?: string | null;
+  approval_id: string;
+  step_id?: string | null;
+  argument_digest: string;
+  plan_version: number;
+  call_version: string;
 }
 
 /**

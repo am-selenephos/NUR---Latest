@@ -374,7 +374,7 @@ test("Orbit is fully keyboard reachable with a visible focus halo", async () => 
     });
     if (active?.cls?.includes("nur-orbit")) {
       reached.push(active.cls);
-      expect(active.hasRing).toBe(true);
+      expect(active.hasRing, `${active.tag}.${active.cls} has no visible focus ring`).toBe(true);
     }
   }
   expect(reached.length).toBeGreaterThan(2);
@@ -384,9 +384,9 @@ test("reduced motion stops every animation without hiding any state", async ({ b
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     reducedMotion: "reduce",
+    storageState: await sharedContext.storageState(),
   });
   const page = await context.newPage();
-  await signIn(page);
   const frame = await openOrbit(page);
   const motion = await frame.evaluate(() => {
     const root = document.getElementById("nur-orbit-root");
@@ -410,9 +410,11 @@ test("reduced motion stops every animation without hiding any state", async ({ b
 });
 
 test("mobile opens in List view with a reachable bottom sheet", async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    storageState: await sharedContext.storageState(),
+  });
   const page = await context.newPage();
-  await signIn(page);
   const frame = await openOrbit(page);
   const mobile = await frame.evaluate(() => {
     const root = document.getElementById("nur-orbit-root");

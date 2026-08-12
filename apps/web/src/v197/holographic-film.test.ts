@@ -63,20 +63,47 @@ describe("holographic film", () => {
     expect(wheel).toContain("33.33%");
   });
 
-  it("drives every film from one inherited transform phase", () => {
-    const frames = css.slice(css.indexOf("@keyframes nurHoloGlobalPhase"));
+  it("animates only the Entry film on a compositor transform", () => {
+    const frames = css.slice(css.indexOf("@keyframes nurHoloEntryPhase"));
     const body = frames.slice(0, frames.indexOf("}\n\n"));
-    expect(body).toContain("--nur-holo-global-x");
-    expect(css).toContain(
-      "transform: translate3d(calc(var(--nur-holo-global-x) + var(--nur-holo-local-x)), 0, 0)",
-    );
-    expect(css).toContain("animation: nurHoloGlobalPhase 18s linear infinite");
+    expect(body).toContain("transform: translate3d");
+    expect(css).toContain("animation: nurHoloEntryPhase 18s linear infinite");
+    expect(css).toContain("body.front-v61-active #nur-front-v61 .nur-holo-film::before");
+    expect(css).not.toContain("nurHoloGlobalPhase");
+    expect(css).not.toContain("--nur-holo-global-x");
     expect(css).toContain("--nur-holo-local-x: -16.5%");
     // Background-position or hue rotation would repaint the film every frame.
     expect(body).not.toMatch(/background-position|filter:/);
   });
 
-  it("keeps a transparent full spectrum moving on every control and brightens attention states", () => {
+  it("does not animate the closed auth sheet behind Entry", () => {
+    expect(css).toContain('#f4-sheet[aria-hidden="true"] *');
+    expect(css).toContain('#f4-sheet[aria-hidden="true"] *::before');
+    expect(css).toContain('#f4-sheet[aria-hidden="true"] *::after');
+    const hiddenSheet = css.slice(
+      css.indexOf('body.front-v61-active #nur-front-v61 #f4-sheet[aria-hidden="true"] *'),
+      css.indexOf("/* A brighter version", css.indexOf('#f4-sheet[aria-hidden="true"] *')),
+    );
+    expect(hiddenSheet).toContain("animation: none !important");
+  });
+
+  it("caches the static nebula behind the animated galaxy canvas", () => {
+    const canvasRule = css.slice(
+      css.indexOf("#space3d,\ncanvas#space3d"),
+      css.indexOf("/* The nebula is static optical atmosphere"),
+    );
+    const atmosphereRule = css.slice(
+      css.indexOf("body #atm {"),
+      css.indexOf("/* ── 8. Panels"),
+    );
+    expect(canvasRule).toContain("background: none !important");
+    expect(atmosphereRule).toContain("opacity: 1 !important");
+    expect(atmosphereRule).toContain("contain: paint");
+    expect(atmosphereRule.match(/radial-gradient/g)).toHaveLength(6);
+    expect(atmosphereRule.match(/linear-gradient/g)).toHaveLength(1);
+  });
+
+  it("keeps a transparent full spectrum on every control and brightens attention states", () => {
     const globalFilm = css.slice(
       css.indexOf(".nur-holo-film {"),
       css.indexOf("/* ── 14. System-node crystal"),
@@ -88,7 +115,8 @@ describe("holographic film", () => {
     expect(globalFilm).toContain("rgba(0, 0, 0, .025)");
     expect(css).toContain("filter: brightness(1.18) saturate(1.1)");
     expect(css).not.toContain("animation: nurHoloFilmDrift");
-    expect(css.match(/animation: nurHoloGlobalPhase 18s linear infinite/g)).toHaveLength(1);
+    expect(css.match(/animation: nurHoloEntryPhase 18s linear infinite/g)).toHaveLength(1);
+    expect(css).toContain("transform: translate3d(var(--nur-holo-local-x), 0, 0)");
   });
 
   it("gives the six brain nodes restrained crystal states without touching their geometry", () => {
@@ -124,9 +152,10 @@ describe("holographic film", () => {
   });
 
   it("stands down for reduced motion", () => {
-    const query = css.slice(css.lastIndexOf("prefers-reduced-motion"));
-    expect(query).toContain(":root:has(#nur-front-v61)");
-    expect(query).toContain("animation: none");
-    expect(query).toContain("--nur-holo-global-x: 0%");
+    const query = css.slice(css.lastIndexOf("@media (prefers-reduced-motion: reduce)"));
+    expect(query).toContain(".nur-holo-film::before");
+    expect(query).toContain(".nur-holo-film::after");
+    expect(query).toContain("animation: none !important");
+    expect(query).toContain("transform: translate3d(0, 0, 0)");
   });
 });
