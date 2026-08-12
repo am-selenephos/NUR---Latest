@@ -34,8 +34,8 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          path = Path('apps/web/src/bridge/v43StarBrainRuntime.js')
-          text = path.read_text()
+          runtime_path = Path('apps/web/src/bridge/v43StarBrainRuntime.js')
+          text = runtime_path.read_text()
 
           replacements = [
               (
@@ -112,12 +112,39 @@ jobs:
                   raise SystemExit(f'guard failed: expected exactly one occurrence, found {count}: {old[:90]!r}')
               text = text.replace(old, new, 1)
 
-          path.write_text(text)
+          runtime_path.write_text(text)
+
+          old_hash = '19ce9ac65b1ccc34e7b07179d72bbf4054c713a83b954e56cbf6ce38adf58102'
+          new_hash = 'd77b5224d777e4e171ed722170ff51ec3602e125df5bd64bd09b600b5f76832e'
+          source_test_path = Path('apps/web/src/v197/v43-star-brain-source.test.ts')
+          phase_test_path = Path('apps/web/src/v197/phase1-host.test.ts')
+
+          for test_path in (source_test_path, phase_test_path):
+              test_text = test_path.read_text()
+              count = test_text.count(old_hash)
+              if count != 1:
+                  raise SystemExit(f'guard failed: expected one old Star Brain hash in {test_path}, found {count}')
+              test_path.write_text(test_text.replace(old_hash, new_hash, 1))
+
+          source_test = source_test_path.read_text()
+          anchor = '    expect(runtime).toContain("canvas.id = \'nur-brain-canvas\';");\n'
+          perf_assertions = (
+              '    // Idle rendering yields CPU to the full-screen galaxy without degrading active input.\n'
+              '    expect(runtime).toContain("const IDLE_FRAME_GAP=MOBILE?(GALAXY_PRESENT?66:40):(GALAXY_PRESENT?67:30);");\n'
+              '    expect(runtime).toContain("const ACTIVE_FRAME_GAP=MOBILE?IDLE_FRAME_GAP:(GALAXY_PRESENT?34:30);");\n'
+              '    expect(runtime).toContain("let physicsActive=false");\n'
+              '    expect(runtime).toContain("if(physicsActive||mode!==\'live\')");\n'
+              '    expect(runtime).toContain("const frameGap=interactive?ACTIVE_FRAME_GAP:IDLE_FRAME_GAP;");\n'
+          )
+          if source_test.count(anchor) != 1:
+              raise SystemExit('guard failed: source-test assertion anchor drifted')
+          source_test_path.write_text(source_test.replace(anchor, perf_assertions + anchor, 1))
           PY
 
           git diff --check
           node --check apps/web/src/bridge/v43StarBrainRuntime.js
-          git --no-pager diff -- apps/web/src/bridge/v43StarBrainRuntime.js
+          sha256sum apps/web/src/bridge/v43StarBrainRuntime.js | grep -Fq d77b5224d777e4e171ed722170ff51ec3602e125df5bd64bd09b600b5f76832e
+          git --no-pager diff -- apps/web/src/bridge/v43StarBrainRuntime.js apps/web/src/v197/v43-star-brain-source.test.ts apps/web/src/v197/phase1-host.test.ts
 
       - name: Install dependencies
         run: npm ci
@@ -156,7 +183,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git rm .github/workflows/nur-interface-lag-hotfix.yml
-          git add apps/web/src/bridge/v43StarBrainRuntime.js
+          git add apps/web/src/bridge/v43StarBrainRuntime.js apps/web/src/v197/v43-star-brain-source.test.ts apps/web/src/v197/phase1-host.test.ts
           git diff --cached --check
           git commit -m "perf(web): stop idle Star Brain from stealing galaxy frame budget"
           git push origin "HEAD:${HOTFIX_BRANCH}"
