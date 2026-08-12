@@ -11,7 +11,13 @@ const bridge = readFileSync(bridgePath, "utf8");
 describe("V43-derived NUR star-brain source", () => {
   it("keeps the supplied V43 anatomy and adds the approved sparkle/stem extension", () => {
     expect(createHash("sha256").update(runtime).digest("hex"))
-      .toBe("19ce9ac65b1ccc34e7b07179d72bbf4054c713a83b954e56cbf6ce38adf58102");
+      .toBe("d77b5224d777e4e171ed722170ff51ec3602e125df5bd64bd09b600b5f76832e");
+    // Idle rendering yields CPU to the full-screen galaxy without degrading active input.
+    expect(runtime).toContain("const IDLE_FRAME_GAP=MOBILE?(GALAXY_PRESENT?66:40):(GALAXY_PRESENT?67:30);");
+    expect(runtime).toContain("const ACTIVE_FRAME_GAP=MOBILE?IDLE_FRAME_GAP:(GALAXY_PRESENT?34:30);");
+    expect(runtime).toContain("let physicsActive=false");
+    expect(runtime).toContain("if(physicsActive||mode!=='live')");
+    expect(runtime).toContain("const frameGap=interactive?ACTIVE_FRAME_GAP:IDLE_FRAME_GAP;");
     expect(runtime).toContain("canvas.id = 'nur-brain-canvas';");
     expect(runtime).toContain("const N_CORTEX = MOBILE ? 740 : 1112;");
     expect(runtime).toContain("const N_CEREB  = MOBILE ? 154 : 225;");

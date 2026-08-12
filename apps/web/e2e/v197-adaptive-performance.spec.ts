@@ -167,7 +167,7 @@ test("Systems owns nonblank rigs, an honest paint budget, and no hidden Entry ti
   page.on("console", message => {
     if (message.text().includes("NUR offline shell registration failed")) failures.push(message.text());
   });
-  const { entry, universe } = await universeFrame(page);
+  const { universe } = await universeFrame(page);
   const systemsSelector = testInfo.project.name.includes("mobile")
     ? ".mobile-tabs [data-page='systems']"
     : ".clean-nav-button[data-page='systems']";
@@ -205,24 +205,10 @@ test("Systems owns nonblank rigs, an honest paint budget, and no hidden Entry ti
     .toBeLessThanOrEqual(testInfo.project.name.includes("mobile") ? 28 : 32);
   expect(systemsBudget.visibleControlEffects, JSON.stringify(systemsBudget, null, 2)).toBeGreaterThan(0);
 
-  const hiddenEntry = await entry.locator("html").evaluate(element => {
-    const running = document.getAnimations().filter(animation => (
-      animation.playState === "running" && animation.effect?.getTiming().iterations === Infinity
-    ));
-    return {
-      inactive: element.classList.contains("nur-stage-inactive"),
-      runningInfinite: running.length,
-      runningTargets: running.map(animation => {
-        const target = animation.effect instanceof KeyframeEffect ? animation.effect.target : null;
-        return {
-          name: animation instanceof CSSAnimation ? animation.animationName : "script",
-          target: target instanceof Element ? target.id || target.className || target.tagName : "unknown",
-        };
-      }),
-    };
-  });
-  expect(hiddenEntry.inactive).toBe(true);
-  expect(hiddenEntry.runningInfinite, JSON.stringify(hiddenEntry.runningTargets, null, 2)).toBe(0);
+  // Authenticated Universe retires the Entry iframe entirely; absence is stronger
+  // than keeping a hidden frame around and trying to police its animations.
+  await expect(page.locator("#nur-entry-stage")).toHaveCount(0);
+  await expect(page.locator("html")).toHaveAttribute("data-nur-entry-retired", "true");
   expect(failures).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("adaptive-systems.png"), fullPage: false });
 });
@@ -246,7 +232,7 @@ test("coarse mobile audits every visible Entry and Universe action at its final 
 
 test("reduced motion paints one deterministic brain frame and owns no continuing animation", async ({ page }, testInfo) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  const { entry, universe } = await universeFrame(page);
+  const { universe } = await universeFrame(page);
   const systemsSelector = testInfo.project.name.includes("mobile")
     ? ".mobile-tabs [data-page='systems']"
     : ".clean-nav-button[data-page='systems']";
@@ -288,5 +274,6 @@ test("reduced motion paints one deterministic brain frame and owns no continuing
   });
   expect(runtime.galaxyDiagnostics).toMatchObject({ frameScheduled: false, shouldRender: true });
   expect(runtime.runningInfinite).toBe(0);
-  await expect(entry.locator("html")).toHaveClass(/nur-stage-inactive/);
+  await expect(page.locator("#nur-entry-stage")).toHaveCount(0);
+  await expect(page.locator("html")).toHaveAttribute("data-nur-entry-retired", "true");
 });
