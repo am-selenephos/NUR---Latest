@@ -1,0 +1,162 @@
+name: NUR Interface Lag Hotfix
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  patch-validate-commit:
+    if: >-
+      github.event.pull_request.head.ref == 'perf/interface-lag-hotfix-20260812' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout hotfix branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Apply guarded Star Brain performance patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('apps/web/src/bridge/v43StarBrainRuntime.js')
+          text = path.read_text()
+
+          replacements = [
+              (
+                  "const MIN_FRAME_GAP=MOBILE?(GALAXY_PRESENT?66:40):(GALAXY_PRESENT?50:30);",
+                  "const IDLE_FRAME_GAP=MOBILE?(GALAXY_PRESENT?66:40):(GALAXY_PRESENT?67:30);\n"
+                  "  const ACTIVE_FRAME_GAP=MOBILE?IDLE_FRAME_GAP:(GALAXY_PRESENT?34:30);",
+              ),
+              (
+                  "// at 20Hz it is indistinguishable from 33Hz — while the star field carries the",
+                  "// at ~15Hz the idle drift remains continuous while the star field carries the",
+              ),
+              (
+                  "let energy=0;                  // storm brightness boost\n  let breath=0;",
+                  "let energy=0;                  // storm brightness boost\n"
+                  "  let physicsActive=false;       // idle anatomy has no spring work to integrate\n"
+                  "  let breath=0;",
+              ),
+              (
+                  "energy=Math.min(1.6, energy+power);\n    const n=Math.round(10+16*power);",
+                  "energy=Math.min(1.6, energy+power);\n"
+                  "    physicsActive=true;\n"
+                  "    const n=Math.round(10+16*power);",
+              ),
+              (
+                  "mode='shatter'; modeT=0;\n    pulses.length=0;",
+                  "mode='shatter'; modeT=0;\n"
+                  "    physicsActive=true;\n"
+                  "    pulses.length=0;",
+              ),
+              (
+                  "if(lastFrame&&now-lastFrame<MIN_FRAME_GAP) return;",
+                  "const interactive=dragging||mode!=='live'||energy>.12||hoverX>-1000;\n"
+                  "    const frameGap=interactive?ACTIVE_FRAME_GAP:IDLE_FRAME_GAP;\n"
+                  "    if(lastFrame&&now-lastFrame<frameGap) return;",
+              ),
+              (
+                  "// jelly physics: spring back to true anatomy\n    for(const p of pts){\n      p.vx+=-springK*p.ox; p.vy+=-springK*p.oy; p.vz+=-springK*p.oz;\n      p.vx*=dampK; p.vy*=dampK; p.vz*=dampK;\n      p.ox+=p.vx; p.oy+=p.vy; p.oz+=p.vz;\n    }",
+                  "// Jelly physics only runs while an interaction has actually displaced the rig.\n"
+                  "    // In steady-state every velocity and offset is zero, so integrating ~2k no-op\n"
+                  "    // springs every paint frame only steals CPU from the full-screen galaxy.\n"
+                  "    if(physicsActive||mode!=='live'){\n"
+                  "      let moving=mode!=='live';\n"
+                  "      for(const p of pts){\n"
+                  "        p.vx+=-springK*p.ox; p.vy+=-springK*p.oy; p.vz+=-springK*p.oz;\n"
+                  "        p.vx*=dampK; p.vy*=dampK; p.vz*=dampK;\n"
+                  "        p.ox+=p.vx; p.oy+=p.vy; p.oz+=p.vz;\n"
+                  "        const settled=Math.abs(p.vx)<1e-5&&Math.abs(p.vy)<1e-5&&Math.abs(p.vz)<1e-5\n"
+                  "          &&Math.abs(p.ox)<1e-4&&Math.abs(p.oy)<1e-4&&Math.abs(p.oz)<1e-4;\n"
+                  "        if(settled){ p.vx=p.vy=p.vz=p.ox=p.oy=p.oz=0; }\n"
+                  "        else moving=true;\n"
+                  "      }\n"
+                  "      physicsActive=moving;\n"
+                  "    }",
+              ),
+              (
+                  "a*=1+.9*k;\n        p.vx+=(p.x)*.0016*k; p.vy+=(p.y)*.0016*k; p.vz+=(p.z)*.0016*k;",
+                  "a*=1+.9*k;\n"
+                  "        physicsActive=true;\n"
+                  "        p.vx+=(p.x)*.0016*k; p.vy+=(p.y)*.0016*k; p.vz+=(p.z)*.0016*k;",
+              ),
+              (
+                  "staticFramePainted,\n      stageVisible:stageIsVisible()",
+                  "staticFramePainted,\n"
+                  "      stageVisible:stageIsVisible(),\n"
+                  "      physicsActive,\n"
+                  "      idleFrameGap:IDLE_FRAME_GAP,\n"
+                  "      activeFrameGap:ACTIVE_FRAME_GAP",
+              ),
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'guard failed: expected exactly one occurrence, found {count}: {old[:90]!r}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text)
+          PY
+
+          git diff --check
+          node --check apps/web/src/bridge/v43StarBrainRuntime.js
+          git --no-pager diff -- apps/web/src/bridge/v43StarBrainRuntime.js
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Typecheck
+        run: npm run web:typecheck
+
+      - name: Unit tests
+        run: npm run web:test
+
+      - name: Production build
+        run: npm run web:build
+
+      - name: Mocked browser regression suite
+        run: npm run web:e2e:mocked
+
+      - name: Adaptive Systems performance regression
+        run: npm --workspace apps/web run e2e -- e2e/v197-adaptive-performance.spec.ts --project=chromium-desktop --workers=1
+
+      - name: Assert optimized runtime diagnostics
+        shell: bash
+        run: |
+          grep -Fq "const IDLE_FRAME_GAP=MOBILE?(GALAXY_PRESENT?66:40):(GALAXY_PRESENT?67:30);" apps/web/src/bridge/v43StarBrainRuntime.js
+          grep -Fq "let physicsActive=false" apps/web/src/bridge/v43StarBrainRuntime.js
+          grep -Fq "if(physicsActive||mode!=='live')" apps/web/src/bridge/v43StarBrainRuntime.js
+          grep -Fq "physicsActive=true" apps/web/src/bridge/v43StarBrainRuntime.js
+
+      - name: Commit only after every validation passed
+        shell: bash
+        env:
+          HOTFIX_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/nur-interface-lag-hotfix.yml
+          git add apps/web/src/bridge/v43StarBrainRuntime.js
+          git diff --cached --check
+          git commit -m "perf(web): stop idle Star Brain from stealing galaxy frame budget"
+          git push origin "HEAD:${HOTFIX_BRANCH}"
