@@ -217,11 +217,12 @@
   // rate (9.2 -> 18.9 Hz), so the two were competing for the same frame budget.
   //
   // The brain yields when the galaxy is present. It is a slowly drifting cloud —
-  // at 20Hz it is indistinguishable from 33Hz — while the star field carries the
+  // at ~15Hz the idle drift remains continuous while the star field carries the
   // parallax the eye actually tracks. When the brain is the only canvas in the
   // document it keeps the original cadence.
   const GALAXY_PRESENT=!!document.querySelector('#space3d');
-  const MIN_FRAME_GAP=MOBILE?(GALAXY_PRESENT?66:40):(GALAXY_PRESENT?50:30);
+  const IDLE_FRAME_GAP=MOBILE?(GALAXY_PRESENT?66:40):(GALAXY_PRESENT?67:30);
+  const ACTIVE_FRAME_GAP=MOBILE?IDLE_FRAME_GAP:(GALAXY_PRESENT?34:30);
   let cosYaw=1,sinYaw=0,cosPitch=1,sinPitch=0;
   let yaw=.85, pitch=-.14, vyaw=REDUCED?0:.0022, vpitch=0;
   let zoom=1, targetZoom=1;
@@ -274,6 +275,7 @@
     rafHandle=requestAnimationFrame(frame);
   }
   let energy=0;                  // storm brightness boost
+  let physicsActive=false;       // idle anatomy has no spring work to integrate
   let breath=0;
 
   function resize(){
@@ -455,6 +457,7 @@
   /* ---- storms / absorb / bloom ------------------------------------------ */
   function storm(power=1){
     energy=Math.min(1.6, energy+power);
+    physicsActive=true;
     const n=Math.round(10+16*power);
     for(let i=0;i<n;i++) setTimeout(()=>firePulse(), Math.random()*420);
     // jelly shockwave
@@ -469,6 +472,7 @@
   function shatter(){
     if(mode==='shatter' || mode==='reform') return;
     mode='shatter'; modeT=0;
+    physicsActive=true;
     pulses.length=0;
     energy=Math.min(1.6, energy+1);
     for(const p of pts){
@@ -499,7 +503,10 @@
       reducedMotion:REDUCED,
       frameScheduled:rafHandle!==null,
       staticFramePainted,
-      stageVisible:stageIsVisible()
+      stageVisible:stageIsVisible(),
+      physicsActive,
+      idleFrameGap:IDLE_FRAME_GAP,
+      activeFrameGap:ACTIVE_FRAME_GAP
     };
   }
   window.nurStarBrain={ storm, absorb, shatter, firePulse, dispose, getDiagnostics };
@@ -564,7 +571,9 @@
     if(document.hidden || !visible) return;
     if(!REDUCED) rafHandle=requestAnimationFrame(frame);
     if(!host.isConnected || !onscreen) return;
-    if(lastFrame&&now-lastFrame<MIN_FRAME_GAP) return;
+    const interactive=dragging||mode!=='live'||energy>.12||hoverX>-1000;
+    const frameGap=interactive?ACTIVE_FRAME_GAP:IDLE_FRAME_GAP;
+    if(lastFrame&&now-lastFrame<frameGap) return;
     lastFrame=now;
     if(W<10){ resize(); if(W<10) return; }   // first visible frame after reveal
 
@@ -600,11 +609,21 @@
       if(modeT>95) mode='live';
     }
 
-    // jelly physics: spring back to true anatomy
-    for(const p of pts){
-      p.vx+=-springK*p.ox; p.vy+=-springK*p.oy; p.vz+=-springK*p.oz;
-      p.vx*=dampK; p.vy*=dampK; p.vz*=dampK;
-      p.ox+=p.vx; p.oy+=p.vy; p.oz+=p.vz;
+    // Jelly physics only runs while an interaction has actually displaced the rig.
+    // In steady-state every velocity and offset is zero, so integrating ~2k no-op
+    // springs every paint frame only steals CPU from the full-screen galaxy.
+    if(physicsActive||mode!=='live'){
+      let moving=mode!=='live';
+      for(const p of pts){
+        p.vx+=-springK*p.ox; p.vy+=-springK*p.oy; p.vz+=-springK*p.oz;
+        p.vx*=dampK; p.vy*=dampK; p.vz*=dampK;
+        p.ox+=p.vx; p.oy+=p.vy; p.oz+=p.vz;
+        const settled=Math.abs(p.vx)<1e-5&&Math.abs(p.vy)<1e-5&&Math.abs(p.vz)<1e-5
+          &&Math.abs(p.ox)<1e-4&&Math.abs(p.oy)<1e-4&&Math.abs(p.oz)<1e-4;
+        if(settled){ p.vx=p.vy=p.vz=p.ox=p.oy=p.oz=0; }
+        else moving=true;
+      }
+      physicsActive=moving;
     }
 
     c.clearRect(0,0,W,H);
@@ -661,6 +680,7 @@
       if(!isDust&&hoverX>-1000&&hoverDistance2<3364){
         const k=1-Math.sqrt(hoverDistance2)/58;
         a*=1+.9*k;
+        physicsActive=true;
         p.vx+=(p.x)*.0016*k; p.vy+=(p.y)*.0016*k; p.vz+=(p.z)*.0016*k;
         if(Math.random()<.05*k) emitMote(p,q.x,q.y);
       }
