@@ -206,9 +206,9 @@ const GALAXY_PROJECTION_CACHE_REPLACEMENTS: readonly Replacement[] = [
 ] as const;
 
 /*
- * Entry is the first thing anyone sees, so its galaxy is restored to canonical
- * density on desktop and thinned only on phones. The 34ms frame gap is deleted
- * for the same reason as the universe one: it capped Entry at 29 FPS.
+ * Entry remains dimensional, but ambient stars stay subordinate to the brain
+ * and copy. Density scales gently with area instead of doubling on large
+ * screens. The brain has its own renderer and is deliberately untouched.
  */
 const ENTRY_REPLACEMENTS: readonly Replacement[] = [
   ["DPR=Math.min(devicePixelRatio||1,1.65)", pixelBudgetDpr(1.5, 3_400_000)],
@@ -216,10 +216,10 @@ const ENTRY_REPLACEMENTS: readonly Replacement[] = [
     "const mobile=innerWidth<700;",
     "const mobile=Math.max(innerWidth,parent.innerWidth||0)<700;",
   ],
-  ["(mobile?680:1140)", "(mobile?520:Math.round(900*Math.min(2.2,Math.max(1,(innerWidth*innerHeight)/1600000))))"],
-  ["(mobile?460:720)", "(mobile?340:Math.round(585*Math.min(2.2,Math.max(1,(innerWidth*innerHeight)/1600000))))"],
-  ["(mobile?192:320)", "(mobile?96:Math.round(165*Math.min(2.2,Math.max(1,(innerWidth*innerHeight)/1600000))))"],
-  ["(mobile?44:76)", "(mobile?26:Math.round(48*Math.min(2.2,Math.max(1,(innerWidth*innerHeight)/1600000))))"],
+  ["(mobile?680:1140)", "(mobile?400:Math.round(690*Math.min(1.35,Math.max(1,(innerWidth*innerHeight)/1600000))))"],
+  ["(mobile?460:720)", "(mobile?260:Math.round(450*Math.min(1.35,Math.max(1,(innerWidth*innerHeight)/1600000))))"],
+  ["(mobile?192:320)", "(mobile?72:Math.round(126*Math.min(1.35,Math.max(1,(innerWidth*innerHeight)/1600000))))"],
+  ["(mobile?44:76)", "(mobile?20:Math.round(36*Math.min(1.35,Math.max(1,(innerWidth*innerHeight)/1600000))))"],
   [
     'const nodes=proj.filter(v=>v.p.kind==="galaxy"&&v.q.scale<.36).slice(0,130);',
     'const nodes=nodeCache;nodes.length=0;const entryNodeBudget=innerWidth<700?28:64;for(let nodeIndex=0;nodeIndex<proj.length&&nodes.length<entryNodeBudget;nodeIndex++){const candidate=proj[nodeIndex];if(candidate.p.kind==="galaxy"&&candidate.q.scale<.36)nodes.push(candidate)}',
@@ -279,7 +279,7 @@ const UNIVERSE_REPLACEMENTS: readonly Replacement[] = [
   ],
   [
     "const density=mobile?{galaxy:620,far:430,dust:118,super:32}:{galaxy:900,far:585,dust:165,super:48}",
-    "const areaScale=Math.min(2.2,Math.max(1,(innerWidth*innerHeight)/1600000));const density=mobile?{galaxy:520,far:340,dust:96,super:26}:{galaxy:Math.round(900*areaScale),far:Math.round(585*areaScale),dust:Math.round(165*areaScale),super:Math.round(48*areaScale)}",
+    "const areaScale=Math.min(1.35,Math.max(1,(innerWidth*innerHeight)/1600000));const density=mobile?{galaxy:400,far:260,dust:72,super:20}:{galaxy:Math.round(690*areaScale),far:Math.round(450*areaScale),dust:Math.round(126*areaScale),super:Math.round(36*areaScale)}",
   ],
   [
     'const nodeBudget=innerWidth<700?54:82;const nodes=proj.filter(v=>v.p.kind==="galaxy"&&v.q.scale<.36).slice(0,nodeBudget);',

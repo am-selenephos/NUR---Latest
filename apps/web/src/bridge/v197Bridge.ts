@@ -32,13 +32,7 @@ const SURFACE_ROOTS: readonly (readonly [string, string])[] = [
 ];
 
 function isDedicatedUniverseRoute(route: string): boolean {
-  return route === "/universe/consultation"
-    || route.startsWith("/universe/consultation/")
-    || route === "/universe/research"
-    || route === "/universe/community"
-    || route.startsWith("/universe/community/")
-    || route === "/universe/experts"
-    || route === "/universe/insights/candidates"
+  return route === "/universe/insights/candidates"
     || route.startsWith("/universe/insights/candidates/");
 }
 
@@ -62,6 +56,15 @@ declare global {
 
 function nativeRoute(pathname: string): V197NativeRoute {
   const value = pathname.replace(/\/+$/, "") || "/";
+  if ([
+    "/universe/consultation",
+    "/universe/research",
+    "/universe/community",
+    "/universe/experts",
+    "/universe/web-signals",
+  ].some(route => value === route || value.startsWith(`${route}/`))) {
+    return "/systems";
+  }
   return value as V197NativeRoute;
 }
 
@@ -219,11 +222,7 @@ export class V197Bridge {
           ? "/plan"
           : route.startsWith("/systems/")
             ? "/systems"
-            : route.startsWith("/universe/consultation/")
-              ? "/universe/consultation"
-              : route.startsWith("/universe/community/")
-                ? "/universe/community"
-                : route.startsWith("/universe/insights/candidates/")
+            : route.startsWith("/universe/insights/candidates/")
                   ? "/universe/insights/candidates"
                   : route.startsWith("/universe/insights/")
                     ? "/universe/insights"
@@ -246,11 +245,6 @@ export class V197Bridge {
       "/universe/timeline": "timeline",
       "/universe/insights": "insights",
       "/universe/insights/candidates": "insights",
-      "/universe/consultation": "consult",
-      "/universe/research": "research",
-      "/universe/community": "community",
-      "/universe/experts": "experts",
-      "/universe/web-signals": "web",
     };
     const routeSurface = worldByRoute[canonicalRoute] ?? pageByRoute[canonicalRoute] ?? "today";
     this.universeDocument.body.dataset.nurWorldSurface = routeSurface;
@@ -364,6 +358,18 @@ export class V197Bridge {
     await this.applyCurrentRoute();
     this.compactRenderedMiniStars(universeDocument);
     this.hostDocument.documentElement.dataset.nurUniversePolished = "true";
+    this.retireEntryStage();
+  }
+
+  private retireEntryStage(): void {
+    this.entryAuthCleanup?.();
+    this.entryAuthCleanup = null;
+    this.entryAuthDocument = null;
+    const entryFrame = this.hostDocument.querySelector<HTMLIFrameElement>(V197_SELECTORS.entryStage);
+    if (!entryFrame) return;
+    entryFrame.removeAttribute("srcdoc");
+    entryFrame.remove();
+    this.hostDocument.documentElement.dataset.nurEntryRetired = "true";
   }
 
   private async loadFullSnapshot(session: V197Session): Promise<V197BridgeSnapshot> {
@@ -402,23 +408,7 @@ export class V197Bridge {
         return next;
       },
       async () => {
-        this.actionCleanup?.();
-        this.actionCleanup = null;
-        this.session = null;
-        this.snapshot = null;
-        this.fullSnapshotHydrated = false;
-        this.universeDocument = null;
-        this.authenticatedSessionActive = false;
-        window.history.replaceState({}, "", "/");
-        await this.showEntry(hostApi);
-        const entryFrame = selectRequired<HTMLIFrameElement>(this.hostDocument, V197_SELECTORS.entryStage);
-        const entryDocument = await waitForFrameDocument(entryFrame, "#nur-front-v61", "Canonical V197 entry");
-        // A refreshed authenticated page enters the Universe before the native
-        // Entry intro has ever revealed its front surface. Restore that exact
-        // V197 runtime state on logout instead of leaving the intro over it.
-        (entryDocument.defaultView as V197EntryWindow | null)?.nurShowFront?.();
-        entryDocument.querySelector<HTMLButtonElement>("#f4-close")?.click();
-        this.ensureEntryAuthBinding(entryDocument, hostApi);
+        window.location.replace("/");
       },
       undefined,
       async () => this.applyCurrentRoute(),

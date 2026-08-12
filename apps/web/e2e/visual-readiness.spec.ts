@@ -418,55 +418,6 @@ async function assertEqualControlGroup(locator: Locator, count: number, label: s
   }
 }
 
-async function assertCouncilStageGeometry(frame: FrameLocator, mobile: boolean) {
-  const stages = frame.locator("#universe-consult .consultation-path .stage");
-  await expect(stages).toHaveCount(5);
-  const metrics = await stages.evaluateAll(elements => elements.map(element => {
-    const rect = element.getBoundingClientRect();
-    const number = element.querySelector<HTMLElement>(":scope > b")!;
-    const label = element.querySelector<HTMLElement>(":scope > span")!;
-    const copy = element.querySelector<HTMLElement>(":scope > small")!;
-    const numberRect = number.getBoundingClientRect();
-    const labelRect = label.getBoundingClientRect();
-    return {
-      width: rect.width,
-      numberTop: numberRect.top - rect.top,
-      labelTop: labelRect.top - rect.top,
-      clientWidth: element.clientWidth,
-      clientHeight: element.clientHeight,
-      scrollWidth: element.scrollWidth,
-      scrollHeight: element.scrollHeight,
-      childFit: [number, label, copy].map(child => ({
-        clientWidth: child.clientWidth,
-        clientHeight: child.clientHeight,
-        scrollWidth: child.scrollWidth,
-        scrollHeight: child.scrollHeight,
-      })),
-    };
-  }));
-  const comparedWidths = mobile ? metrics.slice(0, 4) : metrics;
-  expect(
-    Math.max(...comparedWidths.map(metric => metric.width)) - Math.min(...comparedWidths.map(metric => metric.width)),
-    `Council cells have equal tracks: ${JSON.stringify(metrics)}`,
-  ).toBeLessThanOrEqual(1);
-  expect(
-    Math.max(...metrics.map(metric => metric.numberTop)) - Math.min(...metrics.map(metric => metric.numberTop)),
-    `Council numbers share one baseline: ${JSON.stringify(metrics)}`,
-  ).toBeLessThanOrEqual(1);
-  expect(
-    Math.max(...metrics.map(metric => metric.labelTop)) - Math.min(...metrics.map(metric => metric.labelTop)),
-    `Council labels share one baseline: ${JSON.stringify(metrics)}`,
-  ).toBeLessThanOrEqual(1);
-  for (const [index, metric] of metrics.entries()) {
-    expect(metric.scrollWidth, `Council stage ${index + 1} fits horizontally`).toBeLessThanOrEqual(metric.clientWidth + 1);
-    expect(metric.scrollHeight, `Council stage ${index + 1} fits vertically`).toBeLessThanOrEqual(metric.clientHeight + 1);
-    for (const child of metric.childFit) {
-      expect(child.scrollWidth, `Council stage ${index + 1} child fits horizontally`).toBeLessThanOrEqual(child.clientWidth + 1);
-      expect(child.scrollHeight, `Council stage ${index + 1} child fits vertically`).toBeLessThanOrEqual(child.clientHeight + 1);
-    }
-  }
-}
-
 async function assertBoundaryControlsStyled(frame: FrameLocator) {
   const modal = frame.locator("#scope-modal .scope-modal");
   await expect(modal).toBeVisible();
@@ -617,7 +568,7 @@ async function assertSystemsMapGeometry(page: Page, viewportLabel: string) {
     expect(commandFlow.gridTemplateColumns.split(" ")).toHaveLength(2);
     expect(commandFlow.scrollWidth, "mobile commands do not clip horizontally").toBeLessThanOrEqual(commandFlow.clientWidth + 1);
     expect(commandFlow.scrollHeight, "mobile commands do not clip vertically").toBeLessThanOrEqual(commandFlow.clientHeight + 1);
-    expect(commandFlow.controls).toHaveLength(5);
+    expect(commandFlow.controls).toHaveLength(2);
     expect(commandFlow.controls.every(control => control.inside), "all mobile commands stay inside their grid").toBe(true);
     expect(Math.min(...commandFlow.controls.map(control => control.height)), "mobile commands keep a 44px hit height").toBeGreaterThanOrEqual(44);
     expect(command.height, "mobile command grid has a visible layout box").toBeGreaterThanOrEqual(44);
@@ -684,14 +635,40 @@ test("Today and Systems controls keep one proportional geometry contract", async
 
   await page.goto("/systems");
   await expect(frame.locator("#page-systems")).toBeVisible();
-  await assertEqualControlGroup(
-    frame.locator(".universe-lower-grid .universe-card-head > .tiny-link"),
-    4,
-    "Systems lower-card actions",
-  );
-  await assertCouncilStageGeometry(frame, mobile);
+  await expect(frame.locator([
+    'section.clean-rail-section[aria-label="Universe tools"]',
+    "#universe-search",
+    "#deep-research-button",
+    "#universe-consult",
+    "#universe-research",
+    "#universe-community",
+    ".expert-card",
+    ".universe-lower-grid",
+    ".universe-state-strip",
+    ".universe-composer-shell",
+  ].join(","))).toHaveCount(0);
+  await expect(frame.locator(".universe-command-row .world-command")).toHaveCount(2);
   await expect(frame.locator("#page-systems #front-nur-star"))
     .toHaveAttribute("data-nur-point-count", mobile ? "1355" : "2086");
+
+  if (!mobile) {
+    const fit = await frame.locator("#page-systems").evaluate(element => {
+      const page = element.getBoundingClientRect();
+      const viewport = element.closest<HTMLElement>(".nur-viewport");
+      return {
+        innerHeight,
+        pageTop: page.top,
+        pageBottom: page.bottom,
+        viewportClientHeight: viewport?.clientHeight ?? 0,
+        viewportScrollHeight: viewport?.scrollHeight ?? 0,
+      };
+    });
+    expect(fit.pageTop, "Systems begins below the topbar").toBeGreaterThanOrEqual(0);
+    expect(fit.pageBottom, "Systems fits in the desktop viewport without a lower fold")
+      .toBeLessThanOrEqual(fit.innerHeight + 1);
+    expect(fit.viewportScrollHeight, "Systems does not require viewport scrolling")
+      .toBeLessThanOrEqual(fit.viewportClientHeight + 1);
+  }
 
   const activeGlyph = frame.locator('.clean-nav-button.active[data-page="systems"] > .clean-nav-glyph');
   if (!mobile) {

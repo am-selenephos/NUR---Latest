@@ -24,6 +24,19 @@ const keep = {
   },
 };
 
+const retiredUniverseSelectors = [
+  'section.clean-rail-section[aria-label="Universe tools"]',
+  'section.clean-rail-section[aria-label="Universe tools"] + .clean-rule',
+  '.universe-top-tools > .universe-search',
+  '.universe-top-tools > #deep-research-button',
+  '.universe-command-row [data-world-focus="consult"]',
+  '.universe-command-row [data-world-focus="research"]',
+  '.universe-command-row [data-world-focus="community"]',
+  '.universe-state-strip',
+  '.universe-lower-grid',
+  '.universe-composer-shell',
+];
+
 function extract(host, name) {
   const match = host.match(new RegExp(`const ${name} = "([A-Za-z0-9+/=]+)";`));
   if (!match) throw new Error(`Unable to locate ${name}.`);
@@ -54,6 +67,16 @@ function prune(source, kind) {
     removed.push({ start: location.startOffset, end: location.endOffset, label: `${tag}#${id}` });
   }
 
+  if (kind === "universe") {
+    for (const selector of retiredUniverseSelectors) {
+      for (const node of document.querySelectorAll(selector)) {
+        const location = dom.nodeLocation(node);
+        if (!location) throw new Error(`Missing source location for retired Universe surface ${selector}.`);
+        removed.push({ start: location.startOffset, end: location.endOffset, label: `retired:${selector}` });
+      }
+    }
+  }
+
   let next = source;
   for (const range of removed.sort((a, b) => b.start - a.start)) {
     next = next.slice(0, range.start) + next.slice(range.end);
@@ -72,6 +95,21 @@ function prune(source, kind) {
   const expected = kind === "entry" ? 6 : 3;
   if (remaining.length !== expected) {
     throw new Error(`${kind} retained ${remaining.length} style/script nodes; expected ${expected}.`);
+  }
+  if (kind === "universe") {
+    for (const selector of retiredUniverseSelectors) {
+      if (validation.querySelector(selector)) {
+        throw new Error(`Retired Universe surface survived rebuild: ${selector}.`);
+      }
+    }
+    const commands = [...validation.querySelectorAll(".universe-command-row [data-world-focus]")]
+      .map(node => node.getAttribute("data-world-focus"));
+    if (commands.join(",") !== "universe,insights") {
+      throw new Error(`Unexpected Universe commands after rebuild: ${commands.join(",")}.`);
+    }
+    if (validation.querySelector("#universe-search, #deep-research-button")) {
+      throw new Error("Retired web-research controls survived the canonical rebuild.");
+    }
   }
 
   return { source: next, removed: removed.map(item => item.label) };
@@ -100,7 +138,7 @@ manifest.entry.bytes = Buffer.byteLength(entry.source);
 manifest.universe.sha256 = digest(universe.source);
 manifest.universe.bytes = Buffer.byteLength(universe.source);
 manifest.integration.preserved_source_bytes = false;
-manifest.integration.cleanup = "obsolete visual patch blocks removed; canonical copy and functional runtimes retained";
+manifest.integration.cleanup = "obsolete patches and retired consultation, research, community, expert surfaces removed; canonical core retained";
 host = host.replace(manifestMatch[0], `const MANIFEST = Object.freeze(${JSON.stringify(manifest)});`);
 host = host.replace(/#020103/gi, "#000000");
 writeFileSync(hostPath, host);

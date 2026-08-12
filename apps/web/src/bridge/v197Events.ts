@@ -97,15 +97,10 @@ const pageRoutes: Record<string, V197NativeRoute> = {
 
 const worldRoutes: Record<string, V197NativeRoute> = {
   universe: "/universe",
-  consult: "/universe/consultation",
   map: "/universe/map",
   orbits: "/universe/orbits",
   timeline: "/universe/timeline",
   insights: "/universe/insights/candidates",
-  research: "/universe/research",
-  community: "/universe/community",
-  experts: "/universe/experts",
-  web: "/universe/web-signals",
 };
 
 const worldTabRoutes: Record<string, V197NativeRoute> = Object.fromEntries(

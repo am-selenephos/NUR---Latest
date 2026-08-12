@@ -7,15 +7,15 @@ const proofRoot = process.env.NUR_TRACK_A_PROOF_DIR
   ?? (process.cwd().endsWith("/apps/web") ? "../../proof/track-a" : "proof/track-a");
 
 const scenarioStamp = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+const persistedTalkLine = `Track A direct Talk ${scenarioStamp}`;
 const scenario = {
   email: `track-a-${scenarioStamp}@nur.app`,
   password: `Track-A-${scenarioStamp}!`,
   todayLine: `Track A check-in ${scenarioStamp}`,
-  talkLine: `Track A direct Talk ${scenarioStamp}`,
+  talkLine: persistedTalkLine,
   journalLine: `Track A journal ${scenarioStamp}`,
-  planTitle: `Track A plan ${scenarioStamp}`,
+  planTitle: persistedTalkLine,
   outcomeLine: `Track A outcome ${scenarioStamp}`,
-  researchLine: `Track A research ${scenarioStamp}`,
   extraSystem: `Track A System ${scenarioStamp}`,
 };
 
@@ -300,14 +300,8 @@ test("Track A owner mutation loop uses exact V197 controls", async ({ page }, te
   await universe.locator("#journal-save").click();
   await expect(universe.locator("#page-journal .journal-prompt")).toContainText(journalLine, { timeout: 20_000 });
 
-  await universe.locator('[data-page="systems"]:visible').first().click();
-  for (const mode of ["reflect", "ask", "challenge", "explore", "summarize", "plan"]) {
-    const modeControl = universe.locator(`.universe-prompt-row [data-action="${mode}"]:visible`);
-    await modeControl.click();
-    await expect(modeControl).toHaveAttribute("aria-pressed", "true");
-  }
-  await universe.locator("#universe-composer-input").fill(planTitle);
-  await universe.locator(".universe-send").click();
+  await universe.locator('[data-page="talk"]:visible').first().click();
+  await universe.locator('[data-thread-action="plan"]').click();
   await expect(universe.locator("#page-plan")).toHaveClass(/active/, { timeout: 20_000 });
   await expect(universe.locator("#page-plan .panel-title").first()).toHaveText(planTitle);
   await universe.locator('[data-action="make-easier"]').click();
@@ -384,7 +378,7 @@ test("Track A owner mutation loop uses exact V197 controls", async ({ page }, te
 test("Track A persists across a fresh session and keeps the premium V197 map clear at 1440", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium-desktop", "The persisted continuation and laptop geometry proof run once in desktop Chromium.");
   test.setTimeout(60_000);
-  const { email, password, todayLine, talkLine, journalLine, planTitle, researchLine, extraSystem } = scenario;
+  const { email, password, todayLine, talkLine, journalLine, planTitle, extraSystem } = scenario;
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/", { waitUntil: "load" });
@@ -430,17 +424,12 @@ test("Track A persists across a fresh session and keeps the premium V197 map cle
 
   await page.setViewportSize({ width: 1600, height: 900 });
   await refreshed.locator('[data-page="systems"]:visible').first().click();
-  await expect(refreshed.locator("#universe-search")).toBeVisible();
-  await refreshed.locator("#universe-search").fill(journalLine);
-  await refreshed.locator("#universe-search").press("Enter");
-  await expect(refreshed.locator("#universe-research .research-results")).toContainText(journalLine, { timeout: 20_000 });
-  await refreshed.locator('[data-world-focus="research"]:visible').first().click();
-  await refreshed.locator("#research-query").fill(researchLine);
-  await refreshed.locator("[data-research-submit]").click();
-  await expect(refreshed.locator("#universe-research .research-results")).toContainText(researchLine, { timeout: 20_000 });
-
-  await refreshed.locator("#universe-composer-input").fill(extraSystem);
+  await expect(refreshed.locator("#universe-search, #deep-research-button, #universe-research")).toHaveCount(0);
+  await expect(refreshed.locator("#universe-consult, #universe-community, .expert-card")).toHaveCount(0);
   await refreshed.locator('[data-action="add-system"]').click();
+  await expect(refreshed.locator("#nur-v197-system-create")).toBeVisible();
+  await refreshed.locator("#nur-v197-system-title").fill(extraSystem);
+  await refreshed.locator('[data-action="system-create-submit"]').click();
   await expect(refreshed.locator("#toast")).toContainText("System persisted", { timeout: 20_000 });
   await expect.poll(async () => page.evaluate(async title => {
     const response = await fetch("/api/v1/orbits");

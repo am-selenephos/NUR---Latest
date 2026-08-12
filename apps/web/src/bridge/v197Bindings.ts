@@ -28,7 +28,6 @@ export type V197ActionApi = Pick<
   | "createOutcome"
   | "rewardGlow"
   | "patchPreferences"
-  | "createResearchBrief"
   | "createOrbit"
   | "acceptInsight"
   | "rejectInsight"
@@ -39,13 +38,7 @@ export type V197ActionApi = Pick<
   | "completeTodayAction"
   | "missTodayAction"
   | "makeTodayActionEasier"
-  | "createCommunityRoom"
-  | "postCommunityMessage"
-  | "addCommunityMember"
-  | "createCouncilPosition"
-  | "createCouncilDecision"
   | "logout"
-  | "get"
 >;
 
 type RefreshSnapshot = () => Promise<V197BridgeSnapshot>;
@@ -116,12 +109,73 @@ export class V197ActionBindings {
     this.document.addEventListener("click", this.scopeHandler);
     this.installLanguageControls();
     this.installOwnerAuthMenu();
+    this.installSystemCreateDialog();
     return () => {
       this.document.removeEventListener("click", this.clickHandler, true);
       this.document.removeEventListener("keydown", this.keyHandler, true);
       this.document.removeEventListener("click", this.scopeHandler);
       this.document.getElementById("nur-v197-owner-auth-menu")?.remove();
+      this.document.getElementById("nur-v197-system-create")?.remove();
     };
+  }
+
+  private installSystemCreateDialog(): void {
+    if (this.document.getElementById("nur-v197-system-create")) return;
+    const dialog = this.document.createElement("dialog");
+    dialog.id = "nur-v197-system-create";
+    dialog.className = "nur-v197-system-dialog";
+    dialog.setAttribute("aria-labelledby", "nur-v197-system-create-title");
+
+    const chamber = this.document.createElement("section");
+    chamber.className = "nur-v197-system-dialog__chamber";
+    const kicker = this.document.createElement("p");
+    kicker.className = "nur-v197-system-dialog__kicker";
+    kicker.textContent = "Private system";
+    const title = this.document.createElement("h2");
+    title.id = "nur-v197-system-create-title";
+    title.textContent = "Name the field.";
+    const note = this.document.createElement("p");
+    note.className = "nur-v197-system-dialog__note";
+    note.textContent = "One life area with its own evidence, actions, and return path.";
+    const input = this.document.createElement("input");
+    input.id = "nur-v197-system-title";
+    input.autocomplete = "off";
+    input.maxLength = 80;
+    input.placeholder = "e.g. Quiet Ambition";
+    input.setAttribute("aria-label", "System name");
+    const actions = this.document.createElement("div");
+    actions.className = "nur-v197-system-dialog__actions";
+    const cancel = this.document.createElement("button");
+    cancel.type = "button";
+    cancel.dataset.action = "system-create-cancel";
+    cancel.textContent = "Cancel";
+    const create = this.document.createElement("button");
+    create.type = "button";
+    create.dataset.action = "system-create-submit";
+    create.textContent = "Create system";
+    actions.append(cancel, create);
+    chamber.append(kicker, title, note, input, actions);
+    dialog.append(chamber);
+    dialog.addEventListener("cancel", event => {
+      event.preventDefault();
+      dialog.close();
+    });
+    this.document.body.append(dialog);
+  }
+
+  private openSystemCreateDialog(): void {
+    const dialog = this.document.querySelector<HTMLDialogElement>("#nur-v197-system-create");
+    if (!dialog) return;
+    if (typeof dialog.showModal === "function") dialog.showModal();
+    else dialog.setAttribute("open", "");
+    this.document.querySelector<HTMLInputElement>("#nur-v197-system-title")?.focus({ preventScroll: true });
+  }
+
+  private closeSystemCreateDialog(): void {
+    const dialog = this.document.querySelector<HTMLDialogElement>("#nur-v197-system-create");
+    if (!dialog) return;
+    if (typeof dialog.close === "function" && dialog.open) dialog.close();
+    else dialog.removeAttribute("open");
   }
 
   private installOwnerAuthMenu(): void {
@@ -258,14 +312,12 @@ export class V197ActionBindings {
     this.toast("Journal persisted privately.");
   }
 
-  private async sendTalk(source: "talk" | "today" | "mobile" | "composer"): Promise<void> {
+  private async sendTalk(source: "talk" | "today" | "mobile"): Promise<void> {
     const inputSelector = source === "today"
       ? "#today-input"
       : source === "mobile"
         ? "#mobile-composer"
-        : source === "composer"
-          ? "#universe-composer-input"
-          : "#talk-input";
+        : "#talk-input";
     const message = inputValue(this.document, inputSelector);
     if (!message) {
       this.toast("Give NUR one real sentence.");
@@ -383,15 +435,13 @@ export class V197ActionBindings {
   }
 
   private async createPlan(titleOverride?: string): Promise<void> {
-    const title = titleOverride?.trim() || inputValue(this.document, "#universe-composer-input") || this.lastUserTalk();
+    const title = titleOverride?.trim() || this.lastUserTalk();
     if (!title) {
       this.toast("Name one honest direction before creating a Plan.");
-      this.document.querySelector<HTMLInputElement>("#universe-composer-input")?.focus();
       return;
     }
     const plan: V197Plan = await this.api.createPlan(title, this.activeOrbitId());
     await this.award("plan_created", "PLAN", plan.id, `plan:${plan.id}:created`);
-    setInputValue(this.document, "#universe-composer-input", "");
     await this.refresh();
     this.universeWindow()?.nurOpenPage?.("plan");
     this.toast("Plan persisted with its first move.");
@@ -436,60 +486,17 @@ export class V197ActionBindings {
   }
 
   private async createSystem(): Promise<void> {
-    const title = inputValue(this.document, "#universe-composer-input");
+    const title = inputValue(this.document, "#nur-v197-system-title");
     if (!title) {
-      this.toast("Name the System in the lower composer, then choose Add system again.");
-      this.document.querySelector<HTMLInputElement>("#universe-composer-input")?.focus();
+      this.toast("Name the System first.");
+      this.document.querySelector<HTMLInputElement>("#nur-v197-system-title")?.focus();
       return;
     }
     await this.api.createOrbit(title);
-    setInputValue(this.document, "#universe-composer-input", "");
+    setInputValue(this.document, "#nur-v197-system-title", "");
+    this.closeSystemCreateDialog();
     await this.refresh();
     this.toast("System persisted in your private universe.");
-  }
-
-  private async stageResearch(): Promise<void> {
-    const question = inputValue(this.document, "#research-query") || inputValue(this.document, "#universe-search");
-    if (!question) {
-      this.toast("Name a research question first.");
-      return;
-    }
-    await this.api.createResearchBrief(question, this.activeOrbitId());
-    setInputValue(this.document, "#research-query", "");
-    await this.refresh();
-    this.toast("Research question saved locally. No source was invented.");
-  }
-
-  private async searchOwnerLedger(): Promise<void> {
-    const query = inputValue(this.document, "#universe-search");
-    if (query.length < 2) {
-      this.toast("Use at least two characters to search your owner ledger.");
-      return;
-    }
-    const hits = await this.api.get<Array<{ label: string; excerpt: string | null; kind: string }>>(`/universe/search?q=${encodeURIComponent(query)}`);
-    const results = this.document.querySelector<HTMLElement>("#universe-research .research-results");
-    if (results) {
-      while (results.firstChild) results.removeChild(results.firstChild);
-      if (hits.length === 0) {
-        const row = this.document.createElement("article");
-        row.textContent = "No matching owner-ledger results.";
-        results.append(row);
-      }
-      hits.slice(0, 6).forEach(hit => {
-        const row = this.document.createElement("article");
-        const mark = this.document.createElement("i");
-        mark.textContent = "⌕";
-        const copy = this.document.createElement("div");
-        const title = this.document.createElement("b");
-        title.textContent = hit.label;
-        const body = this.document.createElement("span");
-        body.textContent = hit.excerpt || hit.kind;
-        copy.append(title, body);
-        row.append(mark, copy);
-        results.append(row);
-      });
-    }
-    this.toast(`${hits.length} private ledger ${hits.length === 1 ? "result" : "results"}.`);
   }
 
   private lastUserTalk(): string {
@@ -622,98 +629,6 @@ export class V197ActionBindings {
     );
   }
 
-  private async createCommunityRoom(kind: "GROUP" | "COUNCIL"): Promise<void> {
-    const title = inputValue(this.document, "#nur-v197-room-title");
-    if (!title) {
-      this.toast("Name the room honestly before creating it.");
-      this.document.querySelector<HTMLInputElement>("#nur-v197-room-title")?.focus();
-      return;
-    }
-    const room = await this.api.createCommunityRoom(title, kind);
-    setInputValue(this.document, "#nur-v197-room-title", "");
-    await this.refresh();
-    this.toast(kind === "COUNCIL"
-      ? `Council “${room.title}” persisted. Positions and one owned decision live here.`
-      : `Room “${room.title}” persisted. Members you add see room content only.`);
-  }
-
-  private async postCommunityMessage(): Promise<void> {
-    const body = inputValue(this.document, "#nur-v197-room-message");
-    if (!body) {
-      this.toast("Write one honest line before posting.");
-      return;
-    }
-    const room = (this.snapshot.communityRooms ?? []).find(row => row.status === "ACTIVE");
-    if (!room) {
-      this.toast("Create a room before posting a message.");
-      return;
-    }
-    const message = await this.api.postCommunityMessage(room.id, body, this.locale());
-    setInputValue(this.document, "#nur-v197-room-message", "");
-    await this.refresh();
-    const glow = message.glow;
-    this.toast(glow?.status === "AWARDED"
-      ? `Message persisted in “${room.title}” · +${glow.awarded_points} verified Glow.`
-      : `Message persisted in “${room.title}”. ${glow?.note ?? ""}`.trim());
-  }
-
-  private activeRoom(kind?: "COUNCIL"): { id: string; title: string } | null {
-    const rooms = (this.snapshot.communityRooms ?? []).filter(row => row.status === "ACTIVE");
-    const room = kind ? rooms.find(row => row.room_kind === kind) : rooms[0];
-    return room ? { id: room.id, title: room.title } : null;
-  }
-
-  private async addCommunityMember(): Promise<void> {
-    const email = inputValue(this.document, "#nur-v197-member-email");
-    if (!email) {
-      this.toast("Enter the member's exact NUR account email.");
-      return;
-    }
-    const room = this.activeRoom();
-    if (!room) {
-      this.toast("Create a room before inviting a member.");
-      return;
-    }
-    await this.api.addCommunityMember(room.id, email);
-    setInputValue(this.document, "#nur-v197-member-email", "");
-    await this.refresh();
-    this.toast(`Membership granted in “${room.title}”. They see room content only — never your private ledgers.`);
-  }
-
-  private async addCouncilPosition(): Promise<void> {
-    const position = inputValue(this.document, "#nur-v197-council-position");
-    if (!position) {
-      this.toast("State the position honestly before adding it.");
-      return;
-    }
-    const council = this.activeRoom("COUNCIL");
-    if (!council) {
-      this.toast("Start a Council to add positions.");
-      return;
-    }
-    await this.api.createCouncilPosition(council.id, position);
-    setInputValue(this.document, "#nur-v197-council-position", "");
-    await this.refresh();
-    this.toast(`Position persisted in “${council.title}”. Disagreement stays on the ledger.`);
-  }
-
-  private async recordCouncilDecision(): Promise<void> {
-    const decision = inputValue(this.document, "#nur-v197-council-decision");
-    if (!decision) {
-      this.toast("Write the decision before recording it.");
-      return;
-    }
-    const council = this.activeRoom("COUNCIL");
-    if (!council) {
-      this.toast("Start a Council to record a decision.");
-      return;
-    }
-    await this.api.createCouncilDecision(council.id, decision);
-    setInputValue(this.document, "#nur-v197-council-decision", "");
-    await this.refresh();
-    this.toast(`Decision recorded for “${council.title}” with a return check owed.`);
-  }
-
   private installLanguageControls(): void {
     ensureV197LanguageControls(
       this.document,
@@ -814,8 +729,8 @@ export class V197ActionBindings {
     const send = closest(event.target, "[data-send], .universe-send");
     if (send) {
       this.blockNative(event);
-      const source = send.classList.contains("universe-send") ? "composer" : (send.dataset.send as "talk" | "today" | "mobile");
-      void this.perform(send, () => this.composerMode === "plan" && source === "composer" ? this.createPlan() : this.sendTalk(source));
+      const source = send.dataset.send as "talk" | "today" | "mobile";
+      void this.perform(send, () => this.sendTalk(source));
       return;
     }
 
@@ -823,13 +738,6 @@ export class V197ActionBindings {
     if (step) {
       this.blockNative(event);
       void this.perform(step, () => this.togglePlanStep(step));
-      return;
-    }
-
-    const research = closest(event.target, "[data-research-submit]");
-    if (research) {
-      this.blockNative(event);
-      void this.perform(research, () => this.stageResearch());
       return;
     }
 
@@ -906,37 +814,22 @@ export class V197ActionBindings {
     }
     if (name === "add-system") {
       this.blockNative(event);
+      this.openSystemCreateDialog();
+      return;
+    }
+    if (name === "system-create-cancel") {
+      this.blockNative(event);
+      this.closeSystemCreateDialog();
+      return;
+    }
+    if (name === "system-create-submit") {
+      this.blockNative(event);
       void this.perform(action, () => this.createSystem());
       return;
     }
     if (["insight-accept", "insight-reject", "insight-correct", "insight-plan", "insight-timeline"].includes(name)) {
       this.blockNative(event);
       void this.perform(action, () => this.actOnInsight(action, name));
-      return;
-    }
-    if (name === "community-create-room" || name === "community-create-council") {
-      this.blockNative(event);
-      void this.perform(action, () => this.createCommunityRoom(name === "community-create-council" ? "COUNCIL" : "GROUP"));
-      return;
-    }
-    if (name === "community-post-message") {
-      this.blockNative(event);
-      void this.perform(action, () => this.postCommunityMessage());
-      return;
-    }
-    if (name === "community-add-member") {
-      this.blockNative(event);
-      void this.perform(action, () => this.addCommunityMember());
-      return;
-    }
-    if (name === "council-add-position") {
-      this.blockNative(event);
-      void this.perform(action, () => this.addCouncilPosition());
-      return;
-    }
-    if (name === "council-record-decision") {
-      this.blockNative(event);
-      void this.perform(action, () => this.recordCouncilDecision());
       return;
     }
     this.blockNative(event);
@@ -947,20 +840,15 @@ export class V197ActionBindings {
     if (event.key !== "Enter" || event.shiftKey) return;
     const target = event.target as Element | null;
     if (!target || typeof target.matches !== "function") return;
-    if (target.matches("#talk-input, #today-input, #mobile-composer, #universe-composer-input")) {
+    if (target.matches("#talk-input, #today-input, #mobile-composer")) {
       this.blockNative(event);
-      const source = target.matches("#today-input") ? "today" : target.matches("#mobile-composer") ? "mobile" : target.matches("#universe-composer-input") ? "composer" : "talk";
-      void this.perform(target as HTMLElement, () => this.composerMode === "plan" && source === "composer" ? this.createPlan() : this.sendTalk(source));
+      const source = target.matches("#today-input") ? "today" : target.matches("#mobile-composer") ? "mobile" : "talk";
+      void this.perform(target as HTMLElement, () => this.sendTalk(source));
       return;
     }
-    if (target.matches("#research-query")) {
+    if (target.matches("#nur-v197-system-title")) {
       this.blockNative(event);
-      void this.perform(target as HTMLElement, () => this.stageResearch());
-      return;
-    }
-    if (target.matches("#universe-search")) {
-      this.blockNative(event);
-      void this.perform(target as HTMLElement, () => this.searchOwnerLedger());
+      void this.perform(target as HTMLElement, () => this.createSystem());
       return;
     }
     if (target.matches("#nur-outcome-input")) {

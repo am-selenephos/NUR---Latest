@@ -24,11 +24,6 @@ const nativeV197Routes = new Set([
   "/universe/timeline",
   "/universe/insights",
   "/universe/insights/candidates",
-  "/universe/consultation",
-  "/universe/research",
-  "/universe/community",
-  "/universe/experts",
-  "/universe/web-signals",
   "/settings",
   "/memory",
   "/teach-nur",
@@ -38,6 +33,18 @@ const nativeV197Routes = new Set([
   "/universe/omega",
   "/universe/omega/review",
 ]);
+
+const retiredUniverseRoutes = [
+  "/universe/consultation",
+  "/universe/research",
+  "/universe/community",
+  "/universe/experts",
+  "/universe/web-signals",
+] as const;
+
+function isRetiredUniverseRoute(value: string): boolean {
+  return retiredUniverseRoutes.some(route => value === route || value.startsWith(`${route}/`));
+}
 
 function pathname(rawUrl: string | undefined): string {
   return new URL(rawUrl ?? "/", "http://nur.local").pathname;
@@ -50,8 +57,6 @@ function isNativeV197Route(value: string): boolean {
     || value.startsWith("/plan/")
     || value.startsWith("/systems/")
     || value === "/universe/life"
-    || value.startsWith("/universe/consultation/")
-    || value.startsWith("/universe/community/")
     || value.startsWith("/universe/insights/candidates/")
     || value.startsWith("/capsule/")
     || value === "/consultations"
@@ -94,6 +99,13 @@ function v197DirectHost(): Plugin {
   const attach = (server: ViteDevServer | PreviewServer, preview: boolean) => {
     server.middlewares.use((request, response, next) => {
       const route = pathname(request.url);
+      if (isRetiredUniverseRoute(route)) {
+        response.statusCode = 302;
+        response.setHeader("location", "/systems");
+        response.setHeader("cache-control", "no-store");
+        response.end();
+        return;
+      }
       if (route === "/assets/v197-bridge.js" && !preview) {
         response.statusCode = 200;
         response.setHeader("content-type", "application/javascript; charset=utf-8");

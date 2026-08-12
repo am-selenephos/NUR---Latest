@@ -21,16 +21,21 @@ describe("V197 immutable host contract", () => {
 
   it("keeps native V197 control identities in the decoded source", () => {
     const decoded = read("../../docs/reference/universe_decoded_v197.html");
+    const parsed = new DOMParser().parseFromString(decoded, "text/html");
     for (const item of V197_NAV_ITEMS) {
       expect(decoded).toContain(`data-page="${item.page}"`);
       expect(decoded).toContain(`<span class="clean-nav-title">${item.title}</span>`);
     }
-    for (const item of V197_TOOL_ITEMS) expect(decoded).toContain(`data-world-focus="${item.key}"`);
+    expect(V197_TOOL_ITEMS).toHaveLength(0);
+    expect(decoded).not.toContain('aria-label="Universe tools"');
     for (const tab of V197_WORLD_TABS) expect(decoded).toContain(`data-world-tab="${tab.focus}"`);
     for (const pane of V197_CONTEXT_PANES) expect(decoded).toContain(`data-context-pane="${pane.key}"`);
     for (const node of V197_SYSTEM_NODES) expect(decoded).toContain(`data-system="${node.name}"`);
     for (const command of V197_WORLD_COMMANDS) expect(decoded).toContain(`data-world-focus="${command.key}"`);
-    for (const action of V197_PROMPT_ACTIONS) expect(decoded).toContain(`data-action="${action.key}"`);
+    expect(V197_PROMPT_ACTIONS).toHaveLength(0);
+    expect(parsed.querySelector(".universe-composer-shell")).toBeNull();
+    expect(parsed.querySelector(".universe-lower-grid")).toBeNull();
+    expect(parsed.querySelector("#universe-search, #deep-research-button")).toBeNull();
   });
 
   it("does not make React the visible V197 renderer", () => {

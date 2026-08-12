@@ -9,11 +9,7 @@ export const V197_NAV_ITEMS = [
   { page: "systems", path: "/systems", glyph: "✣", title: "Systems", note: "together" },
 ] as const;
 
-export const V197_TOOL_ITEMS = [
-  { key: "research", path: "/universe/research", glyph: "⌕", title: "Research", note: "Find signal", testId: "pw-rail-research" },
-  { key: "community", path: "/universe/community", glyph: "◎", title: "Community", note: "Think together", testId: "pw-rail-community" },
-  { key: "web", path: "/universe/web-signals", glyph: "◈", title: "Web Signals", note: "Beyond NUR", testId: "pw-rail-web" },
-] as const;
+export const V197_TOOL_ITEMS = [] as const;
 
 export const V197_WORLD_TABS = [
   { focus: "universe", path: "/universe", glyph: "✦", label: "Universe" },
@@ -41,17 +37,7 @@ export const V197_SYSTEM_NODES = [
 
 export const V197_WORLD_COMMANDS = [
   { key: "universe", glyph: "✦", label: "Live universe" },
-  { key: "consult", glyph: "◌", label: "Consultation stage" },
-  { key: "research", glyph: "⌕", label: "Research field" },
-  { key: "community", glyph: "◎", label: "Community intelligence" },
   { key: "insights", glyph: "✧", label: "Candidate insights" },
 ] as const;
 
-export const V197_PROMPT_ACTIONS = [
-  { key: "reflect", glyph: "✧", label: "Reflect" },
-  { key: "ask", glyph: "◌", label: "Ask NUR" },
-  { key: "challenge", glyph: "◇", label: "Challenge" },
-  { key: "explore", glyph: "✦", label: "Explore" },
-  { key: "summarize", glyph: "☰", label: "Summarize" },
-  { key: "plan", glyph: "→", label: "Create Plan" },
-] as const;
+export const V197_PROMPT_ACTIONS = [] as const;

@@ -188,7 +188,6 @@ describe("Track A V197 write bindings", () => {
   it("restores the active route after hydration before an action completes", async () => {
     const document = window.document.implementation.createHTMLDocument("System mutation");
     document.body.innerHTML = `
-      <input id="universe-composer-input" value="A new owner System">
       <button data-action="add-system">Add system</button>
     `;
     const order: string[] = [];
@@ -215,6 +214,11 @@ describe("Track A V197 write bindings", () => {
       afterHydrate,
     );
     document.querySelector<HTMLButtonElement>('[data-action="add-system"]')?.click();
+    const dialog = document.querySelector<HTMLDialogElement>("#nur-v197-system-create");
+    expect(dialog?.hasAttribute("open")).toBe(true);
+    const input = document.querySelector<HTMLInputElement>("#nur-v197-system-title");
+    if (input) input.value = "A new owner System";
+    document.querySelector<HTMLButtonElement>('[data-action="system-create-submit"]')?.click();
     await settle();
 
     expect(order).toEqual(["persist", "snapshot", "route"]);
