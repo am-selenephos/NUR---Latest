@@ -147,31 +147,21 @@ jobs:
               raise SystemExit(f'guard failed: expected two stale Entry destructurings, found {adaptive.count(destructuring)}')
           adaptive = adaptive.replace(destructuring, '  const { universe } = await universeFrame(page);')
 
-          stale_hidden_entry = '''  const hiddenEntry = await entry.locator("html").evaluate(element => {
-            const running = document.getAnimations().filter(animation => (
-              animation.playState === "running" && animation.effect?.getTiming().iterations === Infinity
-            ));
-            return {
-              inactive: element.classList.contains("nur-stage-inactive"),
-              runningInfinite: running.length,
-              runningTargets: running.map(animation => {
-                const target = animation.effect instanceof KeyframeEffect ? animation.effect.target : null;
-                return {
-                  name: animation instanceof CSSAnimation ? animation.animationName : "script",
-                  target: target instanceof Element ? target.id || target.className || target.tagName : "unknown",
-                };
-              }),
-            };
-          });
-          expect(hiddenEntry.inactive).toBe(true);
-          expect(hiddenEntry.runningInfinite, JSON.stringify(hiddenEntry.runningTargets, null, 2)).toBe(0);'''
-          retired_entry = '''  // Authenticated Universe retires the Entry iframe entirely; absence is stronger
-          // than keeping a hidden frame around and trying to police its animations.
-          await expect(page.locator("#nur-entry-stage")).toHaveCount(0);
-          await expect(page.locator("html")).toHaveAttribute("data-nur-entry-retired", "true");'''
-          if adaptive.count(stale_hidden_entry) != 1:
-              raise SystemExit('guard failed: stale hidden-Entry block drifted')
-          adaptive = adaptive.replace(stale_hidden_entry, retired_entry, 1)
+          start_marker = '  const hiddenEntry = await entry.locator("html").evaluate(element => {'
+          end_marker = '  expect(hiddenEntry.runningInfinite, JSON.stringify(hiddenEntry.runningTargets, null, 2)).toBe(0);'
+          if adaptive.count(start_marker) != 1 or adaptive.count(end_marker) != 1:
+              raise SystemExit(
+                  f'guard failed: hidden-Entry boundaries drifted: start={adaptive.count(start_marker)} end={adaptive.count(end_marker)}'
+              )
+          start = adaptive.index(start_marker)
+          end = adaptive.index(end_marker, start) + len(end_marker)
+          retired_entry = (
+              '  // Authenticated Universe retires the Entry iframe entirely; absence is stronger\n'
+              '  // than keeping a hidden frame around and trying to police its animations.\n'
+              '  await expect(page.locator("#nur-entry-stage")).toHaveCount(0);\n'
+              '  await expect(page.locator("html")).toHaveAttribute("data-nur-entry-retired", "true");'
+          )
+          adaptive = adaptive[:start] + retired_entry + adaptive[end:]
 
           stale_reduced = '  await expect(entry.locator("html")).toHaveClass(/nur-stage-inactive/);'
           if adaptive.count(stale_reduced) != 1:
