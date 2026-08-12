@@ -139,12 +139,56 @@ jobs:
           if source_test.count(anchor) != 1:
               raise SystemExit('guard failed: source-test assertion anchor drifted')
           source_test_path.write_text(source_test.replace(anchor, perf_assertions + anchor, 1))
+
+          adaptive_path = Path('apps/web/e2e/v197-adaptive-performance.spec.ts')
+          adaptive = adaptive_path.read_text()
+          destructuring = '  const { entry, universe } = await universeFrame(page);'
+          if adaptive.count(destructuring) != 2:
+              raise SystemExit(f'guard failed: expected two stale Entry destructurings, found {adaptive.count(destructuring)}')
+          adaptive = adaptive.replace(destructuring, '  const { universe } = await universeFrame(page);')
+
+          stale_hidden_entry = '''  const hiddenEntry = await entry.locator("html").evaluate(element => {
+            const running = document.getAnimations().filter(animation => (
+              animation.playState === "running" && animation.effect?.getTiming().iterations === Infinity
+            ));
+            return {
+              inactive: element.classList.contains("nur-stage-inactive"),
+              runningInfinite: running.length,
+              runningTargets: running.map(animation => {
+                const target = animation.effect instanceof KeyframeEffect ? animation.effect.target : null;
+                return {
+                  name: animation instanceof CSSAnimation ? animation.animationName : "script",
+                  target: target instanceof Element ? target.id || target.className || target.tagName : "unknown",
+                };
+              }),
+            };
+          });
+          expect(hiddenEntry.inactive).toBe(true);
+          expect(hiddenEntry.runningInfinite, JSON.stringify(hiddenEntry.runningTargets, null, 2)).toBe(0);'''
+          retired_entry = '''  // Authenticated Universe retires the Entry iframe entirely; absence is stronger
+          // than keeping a hidden frame around and trying to police its animations.
+          await expect(page.locator("#nur-entry-stage")).toHaveCount(0);
+          await expect(page.locator("html")).toHaveAttribute("data-nur-entry-retired", "true");'''
+          if adaptive.count(stale_hidden_entry) != 1:
+              raise SystemExit('guard failed: stale hidden-Entry block drifted')
+          adaptive = adaptive.replace(stale_hidden_entry, retired_entry, 1)
+
+          stale_reduced = '  await expect(entry.locator("html")).toHaveClass(/nur-stage-inactive/);'
+          if adaptive.count(stale_reduced) != 1:
+              raise SystemExit('guard failed: stale reduced-motion Entry assertion drifted')
+          adaptive = adaptive.replace(
+              stale_reduced,
+              '  await expect(page.locator("#nur-entry-stage")).toHaveCount(0);\n'
+              '  await expect(page.locator("html")).toHaveAttribute("data-nur-entry-retired", "true");',
+              1,
+          )
+          adaptive_path.write_text(adaptive)
           PY
 
           git diff --check
           node --check apps/web/src/bridge/v43StarBrainRuntime.js
           sha256sum apps/web/src/bridge/v43StarBrainRuntime.js | grep -Fq d77b5224d777e4e171ed722170ff51ec3602e125df5bd64bd09b600b5f76832e
-          git --no-pager diff -- apps/web/src/bridge/v43StarBrainRuntime.js apps/web/src/v197/v43-star-brain-source.test.ts apps/web/src/v197/phase1-host.test.ts
+          git --no-pager diff -- apps/web/src/bridge/v43StarBrainRuntime.js apps/web/src/v197/v43-star-brain-source.test.ts apps/web/src/v197/phase1-host.test.ts apps/web/e2e/v197-adaptive-performance.spec.ts
 
       - name: Install dependencies
         run: npm ci
@@ -174,6 +218,7 @@ jobs:
           grep -Fq "let physicsActive=false" apps/web/src/bridge/v43StarBrainRuntime.js
           grep -Fq "if(physicsActive||mode!=='live')" apps/web/src/bridge/v43StarBrainRuntime.js
           grep -Fq "physicsActive=true" apps/web/src/bridge/v43StarBrainRuntime.js
+          grep -Fq 'toHaveAttribute("data-nur-entry-retired", "true")' apps/web/e2e/v197-adaptive-performance.spec.ts
 
       - name: Commit only after every validation passed
         shell: bash
@@ -183,7 +228,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git rm .github/workflows/nur-interface-lag-hotfix.yml
-          git add apps/web/src/bridge/v43StarBrainRuntime.js apps/web/src/v197/v43-star-brain-source.test.ts apps/web/src/v197/phase1-host.test.ts
+          git add apps/web/src/bridge/v43StarBrainRuntime.js apps/web/src/v197/v43-star-brain-source.test.ts apps/web/src/v197/phase1-host.test.ts apps/web/e2e/v197-adaptive-performance.spec.ts
           git diff --cached --check
           git commit -m "perf(web): stop idle Star Brain from stealing galaxy frame budget"
           git push origin "HEAD:${HOTFIX_BRANCH}"
