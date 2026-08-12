@@ -197,7 +197,10 @@ export class V197Bridge {
       return;
     }
 
-    if (!["/", "/auth", "/onboarding"].includes(window.location.pathname)) {
+    // `/auth` is an explicit return to the existing V197 sign-in surface (for
+    // example after account deletion). Do not leave that route behind the
+    // seven-second cinematic intro; the root route still owns that intro.
+    if (!["/", "/onboarding"].includes(window.location.pathname)) {
       (entryDocument.defaultView as V197EntryWindow | null)?.nurShowFront?.();
     }
   }
@@ -438,6 +441,18 @@ export class V197Bridge {
     if (!universeWindow || universeDocument.documentElement.dataset.nurTrackANavigation === "bound") return;
     universeDocument.documentElement.dataset.nurTrackANavigation = "bound";
 
+    let clickedWorldRoute: V197NativeRoute | null = null;
+    universeDocument.addEventListener("click", event => {
+      const target = event.target as Element | null;
+      const control = target?.closest<HTMLElement>("[data-world-focus], [data-world-tab]");
+      clickedWorldRoute = control?.dataset.worldTab
+        ? routeForWorldTab(control.dataset.worldTab)
+        : routeForWorldFocus(control?.dataset.worldFocus ?? "");
+      window.setTimeout(() => {
+        clickedWorldRoute = null;
+      }, 0);
+    }, true);
+
     universeDocument.addEventListener("click", event => {
       const target = event.target as Element | null;
       if (this.applyingRoute || !target || typeof target.closest !== "function") return;
@@ -476,7 +491,7 @@ export class V197Bridge {
       // lower workspace command. Route the event to the canonical world lens;
       // the real clicked control is resolved separately above and can then
       // choose a dedicated workspace such as Candidate Insights.
-      const route = routeForWorldTab(focus) ?? routeForWorldFocus(focus);
+      const route = clickedWorldRoute ?? routeForWorldTab(focus) ?? routeForWorldFocus(focus);
       if (route) this.pushRoute(route);
     });
   }

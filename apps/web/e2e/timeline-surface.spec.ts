@@ -588,7 +588,7 @@ test("Horizons buckets work by real timestamp and never invent an entry", async 
   await frame.click('[data-timeline-mode="horizons"]');
   await expect.poll(
     async () => frame.evaluate(
-      () => document.querySelectorAll("[data-timeline-horizon-bucket]").length,
+      () => document.querySelectorAll("[data-timeline-horizon-bucket]").length > 0,
     ),
     { timeout: 12_000 },
   ).toBe(true);

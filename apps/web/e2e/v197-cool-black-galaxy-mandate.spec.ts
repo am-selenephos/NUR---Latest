@@ -436,7 +436,10 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
         .map(control => `${control.tagName.toLowerCase()}.${control.className}`),
     };
   }, HOLOGRAPHIC_CONTROLS);
-  expect(controlCoverage.total).toBeGreaterThanOrEqual(60);
+  // The retired research/community/consultation/expert/composer controls are
+  // physically absent; every remaining visible control still carries the
+  // complete material contract.
+  expect(controlCoverage.total).toBe(28);
   expect(controlCoverage.missing).toEqual([]);
   expect(controlCoverage.incompleteSpectrum).toEqual([]);
   expect(controlCoverage.badGlass).toEqual([]);
@@ -652,8 +655,6 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
       ":scope",
       ".universe-map-panel",
       ".universe-insight-panel",
-      ".universe-state-strip",
-      ".universe-composer-shell",
     ];
     return selectors.map(selector => {
       const element = selector === ":scope" ? root : root.querySelector<HTMLElement>(selector);
@@ -722,7 +723,7 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
         };
       });
   });
-  expect(allPanelMaterials.length).toBeGreaterThanOrEqual(8);
+  expect(allPanelMaterials).toHaveLength(2);
   for (const panel of allPanelMaterials) {
     const channels = panel.backgroundColor.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [];
     expect(channels, `${panel.identity} must expose an RGB black base`).toHaveLength(3);
@@ -750,12 +751,12 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
       };
     }).nurGalaxy?.getParticleDiagnostics?.() ?? { total: 0, transient: 0, byKind: {} }
   ));
-  expect(particleDiagnostics.total - particleDiagnostics.transient).toBe(1_698);
+  expect(particleDiagnostics.total - particleDiagnostics.transient).toBe(1_302);
   expect(particleDiagnostics.byKind).toMatchObject({
-    galaxy: 900,
-    far: 585,
-    dust: 165,
-    super: 48,
+    galaxy: 690,
+    far: 450,
+    dust: 126,
+    super: 36,
   });
   const galaxyFirst = await canvasSignal(galaxy);
   await page.waitForTimeout(420);
@@ -770,34 +771,13 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
   expect(topbarWidths.english).toBeCloseTo(76, 1);
   expect(topbarWidths.privacy).toBeCloseTo(topbarWidths.english, 1);
 
-  const systemsComposer = universe.locator(".universe-composer--v173");
-  const systemsHeight = await systemsComposer.evaluate(element => element.getBoundingClientRect().height);
-  const systemsMetrics = await systemsComposer.evaluate(element => {
-    const style = getComputedStyle(element);
-    return {
-      cssHeight: style.height,
-      minHeight: style.minHeight,
-      maxHeight: style.maxHeight,
-      padding: style.padding,
-      border: style.borderWidth,
-      boxSizing: style.boxSizing,
-      transform: style.transform,
-    };
-  });
-  const systemsRest = await material(systemsComposer);
-  await systemsComposer.locator("input").focus();
-  expect(await material(systemsComposer)).toEqual(systemsRest);
+  await expect(universe.locator(".universe-composer--v173")).toHaveCount(0);
+  await expect(universe.locator(".universe-search")).toHaveCount(0);
   expect(
-    Math.max(todayHeight, talkHeight, systemsHeight) - Math.min(todayHeight, talkHeight, systemsHeight),
-    JSON.stringify({ todayHeight, talkHeight, systemsHeight, systemsMetrics }),
+    Math.abs(todayHeight - talkHeight),
+    JSON.stringify({ todayHeight, talkHeight }),
   )
     .toBeLessThanOrEqual(1);
-  expect(systemsHeight).toBeGreaterThanOrEqual(64);
-
-  const search = universe.locator(".universe-search");
-  const searchRest = await material(search);
-  await search.locator("input").focus();
-  expect(await material(search)).toEqual(searchRest);
   await universe.locator(".nur-viewport").evaluate(element => { element.scrollTop = 0; });
   await page.waitForTimeout(150);
   await page.screenshot({ path: testInfo.outputPath("systems-cool-black-expanded-brain.png") });

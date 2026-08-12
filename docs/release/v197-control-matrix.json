@@ -1,5 +1,4 @@
 {
-  "generated_from_sha": "28a911762502e14daef5ed118ef80962317aee84",
   "architecture": "canonical V197 shell + nonvisual TS bridge + adjunct surfaces",
   "classifications": [
     "LIVE_REAL",
@@ -11,11 +10,11 @@
     "MISLEADING"
   ],
   "totals": {
-    "total": 90,
-    "LIVE_REAL": 73,
-    "BLOCKED_BY_EXTERNAL_PROVIDER": 2,
-    "INTENTIONAL_LOCAL_ONLY": 8,
-    "NOT_IMPLEMENTED_VISIBLE": 7,
+    "total": 66,
+    "LIVE_REAL": 55,
+    "BLOCKED_BY_EXTERNAL_PROVIDER": 1,
+    "INTENTIONAL_LOCAL_ONLY": 7,
+    "NOT_IMPLEMENTED_VISIBLE": 3,
     "DEAD": 0,
     "DUPLICATE": 0,
     "MISLEADING": 0
@@ -169,8 +168,8 @@
       "id": "nav.local-tabs",
       "surface": "Nav",
       "route": "*",
-      "label": "context/research local tabs",
-      "selector": "[data-context-tab],[data-research-tab]",
+      "label": "context tabs",
+      "selector": "[data-context-tab]",
       "api": null,
       "persistence": "local action (no network)",
       "classification": "INTENTIONAL_LOCAL_ONLY",
@@ -502,44 +501,6 @@
       "selector_origin": "canonical"
     },
     {
-      "id": "top.search",
-      "surface": "Topbar",
-      "route": "*",
-      "label": "universe search",
-      "selector": ".universe-search input",
-      "api": "GET /api/v1/universe/search",
-      "persistence": "results render",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "button-registry.spec.ts",
-        "full-interface.spec.ts"
-      ],
-      "mobile_proof": [
-        "button-registry.spec.ts",
-        "full-interface.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "canonical"
-    },
-    {
-      "id": "top.deep",
-      "surface": "Topbar",
-      "route": "*",
-      "label": "deep/web-search opener",
-      "selector": ".universe-deep,#open-web-search",
-      "api": null,
-      "persistence": "local action (no network)",
-      "classification": "INTENTIONAL_LOCAL_ONLY",
-      "desktop_proof": [
-        "button-registry.spec.ts"
-      ],
-      "mobile_proof": [
-        "button-registry.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "canonical"
-    },
-    {
       "id": "top.scope",
       "surface": "Topbar",
       "route": "*",
@@ -594,66 +555,6 @@
       ],
       "notes": "",
       "selector_origin": "canonical"
-    },
-    {
-      "id": "universe.composer",
-      "surface": "Universe",
-      "route": "*",
-      "label": "universe composer",
-      "selector": "#universe-composer-input",
-      "api": null,
-      "persistence": "routes to Talk",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "button-registry.spec.ts",
-        "full-interface.spec.ts"
-      ],
-      "mobile_proof": [
-        "button-registry.spec.ts",
-        "full-interface.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "canonical"
-    },
-    {
-      "id": "research.stage",
-      "surface": "Research",
-      "route": "/research",
-      "label": "stage question",
-      "selector": "#research-query,[data-research-submit]",
-      "api": "POST /api/v1/research/briefs",
-      "persistence": "research briefs (OWNER_WRITTEN)",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "full-interface.spec.ts",
-        "button-registry.spec.ts",
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "mobile_proof": [
-        "full-interface.spec.ts",
-        "button-registry.spec.ts",
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "canonical"
-    },
-    {
-      "id": "research.live-fetch",
-      "surface": "Research",
-      "route": "/research",
-      "label": "live web retrieval",
-      "selector": null,
-      "api": "none (provider absent)",
-      "persistence": "provider_status NOT_CONNECTED label",
-      "classification": "BLOCKED_BY_EXTERNAL_PROVIDER",
-      "desktop_proof": [
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "mobile_proof": [
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "notes": "honest NOT_CONNECTED; nothing fabricated",
-      "selector_origin": "n-a"
     },
     {
       "id": "scope.choice",
@@ -720,84 +621,6 @@
       "selector_origin": "bridge"
     },
     {
-      "id": "community.rooms.shell",
-      "surface": "Community shell",
-      "route": "/community",
-      "label": "room title/message",
-      "selector": "#nur-v197-room-title,#nur-v197-room-message",
-      "api": "POST /api/v1/community/rooms",
-      "persistence": "rooms/messages",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "community-group-nur.spec.ts",
-        "button-registry.spec.ts"
-      ],
-      "mobile_proof": [
-        "community-group-nur.spec.ts",
-        "button-registry.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "community.members",
-      "surface": "Community shell",
-      "route": "/community",
-      "label": "add member",
-      "selector": "#nur-v197-member-email",
-      "api": "POST /rooms/:id/members",
-      "persistence": "memberships",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "community-group-nur.spec.ts",
-        "button-registry.spec.ts"
-      ],
-      "mobile_proof": [
-        "community-group-nur.spec.ts",
-        "button-registry.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "council.flow",
-      "surface": "Council",
-      "route": "/community",
-      "label": "council position/flow",
-      "selector": "#nur-v197-council-position",
-      "api": "POST /rooms/:id/positions",
-      "persistence": "council records",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "community-group-nur.spec.ts",
-        "button-registry.spec.ts"
-      ],
-      "mobile_proof": [
-        "community-group-nur.spec.ts",
-        "button-registry.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "community.legacy-tabs",
-      "surface": "Community shell",
-      "route": "/community",
-      "label": "legacy staged tabs",
-      "selector": "[data-community-tab],[data-stage]",
-      "api": null,
-      "persistence": "honest disabled",
-      "classification": "NOT_IMPLEMENTED_VISIBLE",
-      "desktop_proof": [
-        "button-registry.spec.ts"
-      ],
-      "mobile_proof": [
-        "button-registry.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "canonical"
-    },
-    {
       "id": "ritual.control",
       "surface": "Shell",
       "route": "*",
@@ -813,7 +636,7 @@
         "button-registry.spec.ts"
       ],
       "notes": "",
-      "selector_origin": "canonical"
+      "selector_origin": "bridge"
     },
     {
       "id": "voice.composer",
@@ -831,7 +654,7 @@
         "button-registry.spec.ts"
       ],
       "notes": "",
-      "selector_origin": "canonical"
+      "selector_origin": "bridge"
     },
     {
       "id": "capsule.ask",
@@ -951,16 +774,18 @@
       "route": "/settings",
       "label": "Export my NUR",
       "selector": "[data-adjunct-action='settings-export']",
-      "api": null,
-      "persistence": "honest 'Not exposed in this beta'",
-      "classification": "NOT_IMPLEMENTED_VISIBLE",
+      "api": "POST /api/v1/account/export",
+      "persistence": "owner-scoped deterministic JSON download + SHA-256 checksum",
+      "classification": "LIVE_REAL",
       "desktop_proof": [
-        "sol-live-new-surfaces.spec.ts"
+        "account-privacy-ui.spec.ts",
+        "v197-control-matrix.spec.ts"
       ],
       "mobile_proof": [
-        "sol-live-new-surfaces.spec.ts"
+        "account-privacy-ui.spec.ts",
+        "v197-control-matrix.spec.ts"
       ],
-      "notes": "visibly disabled with stated reason",
+      "notes": "real owner export; fail-closed API response and download proof",
       "selector_origin": "bridge"
     },
     {
@@ -969,16 +794,18 @@
       "route": "/settings",
       "label": "Delete account",
       "selector": "[data-adjunct-action='settings-delete']",
-      "api": null,
-      "persistence": "honest 'Not exposed in this beta'",
-      "classification": "NOT_IMPLEMENTED_VISIBLE",
+      "api": "DELETE /api/v1/account",
+      "persistence": "reauthenticated owner deletion + session revocation",
+      "classification": "LIVE_REAL",
       "desktop_proof": [
-        "sol-live-new-surfaces.spec.ts"
+        "account-privacy-ui.spec.ts",
+        "v197-control-matrix.spec.ts"
       ],
       "mobile_proof": [
-        "sol-live-new-surfaces.spec.ts"
+        "account-privacy-ui.spec.ts",
+        "v197-control-matrix.spec.ts"
       ],
-      "notes": "",
+      "notes": "exact confirmation and current password required",
       "selector_origin": "bridge"
     },
     {
@@ -1103,282 +930,6 @@
       ],
       "mobile_proof": [
         "omega-research.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "consultation.create",
-      "surface": "Consultations",
-      "route": "/consultations",
-      "label": "Open Consultation",
-      "selector": "[data-adjunct-action='consultation-create']",
-      "api": "POST /api/v1/consultations",
-      "persistence": "consultation",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "mobile_proof": [
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "consultation.open",
-      "surface": "Consultations",
-      "route": "/consultations",
-      "label": "Enter Consultation",
-      "selector": "[data-adjunct-action^='consultation-open-']",
-      "api": "GET /consultations/:id",
-      "persistence": "detail render",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "mobile_proof": [
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "consultation.contribute",
-      "surface": "Consultation detail",
-      "route": "/consultations/:id",
-      "label": "Add contribution",
-      "selector": "[data-adjunct-action='consultation-contribute']",
-      "api": "POST /consultations/:id/contributions",
-      "persistence": "contribution",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "mobile_proof": [
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "consultation.stage",
-      "surface": "Consultation detail",
-      "route": "/consultations/:id",
-      "label": "Persist next stage",
-      "selector": "[data-adjunct-action^='consultation-stage-']",
-      "api": "POST /consultations/:id/stages/:stage",
-      "persistence": "stage record",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "mobile_proof": [
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "notes": "RETURN outcome never fabricated",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "community.return",
-      "surface": "Community",
-      "route": "/community",
-      "label": "Open bounded Community",
-      "selector": "[data-adjunct-action='community-return']",
-      "api": null,
-      "persistence": "route",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "sol-live-new-surfaces.spec.ts",
-        "community-group-nur.spec.ts"
-      ],
-      "mobile_proof": [
-        "sol-live-new-surfaces.spec.ts",
-        "community-group-nur.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "community.room-create",
-      "surface": "Community",
-      "route": "/community",
-      "label": "Create Group NUR room",
-      "selector": "[data-adjunct-action='community-room-create']",
-      "api": "POST /community/rooms",
-      "persistence": "room",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "community-group-nur.spec.ts",
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "mobile_proof": [
-        "community-group-nur.spec.ts",
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "community.start-consultation",
-      "surface": "Community",
-      "route": "/community",
-      "label": "Start Consultation",
-      "selector": "[data-adjunct-action='community-start-consultation']",
-      "api": "POST /consultations",
-      "persistence": "consultation",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "mobile_proof": [
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "community.room-open",
-      "surface": "Community",
-      "route": "/community",
-      "label": "Enter bounded room",
-      "selector": "[data-adjunct-action^='community-room-']",
-      "api": "GET room detail",
-      "persistence": "room render",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "community-group-nur.spec.ts",
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "mobile_proof": [
-        "community-group-nur.spec.ts",
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "community.message-send",
-      "surface": "Room",
-      "route": "/community/rooms/:id",
-      "label": "Send to room",
-      "selector": "[data-adjunct-action='community-message-send']",
-      "api": "POST /rooms/:id/messages",
-      "persistence": "message",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "community-group-nur.spec.ts"
-      ],
-      "mobile_proof": [
-        "community-group-nur.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "community.post-create",
-      "surface": "Room",
-      "route": "/community/rooms/:id",
-      "label": "Publish in room",
-      "selector": "[data-adjunct-action='community-post-create']",
-      "api": "POST /rooms/:id/posts",
-      "persistence": "post",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "community-group-nur.spec.ts"
-      ],
-      "mobile_proof": [
-        "community-group-nur.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "community.post-open",
-      "surface": "Room",
-      "route": "/community/rooms/:id",
-      "label": "Open thread",
-      "selector": "[data-adjunct-action^='community-post-']",
-      "api": "GET post detail",
-      "persistence": "thread render",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "community-group-nur.spec.ts"
-      ],
-      "mobile_proof": [
-        "community-group-nur.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "community.react-useful",
-      "surface": "Thread",
-      "route": "/community/…",
-      "label": "✦ Useful",
-      "selector": "[data-adjunct-action='community-react-useful']",
-      "api": "POST reactions",
-      "persistence": "unique reaction",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "community-group-nur.spec.ts"
-      ],
-      "mobile_proof": [
-        "community-group-nur.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "community.react-witness",
-      "surface": "Thread",
-      "route": "/community/…",
-      "label": "Witness",
-      "selector": "[data-adjunct-action='community-react-witness']",
-      "api": "POST reactions",
-      "persistence": "unique reaction",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "community-group-nur.spec.ts"
-      ],
-      "mobile_proof": [
-        "community-group-nur.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "community.comment-create",
-      "surface": "Thread",
-      "route": "/community/…",
-      "label": "Reply",
-      "selector": "[data-adjunct-action='community-comment-create']",
-      "api": "POST comments",
-      "persistence": "comment",
-      "classification": "LIVE_REAL",
-      "desktop_proof": [
-        "community-group-nur.spec.ts"
-      ],
-      "mobile_proof": [
-        "community-group-nur.spec.ts"
-      ],
-      "notes": "",
-      "selector_origin": "bridge"
-    },
-    {
-      "id": "community.future-tabs",
-      "surface": "Community",
-      "route": "/community/people|saved|moderation",
-      "label": "future surfaces",
-      "selector": "[data-adjunct-action='community-future']",
-      "api": null,
-      "persistence": "honest deferred label",
-      "classification": "NOT_IMPLEMENTED_VISIBLE",
-      "desktop_proof": [
-        "sol-live-new-surfaces.spec.ts"
-      ],
-      "mobile_proof": [
-        "sol-live-new-surfaces.spec.ts"
       ],
       "notes": "",
       "selector_origin": "bridge"
@@ -1736,19 +1287,20 @@
       "selector_origin": "bridge"
     }
   ],
-  "generated_at": "2026-07-24T23:42:16.547Z",
   "canonical_v197_sha256": {
-    "host": "d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6",
+    "host": "c4699091db9f1ebc3a6e2076d483a3d41303d3e261ace0111c9411322f7ea3a5",
     "entry": "cdeac0c8574333c7261be2bc410357ecc5407ee0dd5b1b8089630f3914026030",
-    "universe": "3cff07b31e8360e5ce793287298d66127c4f278705dc0f8e6abdfbe7e874dc40"
+    "universe": "1b060c30414dca554c96fadfd50316e0d9c6e13c9ab2b163f8d8c785b07b8fc8"
   },
   "validation": {
     "proof_specs_resolved": true,
     "missing_proof_specs": [],
     "selector_origin_counts": {
-      "canonical": 31,
-      "bridge": 58,
-      "n-a": 1
+      "canonical": 24,
+      "bridge": 42,
+      "n-a": 0
     }
-  }
+  },
+  "generation_policy": "deterministic-source-fingerprint-v1",
+  "source_fingerprint": "2d78ec0b0c7b3cfb9a63d08963dfdb3bf7f64d1a118e0e25303b7238b67e7c95"
 }

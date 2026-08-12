@@ -514,7 +514,7 @@ test("G04 warm V197 runtime preserves identity, centring, and natural interactio
   const report = {
     project: testInfo.project.name,
     generatedAt: new Date().toISOString(),
-    canonicalV197Sha256: "d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6",
+    canonicalV197Sha256: "c4699091db9f1ebc3a6e2076d483a3d41303d3e261ace0111c9411322f7ea3a5",
     hostProfile,
     entryCadence,
     todayCadence,
@@ -535,14 +535,14 @@ test("G04 warm V197 runtime preserves identity, centring, and natural interactio
   expect(runtime.canvasOwners.sort()).toEqual(["nur-brain-canvas", "space3d"]);
   expect(runtime.runningAnimations).toBeLessThanOrEqual(testInfo.project.name.includes("mobile") ? 16 : 24);
   const viewport = measuredGeometry.viewport as { width: number; height: number };
-  const densityScale = Math.min(2.2, Math.max(1, (viewport.width * viewport.height) / 1_600_000));
+  const densityScale = Math.min(1.35, Math.max(1, (viewport.width * viewport.height) / 1_600_000));
   const expectedParticleTiers = viewport.width < 700
-    ? { galaxy: 520, far: 340, dust: 96, super: 26 }
+    ? { galaxy: 400, far: 260, dust: 72, super: 20 }
     : {
-        galaxy: Math.round(900 * densityScale),
-        far: Math.round(585 * densityScale),
-        dust: Math.round(165 * densityScale),
-        super: Math.round(48 * densityScale),
+        galaxy: Math.round(690 * densityScale),
+        far: Math.round(450 * densityScale),
+        dust: Math.round(126 * densityScale),
+        super: Math.round(36 * densityScale),
       };
   const expectedParticleCount = Object.values(expectedParticleTiers)
     .reduce((total, count) => total + count, 0);
@@ -678,8 +678,8 @@ test("G04 reduced motion materially removes galaxy and decorative animation work
   expect(reduced.canvasDisplay).toBe("block");
   expect(reduced.canvasHasPaint).toBe(true);
   const expectedParticleCount = testInfo.project.name.includes("mobile")
-    ? 520 + 340 + 96 + 26
-    : 900 + 585 + 165 + 48;
+    ? 400 + 260 + 72 + 20
+    : 690 + 450 + 126 + 36;
   expect(reduced.galaxy).toMatchObject({
     total: expectedParticleCount,
     transient: 0,

@@ -16,7 +16,7 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 
 describe("V197 immutable host contract", () => {
   it("records the canonical V197 source SHA", () => {
-    expect(V197_SOURCE_SHA256).toBe("d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6");
+    expect(V197_SOURCE_SHA256).toBe("c4699091db9f1ebc3a6e2076d483a3d41303d3e261ace0111c9411322f7ea3a5");
   });
 
   it("keeps native V197 control identities in the decoded source", () => {

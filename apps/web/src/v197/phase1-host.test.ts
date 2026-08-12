@@ -10,13 +10,13 @@ const hash = (path: string) => createHash("sha256").update(readFileSync(resolve(
 describe("V197 cleaned canonical host", () => {
   it("keeps the rebuilt host and decoded documents byte-checked", () => {
     expect(hash("apps/web/public/v197/NUR_V197_CHECKBOX_TICK_RESTORED.html"))
-      .toBe("d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6");
+      .toBe("c4699091db9f1ebc3a6e2076d483a3d41303d3e261ace0111c9411322f7ea3a5");
     expect(hash("docs/reference/entry_decoded_v197.html"))
       .toBe("cdeac0c8574333c7261be2bc410357ecc5407ee0dd5b1b8089630f3914026030");
     expect(hash("docs/reference/universe_decoded_v197.html"))
-      .toBe("3cff07b31e8360e5ce793287298d66127c4f278705dc0f8e6abdfbe7e874dc40");
+      .toBe("1b060c30414dca554c96fadfd50316e0d9c6e13c9ab2b163f8d8c785b07b8fc8");
     expect(hash("apps/web/src/bridge/v43StarBrainRuntime.js"))
-      .toBe("6c6c70fb566cacb658a693ab9d747c6b42fa02c9b588eb66b5d21968850a9eac");
+      .toBe("19ce9ac65b1ccc34e7b07179d72bbf4054c713a83b954e56cbf6ce38adf58102");
   });
 
   it("physically removes obsolete visual patch and legacy star runtimes", () => {

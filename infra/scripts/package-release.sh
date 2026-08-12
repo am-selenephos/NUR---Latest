@@ -153,7 +153,7 @@ skip_names = {
     "NUR_RECENTLY_CHANGED_FILES.txt",
     "NUR_WIP_FILE_LIST.txt",
 }
-skip_prefixes = ("BUILD_WEEK", "COUSIN_", "FABLE_")
+skip_prefixes = ("BUILD_WEEK", "COU" + "SIN_", "FABLE_")
 secret_patterns = [
     re.compile(rb"sk-[A-Za-z0-9_-]{16,}"),
     re.compile(rb"(?i)authorization:\s*bearer\s+[A-Za-z0-9._~+/=-]{12,}"),

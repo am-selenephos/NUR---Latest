@@ -10,7 +10,7 @@ describe("V197 adaptive rendering contract", () => {
   it("keeps the canonical source byte-identical", () => {
     const source = read("apps/web/public/v197/NUR_V197_CHECKBOX_TICK_RESTORED.html");
     expect(createHash("sha256").update(source).digest("hex"))
-      .toBe("d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6");
+      .toBe("c4699091db9f1ebc3a6e2076d483a3d41303d3e261ace0111c9411322f7ea3a5");
   });
 
   it("bounds repeated paint work without selecting rig or geometry owners", () => {

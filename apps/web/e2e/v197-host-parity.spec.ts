@@ -5,9 +5,17 @@ import { expect, test } from "@playwright/test";
 import { buildV197PerformanceBootstrap } from "../src/bridge/v197PerformanceProfile";
 import { installNurMocks } from "./helpers/nurMocks";
 
-const CANONICAL_SHA256 = "d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6";
+const CANONICAL_SHA256 = "c4699091db9f1ebc3a6e2076d483a3d41303d3e261ace0111c9411322f7ea3a5";
 const PWA_METADATA = '<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#000000">';
 const BRIDGE_LOADER = '<script type="module" src="/assets/v197-bridge.js"></script>';
+const PRESENTATION_GUARD = [
+  '<style id="nur-v197-presentation-guard">',
+  'html:not([data-nur-entry-polished="true"]) #nur-entry-stage,',
+  'html:not([data-nur-universe-polished="true"]) #nur-universe-stage {',
+  'visibility:hidden!important;opacity:0!important;pointer-events:none!important',
+  '}',
+  '</style>',
+].join("");
 
 test("product routes compose the byte-locked V197 host with deterministic runtime appendages", async ({ page }) => {
   const canonicalResponse = await page.request.get("/v197/NUR_V197_CHECKBOX_TICK_RESTORED.html");
@@ -20,7 +28,7 @@ test("product routes compose the byte-locked V197 host with deterministic runtim
   const productDocument = await productResponse.text();
   expect(productDocument).toBe(
     canonical
-      .replace("</head>", `${PWA_METADATA}${buildV197PerformanceBootstrap()}</head>`)
+      .replace("</head>", `${PWA_METADATA}${buildV197PerformanceBootstrap()}${PRESENTATION_GUARD}</head>`)
       .replace("</body>", `${BRIDGE_LOADER}</body>`),
   );
 

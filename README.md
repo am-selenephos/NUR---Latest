@@ -1,19 +1,23 @@
 # NUR
 
-**Private, evidence-bound cognition with owner-controlled memory, bounded Agency, and revocable Context Capsules.**
+**Neural Upgrade Rewiring: a private, evidence-bound cognitive operating system.**
 
-NUR is a local-first scoped beta for private project-orbit work. Its canonical V197 interface is
-connected by a nonvisual TypeScript bridge to a FastAPI backend with owner-scoped persistence,
+This is the canonical NUR platform repository. The founder-approved V197 interface is connected
+through one nonvisual TypeScript bridge to a FastAPI backend with owner-scoped persistence,
 retrieval, verification, controlled sharing, Mind/Brain cognition, bounded capabilities, and an
 Agency execution boundary.
 
-The release gate focuses on one bounded readiness slice:
+The currently shipped owner experience includes:
 
-> private evidence-bound Talk → structured next move → persisted Plan → owner-approved Context Capsule → recipient-scoped answer → immediate revocation
+- private Today, Talk, Journal, Plan, and Systems workflows;
+- dedicated Map, Orbit, Timeline, and governed Insights surfaces;
+- the canonical Entry galaxy, V43 star-brain, Systems star-brain, and loading sigil runtimes;
+- structured Talk, persisted plans and outcomes, owner memory, Context Capsules, and revocation;
+- bounded Agency, capability, billing, notification, Glow, Omega, and operations foundations.
 
-The repository also contains broader Systems, Universe, Community, Projects, Billing, Omega,
-Capability, Agency, and Hardness foundations. Their presence is not a claim that every owner UI,
-external provider, or release gate is complete. Read [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md) for the
+Retired consultation, web-research, community-intelligence, and expert-voice placeholders are not
+part of the visible canonical product. External providers remain fail-closed until their real
+server-side configuration is supplied. Read [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md) for the verified
 demonstration flow and [`RUNBOOK.md`](RUNBOOK.md) for local operations.
 
 ## Why NUR
@@ -56,11 +60,11 @@ FastAPI API + HTTP-only session + CSRF
 Owner surfaces + versioned Context Capsule/grant/audit/revoke
 ```
 
-At baseline `7df3ade9a9dea495b84d25cc7660350941c1e1f8`, Talk enters the Mind loop,
-resolves scope before retrieval, selects one of the currently registered bounded capabilities or a
+At the canonical recovery checkpoint `bf6411c74f96e2380a72a492337c6c14b970885e`, Talk enters the
+Mind loop, resolves scope before retrieval, selects one of the registered bounded capabilities or a
 fallback, invokes Brain through the server provider boundary when needed, and submits proposed
-side effects to Agency. The owner Agent lifecycle surface and full Hardness product surface remain
-incomplete; the Hardness trainer contract is dry-run only.
+side effects to Agency. A source file, test, or historical screenshot is not release proof: every
+candidate must pass the repository gates and live browser verification on its exact commit.
 
 ## Quick boot
 

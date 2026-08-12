@@ -340,7 +340,7 @@ test("measures canonical V197 runtime without changing presentation", async ({ p
     label,
     generatedAt: new Date().toISOString(),
     browser: testInfo.project.name,
-    canonicalV197Sha256: "d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6",
+    canonicalV197Sha256: "c4699091db9f1ebc3a6e2076d483a3d41303d3e261ace0111c9411322f7ea3a5",
     requestedSoakMs: soakMs,
     actualSoakMs,
     routeTimingsMs: { loginToUniverseMs, systemsNavigationMs, mapNavigationMs },

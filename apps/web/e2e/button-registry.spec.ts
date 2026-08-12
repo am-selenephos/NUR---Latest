@@ -82,7 +82,7 @@ async function uncovered(frame: FrameLocator): Promise<string[]> {
 
 test("machine-readable Track A registry is internally complete", () => {
   expect(registry.architecture).toBe("track-a-v197-native-host");
-  expect(registry.source_sha256).toBe("d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6");
+  expect(registry.source_sha256).toBe("c4699091db9f1ebc3a6e2076d483a3d41303d3e261ace0111c9411322f7ea3a5");
   expect(new Set(registry.controls.map(control => control.id)).size).toBe(registry.controls.length);
   for (const control of registry.controls) {
     expect(registry.statuses).toContain(control.status);
@@ -128,7 +128,7 @@ test("authenticated V197 pages and hidden scope chamber expose no unregistered c
   expect(await uncovered(universe), "unregistered control in owner session chamber").toEqual([]);
   await universe.locator(".nur-user").click();
 
-  for (const focus of ["map", "orbits", "timeline", "insights", "research", "community", "web"]) {
+  for (const focus of ["map", "orbits", "timeline", "insights"]) {
     const control = universe.locator(`[data-world-tab="${focus}"], [data-world-focus="${focus}"]`).first();
     await control.click();
     expect(await uncovered(universe), `unregistered control in ${focus} focus`).toEqual([]);

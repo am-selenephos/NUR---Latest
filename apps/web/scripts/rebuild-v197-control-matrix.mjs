@@ -4,25 +4,28 @@
  * The control list itself is curated: which controls exist, what they mean, and how they are
  * classified is a product judgement, not something a script can invent. What this script does
  * is re-derive every machine-checkable fact from the working tree, so the matrix can never
- * again claim to describe a commit it was not generated from:
+ * again claim freshness from a self-referential commit stamp:
  *
- *   - stamps generated_from_sha from the actual git HEAD, plus generated_at;
  *   - records the canonical V197 host/entry/universe SHA-256 the matrix was validated against;
  *   - resolves each control's selector against the decoded canonical sources and labels it
  *     canonical / bridge / n-a, so a bridge-created surface is never mistaken for source DOM;
  *   - verifies every named desktop and mobile proof spec exists on disk;
  *   - recomputes totals from the controls rather than trusting the stored numbers.
+ *   - hashes the generator, canonical sources, normalized controls, and named proof specs;
+ *   - emits deterministic JSON, allowing the release gate to prove freshness with git diff;
+ *   - resolves each selector as canonical / bridge / n-a;
+ *   - verifies every named proof spec exists and recomputes all totals.
  *
  * Exits non-zero on any missing proof spec or totals mismatch.
  */
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = path.resolve(webRoot, "../..");
+const generatorPath = fileURLToPath(import.meta.url);
 const matrixPath = path.join(repositoryRoot, "docs/release/v197-control-matrix.json");
 const e2eRoot = path.join(webRoot, "e2e");
 
@@ -33,10 +36,7 @@ const canonicalFiles = {
 };
 
 const sha256 = file => createHash("sha256").update(readFileSync(file)).digest("hex");
-
-function headSha() {
-  return execFileSync("git", ["-C", repositoryRoot, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
-}
+const digest = value => createHash("sha256").update(value).digest("hex");
 
 // A selector resolves against the canonical source when one of its fragments matches real
 // markup in the decoded Entry or Universe document. A CSS fragment is not the same string as
@@ -78,6 +78,57 @@ function resolveSelector(selector, sources) {
 }
 
 const matrix = JSON.parse(readFileSync(matrixPath, "utf8"));
+const retiredControlIds = new Set([
+  "top.search",
+  "top.deep",
+  "universe.composer",
+  "research.stage",
+  "research.live-fetch",
+  "community.rooms.shell",
+  "community.members",
+  "council.flow",
+  "community.legacy-tabs",
+  "consultation.create",
+  "consultation.open",
+  "consultation.contribute",
+  "consultation.stage",
+  "community.return",
+  "community.room-create",
+  "community.start-consultation",
+  "community.room-open",
+  "community.message-send",
+  "community.post-create",
+  "community.post-open",
+  "community.react-useful",
+  "community.react-witness",
+  "community.comment-create",
+  "community.future-tabs",
+]);
+matrix.controls = matrix.controls.filter(control => !retiredControlIds.has(control.id));
+const localTabs = matrix.controls.find(control => control.id === "nav.local-tabs");
+if (localTabs) {
+  localTabs.label = "context tabs";
+  localTabs.selector = "[data-context-tab]";
+}
+const liveAccountControls = {
+  "settings.export": {
+    api: "POST /api/v1/account/export",
+    persistence: "owner-scoped deterministic JSON download + SHA-256 checksum",
+    notes: "real owner export; fail-closed API response and download proof",
+  },
+  "settings.delete": {
+    api: "DELETE /api/v1/account",
+    persistence: "reauthenticated owner deletion + session revocation",
+    notes: "exact confirmation and current password required",
+  },
+};
+for (const [id, truth] of Object.entries(liveAccountControls)) {
+  const control = matrix.controls.find(row => row.id === id);
+  if (!control) continue;
+  Object.assign(control, truth, { classification: "LIVE_REAL" });
+  control.desktop_proof = ["account-privacy-ui.spec.ts", "v197-control-matrix.spec.ts"];
+  control.mobile_proof = ["account-privacy-ui.spec.ts", "v197-control-matrix.spec.ts"];
+}
 const sources = [readFileSync(canonicalFiles.entry, "utf8"), readFileSync(canonicalFiles.universe, "utf8")];
 
 const missingProofs = [];
@@ -98,8 +149,8 @@ const totals = { total: matrix.controls.length };
 for (const classification of matrix.classifications) totals[classification] = 0;
 for (const control of matrix.controls) totals[control.classification] += 1;
 
-matrix.generated_from_sha = headSha();
-matrix.generated_at = new Date().toISOString();
+delete matrix.generated_from_sha;
+delete matrix.generated_at;
 matrix.canonical_v197_sha256 = Object.fromEntries(
   Object.entries(canonicalFiles).map(([key, file]) => [key, sha256(file)]),
 );
@@ -109,11 +160,28 @@ matrix.validation = {
   missing_proof_specs: missingProofs,
   selector_origin_counts: resolution,
 };
+const proofSpecs = [...new Set(matrix.controls.flatMap(control => [
+  ...(control.desktop_proof ?? []),
+  ...(control.mobile_proof ?? []),
+]))].sort();
+matrix.generation_policy = "deterministic-source-fingerprint-v1";
+matrix.source_fingerprint = digest(JSON.stringify({
+  generator_sha256: sha256(generatorPath),
+  canonical_v197_sha256: matrix.canonical_v197_sha256,
+  proof_specs_sha256: Object.fromEntries(proofSpecs.map(spec => [spec, sha256(path.resolve(e2eRoot, spec))])),
+  architecture: matrix.architecture,
+  classifications: matrix.classifications,
+  notes: matrix.notes,
+  controls: matrix.controls,
+  totals: matrix.totals,
+  validation: matrix.validation,
+}));
 
 writeFileSync(matrixPath, `${JSON.stringify(matrix, null, 2)}\n`);
 
 process.stdout.write(`${JSON.stringify({
-  generated_from_sha: matrix.generated_from_sha,
+  generation_policy: matrix.generation_policy,
+  source_fingerprint: matrix.source_fingerprint,
   canonical_v197_sha256: matrix.canonical_v197_sha256,
   totals,
   selector_origin_counts: resolution,

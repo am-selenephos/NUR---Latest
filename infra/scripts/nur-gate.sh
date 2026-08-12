@@ -164,29 +164,39 @@ browser_gate() { # <spec...>
 
 gate_G02_AUTH() {
   run auth_backend_tests bash -c 'cd apps/api && .venv/bin/python -m pytest -q app/tests/test_auth.py app/tests/test_password_recovery.py'
-  browser_gate e2e/fresh-signup.spec.ts e2e/landing-auth.spec.ts e2e/presentation-auth-recovery.spec.ts
-  skip account_export_delete_e2e "export/delete surfaces not implemented (G02-014, G02-015)"
-  skip session_management_ui "no session management surface (G02-013)"
+  browser_gate \
+    e2e/fresh-signup.spec.ts \
+    e2e/landing-auth.spec.ts \
+    e2e/presentation-auth-recovery.spec.ts \
+    e2e/account-privacy-ui.spec.ts
 }
 
 gate_G03_V197() {
   run v197_integrity npm run --silent v197:integrity
   run control_matrix_regen node apps/web/scripts/rebuild-v197-control-matrix.mjs
-  run control_matrix_fresh bash -c '[ "$(python3 -c "import json;print(json.load(open(\"docs/release/v197-control-matrix.json\"))[\"generated_from_sha\"])")" = "$(git rev-parse HEAD)" ]'
+  run control_matrix_fresh git diff --exit-code -- docs/release/v197-control-matrix.json
+  run control_matrix_fingerprint bash -c 'python3 -c "import json,re,sys;m=json.load(open(\"docs/release/v197-control-matrix.json\"));sys.exit(0 if m.get(\"generation_policy\")==\"deterministic-source-fingerprint-v1\" and re.fullmatch(r\"[0-9a-f]{64}\",m.get(\"source_fingerprint\",\"\")) else 1)"'
   run no_broken_controls bash -c 'python3 -c "
 import json,sys
 m=json.load(open(\"docs/release/v197-control-matrix.json\"))
 bad={k:m[\"totals\"].get(k,0) for k in (\"DEAD\",\"DUPLICATE\",\"MISLEADING\")}
 sys.exit(1 if any(bad.values()) else 0)"'
   browser_gate e2e/v197-control-matrix.spec.ts e2e/v197-host-parity.spec.ts e2e/v197-forensic-shell.spec.ts e2e/v197-runtime-lifecycle.spec.ts
-  skip deferred_controls "7 controls remain NOT_IMPLEMENTED_VISIBLE (G03-007)"
+  skip deferred_controls "3 controls remain NOT_IMPLEMENTED_VISIBLE (G03-007)"
   skip backend_only_surfaces "Personal Memory, Teach NUR and Billing unreachable from V197 (G03-008..010)"
 }
 
 gate_G04_PERFORMANCE() {
   browser_gate e2e/v197-performance-acceptance.spec.ts e2e/v197-performance.spec.ts e2e/v197-responsive-accessibility.spec.ts
   skip named_reference_devices "reference device/browser tier not declared (G04-008, G04-009)"
-  skip heap_soak "10-minute heap/listener/observer soak not implemented (G04-004)"
+  if [ "${NUR_G04_SOAK:-0}" = "1" ]; then
+    run ten_minute_heap_soak env NUR_G04_SOAK=1 npm --workspace apps/web run e2e -- \
+      e2e/v197-performance-acceptance.spec.ts \
+      --project=chromium-desktop-g04 \
+      --workers=1
+  else
+    skip heap_soak "implemented; set NUR_G04_SOAK=1 to execute the explicit ten-minute release soak"
+  fi
 }
 
 gate_G05_LIVE_AI() {

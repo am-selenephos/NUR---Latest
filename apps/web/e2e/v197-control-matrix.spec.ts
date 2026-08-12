@@ -32,7 +32,8 @@ type MatrixControl = {
   mobile_proof: string[];
 };
 type Matrix = {
-  generated_from_sha: string;
+  generation_policy: string;
+  source_fingerprint: string;
   totals: Record<string, number>;
   controls: MatrixControl[];
 };
@@ -40,7 +41,9 @@ type Matrix = {
 const matrix = JSON.parse(readFileSync(matrixPath, "utf8")) as Matrix;
 
 test("control matrix is complete, consistent, and free of dead controls", async () => {
-  expect(matrix.controls.length).toBeGreaterThanOrEqual(90);
+  expect(matrix.generation_policy).toBe("deterministic-source-fingerprint-v1");
+  expect(matrix.source_fingerprint).toMatch(/^[0-9a-f]{64}$/);
+  expect(matrix.controls.length).toBeGreaterThanOrEqual(65);
   expect(matrix.totals.total).toBe(matrix.controls.length);
 
   const counted: Record<string, number> = {};
@@ -238,10 +241,13 @@ for (const projectName of ["chromium-desktop", "chromium-mobile"]) {
     const root = universe.locator("#nur-v197-adjunct-root");
     await expect(root).toContainText("Persisted owner preference");
 
-    // Honest deferred controls stay visibly disabled with a stated reason.
-    await expect(root.locator('[data-adjunct-action="settings-export"]')).toBeDisabled();
-    await expect(root.locator('[data-adjunct-action="settings-delete"]')).toBeDisabled();
-    await expect(root).toContainText("Not exposed in this beta");
+    // Owner export and deletion are real account-lifecycle controls. Their
+    // complete download/reauthentication contracts are proven separately in
+    // account-privacy-ui.spec.ts; this matrix proof guards their reachability.
+    await expect(root.locator('[data-adjunct-action="settings-export"]')).toBeEnabled();
+    await expect(root.locator('[data-adjunct-action="settings-delete"]')).toBeEnabled();
+    await expect(root).toContainText("Export the complete owner-scoped ledger");
+    await expect(root).toContainText("Permanently delete this NUR account");
 
     await root.locator('[data-adjunct-control="sound"]').check();
     await root.locator('[data-adjunct-action="settings-save"]').click();

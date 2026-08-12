@@ -11,7 +11,7 @@ const bridge = readFileSync(bridgePath, "utf8");
 describe("V43-derived NUR star-brain source", () => {
   it("keeps the supplied V43 anatomy and adds the approved sparkle/stem extension", () => {
     expect(createHash("sha256").update(runtime).digest("hex"))
-      .toBe("6c6c70fb566cacb658a693ab9d747c6b42fa02c9b588eb66b5d21968850a9eac");
+      .toBe("19ce9ac65b1ccc34e7b07179d72bbf4054c713a83b954e56cbf6ce38adf58102");
     expect(runtime).toContain("canvas.id = 'nur-brain-canvas';");
     expect(runtime).toContain("const N_CORTEX = MOBILE ? 740 : 1112;");
     expect(runtime).toContain("const N_CEREB  = MOBILE ? 154 : 225;");
@@ -41,7 +41,7 @@ describe("V43-derived NUR star-brain source", () => {
     expect(runtime).toContain("c.drawImage(sprite,x-sprite.width/2,y-sprite.height/2);");
     expect(runtime).toContain("host.dataset.nurRenderProfile='bounded-prism-cache-direct-pinpoints-v1';");
     expect(runtime).toContain("host.dataset.nurPrismWheel=String(PRISM_WHEEL.length);");
-    expect(runtime).toContain("window.nurStarBrain={ storm, absorb, shatter, firePulse, dispose };");
+    expect(runtime).toContain("window.nurStarBrain={ storm, absorb, shatter, firePulse, dispose, getDiagnostics };");
     expect(runtime).not.toContain("nur-brain-canvas-v197");
     expect(() => new Function(runtime)).not.toThrow();
   });
@@ -55,9 +55,12 @@ describe("V43-derived NUR star-brain source", () => {
     expect(runtime).toContain("cancelAnimationFrame(rafHandle)");
     expect(runtime).toContain("function dispose()");
     expect(runtime).toContain("function stageIsVisible()");
+    expect(runtime).toContain("function syncStageAnimationState(visible)");
     expect(runtime).toContain("function requestBrainFrame()");
-    expect(runtime).toContain("if(disposed || rafHandle!==null || !stageIsVisible()) return;");
-    expect(runtime).toContain("if(document.hidden || !stageIsVisible()) return;");
+    expect(runtime).toContain("const visible=stageIsVisible();");
+    expect(runtime).toContain("if(disposed || rafHandle!==null || !visible || (REDUCED&&staticFramePainted)) return;");
+    expect(runtime).toContain("if(document.hidden || !visible) return;");
+    expect(runtime).toContain("function getDiagnostics()");
     // Everything the runtime registers must be undone.
     expect(runtime).toContain("teardown.push(()=>removeEventListener('resize',resize));");
     expect(runtime).toContain("teardown.push(()=>ro.disconnect());");

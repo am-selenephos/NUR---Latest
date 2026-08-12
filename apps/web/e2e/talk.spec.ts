@@ -213,6 +213,28 @@ async function installTalkMocks(page: Page, opts: { providerAvailable: boolean }
     predictions: [],
     review_queue: [],
   }));
+  await page.route("**/api/v1/insights?limit=80", route => json(route, [{
+    id: "insight-1",
+    orbit_id: user.orbit.id,
+    insight_type: "CROSS_DOMAIN_PATTERN",
+    title: "Source-faithful movement",
+    claim: "The next move should stay grounded in owned evidence.",
+    tone: "measured",
+    confidence: 0.72,
+    valence: "constructive",
+    affected_system_slug: null,
+    evidence: [{ id: "relation-1" }],
+    counter_evidence: [],
+    what_nur_may_be_wrong_about: "The owner may choose a different pace.",
+    positive_interpretation: "A visible move can make return easier.",
+    hard_interpretation: "Movement without evidence would be invented.",
+    suggested_action: "Write one visible owner-approved step.",
+    status: "CANDIDATE",
+    correction: null,
+    provenance_label: "AGENTIC_INSIGHT_OWNER_LEDGER",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }]));
   await page.route("**/api/v1/insights/insight-1", route => json(route, {
     id: "insight-1",
     title: "Source-faithful movement",
@@ -381,13 +403,8 @@ test("talk disabled provider fails closed with a visible honest error, never a s
 
 test("talk mocked semantic stream preserves structured result and plan/correction actions", async ({ page }) => {
   const mocks = await installTalkMocks(page, { providerAvailable: true });
-  await page.goto("/systems");
-  const universe = await readyUniverse(page, "#page-systems");
-  const reflect = universe.locator('.universe-prompt-row [data-action="reflect"]');
-  await reflect.click();
-  await expect(reflect).toHaveAttribute("aria-pressed", "true");
-  await universe.locator('[data-page="talk"]:visible').first().click();
-  await expect(universe.locator("#page-talk")).toBeVisible();
+  await page.goto("/talk");
+  const universe = await readyUniverse(page, "#page-talk");
   await universe.locator("#talk-input").fill("Make this source faithful.");
   await universe.getByRole("button", { name: "Send to NUR" }).click();
   await expect(universe.locator("#talk-stream")).toContainText("You are asking for source-faithful movement.");
@@ -399,7 +416,7 @@ test("talk mocked semantic stream preserves structured result and plan/correctio
       uncertainty: ["This is based only on the mocked owned source."],
     },
   });
-  expect(mocks.lastTalkMode()).toBe("reflect");
+  expect(mocks.lastTalkMode()).toBe("talk");
 
   await universe.locator('[data-thread-action="plan"]').click();
   await expect.poll(() => mocks.planCreated()).toBe(true);
