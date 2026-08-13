@@ -172,6 +172,35 @@ test("bouncing between surfaces never leaves two mounted at once", async () => {
   }
 });
 
+test("a pending search repaint cannot remount the surface after navigation", async () => {
+  const page = sharedPage;
+  await page.goto("/universe/map", { waitUntil: "networkidle" });
+  await expect.poll(
+    async () => (await mountState(page)).mounted,
+    { timeout: 20_000 },
+  ).toEqual(["nur-map-root"]);
+
+  const frame = await stageFrame(page);
+  const navigated = await frame.evaluate(() => {
+    const search = document.querySelector<HTMLInputElement>(".nur-map-search");
+    const orbit = Array.from(document.querySelectorAll<HTMLElement>("[data-world-tab]"))
+      .find(node => (node.textContent || "").trim().toUpperCase().includes("ORBITS"));
+    if (!search || !orbit) return false;
+    search.value = "pending map query";
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+    orbit.click();
+    return true;
+  });
+  expect(navigated).toBe(true);
+
+  await expect.poll(
+    async () => (await mountState(page)).mounted,
+    { timeout: 20_000 },
+  ).toEqual(["nur-orbit-root"]);
+  await page.waitForTimeout(300);
+  expect((await mountState(page)).mounted).toEqual(["nur-orbit-root"]);
+});
+
 test("dedicated surfaces keep neutral-black glass instead of a blue panel wash", async () => {
   test.slow();
   const page = sharedPage;

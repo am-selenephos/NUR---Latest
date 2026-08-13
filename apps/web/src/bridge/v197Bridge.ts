@@ -19,6 +19,7 @@ import {
   ensureV197EntryPolish,
   ensureV197PremiumPolish,
 } from "./v197Polish";
+import { cancelAllV197SearchCommits } from "./v197SearchInput";
 import { selectRequired, V197_SELECTORS } from "./v197Selectors";
 
 /** Routes a bridge-native surface owns end to end.
@@ -219,6 +220,10 @@ export class V197Bridge {
   async applyCurrentRoute(): Promise<void> {
     if (!this.universeDocument || !this.session) return;
     const route = nativeRoute(window.location.pathname);
+    // Route dispatch early-returns on the matching dedicated surface. Cancel
+    // every prior search commit here so a detached surface cannot repaint and
+    // remount itself after the owner has already entered another world.
+    cancelAllV197SearchCommits(this.universeDocument);
     const canonicalRoute: V197NativeRoute = route.startsWith("/talk/")
       ? "/talk"
       : route.startsWith("/journal/")

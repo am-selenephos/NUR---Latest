@@ -2233,7 +2233,7 @@ body.universe-edition #nur-front-v61 .universe-map-panel > :is(
 body.universe-edition #nur-front-v61 .universe-map-panel .universe-master-star {
   z-index: 3 !important;
   left: 50% !important;
-  top: 52% !important;
+  top: calc(52% + 6px) !important;
   width: clamp(360px, 56cqw, 560px) !important;
   height: clamp(300px, 46cqw, 460px) !important;
   transform: translate(-50%, -50%) !important;

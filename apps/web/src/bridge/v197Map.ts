@@ -31,12 +31,20 @@
 
 import MAP_CSS from "../styles/v197-map.css?raw";
 import { markV197HolographicWordmark } from "./v197Brand";
+import {
+  cancelV197SearchCommit,
+  captureV197SearchFocus,
+  restoreV197SearchFocus,
+  scheduleV197SearchCommit,
+} from "./v197SearchInput";
 import { createV197StarSeal } from "./v197StarSeal";
 import { claimV197SurfaceHost, releaseV197SurfaceHost } from "./v197SurfaceHost";
 import type { V197ApiClient } from "./v197ApiClient";
 
 const ROOT_ID = "nur-map-root";
 const STYLE_ID = "nur-map-style";
+const SEARCH_KEY = "map";
+const SEARCH_SELECTOR = ".nur-map-search";
 
 export const MAP_ROUTE = "/universe/map";
 
@@ -392,6 +400,7 @@ function edgeWhy(edge: GraphEdge, labelOf: (id: string) => string): string {
 export async function renderV197Map(
   doc: Document, route: string, api: V197ApiClient,
 ): Promise<boolean> {
+  cancelV197SearchCommit(doc, SEARCH_KEY);
   if (route !== MAP_ROUTE) {
     doc.getElementById(ROOT_ID)?.remove();
     // Give the canonical content region back, or leaving this route would leave
@@ -675,7 +684,9 @@ export async function renderV197Map(
     search.placeholder = "Search Systems, goals, plans, decisions or signals";
     search.value = state.query;
     search.setAttribute("aria-label", "Search the Map");
-    search.addEventListener("input", () => actions.setQuery(search.value));
+    search.addEventListener("input", () => {
+      scheduleV197SearchCommit(doc, SEARCH_KEY, search.value, actions.setQuery);
+    });
     tools.append(search);
 
     // Add Goal is a canonical write and lives at POST /goals; the Map does not
@@ -1918,6 +1929,7 @@ export async function renderV197Map(
   // ── paint ──────────────────────────────────────────────────────────────────
 
   function paint(): void {
+    const searchFocus = captureV197SearchFocus(doc, SEARCH_SELECTOR);
     doc.getElementById(ROOT_ID)?.remove();
     const root = el(doc, "div");
     root.id = ROOT_ID;
@@ -1959,6 +1971,7 @@ export async function renderV197Map(
     root.append(shell);
     root.append(createV197StarSeal(doc));
     host.append(root);
+    restoreV197SearchFocus(root, SEARCH_SELECTOR, searchFocus);
   }
 
   paint();
