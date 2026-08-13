@@ -649,7 +649,7 @@ test("Today and Systems controls keep one proportional geometry contract", async
   ].join(","))).toHaveCount(0);
   await expect(frame.locator(".universe-command-row .world-command")).toHaveCount(2);
   await expect(frame.locator("#page-systems #front-nur-star"))
-    .toHaveAttribute("data-nur-point-count", mobile ? "1355" : "2086");
+    .toHaveAttribute("data-nur-point-count", mobile ? "1640" : "2540");
 
   if (!mobile) {
     const fit = await frame.locator("#page-systems").evaluate(element => {
@@ -722,7 +722,7 @@ test("Today and Systems controls keep one proportional geometry contract", async
   await expect(frame.locator("#page-today")).toBeVisible();
   await assertEqualControlGroup(frame.locator("#page-today .tiny-link"), 3, "Today panel actions");
   await expect(frame.locator("#page-today #front-nur-star"))
-    .toHaveAttribute("data-nur-point-count", mobile ? "1355" : "2086");
+    .toHaveAttribute("data-nur-point-count", mobile ? "1640" : "2540");
   const sendStar = frame.locator("#page-today .thought-send-button[data-send='today'] .nur-v197-sigil-star");
   await expect(sendStar).toBeVisible();
   await expect(sendStar).toHaveCSS("display", "block");

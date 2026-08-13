@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { installNurMocks } from "./helpers/nurMocks";
 
-test("V43 brain owns one extended runtime with circular dispersal", async ({ page }, testInfo) => {
+test("V43 anatomy owns one coordinated Three runtime with circular dispersal", async ({ page }, testInfo) => {
   await installNurMocks(page);
   await page.context().addCookies([
     { name: "nur_session", value: "runtime-lifecycle-session", url: "http://localhost:4173", httpOnly: true, sameSite: "Lax" },
@@ -15,21 +15,21 @@ test("V43 brain owns one extended runtime with circular dispersal", async ({ pag
   const host = universe.locator("#front-nur-star");
   const canvas = host.locator("#nur-brain-canvas");
   await expect(canvas).toHaveCount(1);
-  await expect(host).toHaveAttribute("data-nur-model", "v43-v7-spark-stem");
-  await expect(host).toHaveAttribute("data-nur-variant", "galaxy-rig-brainstem-v2");
+  await expect(host).toHaveAttribute("data-nur-model", "v43-anatomy-seven-spectrum");
+  await expect(host).toHaveAttribute("data-nur-variant", "three-galaxy-rig-brainstem-v3");
   await expect(host).toHaveAttribute("data-nur-dispersal", "radial-circle");
   await expect(host).toHaveAttribute(
     "data-nur-point-count",
-    testInfo.project.name.includes("mobile") ? "1355" : "2086",
+    testInfo.project.name.includes("mobile") ? "1640" : "2540",
   );
   await expect(host).toHaveAttribute(
     "data-nur-stem-point-count",
-    testInfo.project.name.includes("mobile") ? "97" : "147",
+    testInfo.project.name.includes("mobile") ? "120" : "180",
   );
-  await expect(host).toHaveAttribute("data-nur-sparkle-profile", "exact-galaxy-rig-star");
-  await expect(host).toHaveAttribute("data-nur-galaxy-paint", "v197-simple-galaxy-particle-v1");
-  await expect(universe.locator("#nur-v43-exact-star-brain-runtime"))
-    .toHaveAttribute("data-nur-runtime-hash", "6c6c70fb566cacb658a693ab9d747c6b42fa02c9b588eb66b5d21968850a9eac");
+  await expect(host).toHaveAttribute("data-nur-sparkle-profile", "three-stellar-shader-seven-spectrum");
+  await expect(host).toHaveAttribute("data-nur-galaxy-paint", "three-coordinated-celestial-rig-v1");
+  await expect(host).toHaveAttribute("data-nur-engine", "three-webgl-coordinated-v1");
+  await expect(host).toHaveAttribute("data-nur-spectrum-band-count", "7");
   await expect(universe.locator("#v197-sparkfield")).toHaveCount(0);
 
   const v43Contract = await canvas.evaluate(element => {

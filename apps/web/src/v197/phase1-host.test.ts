@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -15,8 +15,8 @@ describe("V197 cleaned canonical host", () => {
       .toBe("cdeac0c8574333c7261be2bc410357ecc5407ee0dd5b1b8089630f3914026030");
     expect(hash("docs/reference/universe_decoded_v197.html"))
       .toBe("1b060c30414dca554c96fadfd50316e0d9c6e13c9ab2b163f8d8c785b07b8fc8");
-    expect(hash("apps/web/src/bridge/v43StarBrainRuntime.js"))
-      .toBe("d77b5224d777e4e171ed722170ff51ec3602e125df5bd64bd09b600b5f76832e");
+    expect(source("apps/web/src/bridge/v197CelestialRuntime.ts"))
+      .toContain('export const V197_CELESTIAL_ENGINE = "three-webgl-coordinated-v1";');
   });
 
   it("physically removes obsolete visual patch and legacy star runtimes", () => {
@@ -29,6 +29,7 @@ describe("V197 cleaned canonical host", () => {
     expect(universe).toContain('id="nur-v180-canonical-cleaned"');
     expect(universe).toContain('id="nur-v181-runtime"');
     expect(universe).not.toMatch(/nur-v(?:183-master|184-v90|186-exact|196-universe|201-master)/);
+    expect(existsSync(resolve(repositoryRoot, "apps/web/src/bridge/v43StarBrainRuntime.js"))).toBe(false);
   });
 
   it("uses a zero-visual shell rather than a React presentation root", () => {

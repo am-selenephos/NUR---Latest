@@ -176,7 +176,7 @@ test("reduced motion leaves the exact brain and a complete static galaxy intact"
       sparkfield: document.querySelectorAll("#v197-sparkfield").length,
     };
   });
-  expect([1355, 2086]).toContain(result.points);
+  expect([1640, 2540]).toContain(result.points);
   expect(Number.parseFloat(result.animationDuration ?? "1")).toBeLessThanOrEqual(.00001);
   expect(Number.parseFloat(result.transitionDuration ?? "1")).toBeLessThanOrEqual(.00001);
   expect(result.sparkfield).toBe(0);

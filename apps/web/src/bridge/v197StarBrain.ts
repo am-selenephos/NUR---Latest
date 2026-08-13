@@ -1,23 +1,16 @@
-import V43_STAR_BRAIN_RUNTIME from "./v43StarBrainRuntime.js?raw";
 import { ensureV197AccessibleViewport } from "./v197Accessibility";
+import {
+  disposeV197CelestialRuntime,
+  ensureV197CelestialRuntime,
+  V197_CELESTIAL_ENGINE,
+  V197_SPECTRUM_NAMES,
+} from "./v197CelestialRuntime";
 
 export const V197_STAR_BRAIN_CANVAS_ID = "nur-brain-canvas";
 export const V197_STAR_BRAIN_HOST_ID = "front-nur-star";
-const V197_STAR_BRAIN_SCRIPT_ID = "nur-v43-exact-star-brain-runtime";
 const V197_UNIVERSE_BRAIN_HALO_CLASS = "nur-v197-brain-orbit-halo";
-const V43_STAR_BRAIN_RUNTIME_HASH = "6c6c70fb566cacb658a693ab9d747c6b42fa02c9b588eb66b5d21968850a9eac";
 
 type V197StarBrainSurface = "entry" | "today" | "universe" | "map";
-
-type ExactBrainWindow = Window & {
-  nurStarBrain?: {
-    storm: (power?: number) => void;
-    absorb: () => void;
-    shatter: () => void;
-    firePulse: (from?: number) => void;
-    dispose?: () => void;
-  };
-};
 
 type VeiledContext = CanvasRenderingContext2D & { __v197Veil?: boolean };
 
@@ -109,19 +102,27 @@ export function placeV197StarBrainHost(document: Document): HTMLElement | null {
   if (!brainHost) {
     brainHost = document.createElement("div");
     brainHost.id = V197_STAR_BRAIN_HOST_ID;
-    brainHost.dataset.nurSource = "exact-v43-front-page-signup-v7-star-brain";
+    brainHost.dataset.nurSource = "v43-anatomy-three-celestial-runtime";
     starBrainHosts.set(document, brainHost);
   }
   if (brainHost.parentElement !== canonicalHost) canonicalHost.append(brainHost);
   brainHost.dataset.nurSurface = surface;
+  brainHost.dataset.nurScaleProfile = surface === "universe" ? "systems-expanded" : "entry-exact";
   brainHost.dataset.nurDispersal = "radial-circle";
-  brainHost.dataset.nurGalaxyPaint = "v197-simple-galaxy-particle-v1";
-  brainHost.dataset.nurRigDepth = "projected-3d";
-  brainHost.dataset.nurEntrySystemsVisualContract = "exact-shared-crisp-v1";
+  brainHost.dataset.nurGalaxyPaint = "three-coordinated-celestial-rig-v1";
+  brainHost.dataset.nurRigDepth = "webgl-threejs-perspective";
+  brainHost.dataset.nurSpectrumBands = V197_SPECTRUM_NAMES.join(",");
+  brainHost.dataset.nurSpectrumBandCount = String(V197_SPECTRUM_NAMES.length);
+  brainHost.dataset.nurEngine = V197_CELESTIAL_ENGINE;
+  brainHost.dataset.nurEntrySystemsVisualContract = "shared-seven-spectrum-3d-v1";
   brainHost.dataset.nurHaloContract = surface === "entry" || surface === "universe"
     ? "entry-f4-ring-exact"
     : "surface-native";
-  brainHost.setAttribute("aria-label", surface === "today" ? "Wake the NUR mind" : "Wake the NUR star brain");
+  brainHost.title = "drag to spin the mind - click: it dissolves into stardust and reforms - double-click: neural storm - scroll to zoom";
+  brainHost.setAttribute(
+    "aria-label",
+    "A living brain made of stars. Drag to spin it. Click and it dissolves into tiny star glitter, then flows back together.",
+  );
   brainHost.setAttribute("role", "button");
   brainHost.tabIndex = 0;
   return brainHost;
@@ -185,40 +186,22 @@ export function ensureV197BlackGalaxy(document: Document): void {
 }
 
 /**
- * Mount the founder-approved V43 V7 anatomy with the NUR sparkle-and-stem
- * extension. The bridge only provides the canonical host, removes any already
- * mounted legacy canvas, and supplies the circular CSS dispersal boundary.
+ * Mount the founder-approved V43 anatomy through the coordinated Three.js
+ * celestial runtime. Galaxy and brain still paint into the canonical V197
+ * canvas IDs, but they now share one scheduler, one spectrum, and one motion
+ * clock instead of competing for the main thread in separate RAF loops.
  */
 export function ensureV197StarBrain(document: Document): HTMLCanvasElement | null {
   ensureV197AccessibleViewport(document);
-  const frameWindow = document.defaultView as ExactBrainWindow | null;
+  const frameWindow = document.defaultView;
   if (!frameWindow) return null;
   const brainHost = placeV197StarBrainHost(document);
   if (!brainHost) return null;
-  brainHost.dataset.nurModel = "v43-v7-spark-stem";
-  brainHost.dataset.nurVariant = "galaxy-rig-brainstem-v2";
+  brainHost.dataset.nurModel = "v43-anatomy-seven-spectrum";
+  brainHost.dataset.nurVariant = "three-galaxy-rig-brainstem-v3";
   observeV197StarBrainPlacement(document, frameWindow);
 
-  if (!document.getElementById(V197_STAR_BRAIN_SCRIPT_ID)) {
-    for (const canvasId of [V197_STAR_BRAIN_CANVAS_ID, "nur-brain-canvas-v197"]) {
-      const existingCanvas = document.getElementById(canvasId) as HTMLCanvasElement | null;
-      if (!existingCanvas) continue;
-      try {
-        existingCanvas.width = 0;
-        existingCanvas.height = 0;
-      } catch {
-        // A canvas may have been mounted by an older source before the bridge.
-      }
-      existingCanvas.remove();
-    }
-    const script = document.createElement("script");
-    script.id = V197_STAR_BRAIN_SCRIPT_ID;
-    script.dataset.nurSource = "exact-v43-front-page-signup-v7-star-brain";
-    script.dataset.nurVariant = "galaxy-rig-brainstem-v2";
-    script.dataset.nurRuntimeHash = V43_STAR_BRAIN_RUNTIME_HASH;
-    script.textContent = V43_STAR_BRAIN_RUNTIME;
-    (document.body ?? document.head).append(script);
-  }
+  const canvas = ensureV197CelestialRuntime(document, brainHost);
 
   if (brainHost.dataset.nurExactBridgeBound !== "true") {
     brainHost.dataset.nurExactBridgeBound = "true";
@@ -238,7 +221,7 @@ export function ensureV197StarBrain(document: Document): HTMLCanvasElement | nul
     });
   }
 
-  return document.getElementById(V197_STAR_BRAIN_CANVAS_ID) as HTMLCanvasElement | null;
+  return canvas;
 }
 
 /**
@@ -253,17 +236,8 @@ export function ensureV197StarBrain(document: Document): HTMLCanvasElement | nul
  * Returns true when an engine was actually stopped.
  */
 export function disposeV197StarBrain(document: Document): boolean {
-  const frameWindow = document.defaultView as ExactBrainWindow | null;
-  let stopped = false;
-
-  try {
-    if (typeof frameWindow?.nurStarBrain?.dispose === "function") {
-      frameWindow.nurStarBrain.dispose();
-      stopped = true;
-    }
-  } catch {
-    // A disposed runtime must never prevent the replacement scene from mounting.
-  }
+  const frameWindow = document.defaultView;
+  let stopped = disposeV197CelestialRuntime(document);
 
   const controller = starBrainControllers.get(document);
   if (controller) {
@@ -286,8 +260,6 @@ export function disposeV197StarBrain(document: Document): boolean {
     stopped = true;
   }
 
-  // Remove the injected script so a later mount re-runs the runtime cleanly.
-  document.getElementById(V197_STAR_BRAIN_SCRIPT_ID)?.remove();
   document.getElementById(V197_STAR_BRAIN_HOST_ID)?.removeAttribute("data-nur-exact-bridge-bound");
 
   return stopped;

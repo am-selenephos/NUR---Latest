@@ -80,15 +80,15 @@ test("Entry keeps its copy while mind, sky, and star brain use the cool galaxy c
   await expect(canvas).toBeVisible();
   await expect(brain).toHaveAttribute("data-nur-surface", "entry");
   await expect(brain).toHaveAttribute("data-nur-scale-profile", "entry-exact");
-  await expect(brain).toHaveAttribute("data-nur-galaxy-paint", "v197-simple-galaxy-particle-v1");
-  await expect(brain).toHaveAttribute("data-nur-rig-depth", "projected-3d");
-  await expect(brain).toHaveAttribute("data-nur-entry-systems-visual-contract", "exact-shared-crisp-v1");
-  await expect(brain).toHaveAttribute("data-nur-opacity-profile", "crisp-opaque-v1");
+  await expect(brain).toHaveAttribute("data-nur-galaxy-paint", "three-coordinated-celestial-rig-v1");
+  await expect(brain).toHaveAttribute("data-nur-rig-depth", "webgl-threejs-perspective");
+  await expect(brain).toHaveAttribute("data-nur-entry-systems-visual-contract", "shared-seven-spectrum-3d-v1");
+  await expect(brain).toHaveAttribute("data-nur-opacity-profile", "crisp-dimensional-v2");
   await expect(brain).toHaveAttribute(
     "data-nur-render-profile",
-    "bounded-prism-cache-direct-pinpoints-v1",
+    "one-raf-two-canonical-canvases-v1",
   );
-  await expect(brain).toHaveAttribute("data-nur-prism-wheel", "32");
+  await expect(brain).toHaveAttribute("data-nur-spectrum-band-count", "7");
   await expect(brain).toHaveAttribute("data-nur-halo-contract", "entry-f4-ring-exact");
   const entryCoreSize = await entry.locator("#f4-core").evaluate(element => {
     const rect = element.getBoundingClientRect();
@@ -97,7 +97,7 @@ test("Entry keeps its copy while mind, sky, and star brain use the cool galaxy c
   expect(entryCoreSize.width).toBeGreaterThanOrEqual(450);
   expect(Math.abs(entryCoreSize.width - entryCoreSize.height)).toBeLessThanOrEqual(1);
   const entryGalaxy = entry.locator("#space3d");
-  await expect(entryGalaxy).toHaveAttribute("data-nur-galaxy-rig", "canonical-v197-true-3d");
+  await expect(entryGalaxy).toHaveAttribute("data-nur-galaxy-rig", "three-v197-seven-spectrum-3d");
   await expect(entryGalaxy).toHaveAttribute("data-nur-galaxy-layers", "far-dust-galaxy-super");
 
   const presentation = await root.evaluate((element, mindSelector) => {
@@ -105,6 +105,7 @@ test("Entry keeps its copy while mind, sky, and star brain use the cool galaxy c
     const mindStyle = getComputedStyle(element.querySelector<HTMLElement>(mindSelector)!);
     return {
       rootBackground: rootStyle.backgroundImage,
+      rootBackgroundColor: rootStyle.backgroundColor,
       mindBackground: mindStyle.backgroundImage,
       mindClip: mindStyle.backgroundClip,
       mindFill: mindStyle.webkitTextFillColor,
@@ -112,7 +113,8 @@ test("Entry keeps its copy while mind, sky, and star brain use the cool galaxy c
       mindFilter: mindStyle.filter,
     };
   }, ".f4-title em");
-  expect(presentation.rootBackground).toContain("rgba(0, 1, 4");
+  expect(presentation.rootBackground).toBe("none");
+  expect(presentation.rootBackgroundColor).toBe("rgb(0, 0, 0)");
   expect(presentation.mindBackground).toContain("linear-gradient");
   expect(presentation.mindClip).toBe("text");
   expect(presentation.mindFill).toBe("rgba(0, 0, 0, 0)");
@@ -259,7 +261,7 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
   const todayBrain = universe.locator("#page-today #front-nur-star");
   await expect(todayBrain).toHaveAttribute("data-nur-surface", "today");
   await expect(todayBrain).toHaveAttribute("data-nur-scale-profile", "entry-exact");
-  await expect(todayBrain).toHaveAttribute("data-nur-galaxy-paint", "v197-simple-galaxy-particle-v1");
+  await expect(todayBrain).toHaveAttribute("data-nur-galaxy-paint", "three-coordinated-celestial-rig-v1");
   await expect(universe.locator("#page-today .orbit-annotation")).toHaveCount(0);
   await expect.poll(async () => (
     await canvasSignal(todayBrain.locator("#nur-brain-canvas"))
@@ -293,15 +295,15 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
   const systemsBrain = universe.locator("#page-systems #front-nur-star");
   await expect(systemsBrain).toHaveAttribute("data-nur-surface", "universe");
   await expect(systemsBrain).toHaveAttribute("data-nur-scale-profile", "systems-expanded");
-  await expect(systemsBrain).toHaveAttribute("data-nur-galaxy-paint", "v197-simple-galaxy-particle-v1");
-  await expect(systemsBrain).toHaveAttribute("data-nur-rig-depth", "projected-3d");
-  await expect(systemsBrain).toHaveAttribute("data-nur-entry-systems-visual-contract", "exact-shared-crisp-v1");
-  await expect(systemsBrain).toHaveAttribute("data-nur-opacity-profile", "crisp-opaque-v1");
+  await expect(systemsBrain).toHaveAttribute("data-nur-galaxy-paint", "three-coordinated-celestial-rig-v1");
+  await expect(systemsBrain).toHaveAttribute("data-nur-rig-depth", "webgl-threejs-perspective");
+  await expect(systemsBrain).toHaveAttribute("data-nur-entry-systems-visual-contract", "shared-seven-spectrum-3d-v1");
+  await expect(systemsBrain).toHaveAttribute("data-nur-opacity-profile", "crisp-dimensional-v2");
   await expect(systemsBrain).toHaveAttribute(
     "data-nur-render-profile",
-    "bounded-prism-cache-direct-pinpoints-v1",
+    "one-raf-two-canonical-canvases-v1",
   );
-  await expect(systemsBrain).toHaveAttribute("data-nur-prism-wheel", "32");
+  await expect(systemsBrain).toHaveAttribute("data-nur-spectrum-band-count", "7");
   await expect(systemsBrain).toHaveAttribute("data-nur-halo-contract", "entry-f4-ring-exact");
   const systemsHalos = universe.locator(
     "#page-systems .universe-master-star > .nur-v197-brain-orbit-halo",
@@ -465,13 +467,28 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
   }));
   expect(personalOrbitMaterials).toHaveLength(4);
   for (const control of personalOrbitMaterials) {
-    expect(control.background).toContain("126, 211, 255");
-    expect(control.background).not.toContain("193, 96, 255");
+    for (const color of [
+      "255, 155, 168",
+      "255, 195, 157",
+      "255, 232, 163",
+      "159, 240, 206",
+      "155, 220, 255",
+      "173, 184, 255",
+      "223, 173, 255",
+    ]) expect(control.background).toContain(color);
     expect(control.backgroundColor).toBe("rgba(0, 0, 0, 0.08)");
     expect(control.shadow).toBe("none");
-    expect(control.filmOpacity).toBeLessThanOrEqual(.018);
-    expect(control.filmSpectrum).toContain("127, 214, 255");
-    expect(control.filmSpectrum).not.toContain("193, 96, 255");
+    expect(control.filmOpacity).toBeGreaterThanOrEqual(.04);
+    expect(control.filmOpacity).toBeLessThanOrEqual(.06);
+    for (const color of [
+      "255, 82, 111",
+      "255, 158, 74",
+      "255, 222, 92",
+      "126, 237, 130",
+      "99, 224, 255",
+      "121, 143, 255",
+      "194, 138, 255",
+    ]) expect(control.filmSpectrum).toContain(color);
   }
 
   const italicGold = await universe.locator("#page-systems .nur-systems-epigraph").evaluate(element => {
@@ -738,7 +755,7 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
 
   const galaxy = universe.locator("#space3d");
   await expect(galaxy).toBeVisible();
-  await expect(galaxy).toHaveAttribute("data-nur-galaxy-rig", "canonical-v197-true-3d");
+  await expect(galaxy).toHaveAttribute("data-nur-galaxy-rig", "three-v197-seven-spectrum-3d");
   await expect(galaxy).toHaveAttribute("data-nur-galaxy-layers", "far-dust-galaxy-super");
   const particleDiagnostics = await galaxy.evaluate(() => (
     (window as unknown as {
@@ -751,12 +768,12 @@ test("Today, Talk, and Systems share one brain paint and one calm composer propo
       };
     }).nurGalaxy?.getParticleDiagnostics?.() ?? { total: 0, transient: 0, byKind: {} }
   ));
-  expect(particleDiagnostics.total - particleDiagnostics.transient).toBe(1_302);
+  expect(particleDiagnostics.total - particleDiagnostics.transient).toBe(2_400);
   expect(particleDiagnostics.byKind).toMatchObject({
-    galaxy: 690,
-    far: 450,
-    dust: 126,
-    super: 36,
+    galaxy: 1_100,
+    far: 900,
+    dust: 340,
+    super: 60,
   });
   const galaxyFirst = await canvasSignal(galaxy);
   await page.waitForTimeout(420);

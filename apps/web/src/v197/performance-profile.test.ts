@@ -27,7 +27,7 @@ describe("V197 deterministic runtime performance profile", () => {
     const result = applyV197PerformanceProfile(canonical, "entry");
 
     expect(result.applied).toBe(true);
-    expect(result.replacementCount).toBe(24);
+    expect(result.replacementCount).toBe(25);
 
     // Optimisations that cost nothing visible are kept.
     expect(result.source).toContain("const mobile=Math.max(innerWidth,parent.innerWidth||0)<700");
@@ -78,7 +78,7 @@ describe("V197 deterministic runtime performance profile", () => {
     // Reduced motion keeps the complete rig as a still frame instead of
     // suppressing the first paint and leaving a transparent canvas.
     expect(result.source).toContain(
-      "function scheduleFrame(){if(frameRAF)return;frameRAF=requestAnimationFrame(frame)}",
+      "function scheduleFrame(){if(galaxyDisposed||frameRAF)return;frameRAF=requestAnimationFrame(frame)}",
     );
     expect(result.source).toContain(
       "function frame(now){frameRAF=0;if(!shouldRenderGalaxy())return;",
@@ -101,6 +101,7 @@ describe("V197 deterministic runtime performance profile", () => {
     expect(result.source).toContain("now-__nurStageVisAt<250");
     expect(result.source).not.toContain('stage.id==="nur-entry-stage"');
     expect(result.source).toContain("const galaxyStage=frameElement");
+    expect(result.source).toContain("dispose:()=>{galaxyDisposed=true;");
   });
 
   it("keeps the Universe nebula, far stellar plane and frame rate intact", () => {
@@ -108,7 +109,7 @@ describe("V197 deterministic runtime performance profile", () => {
     const result = applyV197PerformanceProfile(canonical, "universe");
 
     expect(result.applied).toBe(true);
-    expect(result.replacementCount).toBe(21);
+    expect(result.replacementCount).toBe(22);
 
     // The deep-space wash remains present as a static CSS backdrop. Canonical
     // canvas paint is retained as a fallback if presentation did not install it.
@@ -133,7 +134,7 @@ describe("V197 deterministic runtime performance profile", () => {
     expect(result.source).not.toContain("minFrameGap");
     expect(result.source).toContain("innerWidth<700&&now-last<33");
     expect(result.source).toContain(
-      "function scheduleFrame(){if(frameRAF)return;frameRAF=requestAnimationFrame(frame)}",
+      "function scheduleFrame(){if(galaxyDisposed||frameRAF)return;frameRAF=requestAnimationFrame(frame)}",
     );
     expect(result.source).toContain(
       "function frame(now){frameRAF=0;if(!shouldRenderGalaxy())return;",
@@ -160,6 +161,7 @@ describe("V197 deterministic runtime performance profile", () => {
     expect(result.source).toContain("__nurStageVisible");
     expect(result.source).toContain("now-__nurStageVisAt<250");
     expect(result.source).not.toContain('stage.id==="nur-universe-stage"');
+    expect(result.source).toContain("dispose:()=>{galaxyDisposed=true;");
   });
 
   it("publishes the exact lightweight four-point paint used by the true 3D sky", () => {

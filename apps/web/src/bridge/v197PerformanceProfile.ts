@@ -146,8 +146,8 @@ const GALAXY_STAGE_OBSERVER_REPLACEMENT: Replacement = [
  */
 const GALAXY_REDUCED_MOTION_REPLACEMENTS: readonly Replacement[] = [
   [
-    "function scheduleFrame(){if(reduced||frameRAF)return;frameRAF=requestAnimationFrame(frame)}",
-    "function scheduleFrame(){if(frameRAF)return;frameRAF=requestAnimationFrame(frame)}",
+    "function scheduleFrame(){if(galaxyDisposed||reduced||frameRAF)return;frameRAF=requestAnimationFrame(frame)}",
+    "function scheduleFrame(){if(galaxyDisposed||frameRAF)return;frameRAF=requestAnimationFrame(frame)}",
   ],
   [
     "function wakeGalaxy(){if(reduced||!shouldRenderGalaxy())return;if(!last)last=performance.now()-FRAME_MS;scheduleFrame()}",
@@ -179,13 +179,23 @@ const GALAXY_PARTICLE_COMPACTION_REPLACEMENT: Replacement = [
 
 const GALAXY_RUNTIME_DIAGNOSTIC_REPLACEMENT: Replacement = [
   "getParticleCount:()=>particles.length}",
-  "getParticleCount:()=>particles.length,getTransientParticleCount:()=>particles.reduce((count,p)=>count+(p.life===Infinity?0:1),0),getParticleDiagnostics:()=>{const byKind={},finite=[];let invalid=0;for(const p of particles){byKind[p.kind]=(byKind[p.kind]||0)+1;if(p.life!==Infinity){if(Number.isFinite(p.life))finite.push(p.life);else invalid++}}return{total:particles.length,transient:finite.length+invalid,finite:finite.length,invalid,minLife:finite.length?Math.min(...finite):null,maxLife:finite.length?Math.max(...finite):null,byKind,stageId:frameElement&&frameElement.id||null,stageClass:frameElement&&frameElement.className||null,stageHidden:frameElement&&frameElement.getAttribute('aria-hidden')||null,shouldRender:shouldRenderGalaxy(),frameScheduled:!!frameRAF}}}",
+  "getParticleCount:()=>particles.length,getTransientParticleCount:()=>particles.reduce((count,p)=>count+(p.life===Infinity?0:1),0),getParticleDiagnostics:()=>{const byKind={},finite=[];let invalid=0;for(const p of particles){byKind[p.kind]=(byKind[p.kind]||0)+1;if(p.life!==Infinity){if(Number.isFinite(p.life))finite.push(p.life);else invalid++}}return{total:particles.length,transient:finite.length+invalid,finite:finite.length,invalid,minLife:finite.length?Math.min(...finite):null,maxLife:finite.length?Math.max(...finite):null,byKind,stageId:frameElement&&frameElement.id||null,stageClass:frameElement&&frameElement.className||null,stageHidden:frameElement&&frameElement.getAttribute('aria-hidden')||null,shouldRender:shouldRenderGalaxy(),frameScheduled:!!frameRAF}},dispose:()=>{galaxyDisposed=true;if(frameRAF)cancelAnimationFrame(frameRAF);frameRAF=0;last=0}}",
 ];
+
+/* The bridge replaces canonical paint with one coordinated Three.js scheduler.
+ * The canonical engine therefore needs an honest release switch: hiding its
+ * canvas without stopping RAF was the old double-engine performance bug. */
+const GALAXY_DISPOSAL_REPLACEMENTS: readonly Replacement[] = [
+  [
+    "function scheduleFrame(){if(reduced||frameRAF)return;frameRAF=requestAnimationFrame(frame)}",
+    "function scheduleFrame(){if(galaxyDisposed||reduced||frameRAF)return;frameRAF=requestAnimationFrame(frame)}",
+  ],
+] as const;
 
 const GALAXY_PROJECTION_CACHE_REPLACEMENTS: readonly Replacement[] = [
   [
     "let energy=0,particles=[],last=0,frameRAF=0;",
-    "let energy=0,particles=[],last=0,frameRAF=0,projectionCache=[],nodeCache=[],rotCY=1,rotSY=0,rotCP=1,rotSP=0,rotCR=1,rotSR=0;",
+    "let energy=0,particles=[],last=0,frameRAF=0,galaxyDisposed=false,projectionCache=[],nodeCache=[],rotCY=1,rotSY=0,rotCP=1,rotSP=0,rotCR=1,rotSR=0;",
   ],
   [
     "function project(p,yA,pA,rA,t=0){",
@@ -225,6 +235,7 @@ const ENTRY_REPLACEMENTS: readonly Replacement[] = [
     'const nodes=nodeCache;nodes.length=0;const entryNodeBudget=innerWidth<700?28:64;for(let nodeIndex=0;nodeIndex<proj.length&&nodes.length<entryNodeBudget;nodeIndex++){const candidate=proj[nodeIndex];if(candidate.p.kind==="galaxy"&&candidate.q.scale<.36)nodes.push(candidate)}',
   ],
   ...GALAXY_PROJECTION_CACHE_REPLACEMENTS,
+  ...GALAXY_DISPOSAL_REPLACEMENTS,
   GALAXY_PARTICLE_COMPACTION_REPLACEMENT,
   GALAXY_RUNTIME_DIAGNOSTIC_REPLACEMENT,
   GALAXY_STAR_PAINT_REPLACEMENT,
@@ -286,6 +297,7 @@ const UNIVERSE_REPLACEMENTS: readonly Replacement[] = [
     'const nodeBudget=innerWidth<700?28:64,nodes=nodeCache;nodes.length=0;for(let nodeIndex=0;nodeIndex<proj.length&&nodes.length<nodeBudget;nodeIndex++){const candidate=proj[nodeIndex];if(candidate.p.kind==="galaxy"&&candidate.q.scale<.36)nodes.push(candidate)}',
   ],
   ...GALAXY_PROJECTION_CACHE_REPLACEMENTS,
+  ...GALAXY_DISPOSAL_REPLACEMENTS,
   GALAXY_PARTICLE_COMPACTION_REPLACEMENT,
   GALAXY_RUNTIME_DIAGNOSTIC_REPLACEMENT,
   GALAXY_STAR_PAINT_REPLACEMENT,

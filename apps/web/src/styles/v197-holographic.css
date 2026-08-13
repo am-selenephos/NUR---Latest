@@ -1011,8 +1011,16 @@ body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
       rgba(255, 255, 255, .008) 36%,
       rgba(0, 0, 0, .045) 100%
     ),
-    radial-gradient(125% 185% at 2% -8%, rgba(255, 211, 90, .032), transparent 46%),
-    radial-gradient(110% 180% at 100% 108%, rgba(60, 211, 255, .016), transparent 50%),
+    linear-gradient(
+      118deg,
+      rgba(255, 82, 111, .018) 0 14.28%,
+      rgba(255, 158, 74, .018) 14.28% 28.56%,
+      rgba(255, 222, 92, .018) 28.56% 42.84%,
+      rgba(126, 237, 130, .018) 42.84% 57.12%,
+      rgba(99, 224, 255, .018) 57.12% 71.4%,
+      rgba(121, 143, 255, .018) 71.4% 85.68%,
+      rgba(194, 138, 255, .018) 85.68% 100%
+    ),
     rgba(0, 0, 0, .02) !important;
   box-shadow:
     inset 0 0 18px rgba(255, 222, 153, .035),
@@ -1034,7 +1042,7 @@ body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
   margin: 0 !important;
   border: 0 !important;
   opacity: .07;
-  filter: saturate(.86) contrast(.94);
+  filter: saturate(1.04) contrast(.98);
   background:
     linear-gradient(118deg, rgba(255, 255, 255, .07), transparent 24%, transparent 73%, rgba(255, 235, 184, .028)),
     radial-gradient(circle at 14% 20%, rgba(255, 255, 255, .72) 0 .45px, rgba(255, 211, 90, .28) .75px, transparent 1.9px),
@@ -1048,8 +1056,8 @@ body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
 
 body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
   .universe-system-node > .nur-holo-film::before {
-  opacity: .72;
-  filter: blur(5px) saturate(.78) brightness(1.04);
+  opacity: .86;
+  filter: blur(4px) saturate(1.08) brightness(1.05);
 }
 
 body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
@@ -1088,7 +1096,7 @@ body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
 body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
   .universe-system-node.nur-holo-control:is(:hover, :focus-visible) > .nur-holo-film {
   opacity: .085;
-  filter: brightness(1.08) saturate(.92) contrast(1.02);
+  filter: brightness(1.08) saturate(1.1) contrast(1.02);
 }
 
 body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
@@ -1128,7 +1136,7 @@ body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
     [aria-pressed="true"]
   ) > .nur-holo-film {
   opacity: .09;
-  filter: brightness(1.1) saturate(.98) contrast(1.03);
+  filter: brightness(1.1) saturate(1.14) contrast(1.03);
 }
 
 body.universe-edition #nur-front-v61 #page-systems .universe-map-panel
@@ -1360,9 +1368,7 @@ body.universe-edition #nur-front-v61 .nur-viewport > :is(
   #page-plan
 ) {
   background-color: transparent !important;
-  background-image:
-    radial-gradient(ellipse at 78% 18%, rgba(83, 188, 255, .013), transparent 42%),
-    radial-gradient(ellipse at 20% 82%, rgba(61, 155, 255, .009), transparent 46%) !important;
+  background-image: none !important;
 }
 
 body.universe-edition #nur-front-v61 :is(
@@ -1382,15 +1388,15 @@ body.universe-edition #nur-front-v61 :is(
   .talk-chamber,
   .journal-pad
 ) {
-  background-color: rgba(0, 5, 9, .28) !important;
+  background-color: rgba(0, 0, 0, .32) !important;
   background-image:
-    linear-gradient(135deg, rgba(91, 198, 255, .012), transparent 46%),
+    var(--nur-pastel-film),
     linear-gradient(180deg, rgba(255, 255, 255, .008), rgba(0, 0, 0, .08)) !important;
 }
 
-/* The four personal-orbit commands are almost clear glass. Their tiny cool
-   reflection is deliberately blue-white only, so the old purple selected-card
-   wash cannot return through the shared full-spectrum film. */
+/* The four personal-orbit commands are almost clear glass. Their restrained
+   seven-band reflection keeps the full spectrum without reviving the old
+   blue-purple selected-card wash. */
 body.universe-edition #nur-front-v61 .clean-nav-button.nur-holo-control:is(
   [data-page="today"],
   [data-page="talk"],
@@ -1398,10 +1404,10 @@ body.universe-edition #nur-front-v61 .clean-nav-button.nur-holo-control:is(
   [data-page="plan"]
 ) {
   background:
-    linear-gradient(132deg, rgba(126, 211, 255, .018), transparent 42%),
+    var(--nur-pastel-film),
     rgba(0, 0, 0, .08) !important;
   background-color: rgba(0, 0, 0, .08) !important;
-  border-color: rgba(176, 221, 255, .12) !important;
+  border-color: rgba(248, 217, 138, .12) !important;
   box-shadow: none !important;
   filter: none !important;
 }
@@ -1412,7 +1418,7 @@ body.universe-edition #nur-front-v61 .clean-nav-button.nur-holo-control:is(
   [data-page="journal"],
   [data-page="plan"]
 ) > .nur-holo-film {
-  opacity: .018 !important;
+  opacity: .055 !important;
   box-shadow: inset 0 0 0 1px rgba(255, 222, 153, .24) !important;
 }
 
@@ -1422,13 +1428,17 @@ body.universe-edition #nur-front-v61 .clean-nav-button.nur-holo-control:is(
   [data-page="journal"],
   [data-page="plan"]
 ) > .nur-holo-film::before {
-  background: linear-gradient(
+  background: repeating-linear-gradient(
     104deg,
-    rgba(255, 255, 255, .24),
-    rgba(127, 214, 255, .2) 48%,
-    rgba(255, 255, 255, .22)
+    rgba(255, 82, 111, .26) 0 4.76%,
+    rgba(255, 158, 74, .26) 4.76% 9.52%,
+    rgba(255, 222, 92, .26) 9.52% 14.28%,
+    rgba(126, 237, 130, .26) 14.28% 19.04%,
+    rgba(99, 224, 255, .26) 19.04% 23.8%,
+    rgba(121, 143, 255, .26) 23.8% 28.56%,
+    rgba(194, 138, 255, .26) 28.56% 33.33%
   ) !important;
-  opacity: .42 !important;
+  opacity: .54 !important;
 }
 
 body.universe-edition #nur-front-v61 .clean-nav-button.nur-holo-control:is(

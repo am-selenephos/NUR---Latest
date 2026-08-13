@@ -136,7 +136,7 @@ test("login replays the exact V197 startup star before the Universe is revealed"
   await expect(universe.locator(".nur-star-seal svg, .nur-star-seal use")).toHaveCount(0);
 });
 
-test("Entry replaces the center MasterStar with the exact interactive V43 brain", async ({ page }, testInfo) => {
+test("Entry replaces the center MasterStar with the coordinated interactive V43 anatomy", async ({ page }, testInfo) => {
   await page.goto("/", { waitUntil: "load" });
   const entry = page.frameLocator("#nur-entry-stage");
   await expect.poll(() => entry.locator("body").evaluate(() => (
@@ -151,24 +151,27 @@ test("Entry replaces the center MasterStar with the exact interactive V43 brain"
   await expect(brain).toBeVisible();
   await expect(entry.locator("#f4-core > .spark, #f4-core > .f4-master-star")).toHaveCount(0);
   await expect(entry.locator("#f4-core")).toHaveAttribute("data-nur-legacy-master-star", "removed");
-  await expect(brain).toHaveAttribute("data-nur-source", "exact-v43-front-page-signup-v7-star-brain");
+  await expect(brain).toHaveAttribute("data-nur-source", "v43-anatomy-three-celestial-runtime");
   await expect(brain).toHaveAttribute("data-nur-dispersal", "radial-circle");
   await expect(brain).toHaveAttribute("title", /drag to spin the mind.+double-click: neural storm.+scroll to zoom/);
-  await expect(entry.locator("#nur-v43-exact-star-brain-runtime"))
-    .toHaveAttribute("data-nur-runtime-hash", "6c6c70fb566cacb658a693ab9d747c6b42fa02c9b588eb66b5d21968850a9eac");
+  await expect(brain).toHaveAttribute("data-nur-engine", "three-webgl-coordinated-v1");
   await expect(brain.locator("#nur-brain-canvas")).toBeVisible();
 
-  const expectedPoints = testInfo.project.name.includes("mobile") ? "1355" : "2086";
-  const expectedStemPoints = testInfo.project.name.includes("mobile") ? "97" : "147";
+  const expectedPoints = testInfo.project.name.includes("mobile") ? "1640" : "2540";
+  const expectedStemPoints = testInfo.project.name.includes("mobile") ? "120" : "180";
   await expect(brain).toHaveAttribute("data-nur-point-count", expectedPoints);
   await expect(brain).toHaveAttribute("data-nur-stem-point-count", expectedStemPoints);
-  await expect(brain).toHaveAttribute("data-nur-sparkle-profile", "exact-galaxy-rig-star");
-  await expect(brain).toHaveAttribute("data-nur-galaxy-paint", "v197-simple-galaxy-particle-v1");
+  await expect(brain).toHaveAttribute("data-nur-sparkle-profile", "three-stellar-shader-seven-spectrum");
+  await expect(brain).toHaveAttribute("data-nur-galaxy-paint", "three-coordinated-celestial-rig-v1");
   await expect(brain).toHaveAttribute(
     "data-nur-render-profile",
-    "bounded-prism-cache-direct-pinpoints-v1",
+    "one-raf-two-canonical-canvases-v1",
   );
-  await expect(brain).toHaveAttribute("data-nur-prism-wheel", "32");
+  await expect(brain).toHaveAttribute("data-nur-spectrum-band-count", "7");
+  await expect(brain).toHaveAttribute(
+    "data-nur-spectrum-bands",
+    "red,orange,yellow,green,blue,indigo,violet",
+  );
   await expect(brain).toHaveAttribute("data-nur-anatomy", "cortex-cerebellum-brainstem");
   await expect.poll(() => entry.locator("body").evaluate(() => (
     typeof (window as unknown as { nurStarBrain?: { shatter?: unknown } }).nurStarBrain?.shatter
@@ -340,7 +343,7 @@ test("NUR and Neural Upgrade Rewiring stay on one center axis at every responsiv
   }
 });
 
-test("Systems map mounts only the exact brain and keeps the NUR lockup on one axis", async ({ page }, testInfo) => {
+test("Systems map mounts only the coordinated brain and keeps the NUR lockup on one axis", async ({ page }, testInfo) => {
   await installNurMocks(page);
   await page.context().addCookies([
     { name: "nur_session", value: "star-brain-session", url: "http://localhost:4173", httpOnly: true, sameSite: "Lax" },
@@ -356,23 +359,26 @@ test("Systems map mounts only the exact brain and keeps the NUR lockup on one ax
   await expect(brain).toBeVisible();
   await expect(host.locator(":scope > .f4-core")).toHaveCount(0);
   await expect(host).toHaveAttribute("data-nur-legacy-master-star", "removed");
-  await expect(brain).toHaveAttribute("data-nur-source", "exact-v43-front-page-signup-v7-star-brain");
+  await expect(brain).toHaveAttribute("data-nur-source", "v43-anatomy-three-celestial-runtime");
   await expect(brain).toHaveAttribute("data-nur-dispersal", "radial-circle");
   await expect(brain.locator("#nur-brain-canvas")).toBeVisible();
-  await expect(universe.locator("#nur-v43-exact-star-brain-runtime"))
-    .toHaveAttribute("data-nur-runtime-hash", "6c6c70fb566cacb658a693ab9d747c6b42fa02c9b588eb66b5d21968850a9eac");
+  await expect(brain).toHaveAttribute("data-nur-engine", "three-webgl-coordinated-v1");
 
-  const expectedPoints = testInfo.project.name.includes("mobile") ? "1355" : "2086";
-  const expectedStemPoints = testInfo.project.name.includes("mobile") ? "97" : "147";
+  const expectedPoints = testInfo.project.name.includes("mobile") ? "1640" : "2540";
+  const expectedStemPoints = testInfo.project.name.includes("mobile") ? "120" : "180";
   await expect(brain).toHaveAttribute("data-nur-point-count", expectedPoints);
   await expect(brain).toHaveAttribute("data-nur-stem-point-count", expectedStemPoints);
-  await expect(brain).toHaveAttribute("data-nur-sparkle-profile", "exact-galaxy-rig-star");
-  await expect(brain).toHaveAttribute("data-nur-galaxy-paint", "v197-simple-galaxy-particle-v1");
+  await expect(brain).toHaveAttribute("data-nur-sparkle-profile", "three-stellar-shader-seven-spectrum");
+  await expect(brain).toHaveAttribute("data-nur-galaxy-paint", "three-coordinated-celestial-rig-v1");
   await expect(brain).toHaveAttribute(
     "data-nur-render-profile",
-    "bounded-prism-cache-direct-pinpoints-v1",
+    "one-raf-two-canonical-canvases-v1",
   );
-  await expect(brain).toHaveAttribute("data-nur-prism-wheel", "32");
+  await expect(brain).toHaveAttribute("data-nur-spectrum-band-count", "7");
+  await expect(brain).toHaveAttribute(
+    "data-nur-spectrum-bands",
+    "red,orange,yellow,green,blue,indigo,violet",
+  );
   await expect(brain).toHaveAttribute("data-nur-anatomy", "cortex-cerebellum-brainstem");
   await expect.poll(() => universe.locator("body").evaluate(() => (
     typeof (window as unknown as { nurStarBrain?: { storm?: unknown } }).nurStarBrain?.storm

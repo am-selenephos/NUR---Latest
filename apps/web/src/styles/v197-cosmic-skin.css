@@ -8,9 +8,9 @@
 
 :root {
   /* Canonical color primitives. */
-  --nur-black: #000102;
-  --nur-ink: #000102;
-  --nur-navy: #010207;
+  --nur-black: #000000;
+  --nur-ink: #000000;
+  --nur-navy: #000000;
   --nur-indigo: #11162e;
   --nur-violet-deep: #32106e;
   --nur-violet: #843dff;
@@ -105,10 +105,7 @@
   );
   --nur-spectrum-border: var(--nur-gold-rim);
   --nur-selected-rim: var(--nur-gold-rim);
-  --nur-entry-atmosphere:
-    radial-gradient(ellipse 44% 54% at 71% 43%, rgba(255, 222, 150, .018), transparent 72%),
-    radial-gradient(ellipse 35% 46% at 18% 58%, rgba(94, 134, 255, .014), transparent 74%),
-    linear-gradient(180deg, rgba(0, 2, 7, .15), rgba(0, 1, 4, .28));
+  --nur-entry-atmosphere: linear-gradient(#000, #000);
 
   /* Geometry. */
   --nur-radius-control: 7px;
@@ -403,7 +400,7 @@ body.front-v61-active #nur-front-v61 {
   height: 100dvh !important;
   min-height: 0 !important;
   overflow: hidden !important;
-  background: var(--nur-entry-atmosphere) !important;
+  background: #000 !important;
 }
 
 body.front-v61-active #nur-front-v61 .f4-head {
@@ -921,8 +918,7 @@ body #nur-front-v61 #front-nur-star {
   opacity: 1 !important;
   cursor: grab !important;
   touch-action: pan-y pinch-zoom !important;
-  background:
-    radial-gradient(circle closest-side at 50% 50%, rgba(255, 196, 86, .026), rgba(190, 140, 255, .008) 46%, transparent 100%) !important;
+  background: transparent !important;
   filter: none !important;
   -webkit-mask-image: radial-gradient(circle closest-side at 50% 50%, #000 0 58%, rgba(0,0,0,.92) 69%, rgba(0,0,0,.55) 81%, transparent 100%) !important;
   mask-image: radial-gradient(circle closest-side at 50% 50%, #000 0 58%, rgba(0,0,0,.92) 69%, rgba(0,0,0,.55) 81%, transparent 100%) !important;
@@ -1857,7 +1853,11 @@ body.universe-edition #nur-front-v61 .universe-map-panel {
 
 @media (min-width: 901px) and (max-height: 760px) {
   body.universe-edition #nur-front-v61 #page-systems .universe-map-panel .universe-master-star {
-    top: 64% !important;
+    top: calc(64% + 28px) !important;
+  }
+
+  body.universe-edition #nur-front-v61 #page-systems .universe-map-title > .nur-master-subtitle {
+    margin-top: -3px !important;
   }
 
   body.universe-edition #nur-front-v61 #page-systems .universe-map-panel > .universe-add-system {
@@ -2681,7 +2681,7 @@ body.universe-edition #nur-front-v61 {
   width: 100% !important;
   height: 100dvh !important;
   overflow: hidden !important;
-  background: var(--nur-entry-atmosphere) !important;
+  background: #000 !important;
 }
 
 body.universe-edition #nur-front-v61 .nur-shell {
@@ -2695,13 +2695,7 @@ body.universe-edition #nur-front-v61 .nur-shell {
   height: 100dvh !important;
   min-height: 0 !important;
   overflow: hidden !important;
-  background:
-    radial-gradient(44% 58% at 18% 18%, rgba(255, 155, 168, .009), transparent 70%),
-    radial-gradient(34% 46% at 34% 76%, rgba(255, 232, 163, .008), transparent 78%),
-    radial-gradient(30% 40% at 51% 24%, rgba(159, 240, 206, .008), transparent 80%),
-    radial-gradient(38% 48% at 68% 72%, rgba(155, 220, 255, .009), transparent 78%),
-    radial-gradient(30% 42% at 84% 28%, rgba(223, 173, 255, .008), transparent 80%),
-    linear-gradient(90deg, rgba(0, 0, 0, .74), rgba(0, 0, 0, .08) 50%, rgba(0, 0, 0, .66)) !important;
+  background: #000 !important;
 }
 
 body.universe-edition #nur-front-v61 :is(

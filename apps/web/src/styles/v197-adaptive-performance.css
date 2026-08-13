@@ -127,6 +127,13 @@ body.universe-edition #nur-front-v61 #page-systems.active :is(
     min-height: 44px !important;
   }
 
+  /* Entry's two primary decisions retain the 48px founder-approved touch
+   * target. The generic coarse-pointer floor above is intentionally 44px for
+   * dense operational controls, but it must not shrink the hero actions. */
+  body.front-v61-active #nur-front-v61 :is(.f4-primary, .f4-link) {
+    min-height: 48px !important;
+  }
+
   body.universe-edition #nur-front-v61 :is(
     .universe-nav-tabs button,
     #scope-open

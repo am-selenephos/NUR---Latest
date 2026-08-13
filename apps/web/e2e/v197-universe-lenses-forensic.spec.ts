@@ -157,7 +157,7 @@ test("Systems owns the exact V43 brain while Map owns a dedicated causal surface
 
     const brain = panel.locator(".universe-master-star > #front-nur-star");
     await expect(brain).toBeVisible();
-    await expect(brain).toHaveAttribute("data-nur-source", "exact-v43-front-page-signup-v7-star-brain");
+    await expect(brain).toHaveAttribute("data-nur-source", "v43-anatomy-three-celestial-runtime");
     await expect(brain).toHaveAttribute("data-nur-dispersal", "radial-circle");
     await expect(brain.locator("#nur-brain-canvas")).toBeVisible();
     await expect(panel.locator(".universe-master-star > .f4-core, .universe-master-star > .f4-master-star"))

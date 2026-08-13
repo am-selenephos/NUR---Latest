@@ -35,12 +35,13 @@ describe("V197 adaptive rendering contract", () => {
     expect(css).toContain("animation: none !important");
   });
 
-  it("stops the reduced brain after one frame and invalidates stage visibility", () => {
-    const runtime = read("apps/web/src/bridge/v43StarBrainRuntime.js");
-    expect(runtime).toContain("stageVisAt=0;");
-    expect(runtime).toContain("if(!REDUCED) rafHandle=requestAnimationFrame(frame);");
-    expect(runtime).toContain("if(REDUCED) staticFramePainted=true;");
-    expect(runtime).toContain("if(REDUCED&&staticFramePainted) return;");
+  it("stops the reduced celestial engine after one frame and invalidates it honestly", () => {
+    const runtime = read("apps/web/src/bridge/v197CelestialRuntime.ts");
+    expect(runtime).toContain("if (controller.reducedMotion && controller.staticFramePainted) return;");
+    expect(runtime).toContain("controller.staticFramePainted = true;");
+    expect(runtime).toContain("stageIsVisible(controller)");
+    expect(runtime).toContain("controller.staticFramePainted = false;");
     expect(runtime).toContain("getDiagnostics");
+    expect(runtime).toContain("getParticleDiagnostics");
   });
 });

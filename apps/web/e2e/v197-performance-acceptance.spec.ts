@@ -537,12 +537,12 @@ test("G04 warm V197 runtime preserves identity, centring, and natural interactio
   const viewport = measuredGeometry.viewport as { width: number; height: number };
   const densityScale = Math.min(1.35, Math.max(1, (viewport.width * viewport.height) / 1_600_000));
   const expectedParticleTiers = viewport.width < 700
-    ? { galaxy: 400, far: 260, dust: 72, super: 20 }
+    ? { galaxy: 720, far: 500, dust: 140, super: 40 }
     : {
-        galaxy: Math.round(690 * densityScale),
-        far: Math.round(450 * densityScale),
-        dust: Math.round(126 * densityScale),
-        super: Math.round(36 * densityScale),
+        galaxy: Math.round(1_100 * densityScale),
+        far: Math.round(900 * densityScale),
+        dust: Math.round(340 * densityScale),
+        super: Math.round(60 * densityScale),
       };
   const expectedParticleCount = Object.values(expectedParticleTiers)
     .reduce((total, count) => total + count, 0);
@@ -678,8 +678,8 @@ test("G04 reduced motion materially removes galaxy and decorative animation work
   expect(reduced.canvasDisplay).toBe("block");
   expect(reduced.canvasHasPaint).toBe(true);
   const expectedParticleCount = testInfo.project.name.includes("mobile")
-    ? 400 + 260 + 72 + 20
-    : 690 + 450 + 126 + 36;
+    ? 720 + 500 + 140 + 40
+    : 1_100 + 900 + 340 + 60;
   expect(reduced.galaxy).toMatchObject({
     total: expectedParticleCount,
     transient: 0,

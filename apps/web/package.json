@@ -14,11 +14,13 @@
   },
   "dependencies": {
     "@fontsource/bodoni-moda": "^5.2.7",
-    "@fontsource/crimson-pro": "^5.2.8"
+    "@fontsource/crimson-pro": "^5.2.8",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.47.2",
     "@types/node": "^26.1.0",
+    "@types/three": "^0.185.4",
     "jsdom": "^29.1.1",
     "typescript": "^5.6.2",
     "vite": "^8.1.3",

@@ -219,12 +219,12 @@ test("Today owns one visible exact V43 brain renderer", async ({ page }) => {
     await expect.poll(async () => (await readBrain()).paintedSamples, { timeout: 5_000 }).toBeGreaterThan(100);
     const brain = await readBrain();
 
-    const expectedPoints = viewport.width < 700 ? "1355" : "2086";
+    const expectedPoints = viewport.width < 700 ? "1640" : "2540";
     expect(brain.hosts).toBe(1);
     expect(brain.canvases).toBe(1);
     expect(brain.surface).toBe("today");
     expect(brain.paintedSamples).toBeGreaterThan(100);
-    expect(brain.model).toBe("v43-v7-spark-stem");
+    expect(brain.model).toBe("v43-anatomy-seven-spectrum");
     expect(brain.pointCount).toBe(expectedPoints);
     expect(brain.dispersal).toBe("radial-circle");
   }

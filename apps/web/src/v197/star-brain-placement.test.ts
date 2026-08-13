@@ -19,7 +19,9 @@ describe("V197 star brain placement", () => {
     const mapHost = document.querySelector<HTMLElement>(".lens-map-master");
     const brain = mapHost?.querySelector<HTMLElement>("#front-nur-star");
     expect(brain?.dataset.nurSurface).toBe("map");
-    expect(brain?.dataset.nurRigDepth).toBe("projected-3d");
+    expect(brain?.dataset.nurRigDepth).toBe("webgl-threejs-perspective");
+    expect(brain?.dataset.nurSpectrumBandCount).toBe("7");
+    expect(brain?.dataset.nurSpectrumBands).toBe("red,orange,yellow,green,blue,indigo,violet");
     expect(mapHost?.dataset.nurLegacyMasterStar).toBe("removed");
     expect(mapHost?.querySelector(".spark, .f4-master-star, .nur-star-module")).toBeNull();
     expect(document.querySelectorAll("#front-nur-star")).toHaveLength(1);
