@@ -6,10 +6,7 @@ const lenses = [
   { route: "/universe/map", focus: "map", root: "#nur-map-root", title: "Map", laneLabel: null },
   { route: "/universe/orbits", focus: "orbits", root: "#nur-orbit-root", title: "Orbit", laneLabel: null },
   { route: "/universe/timeline", focus: "timeline", root: "#nur-timeline-root", title: "Timeline", laneLabel: null },
-  { route: "/universe/insights", focus: "insights", root: "#page-systems", title: null, laneLabel: "Owner insight summary" },
-  { route: "/universe/research", focus: "research", root: "#page-systems", title: null, laneLabel: "Owner research summary" },
-  { route: "/universe/community", focus: "community", root: "#page-systems", title: null, laneLabel: "Persisted community rooms" },
-  { route: "/universe/web-signals", focus: "web", root: "#page-systems", title: null, laneLabel: "Owner web-signal staging summary" },
+  { route: "/universe/insights", focus: "insights", root: "#nur-insights-root", title: "Insights", laneLabel: null },
 ] as const;
 
 async function authenticate(page: Page): Promise<void> {
@@ -42,7 +39,7 @@ async function expectExactV197Sigils(frame: FrameLocator): Promise<void> {
   });
 }
 
-test("all seven Universe routes retain one bounded canonical V197 surface", async ({ page }) => {
+test("all four active Universe routes retain one bounded canonical V197 surface", async ({ page }) => {
   test.setTimeout(120_000);
   await authenticate(page);
 

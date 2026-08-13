@@ -23,13 +23,13 @@ const canonicalPages = [
 ] as const;
 
 const worldLenses = [
-  { path: "/universe/map", lens: "map" },
-  { path: "/universe/orbits", lens: "orbits" },
-  { path: "/universe/timeline", lens: "timeline" },
-  { path: "/universe/insights", lens: "insights" },
-  { path: "/universe/research", lens: "research" },
-  { path: "/universe/community", lens: "community" },
-  { path: "/universe/web-signals", lens: "web" },
+  { path: "/universe/map", lens: "map", root: "#nur-map-root" },
+  { path: "/universe/orbits", lens: "orbits", root: "#nur-orbit-root" },
+  { path: "/universe/timeline", lens: "timeline", root: "#nur-timeline-root" },
+  { path: "/universe/insights", lens: "insights", root: "#nur-insights-root" },
+  { path: "/universe/research", lens: "system", root: "#page-systems" },
+  { path: "/universe/community", lens: "system", root: "#page-systems" },
+  { path: "/universe/web-signals", lens: "system", root: "#page-systems" },
 ] as const;
 
 const adjunctRoutes = [
@@ -53,9 +53,14 @@ test("every primary product route resolves inside canonical V197 without staged 
 
   for (const route of worldLenses) {
     await page.goto(route.path);
-    await expect(universe.locator("#page-systems"), route.path).toBeVisible();
-    await expect(universe.locator(".universe-insight-panel"), route.path)
-      .toHaveAttribute("data-nur-lens", route.lens);
+    await expect(universe.locator(route.root), route.path).toBeVisible();
+    if (route.root === "#page-systems") {
+      await expect(universe.locator(".universe-insight-panel"), route.path)
+        .toHaveAttribute("data-nur-lens", route.lens);
+    } else {
+      await expect(universe.locator(route.root), route.path)
+        .toHaveAttribute("data-v197-native-adjunct", "true");
+    }
     await expect(universe.locator("#nur-v197-adjunct-root")).toHaveCount(0);
     await expect(page.locator("#root")).toHaveCount(0);
   }
@@ -74,18 +79,15 @@ test("every primary product route resolves inside canonical V197 without staged 
   );
 });
 
-test("primary research and settings controls persist through current bridge bindings", async ({ page }) => {
+test("retired research controls stay absent while settings persist through bridge bindings", async ({ page }) => {
   const state = await authenticate(page);
   const universe = page.frameLocator("#nur-universe-stage");
 
   await page.goto("/universe/research");
-  await universe.locator("#research-query").fill("Which source verifies the current route?");
-  await universe.locator("[data-research-submit]").click();
-  await expect.poll(() => state.researchBriefs.some(
-    row => row.question === "Which source verifies the current route?",
-  )).toBe(true);
-  await expect(universe.locator("#universe-research .research-results"))
-    .toContainText("Which source verifies the current route?");
+  await expect(universe.locator("#page-systems")).toBeVisible();
+  await expect(universe.locator(
+    "#research-query, [data-research-submit], #universe-research, #universe-community",
+  )).toHaveCount(0);
 
   await page.goto("/settings");
   const locale = universe.locator('[data-adjunct-control="locale"]');

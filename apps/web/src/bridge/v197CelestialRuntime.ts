@@ -56,6 +56,13 @@ type GalaxyDiagnostics = {
   stageId: string | null;
   stageClass: string | null;
   stageHidden: string | null;
+  yaw: number;
+  pitch: number;
+  angularVelocityYaw: number;
+  angularVelocityPitch: number;
+  dragging: boolean;
+  parallaxX: number;
+  parallaxY: number;
 };
 
 type BrainDiagnostics = {
@@ -73,6 +80,9 @@ type BrainDiagnostics = {
   fps: number;
   yaw: number;
   pitch: number;
+  angularVelocityYaw: number;
+  angularVelocityPitch: number;
+  dragging: boolean;
 };
 
 type GalaxyApi = {
@@ -149,6 +159,7 @@ type CelestialController = {
   fpsStartedAt: number;
   fpsFrames: number;
   lastPaintAt: number;
+  lastAnimationAt: number;
   width: number;
   height: number;
   dpr: number;
@@ -158,15 +169,30 @@ type CelestialController = {
   pitch: number;
   targetYaw: number;
   targetPitch: number;
+  brainAngularVelocityYaw: number;
+  brainAngularVelocityPitch: number;
   galaxyYaw: number;
   galaxyPitch: number;
+  galaxyAngularVelocityYaw: number;
+  galaxyAngularVelocityPitch: number;
+  galaxyParallaxX: number;
+  galaxyParallaxY: number;
+  galaxyDepth: number;
+  galaxyDepthVelocity: number;
   pointerX: number;
   pointerY: number;
   rotating: boolean;
   dragging: boolean;
+  brainPointerId: number | null;
   dragMoved: number;
+  suppressBrainClickUntil: number;
   lastPointerX: number;
   lastPointerY: number;
+  galaxyDragging: boolean;
+  galaxyPointerId: number | null;
+  galaxyCaptureTarget: Element | null;
+  galaxyLastPointerX: number;
+  galaxyLastPointerY: number;
   energy: number;
   burst: number;
   absorb: number;
@@ -566,7 +592,7 @@ function brainConnections(points: readonly PointSeed[]): THREE.LineSegments {
   const material = new THREE.LineBasicMaterial({
     vertexColors: true,
     transparent: true,
-    opacity: .13,
+    opacity: .045,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   });
@@ -574,6 +600,10 @@ function brainConnections(points: readonly PointSeed[]): THREE.LineSegments {
 }
 
 function stageIsVisible(controller: CelestialController, force = false): boolean {
+  if (controller.document.hidden) {
+    controller.stageVisible = false;
+    return false;
+  }
   const now = controller.frameWindow.performance.now();
   if (!force && now - controller.stageVisibilityCheckedAt < 250) return controller.stageVisible;
   controller.stageVisibilityCheckedAt = now;
@@ -671,23 +701,73 @@ function updateSizes(controller: CelestialController): void {
 
 function updateAnimation(controller: CelestialController, now: number): void {
   const seconds = now / 1_000;
-  const ease = .075;
-  controller.yaw += (controller.targetYaw - controller.yaw) * ease;
-  controller.pitch += (controller.targetPitch - controller.pitch) * ease;
+  const elapsed = controller.lastAnimationAt ? now - controller.lastAnimationAt : 16.667;
+  controller.lastAnimationAt = now;
+  const frameScale = THREE.MathUtils.clamp(elapsed / 16.667, .25, 2.5);
+  const brainEase = 1 - Math.pow(.72, frameScale);
+  controller.yaw += (controller.targetYaw - controller.yaw) * brainEase;
+  controller.pitch += (controller.targetPitch - controller.pitch) * brainEase;
   if (!controller.dragging && !controller.reducedMotion) {
-    controller.targetYaw += .00165;
-    controller.targetPitch *= .994;
+    controller.targetYaw += controller.brainAngularVelocityYaw * frameScale;
+    controller.targetPitch = THREE.MathUtils.clamp(
+      controller.targetPitch + controller.brainAngularVelocityPitch * frameScale,
+      -1.05,
+      1.05,
+    );
+    const brainDamping = Math.pow(.88, frameScale);
+    controller.brainAngularVelocityYaw *= brainDamping;
+    controller.brainAngularVelocityPitch *= brainDamping;
+    if (Math.abs(controller.brainAngularVelocityYaw) < .00008) {
+      controller.brainAngularVelocityYaw = 0;
+      controller.targetYaw += .00135 * frameScale;
+    }
+    if (Math.abs(controller.brainAngularVelocityPitch) < .00008) {
+      controller.brainAngularVelocityPitch = 0;
+      controller.targetPitch *= Math.pow(.994, frameScale);
+    }
   }
-  if (controller.rotating && !controller.reducedMotion) controller.galaxyYaw += .00055;
-  controller.galaxyPitch += ((controller.pointerY * .08) - controller.galaxyPitch) * .025;
-  const parallaxYaw = controller.pointerX * .1;
+  if (!controller.galaxyDragging && !controller.reducedMotion) {
+    controller.galaxyYaw += controller.galaxyAngularVelocityYaw * frameScale;
+    controller.galaxyPitch = THREE.MathUtils.clamp(
+      controller.galaxyPitch + controller.galaxyAngularVelocityPitch * frameScale,
+      -.88,
+      .88,
+    );
+    controller.galaxyDepth += controller.galaxyDepthVelocity * frameScale;
+    const galaxyDamping = Math.pow(.9, frameScale);
+    controller.galaxyAngularVelocityYaw *= galaxyDamping;
+    controller.galaxyAngularVelocityPitch *= galaxyDamping;
+    controller.galaxyDepthVelocity *= Math.pow(.84, frameScale);
+    controller.galaxyDepth *= Math.pow(.9, frameScale);
+    if (controller.rotating && Math.abs(controller.galaxyAngularVelocityYaw) < .00006) {
+      controller.galaxyAngularVelocityYaw = 0;
+      controller.galaxyYaw += .00048 * frameScale;
+    }
+    if (Math.abs(controller.galaxyAngularVelocityPitch) < .00006) {
+      controller.galaxyAngularVelocityPitch = 0;
+    }
+  }
+
+  const parallaxEase = 1 - Math.pow(.94, frameScale);
+  const targetParallaxX = controller.galaxyDragging ? 0 : controller.pointerX;
+  const targetParallaxY = controller.galaxyDragging ? 0 : controller.pointerY;
+  controller.galaxyParallaxX += (targetParallaxX - controller.galaxyParallaxX) * parallaxEase;
+  controller.galaxyParallaxY += (targetParallaxY - controller.galaxyParallaxY) * parallaxEase;
+  const parallaxYaw = controller.galaxyParallaxX * .065;
+  const parallaxPitch = controller.galaxyParallaxY * .052;
 
   controller.galaxyGroup.rotation.y = controller.galaxyYaw + parallaxYaw;
-  controller.galaxyGroup.rotation.x = .34 + controller.galaxyPitch;
-  controller.galaxyGroup.rotation.z = -.11 + Math.sin(seconds * .05) * .012;
+  controller.galaxyGroup.rotation.x = .34 + controller.galaxyPitch + parallaxPitch;
+  controller.galaxyGroup.rotation.z = -.11
+    + Math.sin(seconds * .05) * .012
+    + THREE.MathUtils.clamp(controller.galaxyAngularVelocityYaw * -.62, -.025, .025);
+  controller.galaxyGroup.position.x = controller.galaxyParallaxX * .055;
+  controller.galaxyGroup.position.y = controller.galaxyParallaxY * -.04;
+  controller.galaxyCamera.position.z = 5.15 + THREE.MathUtils.clamp(controller.galaxyDepth, -.13, .13);
   controller.brainGroup.rotation.y = controller.yaw;
   controller.brainGroup.rotation.x = controller.pitch;
-  controller.brainGroup.rotation.z = Math.sin(seconds * .12) * .018;
+  controller.brainGroup.rotation.z = Math.sin(seconds * .12) * .018
+    + THREE.MathUtils.clamp(controller.brainAngularVelocityYaw * -.42, -.035, .035);
 
   if (controller.mode === "shatter") {
     const elapsed = (now - controller.modeStartedAt) / 1_000;
@@ -828,6 +908,8 @@ function disposeController(controller: CelestialController): void {
   controller.disposed = true;
   if (controller.raf !== null) controller.frameWindow.cancelAnimationFrame(controller.raf);
   controller.raf = null;
+  controller.brainHost.classList.remove("is-grabbing");
+  controller.document.documentElement.classList.remove("nur-galaxy-grabbing");
   controller.teardown.forEach(undo => {
     try { undo(); } catch { /* disposal is best effort */ }
   });
@@ -848,24 +930,132 @@ function disposeController(controller: CelestialController): void {
   if (controller.frameWindow.__nurGalaxy === controller.galaxyApi) delete controller.frameWindow.__nurGalaxy;
 }
 
+const GALAXY_INTERACTION_BLOCKERS = [
+  "button",
+  "a",
+  "input",
+  "textarea",
+  "select",
+  "label",
+  "summary",
+  "[contenteditable='true']",
+  "[role='button']",
+  "[role='tab']",
+  "[role='slider']",
+  "[data-action]",
+  "[data-system]",
+  "[data-system-slug]",
+  ".nur-rail",
+  ".nur-topbar",
+  ".talk-chamber",
+  ".journal-pad",
+  ".universe-insight-panel",
+  "#nur-map-root",
+  "#nur-orbit-root",
+  "#nur-timeline-root",
+  ".nur-insights-pane",
+].join(",");
+
+function eventElement(target: EventTarget | null): Element | null {
+  if (!target) return null;
+  const candidate = target as Partial<Element>;
+  return typeof candidate.closest === "function" && typeof candidate.contains === "function"
+    ? target as Element
+    : null;
+}
+
+function canStartGalaxyDrag(controller: CelestialController, event: PointerEvent): boolean {
+  if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return false;
+  const target = eventElement(event.target);
+  if (!target || controller.brainHost.contains(target)) return false;
+  if (target.closest(GALAXY_INTERACTION_BLOCKERS)) return false;
+  for (const node of event.composedPath()) {
+    const element = eventElement(node);
+    if (!element || element === controller.document.body) break;
+    if ((element as HTMLElement).onclick || controller.frameWindow.getComputedStyle(element).cursor === "pointer") {
+      return false;
+    }
+  }
+  return true;
+}
+
 function installInteractions(controller: CelestialController): void {
   const { brainCanvas, frameWindow } = controller;
   controller.teardown.push(bind(frameWindow, "pointermove", event => {
     controller.pointerX = event.clientX / Math.max(1, controller.width) - .5;
     controller.pointerY = event.clientY / Math.max(1, controller.height) - .5;
-  }, { passive: true }));
+    if (!controller.galaxyDragging || event.pointerId !== controller.galaxyPointerId) return;
+    event.preventDefault();
+    const dx = event.clientX - controller.galaxyLastPointerX;
+    const dy = event.clientY - controller.galaxyLastPointerY;
+    controller.galaxyLastPointerX = event.clientX;
+    controller.galaxyLastPointerY = event.clientY;
+    controller.galaxyYaw += dx * .0044;
+    controller.galaxyPitch = THREE.MathUtils.clamp(controller.galaxyPitch + dy * .0037, -.88, .88);
+    controller.galaxyAngularVelocityYaw = THREE.MathUtils.lerp(
+      controller.galaxyAngularVelocityYaw,
+      dx * .00075,
+      .58,
+    );
+    controller.galaxyAngularVelocityPitch = THREE.MathUtils.lerp(
+      controller.galaxyAngularVelocityPitch,
+      dy * .00065,
+      .58,
+    );
+    controller.galaxyDepthVelocity = Math.min(.012, Math.hypot(dx, dy) * .00042);
+    controller.staticFramePainted = false;
+    requestFrame(controller);
+  }, { passive: false }));
+
+  controller.teardown.push(bind(frameWindow, "pointerdown", event => {
+    if (!canStartGalaxyDrag(controller, event)) return;
+    controller.galaxyDragging = true;
+    controller.galaxyPointerId = event.pointerId;
+    controller.galaxyLastPointerX = event.clientX;
+    controller.galaxyLastPointerY = event.clientY;
+    controller.galaxyAngularVelocityYaw = 0;
+    controller.galaxyAngularVelocityPitch = 0;
+    const target = eventElement(event.target) ?? controller.galaxyCanvas;
+    controller.galaxyCaptureTarget = target;
+    try { target.setPointerCapture?.(event.pointerId); } catch { /* active window handlers retain ownership */ }
+    controller.document.documentElement.classList.add("nur-galaxy-grabbing");
+    event.preventDefault();
+  }, { passive: false }));
+
+  const endGalaxyDrag = (event: PointerEvent) => {
+    if (!controller.galaxyDragging || event.pointerId !== controller.galaxyPointerId) return;
+    const capture = controller.galaxyCaptureTarget;
+    try {
+      if (capture?.hasPointerCapture?.(event.pointerId)) capture.releasePointerCapture(event.pointerId);
+    } catch { /* release is best effort after a route or target transition */ }
+    controller.galaxyDragging = false;
+    controller.galaxyPointerId = null;
+    controller.galaxyCaptureTarget = null;
+    controller.document.documentElement.classList.remove("nur-galaxy-grabbing");
+  };
+  controller.teardown.push(bind(frameWindow, "pointerup", endGalaxyDrag));
+  controller.teardown.push(bind(frameWindow, "pointercancel", endGalaxyDrag));
 
   controller.teardown.push(bind(brainCanvas, "pointerdown", event => {
+    if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
+    event.preventDefault();
+    event.stopPropagation();
     controller.dragging = true;
+    controller.brainPointerId = event.pointerId;
     controller.dragMoved = 0;
     controller.lastPointerX = event.clientX;
     controller.lastPointerY = event.clientY;
-    brainCanvas.setPointerCapture?.(event.pointerId);
+    controller.brainAngularVelocityYaw = 0;
+    controller.brainAngularVelocityPitch = 0;
+    try { brainCanvas.setPointerCapture?.(event.pointerId); } catch { /* active canvas handlers retain ownership */ }
     controller.brainHost.classList.add("is-grabbing");
-    event.stopPropagation();
   }));
   controller.teardown.push(bind(brainCanvas, "pointermove", event => {
-    if (!controller.dragging) return;
+    event.stopPropagation();
+    controller.pointerX = event.clientX / Math.max(1, controller.width) - .5;
+    controller.pointerY = event.clientY / Math.max(1, controller.height) - .5;
+    if (!controller.dragging || event.pointerId !== controller.brainPointerId) return;
+    event.preventDefault();
     const dx = event.clientX - controller.lastPointerX;
     const dy = event.clientY - controller.lastPointerY;
     controller.lastPointerX = event.clientX;
@@ -873,14 +1063,42 @@ function installInteractions(controller: CelestialController): void {
     controller.dragMoved += Math.abs(dx) + Math.abs(dy);
     controller.targetYaw += dx * .0062;
     controller.targetPitch = THREE.MathUtils.clamp(controller.targetPitch + dy * .0048, -1.05, 1.05);
+    controller.brainAngularVelocityYaw = THREE.MathUtils.lerp(
+      controller.brainAngularVelocityYaw,
+      dx * .0011,
+      .68,
+    );
+    controller.brainAngularVelocityPitch = THREE.MathUtils.lerp(
+      controller.brainAngularVelocityPitch,
+      dy * .0009,
+      .68,
+    );
+    controller.staticFramePainted = false;
     requestFrame(controller);
   }));
-  const endDrag = () => {
+  const endDrag = (event: PointerEvent) => {
+    event.stopPropagation();
+    if (!controller.dragging || event.pointerId !== controller.brainPointerId) return;
+    try {
+      if (brainCanvas.hasPointerCapture?.(event.pointerId)) brainCanvas.releasePointerCapture(event.pointerId);
+    } catch { /* release is best effort after a route or target transition */ }
+    if (controller.dragMoved > 8) {
+      controller.suppressBrainClickUntil = controller.frameWindow.performance.now() + 400;
+    }
+    controller.dragMoved = 0;
     controller.dragging = false;
+    controller.brainPointerId = null;
     controller.brainHost.classList.remove("is-grabbing");
   };
   controller.teardown.push(bind(brainCanvas, "pointerup", endDrag));
   controller.teardown.push(bind(brainCanvas, "pointercancel", endDrag));
+  controller.teardown.push(bind(brainCanvas, "click", event => {
+    if (controller.frameWindow.performance.now() < controller.suppressBrainClickUntil) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+    }
+  }));
   controller.teardown.push(bind(brainCanvas, "wheel", event => {
     event.preventDefault();
     const next = controller.brainCamera.position.z + (event.deltaY > 0 ? .22 : -.22);
@@ -891,6 +1109,15 @@ function installInteractions(controller: CelestialController): void {
     event.stopPropagation();
     controller.energy = Math.min(1.7, controller.energy + 1.25);
     requestFrame(controller);
+  }));
+  controller.teardown.push(bind(frameWindow, "blur", () => {
+    controller.dragging = false;
+    controller.brainPointerId = null;
+    controller.galaxyDragging = false;
+    controller.galaxyPointerId = null;
+    controller.galaxyCaptureTarget = null;
+    controller.brainHost.classList.remove("is-grabbing");
+    controller.document.documentElement.classList.remove("nur-galaxy-grabbing");
   }));
 }
 
@@ -959,7 +1186,7 @@ function createController(
   const brainCamera = new THREE.PerspectiveCamera(35, 1, .1, 20);
   brainCamera.position.set(0, -.04, 4.55);
   const brainGroup = new THREE.Group();
-  const brainMaterial = starMaterial(1.12, .88);
+  const brainMaterial = starMaterial(1.34, .88);
   brainGroup.add(new THREE.Points(pointGeometry(brain.points), brainMaterial));
   brainGroup.add(brainConnections(brain.points));
   brainScene.add(brainGroup);
@@ -1000,6 +1227,7 @@ function createController(
     fpsStartedAt: 0,
     fpsFrames: 0,
     lastPaintAt: 0,
+    lastAnimationAt: 0,
     width: 0,
     height: 0,
     dpr: 0,
@@ -1009,15 +1237,30 @@ function createController(
     pitch: -.12,
     targetYaw: .72,
     targetPitch: -.12,
+    brainAngularVelocityYaw: 0,
+    brainAngularVelocityPitch: 0,
     galaxyYaw: .08,
     galaxyPitch: 0,
+    galaxyAngularVelocityYaw: 0,
+    galaxyAngularVelocityPitch: 0,
+    galaxyParallaxX: 0,
+    galaxyParallaxY: 0,
+    galaxyDepth: 0,
+    galaxyDepthVelocity: 0,
     pointerX: 0,
     pointerY: 0,
     rotating: true,
     dragging: false,
+    brainPointerId: null,
     dragMoved: 0,
+    suppressBrainClickUntil: 0,
     lastPointerX: 0,
     lastPointerY: 0,
+    galaxyDragging: false,
+    galaxyPointerId: null,
+    galaxyCaptureTarget: null,
+    galaxyLastPointerX: 0,
+    galaxyLastPointerY: 0,
     energy: 0,
     burst: 0,
     absorb: 0,
@@ -1066,6 +1309,13 @@ function createController(
       maxLife: null,
       byKind: { ...controller.galaxyCounts },
       spectrumCounts: { ...controller.galaxySpectrumCounts },
+      yaw: controller.galaxyYaw,
+      pitch: controller.galaxyPitch,
+      angularVelocityYaw: controller.galaxyAngularVelocityYaw,
+      angularVelocityPitch: controller.galaxyAngularVelocityPitch,
+      dragging: controller.galaxyDragging,
+      parallaxX: controller.galaxyParallaxX,
+      parallaxY: controller.galaxyParallaxY,
       ...diagnosticsBase(),
     }),
     dispose: () => disposeController(controller),
@@ -1101,6 +1351,9 @@ function createController(
       fps: controller.measuredFps,
       yaw: controller.yaw,
       pitch: controller.pitch,
+      angularVelocityYaw: controller.brainAngularVelocityYaw,
+      angularVelocityPitch: controller.brainAngularVelocityPitch,
+      dragging: controller.dragging,
     }),
   };
   controller.galaxyApi = galaxyApi;
@@ -1119,6 +1372,7 @@ function createController(
   brainHost.dataset.nurAnatomy = "cortex-cerebellum-brainstem";
   brainHost.dataset.nurOpacityProfile = "crisp-dimensional-v2";
   brainHost.dataset.nurRenderProfile = "one-raf-two-canonical-canvases-v1";
+  brainHost.dataset.nurInteractionProfile = "independent-3d-drag-inertia-v1";
   brainHost.dataset.nurSpectrumBands = V197_SPECTRUM_NAMES.join(",");
   brainHost.dataset.nurSpectrumBandCount = String(V197_SPECTRUM_NAMES.length);
   brainHost.dataset.nurEngine = V197_CELESTIAL_ENGINE;
@@ -1127,6 +1381,7 @@ function createController(
   galaxyCanvas.dataset.nurSpectrumBands = V197_SPECTRUM_NAMES.join(",");
   galaxyCanvas.dataset.nurSpectrumBandCount = String(V197_SPECTRUM_NAMES.length);
   galaxyCanvas.dataset.nurEngine = V197_CELESTIAL_ENGINE;
+  galaxyCanvas.dataset.nurInteractionProfile = "spatial-drag-inertia-parallax-v1";
 
   installInteractions(controller);
   controller.teardown.push(bind(frameWindow, "resize", () => {

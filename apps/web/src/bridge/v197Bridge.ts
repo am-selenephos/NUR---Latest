@@ -3,6 +3,7 @@ import { renderV197Adjunct } from "./v197Adjuncts";
 import { ORBIT_ROUTE, renderV197Orbit } from "./v197Orbit";
 import { MAP_ROUTE, renderV197Map } from "./v197Map";
 import { TIMELINE_ROUTE, renderV197Timeline } from "./v197Timeline";
+import { INSIGHTS_ROUTE, renderV197Insights } from "./v197Insights";
 import { bindV197Actions, bindV197EntryAuth } from "./v197Bindings";
 import {
   emitBridgeEvent,
@@ -29,6 +30,7 @@ const SURFACE_ROOTS: readonly (readonly [string, string])[] = [
   [ORBIT_ROUTE, "nur-orbit-root"],
   [MAP_ROUTE, "nur-map-root"],
   [TIMELINE_ROUTE, "nur-timeline-root"],
+  [INSIGHTS_ROUTE, "nur-insights-root"],
 ];
 
 function isDedicatedUniverseRoute(route: string): boolean {
@@ -295,6 +297,11 @@ export class V197Bridge {
       const timelineRendered = await renderV197Timeline(this.universeDocument, route, this.api);
       if (timelineRendered) {
         this.markWorldFocus("timeline");
+        return;
+      }
+      const insightsRendered = renderV197Insights(this.universeDocument, route, this.snapshot);
+      if (insightsRendered) {
+        this.markWorldFocus("insights", false);
         return;
       }
       const page = pageByRoute[canonicalRoute];
@@ -571,7 +578,7 @@ export class V197Bridge {
     button?.click();
   }
 
-  private markWorldFocus(focus: string): void {
+  private markWorldFocus(focus: string, renderCanonicalLens = true): void {
     if (!this.universeDocument || !this.snapshot) return;
     this.universeDocument.body.dataset.nurWorldFocus = focus;
     this.universeDocument.querySelectorAll<HTMLElement>("[data-world-focus], [data-world-tab]").forEach(control => {
@@ -581,7 +588,7 @@ export class V197Bridge {
         control.setAttribute("aria-selected", String(active));
       }
     });
-    renderWorldLens(this.universeDocument, this.snapshot, focus);
+    if (renderCanonicalLens) renderWorldLens(this.universeDocument, this.snapshot, focus);
     this.compactRenderedMiniStars(this.universeDocument);
   }
 

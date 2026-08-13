@@ -41,14 +41,22 @@ describe("V43 anatomical Three.js celestial runtime", () => {
   });
 
   it("publishes real interaction, diagnostics and deterministic disposal", () => {
+    expect(runtime).toContain('bind(frameWindow, "pointerdown"');
+    expect(runtime).toContain("galaxyAngularVelocityYaw");
+    expect(runtime).toContain("galaxyAngularVelocityPitch");
+    expect(runtime).toContain("galaxyParallaxX");
     expect(runtime).toContain('bind(brainCanvas, "pointerdown"');
     expect(runtime).toContain('bind(brainCanvas, "pointermove"');
+    expect(runtime).toContain("brainAngularVelocityYaw");
+    expect(runtime).toContain("brainAngularVelocityPitch");
     expect(runtime).toContain('bind(brainCanvas, "wheel"');
     expect(runtime).toContain('bind(brainCanvas, "dblclick"');
     expect(runtime).toContain("getParticleDiagnostics");
     expect(runtime).toContain("getDiagnostics");
     expect(runtime).toContain("function disposeController");
     expect(runtime).toContain("controller.renderer.dispose();");
+    expect(runtime).toContain('brainHost.dataset.nurInteractionProfile = "independent-3d-drag-inertia-v1";');
+    expect(runtime).toContain('galaxyCanvas.dataset.nurInteractionProfile = "spatial-drag-inertia-parallax-v1";');
     expect(bridge).toContain("export function disposeV197StarBrain");
     expect(bridge).toContain("disposeV197CelestialRuntime(document)");
   });

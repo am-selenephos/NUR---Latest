@@ -22,7 +22,7 @@ import { expect, test, type BrowserContext, type Frame, type Page } from "@playw
 
 const OWNER = { email: "owner@nur.app", password: "owner-demo-pass-123" };
 
-const SURFACE_ROOTS = ["nur-orbit-root", "nur-map-root", "nur-timeline-root"];
+const SURFACE_ROOTS = ["nur-orbit-root", "nur-map-root", "nur-timeline-root", "nur-insights-root"];
 
 test.describe.configure({ mode: "serial" });
 
@@ -92,7 +92,14 @@ async function mountState(page: Page): Promise<{
       host: Boolean(document.getElementById("nur-surface-host")),
       railVisible: rail ? getComputedStyle(rail).visibility : null,
       topbarVisible: topbar ? getComputedStyle(topbar).visibility : null,
-      starBrain: Boolean(document.getElementById("nur-brain-canvas")),
+      starBrain: (() => {
+        const brain = document.getElementById("nur-brain-canvas");
+        if (!brain) return false;
+        const rect = brain.getBoundingClientRect();
+        const style = getComputedStyle(brain);
+        return rect.width > 1 && rect.height > 1
+          && style.display !== "none" && style.visibility !== "hidden";
+      })(),
     };
   }, SURFACE_ROOTS);
 }
@@ -118,6 +125,7 @@ test("clicking a world tab actually renders its surface, not just its URL", asyn
     ["MAP", "/universe/map", "nur-map-root"],
     ["ORBITS", "/universe/orbits", "nur-orbit-root"],
     ["TIMELINE", "/universe/timeline", "nur-timeline-root"],
+    ["INSIGHTS", "/universe/insights", "nur-insights-root"],
   ] as [string, string, string][]) {
     await clickWorldTab(page, label);
 
@@ -206,7 +214,7 @@ test("dedicated surfaces keep neutral-black glass instead of a blue panel wash",
   }
 });
 
-test("leaving for a canonical world releases the host and restores the page", async () => {
+test("Insights owns its dedicated host and Universe restores the canonical page", async () => {
   test.slow();
   const page = sharedPage;
   await page.goto("/systems", { waitUntil: "networkidle" });
@@ -218,8 +226,8 @@ test("leaving for a canonical world releases the host and restores the page", as
     { timeout: 20_000 },
   ).toEqual(["nur-map-root"]);
 
-  // Insights has no surface yet, so it must fall through to the canonical page
-  // rather than leaving Map's surface stranded on an Insights URL.
+  // Insights now owns a bounded interpretation surface rather than falling
+  // through to the Systems summary lens or retaining Map underneath it.
   await clickWorldTab(page, "INSIGHTS");
   await expect.poll(
     async () => new URL(page.url()).pathname,
@@ -230,8 +238,9 @@ test("leaving for a canonical world releases the host and restores the page", as
       const state = await mountState(page);
       return { mounted: state.mounted, host: state.host };
     },
-    { timeout: 20_000, message: "Insights left a surface mounted" },
-  ).toEqual({ mounted: [], host: false });
+    { timeout: 20_000, message: "Insights did not claim exactly one surface" },
+  ).toEqual({ mounted: ["nur-insights-root"], host: true });
+  expect((await mountState(page)).starBrain).toBe(false);
 
   // Back to the universe: the canonical page and its star-brain return.
   await clickWorldTab(page, "UNIVERSE");
