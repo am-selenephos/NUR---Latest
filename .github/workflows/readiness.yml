@@ -78,6 +78,8 @@ jobs:
         working-directory: apps/api
       - run: python -m pip install --no-deps -e .
         working-directory: apps/api
+      - run: npm run api:openapi-drift:test
+      - run: npm run api:openapi-drift
       - run: python -m ruff check app
         working-directory: apps/api
       - run: python -m pytest
