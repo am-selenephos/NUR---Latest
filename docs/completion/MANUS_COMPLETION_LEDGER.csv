@@ -1,0 +1,83 @@
+task_id,requirement,initial_status,evidence,files,tests,commit,final_status,blocker
+A1,Environment and Git truth,PASS,"Phase-A capture: clean canonical main, exact SHA, worktrees, migration chain, branches, PR inventory",/home/ubuntu/NUR---Latest; /home/ubuntu/NUR-completion-worktree,git status; git rev-parse; git worktree list; migration inventory; gh pr list,,PASS,None
+A2,Resolve candidate repo's own ahead branch,PASS,File-by-file classification recorded; no blind merge,origin/fix/v197-interactive-celestial-20260813; docs/completion/MANUS_PHASE_A_BRANCH_RECONCILIATION.md,git diff --stat/--name-status; targeted diff review,,PASS,Selective port decisions continue in Phase B
+A3,Create isolated canonical integration worktree,PASS,Dedicated worktree created from origin/main,/home/ubuntu/NUR-completion-worktree,git worktree list; clean status,,PASS,None
+A4,Donor inventory,PASS,Ahead branch file inventory, numstat, and per-file classification captured,origin/fix/v197-interactive-20260813; docs/completion/MANUS_PHASE_A_BRANCH_RECONCILIATION.md,git diff --name-status; git diff --numstat,,PASS,None
+A5,Public-safety audit,PASS,Secret scan passed; no direct browser provider, direct worker transport, duplicate React root, or second Three.js renderer in candidate diff,docs/completion/audit/phase-a-public-safety.txt; docs/completion/MANUS_PHASE_A_BRANCH_RECONCILIATION.md,secret-scan.sh; direct-provider/runtime grep,,PASS,None
+B1,Generate current route/client contract matrix,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+B2,Fix Agent retry mismatch,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+B3,Expose Approval EDIT,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+B4,Add capability_id and memory_mode to streaming Talk client,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+B5,OpenAPI drift gate,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+B6,Full-stack gateway vertical test,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+C1,Talk answer-only E2E,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+C2,Talk workflow proposal E2E,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+C3,Approval E2E,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+C4,Beat/worker E2E,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+C5,Verified-result UI E2E,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+D1,Audit CognitiveTaskPacket,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+D2,User/Self/World model composition,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+D3,Belief and counterevidence composition,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+D4,Goals and intention arbitration,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+D5,Context manifest,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+D6,Cross-owner and token-budget tests,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+E1,Version CognitiveTaskPacketV2/CognitiveResultV2,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+E2,Harden Brain router,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+E3,Typed Planner,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+E4,Bounded Simulator,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+E5,Separate deterministic validator from independent critic,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+E6,Research Brain,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+E7,Specialist workers,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+E8,Evaluation corpus,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+F1,Hydration tier parity,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+F2,Worker DAG limits,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+F3,Safe event parity,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+F4,WorkflowProposalV2,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+F5,Plan-from-conversation production proof,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+G1,Prediction and outcome reconciliation,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+G2,Belief change candidate,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+G3,WhyChanged linkage,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+G4,Memory candidate effect proof,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+G5,Hardness signal ingestion,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+G6,Held-out and shadow evaluation,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-TODAY,"Phase-H owner route: Today; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-TALK,"Phase-H owner route: Talk; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-JOURNAL,"Phase-H owner route: Journal; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-PLAN,"Phase-H owner route: Plan; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-SYSTEMS,"Phase-H owner route: Systems; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-ORBIT,"Phase-H owner route: Orbit; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-MAP,"Phase-H owner route: Map; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-TIMELINE,"Phase-H owner route: Timeline; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-INSIGHTS,"Phase-H owner route: Insights; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-AGENTS,"Phase-H owner route: Agents; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-MEMORY,"Phase-H owner route: Memory; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-PROJECTS,"Phase-H owner route: Projects; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-CAPSULES,"Phase-H owner route: Capsules; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-RESEARCH,"Phase-H owner route: Research; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-COMMUNITY,"Phase-H owner route: Community; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-BILLING,"Phase-H owner route: Billing; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-NOTIFICATIONS,"Phase-H owner route: Notifications; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+H-LOCALIZATION,"Phase-H owner route: Localization; owner API, durable state, RLS, V197 render, mutation, reload, empty/error state, mobile, accessibility, E2E",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+I1,RLS matrix,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+I2,CSRF and origin matrix,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+I3,Agent replay attacks,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+I4,Prompt and tool injection corpus,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+I5,GitHub Actions hardening,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+I6,Main branch ruleset,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+I7,Dependency and SBOM,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+J1,Cold boot,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+J2,Backup,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+J3,Restore drill,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+J4,Crash and recovery drill,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+J5,Static release gate,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+J6,Live provider gate,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+J7,Real-stack browser matrix,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+J8,"Cross-browser, accessibility, and performance",HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+J9,Fresh-extract artifact,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+J10,Independent final review,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+K1,Final integration PR,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+K2,Exact-head CI,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+K3,Merge,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+K4,Main CI,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+K5,Tag,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
+K6,Repository rename runbook,HOLD-DEPENDENCY,,,,,HOLD-DEPENDENCY,Awaiting dependency-ordered execution
