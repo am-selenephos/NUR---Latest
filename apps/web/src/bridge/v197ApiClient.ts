@@ -1290,6 +1290,8 @@ export class V197ApiClient {
     locale: string;
     writing_preference: string;
     mode?: string;
+    capability_id?: string | null;
+    memory_mode?: "EPHEMERAL" | "REVIEW";
   }): Promise<V197TalkResult> {
     return this.post<V197TalkResult>("/cognition/talk", payload);
   }
@@ -2043,10 +2045,29 @@ export class V197ApiClient {
     return this.post<V197AgenticWorkflowDetail>(`/agentic/workflows/${encodeURIComponent(workflowId)}/cancel`, {});
   }
 
-  retryAgenticStep(workflowId: string, stepId: string, seenAttempt: number, seenExecutionAttempt: string): Promise<V197AgenticWorkflowDetail> {
+  retryAgenticWorkflow(workflowId: string, requestId: string, seenPlanVersion: number): Promise<V197AgenticWorkflowDetail> {
     return this.post<V197AgenticWorkflowDetail>(
-      `/agentic/workflows/${encodeURIComponent(workflowId)}/steps/${encodeURIComponent(stepId)}/retry`,
-      { seen_attempt: seenAttempt, seen_execution_attempt: seenExecutionAttempt },
+      `/agentic/workflows/${encodeURIComponent(workflowId)}/retry`,
+      { request_id: requestId, seen_plan_version: seenPlanVersion },
+    );
+  }
+
+  decideAgenticApproval(
+    approval: V197AgenticApproval,
+    decision: "APPROVE" | "REJECT" | "EDIT",
+    note?: string,
+    editedArguments?: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    return this.post<Record<string, unknown>>(
+      `/agentic/approvals/${encodeURIComponent(approval.approval_id || approval.id)}/decide`,
+      {
+        decision,
+        seen_digest: approval.argument_digest,
+        seen_plan_version: approval.plan_version,
+        seen_call_version: approval.call_version,
+        note: note || null,
+        edited_arguments: decision === "EDIT" ? editedArguments ?? {} : null,
+      },
     );
   }
 
@@ -2060,23 +2081,6 @@ export class V197ApiClient {
     return this.get<{ approvals: V197AgenticApproval[] }>("/agentic/approvals").then(result => result.approvals);
   }
 
-  decideAgenticApproval(
-    approval: V197AgenticApproval,
-    decision: "APPROVE" | "REJECT",
-    note?: string,
-  ): Promise<Record<string, unknown>> {
-    return this.post<Record<string, unknown>>(
-      `/agentic/approvals/${encodeURIComponent(approval.approval_id || approval.id)}/decide`,
-      {
-        decision,
-        seen_digest: approval.argument_digest,
-        seen_plan_version: approval.plan_version,
-        seen_call_version: approval.call_version,
-        note: note || null,
-        edited_arguments: null,
-      },
-    );
-  }
 
   async snapshot(session: V197Session): Promise<V197BridgeSnapshot> {
     const read = async <T>(path: string, fallback: T): Promise<T> => {

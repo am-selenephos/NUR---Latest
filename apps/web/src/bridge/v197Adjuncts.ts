@@ -3191,22 +3191,55 @@ async function renderAgents(
     if (card.actionable) {
       const approve = button(document, "Approve exact call", `agentic-approval-approve-${approval.id}`, true);
       const reject = button(document, "Reject", `agentic-approval-reject-${approval.id}`);
-      const decide = async (choice: "APPROVE" | "REJECT") => {
+      const edit = button(document, "Edit arguments", `agentic-approval-edit-${approval.id}`);
+      const submitEdit = button(document, "Submit edited call", `agentic-approval-submit-edit-${approval.id}`, true);
+      const editInput = element(
+        document,
+        "textarea",
+        "nur-adjunct-json-input",
+        JSON.stringify(approval.redacted_arguments, null, 2),
+      ) as HTMLTextAreaElement;
+      editInput.setAttribute("aria-label", "Edit the owner-visible approval arguments as JSON");
+      editInput.hidden = true;
+      submitEdit.hidden = true;
+      const decide = async (choice: "APPROVE" | "REJECT" | "EDIT", editedArguments?: Record<string, unknown>) => {
         approve.disabled = true;
         reject.disabled = true;
+        edit.disabled = true;
+        submitEdit.disabled = true;
         try {
-          await api.decideAgenticApproval(approval, choice);
+          await api.decideAgenticApproval(approval, choice, undefined, editedArguments);
           await renderAgents(document, api, session);
         } catch (error) {
           decisionState.textContent = error instanceof Error ? error.message : "Approval decision did not persist.";
           decisionState.className = "nur-adjunct-status is-warn";
           approve.disabled = false;
           reject.disabled = false;
+          edit.disabled = false;
+          submitEdit.disabled = false;
         }
       };
+      const toggleEdit = () => {
+        editInput.hidden = !editInput.hidden;
+        submitEdit.hidden = editInput.hidden;
+        if (!editInput.hidden) editInput.focus();
+      };
+      submitEdit.addEventListener("click", () => {
+        try {
+          const parsed: unknown = JSON.parse(editInput.value);
+          if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+            throw new Error("Edited arguments must be a JSON object.");
+          }
+          void decide("EDIT", parsed as Record<string, unknown>);
+        } catch (error) {
+          decisionState.textContent = error instanceof Error ? error.message : "Edited arguments must be valid JSON.";
+          decisionState.className = "nur-adjunct-status is-warn";
+        }
+      });
       approve.addEventListener("click", () => void decide("APPROVE"));
       reject.addEventListener("click", () => void decide("REJECT"));
-      decisions.append(approve, reject);
+      edit.addEventListener("click", toggleEdit);
+      decisions.append(approve, reject, edit, editInput, submitEdit);
     }
     row.append(
       head,
@@ -3295,14 +3328,14 @@ async function renderAgenticDetail(
     row.append(element(document, "pre", "nur-adjunct-json", JSON.stringify(step.input_refs, null, 2)));
     if (step.retryable) {
       const actions = element(document, "div", "nur-adjunct-actions");
-      const retry = button(document, "Retry fenced attempt", `agentic-step-retry-${step.id}`);
+      const retry = button(document, "Retry workflow from this plan", `agentic-workflow-retry-${workflow.id}`);
       retry.addEventListener("click", async () => {
         retry.disabled = true;
         try {
-          await api.retryAgenticStep(workflow.id, step.id, step.attempt, step.execution_attempt);
+          await api.retryAgenticWorkflow(workflow.id, requestKey("agentic-retry"), workflow.plan_version);
           await renderAgenticDetail(document, api, session, workflow.id);
         } catch (error) {
-          lifecycleState.textContent = error instanceof Error ? error.message : "Step retry was refused.";
+          lifecycleState.textContent = error instanceof Error ? error.message : "Workflow retry was refused.";
           lifecycleState.className = "nur-adjunct-status is-warn";
           retry.disabled = false;
         }

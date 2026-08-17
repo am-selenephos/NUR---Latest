@@ -337,6 +337,8 @@ export class V197ActionBindings {
           locale: this.locale(),
           writing_preference: this.writingPreference(),
           mode: this.composerMode,
+          capability_id: null,
+          memory_mode: "EPHEMERAL",
         },
         {
           onEvent: (event: V197StreamEvent) => {
