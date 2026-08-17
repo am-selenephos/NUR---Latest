@@ -5,7 +5,15 @@ and evidence. Produces a verification verdict ("PASS", "WARN", "BLOCK") and veri
 """
 from __future__ import annotations
 
+from pydantic import BaseModel, Field
+
 from app.brain.schemas import CognitiveResult, CognitiveTaskPacket
+
+
+class CritiqueResult(BaseModel):
+    role: str = "independent_critic"
+    verdict: str
+    notes: list[str] = Field(default_factory=list)
 
 
 class DeterministicEvidenceValidator:
@@ -47,6 +55,29 @@ class DeterministicEvidenceValidator:
             "critic_verdict": verdict,
             "critic_notes": notes,
         })
+
+
+class IndependentCritic:
+    """A separate, non-mutating challenge role for evidence and plan quality."""
+
+    role = "independent_critic"
+
+    def critique(self, packet: CognitiveTaskPacket, result: CognitiveResult) -> CritiqueResult:
+        notes: list[str] = []
+        if packet.context_manifest.included and any(
+            claim.claim_kind in ("observed", "inferred") and not claim.source_refs
+            for claim in result.claims
+        ):
+            notes.append("At least one grounded claim lacks a source reference.")
+        if result.workflow_proposal and not result.workflow_proposal.steps:
+            notes.append("The proposed workflow has no executable steps.")
+        if result.next_move and not result.next_move.strip():
+            notes.append("The next move is empty despite being present.")
+        return CritiqueResult(
+            role=self.role,
+            verdict="REVISE" if notes else "PASS",
+            notes=notes,
+        )
 
 
 BrainCritic = DeterministicEvidenceValidator
