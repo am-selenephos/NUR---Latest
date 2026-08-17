@@ -939,6 +939,16 @@ body #nur-front-v61 #nur-brain-canvas {
   max-width: none !important;
   max-height: none !important;
   pointer-events: auto !important;
+  cursor: grab !important;
+  touch-action: none !important;
+}
+
+body #nur-front-v61 #front-nur-star.is-grabbing,
+body #nur-front-v61 #front-nur-star.is-grabbing #nur-brain-canvas,
+html.nur-galaxy-grabbing,
+html.nur-galaxy-grabbing * {
+  cursor: grabbing !important;
+  user-select: none !important;
 }
 
 body.universe-edition .universe-map-panel > .universe-master-star {
@@ -2223,7 +2233,7 @@ body.universe-edition #nur-front-v61 .universe-map-panel > :is(
 body.universe-edition #nur-front-v61 .universe-map-panel .universe-master-star {
   z-index: 3 !important;
   left: 50% !important;
-  top: 52% !important;
+  top: calc(52% + 6px) !important;
   width: clamp(360px, 56cqw, 560px) !important;
   height: clamp(300px, 46cqw, 460px) !important;
   transform: translate(-50%, -50%) !important;

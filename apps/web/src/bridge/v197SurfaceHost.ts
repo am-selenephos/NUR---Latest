@@ -67,6 +67,12 @@ body.${BODY_CLASS} .nur-rail,
 body.${BODY_CLASS} .nur-topbar {
   visibility: visible !important;
 }
+
+/* The canonical mobile composer is a page-level control. It must not float on
+ * top of a bridge-native surface where it has no route ownership. */
+body.${BODY_CLASS}.${BODY_CLASS} #nur-front-v61 .global-composer {
+  display: none !important;
+}
 `;
 
 function ensureHostStyle(doc: Document): void {
