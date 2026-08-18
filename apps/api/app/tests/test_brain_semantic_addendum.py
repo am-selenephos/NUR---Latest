@@ -222,3 +222,17 @@ def test_evaluation_corpus_runner_requires_empirical_held_out_and_shadow_evidenc
     assert decision.held_out_pass_rate == 1.0
     assert decision.shadow_pass_rate == 1.0
     assert decision.corpus_version == corpus.version
+
+
+def test_default_evaluation_runner_wires_real_semantic_components() -> None:
+    from app.brain.evaluation import run_default_evaluation
+
+    report, decision = run_default_evaluation()
+
+    assert report.corpus_version == "brain-agentend-semantic-v1"
+    assert report.development.total > 0
+    assert report.held_out.total > 0
+    assert report.shadow.total > 0
+    assert all(value == "PASS" for value in report.observed.values())
+    assert decision.promote is True
+    assert decision.failures == []
