@@ -1,6 +1,6 @@
 {
   "architecture": "track-a-v197-native-host",
-  "source_sha256": "c4699091db9f1ebc3a6e2076d483a3d41303d3e261ace0111c9411322f7ea3a5",
+  "source_sha256": "397c302579472e60f5bd667546a96b6e3f262aa40bd932d10c1946e13b046dd2",
   "statuses": ["WIRED", "SOURCE_NATIVE", "HONEST_DISABLED"],
   "controls": [
     {"id":"entry.navigation","selector":"#f4-brand, #f4-begin, #f4-signin, #f4-what, [data-switch], #f4-close","status":"SOURCE_NATIVE","proof":"track-a-sellable.spec.ts"},
