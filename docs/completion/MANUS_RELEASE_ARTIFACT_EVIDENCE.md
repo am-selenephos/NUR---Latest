@@ -4,21 +4,21 @@
 
 **Completion branch:** `completion/nur-fullstack-agentend-20260818`
 
-**Immutable implementation/release-candidate SHA:** `9acb056a1d5f24eeebaa01fcb998a39f99fb7d22`
+**Immutable implementation/release-candidate SHA:** `7fbcbb60394f8811b620a403d5f47f445e8d6978`
 
 **Verdict:** `HOLD` / `NUR_PARTIAL`
 
 ## Verified package
 
-The package was generated from a clean detached worktree at the candidate SHA with `bash infra/scripts/package-release.sh --verdict HOLD --output-dir /home/ubuntu/NUR-final-evidence`, and verified with `bash infra/scripts/verify-release-package.sh`. The package contains **828 entries** and **9,215,468 uncompressed bytes**.
+The package was generated from a clean detached worktree at the candidate SHA with `bash infra/scripts/package-release.sh --verdict HOLD --output-dir /home/ubuntu/NUR-final-evidence`, and verified with `bash infra/scripts/verify-release-package.sh`. The package contains **829 entries** and **9,223,073 uncompressed bytes**.
 
 | Artifact | Value |
 |---|---|
 | ZIP | `/home/ubuntu/NUR-final-evidence/NUR_V5_HOLD_20260818.zip` |
 | Manifest | `/home/ubuntu/NUR-final-evidence/NUR_V5_HOLD_20260818_MANIFEST.json` |
 | Checksum file | `/home/ubuntu/NUR-final-evidence/NUR_V5_HOLD_20260818.zip.sha256` |
-| Archive SHA-256 | `309d110d98cc092f1a445321717d39ee39d941de241cf46c0ffdbca598efde1a` |
-| Manifest source SHA | `9acb056a1d5f24eeebaa01fcb998a39f99fb7d22` |
+| Archive SHA-256 | `634181f1c46bc4406d331d128d423125861ec6d3b0f0513dcfc29182d530ea4b` |
+| Manifest source SHA | `7fbcbb60394f8811b620a403d5f47f445e8d6978` |
 | Manifest verdict | `HOLD` |
 | Verification result | `RELEASE_PACKAGE_VERIFY=PASS` |
 | Clean-install check | `0` (not requested for HOLD) |

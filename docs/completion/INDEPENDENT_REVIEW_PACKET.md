@@ -7,16 +7,16 @@
 | Repository | `am-selenephos/NUR---Latest` |
 | Completion branch | `completion/nur-fullstack-agentend-20260818` |
 | Canonical base | `6b04918611c6edff9b20b76f0c7df2d950bf4d4d` |
-| Frozen implementation/release-candidate SHA | `9acb056a1d5f24eeebaa01fcb998a39f99fb7d22` |
+| Frozen implementation/release-candidate SHA | `7fbcbb60394f8811b620a403d5f47f445e8d6978` |
 | Canonical main mutation | None permitted or performed |
 | Current verdict | `NUR_PARTIAL` |
-| Release artifact | Verified HOLD package from candidate SHA `9acb056a1d5f24eeebaa01fcb998a39f99fb7d22`; 828 entries, 9,215,468 uncompressed bytes, archive SHA-256 `309d110d98cc092f1a445321717d39ee39d941de241cf46c0ffdbca598efde1a`; secret/V197/naming scans PASS |
+| Release artifact | Verified HOLD package from candidate SHA `7fbcbb60394f8811b620a403d5f47f445e8d6978`; 829 entries, 9,223,073 uncompressed bytes, archive SHA-256 `634181f1c46bc4406d331d128d423125861ec6d3b0f0513dcfc29182d530ea4b`; secret/V197/naming scans PASS |
 
 > This document prepares an independent review. It is **not** an independent review or approval, and it does not convert any held gate into a pass.
 
 ## Review objective
 
-The reviewer should determine whether candidate SHA `9acb056a1d5f24eeebaa01fcb998a39f99fb7d22` truthfully closes the Full-Stack + Agentend Addendum in dependency order, whether the semantic E3–E8 and F1–F5 implementations have behavioral rather than nominal coverage, and whether the remaining `NUR_PARTIAL` blockers are correctly classified.
+The reviewer should determine whether candidate SHA `7fbcbb60394f8811b620a403d5f47f445e8d6978` truthfully closes the Full-Stack + Agentend Addendum in dependency order, whether the semantic E3–E8 and F1–F5 implementations have behavioral rather than nominal coverage, and whether the remaining `NUR_PARTIAL` blockers are correctly classified.
 
 The implementation and browser-proof changes are frozen at the candidate SHA above. Documentation-only evidence commits after that candidate must not be treated as product-code changes. The branch must not be merged, tagged, renamed, or used to alter canonical `main` while any applicable hold remains.
 
@@ -65,7 +65,7 @@ The Chromium desktop/mobile matrices are green at the recorded totals, and the f
 
 ## Required verification commands
 
-Run these commands from candidate SHA `9acb056a1d5f24eeebaa01fcb998a39f99fb7d22`, using the repository’s configured services where required:
+Run these commands from candidate SHA `7fbcbb60394f8811b620a403d5f47f445e8d6978`, using the repository’s configured services where required:
 
 ```bash
 cd apps/api
@@ -111,9 +111,9 @@ The following changes deserve manual review because they affect trust boundaries
 
 ## External blockers and next actions
 
-The live provider gate requires an approved reachable model catalog and credential; the local provider-disabled response is the truthful result. I6 requires repository-administrator configuration of branch protection/rulesets. K2 requires an authenticated maintainer to push candidate SHA `9acb056a1d5f24eeebaa01fcb998a39f99fb7d22` and wait for definitive exact-head CI. Docker cold boot requires release infrastructure with Docker. J8 retains one responsive WebKit page-closure failure and needs either a supported-browser infrastructure exception or a browser-runtime fix. F5 is closed at the candidate browser-proof boundary. J10 requires a reviewer who is independent of this implementation pass.
+The live provider gate requires an approved reachable model catalog and credential; the local provider-disabled response is the truthful result. I6 requires repository-administrator configuration of branch protection/rulesets. K2 requires an authenticated maintainer to push candidate SHA `7fbcbb60394f8811b620a403d5f47f445e8d6978` and wait for definitive exact-head CI. Docker cold boot requires release infrastructure with Docker. J8 retains one responsive WebKit page-closure failure and needs either a supported-browser infrastructure exception or a browser-runtime fix. F5 is closed at the candidate browser-proof boundary. J10 requires a reviewer who is independent of this implementation pass.
 
-The last sandbox push attempt failed because the configured GitHub CLI token was invalid. Therefore, this packet’s exact-SHA evidence is locally frozen at candidate SHA `9acb056a1d5f24eeebaa01fcb998a39f99fb7d22`; final remote publication, PR update, and exact-head CI must be completed by an authenticated maintainer.
+The last sandbox push attempt failed because the configured GitHub CLI token was invalid. Therefore, this packet’s exact-SHA evidence is locally frozen at candidate SHA `7fbcbb60394f8811b620a403d5f47f445e8d6978`; final remote publication, PR update, and exact-head CI must be completed by an authenticated maintainer.
 
 ## Review decision record
 
