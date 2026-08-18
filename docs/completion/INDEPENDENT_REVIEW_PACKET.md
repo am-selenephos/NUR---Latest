@@ -7,19 +7,18 @@
 | Repository | `am-selenephos/NUR---Latest` |
 | Completion branch | `completion/nur-fullstack-agentend-20260818` |
 | Canonical base | `6b04918611c6edff9b20b76f0c7df2d950bf4d4d` |
-| Frozen implementation SHA | `a1608eeed715b9716729a184c239565f3a7d0ded` |
-| Frozen release-candidate SHA | `13fd8475958cb42d3b4876c3507a48d09f0e5108` |
+| Frozen implementation/release-candidate SHA | `9acb056a1d5f24eeebaa01fcb998a39f99fb7d22` |
 | Canonical main mutation | None permitted or performed |
 | Current verdict | `NUR_PARTIAL` |
-| Release artifact | Verified HOLD package from the release candidate; 827 entries, 9,194,920 uncompressed bytes, archive SHA-256 `90ca968acdf9bf6c85c781c5fb4efd8cbca4553d203e7edf4fc0bbfc2038bc5d` |
+| Release artifact | Verified HOLD package from candidate SHA `9acb056a1d5f24eeebaa01fcb998a39f99fb7d22`; 828 entries, 9,215,468 uncompressed bytes, archive SHA-256 `309d110d98cc092f1a445321717d39ee39d941de241cf46c0ffdbca598efde1a`; secret/V197/naming scans PASS |
 
 > This document prepares an independent review. It is **not** an independent review or approval, and it does not convert any held gate into a pass.
 
 ## Review objective
 
-The reviewer should determine whether the completion branch truthfully closes the Full-Stack + Agentend Addendum in dependency order, whether the semantic E3–E8 and F1–F4 implementations have behavioral rather than nominal coverage, and whether the remaining `NUR_PARTIAL` blockers are correctly classified. The reviewer should verify both the frozen implementation SHA and the documentation-complete release-candidate SHA before relying on any result in this packet.
+The reviewer should determine whether candidate SHA `9acb056a1d5f24eeebaa01fcb998a39f99fb7d22` truthfully closes the Full-Stack + Agentend Addendum in dependency order, whether the semantic E3–E8 and F1–F5 implementations have behavioral rather than nominal coverage, and whether the remaining `NUR_PARTIAL` blockers are correctly classified.
 
-The implementation was completed before the SHA was frozen. Documentation-only changes made after the freeze must not be treated as product-code changes. The branch must not be merged, tagged, renamed, or used to alter canonical `main` while any applicable hold remains.
+The implementation and browser-proof changes are frozen at the candidate SHA above. Documentation-only evidence commits after that candidate must not be treated as product-code changes. The branch must not be merged, tagged, renamed, or used to alter canonical `main` while any applicable hold remains.
 
 ## Gate summary
 
@@ -32,9 +31,9 @@ The implementation was completed before the SHA was frozen. Documentation-only c
 | D1–D6 | PASS | Packet composition, beliefs, goals, manifest, owner boundaries, and token budget |
 | E1–E8 | PASS | Semantic Brain components and real offline held-out/shadow evaluation runner; live provider remains separate |
 | F1–F4 | PASS | Semantic hydration, DAG limits, browser-safe event reducer, and direct WorkflowProposalV2 path |
-| F5 | PARTIAL | Dedicated browser conversation-to-durable-Plan reload/idempotency proof is not yet present |
+| F5 | PASS-CANDIDATE | Backend plus dedicated Chromium browser proof covers preview-without-write, explicit owner save, canonical workflow/proposal, approval, exactly one durable Plan, reload persistence, and duplicate-save idempotency |
 | G1–G6 | PASS | Reconciliation, belief change, WhyChanged, memory effect, hardness, and empirical evaluation gate |
-| Phase H | PARTIAL / PASS-CANDIDATE mix | Community, Capsule, Map, Orbit, Notifications, and Localization focused proofs green; Insights, Research, and complete route breadth remain incomplete |
+| Phase H | PASS-CANDIDATE / PARTIAL mix | Community, Capsule, Map, Orbit, Notifications, Localization, Today, Talk, Plan, and Systems focused/full-interface proofs are candidate-green; Insights broad seeded review breadth and Research broad live/seeded breadth remain partial |
 | I1–I5 | PASS | RLS, CSRF/origin, replay, injection, and Actions hardening |
 | I6 | HOLD-DEPENDENCY | Main branch protection/rulesets require repository-admin authority and were intentionally not changed |
 | I7 | PASS | CycloneDX SBOM: 133 JavaScript and 63 Python components |
@@ -42,7 +41,7 @@ The implementation was completed before the SHA was frozen. Documentation-only c
 | J2–J5 | PASS | Backup/restore, crash/recovery, and static release gate |
 | J6 | HOLD-DEPENDENCY | Approved live provider credential and reachable model catalog unavailable |
 | J7 | PASS-CANDIDATE | Chromium desktop 17 passed/1 skipped; Chromium mobile 10 passed |
-| J8 | PARTIAL | WebKit mobile 7 passed, 2 flaky retry-only, 2 failed; Track-A/direct-host isolated proofs green |
+| J8 | PARTIAL | Final WebKit HOLD route 1 passed after iframe/fixture/SSE/Omega repairs; responsive matrix remains 3 passed and 1 browser page-closure failure; Track-A/direct-host proofs green |
 | J9 | PASS | Verified HOLD package and integrity scans |
 | J10 | HOLD-DEPENDENCY | This packet is review preparation, not independent signoff |
 | K1 | PASS-CANDIDATE | Draft PR #2 exists from the dedicated branch |
@@ -56,17 +55,17 @@ The E3–E8 correction requirements are covered by `apps/api/app/tests/test_brai
 
 F1–F4 are covered by `apps/api/app/tests/test_f1_f4_semantics.py`, the capability regression suite, and the web reducer tests. The hydrator receives approved semantic families through the cognitive loop and packet builder. The DAG validator is wired into compilation. Browser events are reduced through an allowlisted vocabulary. The worker dispatcher constructs `WorkflowProposalV2` directly.
 
-F5 is intentionally not claimed. The missing proof must use a real browser conversation, a preview that writes nothing, explicit owner save, canonical workflow/proposal, approval, exactly one durable Plan, reload persistence, and duplicate-save/idempotency behavior.
+F5 is now candidate-green. `apps/web/e2e/f5-plan-from-conversation.spec.ts` proves a Talk conversation renders preview without a workflow proposal, explicit owner save emits the canonical proposal, approval is required and accepted, exactly one durable Plan is visible, reload preserves the same Plan, and duplicate save does not create another Plan. The backend runtime proof remains the complementary real-stack authority-boundary evidence.
 
 ## Runtime and browser evidence
 
 J1 was reproduced as an environment mismatch. The readiness endpoint checks PostgreSQL `SELECT 1` and Redis `PING`; the boot-smoke defaults to the wrong local database and credentials. With the working values, `/readyz`, `/healthz`, and `/metrics` each returned 200 and SIGTERM completed with `rc=143`.
 
-The Chromium desktop and mobile matrices are green at the totals recorded above. WebKit mobile has a truthful partial result. The final WebKit HOLD test still expects top-level `#page-systems` after `/systems`, while the current route is iframe-owned. The responsive retry includes a WebKit page crash. These results are recorded in `docs/completion/MANUS_J7_J8_BROWSER_MATRIX.md`; no assertion was lowered to suppress them.
+The Chromium desktop/mobile matrices are green at the recorded totals, and the focused final Chromium core-route/control/responsive/Universe-lens rerun is 13 passed and 3 skipped. The final WebKit HOLD route is now 1 passed after iframe-owned selectors, authenticated snapshot/CSRF fixtures, current Talk SSE, Omega route fixtures, and current copy assertions were repaired. The responsive WebKit matrix remains 3 passed and 1 browser page-closure failure. These results are recorded in `docs/completion/MANUS_J7_J8_BROWSER_MATRIX.md`; no assertion was lowered to suppress them.
 
 ## Required verification commands
 
-Run these commands from the frozen SHA, using the repository’s configured services where required:
+Run these commands from candidate SHA `9acb056a1d5f24eeebaa01fcb998a39f99fb7d22`, using the repository’s configured services where required:
 
 ```bash
 cd apps/api
@@ -90,7 +89,8 @@ The browser commands are:
 cd apps/web
 CI=1 pnpm exec playwright test --project=chromium-desktop --workers=1
 CI=1 pnpm exec playwright test --project=chromium-mobile --workers=1
-CI=1 pnpm exec playwright test --project=webkit-mobile --workers=1
+CI=1 pnpm exec playwright test e2e/final-webkit-mobile.spec.ts --project=webkit-mobile --workers=1
+CI=1 pnpm exec playwright test e2e/v197-responsive-accessibility.spec.ts --project=webkit-mobile --workers=1
 ```
 
 The reviewer should compare actual results with the J7/J8 note rather than assuming the matrix is fully green.
@@ -111,9 +111,9 @@ The following changes deserve manual review because they affect trust boundaries
 
 ## External blockers and next actions
 
-The live provider gate requires an approved reachable model catalog and credential; the local provider-disabled response is the truthful result. I6 requires repository-administrator configuration of branch protection/rulesets. K2 requires an authenticated maintainer to push the frozen branch and wait for definitive exact-head CI. Docker cold boot requires release infrastructure with Docker. J8 requires either correction of the stale WebKit route-boundary proof and investigation of the WebKit crash or an explicitly approved supported-browser infrastructure exception. F5 requires the dedicated browser plan-from-conversation proof. J10 requires a reviewer who is independent of this implementation pass.
+The live provider gate requires an approved reachable model catalog and credential; the local provider-disabled response is the truthful result. I6 requires repository-administrator configuration of branch protection/rulesets. K2 requires an authenticated maintainer to push candidate SHA `9acb056a1d5f24eeebaa01fcb998a39f99fb7d22` and wait for definitive exact-head CI. Docker cold boot requires release infrastructure with Docker. J8 retains one responsive WebKit page-closure failure and needs either a supported-browser infrastructure exception or a browser-runtime fix. F5 is closed at the candidate browser-proof boundary. J10 requires a reviewer who is independent of this implementation pass.
 
-The last sandbox push attempt failed because the configured GitHub CLI token was invalid. Therefore, this packet’s exact-SHA evidence is locally frozen at release-candidate SHA `13fd8475958cb42d3b4876c3507a48d09f0e5108`, but final remote publication and CI state must be completed by an authenticated maintainer.
+The last sandbox push attempt failed because the configured GitHub CLI token was invalid. Therefore, this packet’s exact-SHA evidence is locally frozen at candidate SHA `9acb056a1d5f24eeebaa01fcb998a39f99fb7d22`; final remote publication, PR update, and exact-head CI must be completed by an authenticated maintainer.
 
 ## Review decision record
 

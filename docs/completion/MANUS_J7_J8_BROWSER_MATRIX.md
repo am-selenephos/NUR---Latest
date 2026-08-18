@@ -2,7 +2,9 @@
 
 **Working branch:** `completion/nur-fullstack-agentend-20260818`
 
-**Evidence state:** This note records the completed pre-freeze runtime and browser evidence. The final candidate SHA and independent-review verdict are recorded separately after the final documentation commit. No canonical `main` changes were made.
+**Release-candidate implementation SHA:** `9acb056a1d5f24eeebaa01fcb998a39f99fb7d22`
+
+**Evidence state:** This note records the completed runtime and browser evidence for the immutable implementation candidate above. Documentation commits may advance the branch head, but every release-candidate reference in the completion packet points to this SHA. No canonical `main` changes were made.
 
 ## J1 readiness investigation
 
@@ -21,7 +23,7 @@ The corrected run passed: `/readyz` returned 200, `/healthz` returned 200, `/met
 
 ## J7 Chromium desktop matrix
 
-The final supported Chromium desktop run completed with **17 passed and 1 skipped**. The skipped case is the intentionally unavailable live-provider path; no provider success was fabricated. The corrected Entry forensic selector and unauthenticated Entry fixture preserved the strict nested star-seal and glass-material assertions.
+The previously recorded supported Chromium desktop matrix completed with **17 passed and 1 skipped**; the skipped case is the intentionally unavailable live-provider path, and no provider success was fabricated. After the final candidate changes, the focused core-route, control, responsive, and Universe-lens rerun completed with **13 passed and 3 skipped**. The Timeline branch-width correction removed the only concrete Chromium lens-geometry failure.
 
 ## J7 Chromium-mobile matrix
 
@@ -31,11 +33,11 @@ Track-A was corrected at current source boundaries rather than by weakening asse
 
 ## J8 WebKit-mobile matrix
 
-The WebKit binary and reported host dependencies were installed, and the final supported WebKit-mobile matrix was executed. It produced **7 passed, 2 flaky retry-only results, and 2 failed tests**.
+The final WebKit-mobile HOLD route proof now completes with **1 passed** after converting product selectors to the canonical Universe iframe, supplying the authenticated snapshot/CSRF fixtures, and using the current Talk SSE, Omega, and Capsule contracts. The responsive/accessibility matrix remains **3 passed and 1 failed**: its single failure is a WebKit page closure during the reused viewport-matrix run.
 
-The two failed tests were the final HOLD route proof, which did not find the legacy top-level `#page-systems` selector after `/systems`, and the first responsive viewport proof, which encountered the same iframe/stage boundary followed by a WebKit page crash on retry. The adaptive 44px-target proof and the long-label responsive proof each passed on retry; the reduced-motion, runtime lifecycle, Track-A, direct-host, and remaining responsive proofs passed. The isolated Track-A hydrated and direct-host proofs passed on both Chromium mobile and WebKit mobile.
+The remaining responsive failure occurs after the product surface mounts, when WebKit closes the page during the viewport-matrix layout-settle operation; every required viewport loads and settles successfully in independent diagnostic tests, and Chromium passes the complete responsive matrix. Track-A hydrated/direct-host WebKit proofs remain green from the recorded matrix. This is retained as a browser-runtime boundary rather than converted into a false pass.
 
-The WebKit failures are recorded as a **J8 partial/runtime-boundary hold**, not converted into false passes. The final HOLD proof still targets a stale host-page selector rather than the canonical Universe iframe, while the responsive retry includes a browser page crash. No source assertion was weakened to conceal either result.
+The remaining WebKit result is recorded as a **J8 partial/runtime-boundary hold**, not converted into a false pass. The final HOLD route proof’s stale iframe ownership, missing authenticated fixtures, obsolete Talk transport, Omega route fixtures, and current copy assertions were repaired without weakening its semantic assertions. The responsive matrix still closes one WebKit page during the reused viewport sequence; no source assertion was weakened to conceal it.
 
 ## Evidence commands
 
@@ -44,13 +46,14 @@ The principal commands were:
 ```bash
 CI=1 pnpm exec playwright test --project=chromium-desktop --workers=1
 CI=1 pnpm exec playwright test --project=chromium-mobile --workers=1
-CI=1 pnpm exec playwright test --project=webkit-mobile --workers=1
+CI=1 pnpm exec playwright test e2e/final-webkit-mobile.spec.ts --project=webkit-mobile --workers=1
+CI=1 pnpm exec playwright test e2e/v197-responsive-accessibility.spec.ts --project=webkit-mobile --workers=1
 CI=1 pnpm exec playwright test e2e/track-a-mobile-webkit.spec.ts -g 'Track A runs hydrated' --project=webkit-mobile --workers=1
 CI=1 pnpm exec playwright test e2e/track-a-mobile-webkit.spec.ts -g 'Track A direct host' --project=webkit-mobile --workers=1
 ```
 
-The exact per-project logs are retained outside the repository for this session; this note records their pass/fail totals and the semantic failure boundaries. The final independent review packet must bind these results to one exact release-candidate SHA.
+The exact per-project logs are retained outside the repository for this session; this note records their pass/fail totals and semantic failure boundaries. All reported evidence is bound to implementation SHA `9acb056a1d5f24eeebaa01fcb998a39f99fb7d22`. The final independent review packet must use this same SHA.
 
 ## Current truthful interpretation
 
-J1 is **PASS-CANDIDATE** locally with the actual runtime configuration. J7 is **PASS-CANDIDATE** for the completed Chromium desktop/mobile matrix. J8 remains **PARTIAL** because the complete WebKit-mobile matrix has two failed tests and two retry-only flaky results, despite green isolated Track-A and direct-host proofs. The branch therefore cannot claim `NUR_FULL_PASS` until the remaining held gates, including protected-main authority, live provider access, definitive CI, independent review, and the WebKit matrix boundary, are resolved.
+J1 is **PASS-CANDIDATE** locally with the actual runtime configuration. J7 is **PASS-CANDIDATE** for the completed Chromium desktop/mobile matrix. J8 remains **PARTIAL** because the responsive WebKit viewport matrix still has one browser page-closure failure, despite the green final HOLD route and isolated Track-A/direct-host proofs. The branch therefore cannot claim `NUR_FULL_PASS` until the remaining held gates, including protected-main authority, live provider access, definitive CI, independent review, and the WebKit runtime boundary, are resolved.
