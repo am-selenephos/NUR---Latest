@@ -6,7 +6,7 @@
 
 **Canonical base SHA:** `6b04918611c6edff9b20b76f0c7df2d950bf4d4d`
 
-**Frozen implementation/release-candidate SHA:** `d012c5429bd035deb8a89b7fe19deb49c111356c` (immutable candidate containing the completed F5, Phase-H route, J8, Timeline, V197 provenance, and CI-discovered Systems geometry assertion corrections).
+**Frozen implementation/release-candidate SHA:** `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc` (immutable candidate containing the completed F5, Phase-H route, J8, Timeline, V197 provenance, and CI-discovered Systems geometry assertion corrections).
 
 **Canonical main:** unchanged. The canonical worktree remains on `main` at `6b04918611c6edff9b20b76f0c7df2d950bf4d4d`; no merge, tag, rename, or protected-main setting change was attempted.
 
@@ -16,7 +16,7 @@
 
 The highest truthful verdict is **`NUR_PARTIAL`**, with a verified HOLD release artifact. `NUR_FULL_PASS` is not claimed because applicable gates remain held or partial: Phase-H Insights/Research breadth, live provider availability, I6 protected-main authority, the remaining J8 WebKit responsive runtime boundary, J10 independent review, and definitive remote CI.
 
-The implementation and browser-proof corrections are frozen at candidate SHA `d012c5429bd035deb8a89b7fe19deb49c111356c`. Subsequent documentation and evidence commits must reference this same immutable candidate and must not be interpreted as additional product-code changes.
+The implementation and browser-proof corrections are frozen at candidate SHA `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc`. Subsequent documentation and evidence commits must reference this same immutable candidate and must not be interpreted as additional product-code changes.
 
 ## Completed semantic work
 
@@ -58,12 +58,12 @@ pnpm exec vitest run
 pnpm run build
 ```
 
-The persistent ledger is `docs/completion/MANUS_COMPLETION_LEDGER.csv`. The independent-review preparation document is `docs/completion/INDEPENDENT_REVIEW_PACKET.md`. Artifact details are tracked in `docs/completion/MANUS_RELEASE_ARTIFACT_EVIDENCE.md`. The verified HOLD package was rebuilt from candidate SHA `d012c5429bd035deb8a89b7fe19deb49c111356c`: 829 entries, 9,223,046 uncompressed bytes, archive SHA-256 `eec71366616ac4495c9e7a82f26a0d63b123460d0bad03ceff16e33c34bd04c3`, secret scan PASS, V197 integrity PASS, and naming scan PASS.
+The persistent ledger is `docs/completion/MANUS_COMPLETION_LEDGER.csv`. The independent-review preparation document is `docs/completion/INDEPENDENT_REVIEW_PACKET.md`. Artifact details are tracked in `docs/completion/MANUS_RELEASE_ARTIFACT_EVIDENCE.md`. The verified HOLD package was rebuilt from candidate SHA `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc`: 829 entries, 9,225,297 uncompressed bytes, archive SHA-256 `21b5902ba18a6dc991682a1e12c42e17158459c3f08f39683170be85c29db2d7`, secret scan PASS, V197 integrity PASS, and naming scan PASS.
 
 ## Remote publication status
 
-The branch was previously pushed through documentation head `10dce5f9485e56af820f1c0010d20d3d85be5c74`, and draft PR #2 was updated. Exact-head CI run [32109905634](https://github.com/am-selenephos/NUR---Latest/actions/runs/32109905634) ran on that prior head and failed in the mocked Chromium visual suite because the strict Systems geometry assertion still treated the canonical global Community navigation entry as retired. That assertion is corrected in candidate `d012c5429bd035deb8a89b7fe19deb49c111356c`; the corrected candidate and final evidence commit still require a push before definitive exact-head CI can run.
+The branch was previously pushed through documentation head `10dce5f9485e56af820f1c0010d20d3d85be5c74`, and draft PR #2 was updated. Exact-head CI run [32109905634](https://github.com/am-selenephos/NUR---Latest/actions/runs/32109905634) ran on that prior head and failed in the mocked Chromium visual suite because the strict Systems geometry assertion still treated the canonical global Community navigation entry as retired. Exact-head run [32111092213](https://github.com/am-selenephos/NUR---Latest/actions/runs/32111092213) then ran on the pushed b084c9d head: the web/security job passed completely, while the API job stopped at Ruff on three pre-existing candidate issues (`typing.Any` and `pytest` unused imports plus the hydrator `remaining_budget` undefined-name workaround). Those issues are corrected in candidate `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc`; the corrected candidate and final evidence commit still require a push before definitive exact-head CI can run.
 
 ## Next actions for an independent reviewer or maintainer
 
-An independent reviewer should verify candidate SHA `d012c5429bd035deb8a89b7fe19deb49c111356c` against this packet and the ledger, rerun the listed local gates, inspect the architecture-sensitive diffs, and independently decide whether the remaining WebKit responsive closure is a product defect or supported-browser infrastructure boundary. A maintainer must push the corrected candidate and documentation head, wait for definitive exact-head CI, and update PR #2. Only after the remaining Phase-H Insights/Research breadth, live-provider and administrator gates, J8, J10, and K2–K5 are genuinely green may the verdict change from `NUR_PARTIAL` to `NUR_FULL_PASS`.
+An independent reviewer should verify candidate SHA `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc` against this packet and the ledger, rerun the listed local gates, inspect the architecture-sensitive diffs, and independently decide whether the remaining WebKit responsive closure is a product defect or supported-browser infrastructure boundary. A maintainer must push the corrected candidate and documentation head, wait for definitive exact-head CI, and update PR #2. Only after the remaining Phase-H Insights/Research breadth, live-provider and administrator gates, J8, J10, and K2–K5 are genuinely green may the verdict change from `NUR_PARTIAL` to `NUR_FULL_PASS`.

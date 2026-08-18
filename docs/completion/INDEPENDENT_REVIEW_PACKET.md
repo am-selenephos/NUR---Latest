@@ -7,16 +7,16 @@
 | Repository | `am-selenephos/NUR---Latest` |
 | Completion branch | `completion/nur-fullstack-agentend-20260818` |
 | Canonical base | `6b04918611c6edff9b20b76f0c7df2d950bf4d4d` |
-| Frozen implementation/release-candidate SHA | `d012c5429bd035deb8a89b7fe19deb49c111356c` |
+| Frozen implementation/release-candidate SHA | `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc` |
 | Canonical main mutation | None permitted or performed |
 | Current verdict | `NUR_PARTIAL` |
-| Release artifact | Verified HOLD package from candidate SHA `d012c5429bd035deb8a89b7fe19deb49c111356c`; 829 entries, 9,223,046 uncompressed bytes, archive SHA-256 `eec71366616ac4495c9e7a82f26a0d63b123460d0bad03ceff16e33c34bd04c3`; secret/V197/naming scans PASS |
+| Release artifact | Verified HOLD package from candidate SHA `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc`; 829 entries, 9,225,297 uncompressed bytes, archive SHA-256 `21b5902ba18a6dc991682a1e12c42e17158459c3f08f39683170be85c29db2d7`; secret/V197/naming scans PASS |
 
 > This document prepares an independent review. It is **not** an independent review or approval, and it does not convert any held gate into a pass.
 
 ## Review objective
 
-The reviewer should determine whether candidate SHA `d012c5429bd035deb8a89b7fe19deb49c111356c` truthfully closes the Full-Stack + Agentend Addendum in dependency order, whether the semantic E3–E8 and F1–F5 implementations have behavioral rather than nominal coverage, and whether the remaining `NUR_PARTIAL` blockers are correctly classified.
+The reviewer should determine whether candidate SHA `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc` truthfully closes the Full-Stack + Agentend Addendum in dependency order, whether the semantic E3–E8 and F1–F5 implementations have behavioral rather than nominal coverage, and whether the remaining `NUR_PARTIAL` blockers are correctly classified.
 
 The implementation and browser-proof changes are frozen at the candidate SHA above. Documentation-only evidence commits after that candidate must not be treated as product-code changes. The branch must not be merged, tagged, renamed, or used to alter canonical `main` while any applicable hold remains.
 
@@ -45,7 +45,7 @@ The implementation and browser-proof changes are frozen at the candidate SHA abo
 | J9 | PASS | Verified HOLD package and integrity scans |
 | J10 | HOLD-DEPENDENCY | This packet is review preparation, not independent signoff |
 | K1 | PASS-CANDIDATE | Draft PR #2 exists from the dedicated branch |
-| K2 | HOLD-DEPENDENCY | Prior exact-head run [32109905634](https://github.com/am-selenephos/NUR---Latest/actions/runs/32109905634) failed on pre-d012 docs head; corrected candidate d012c54 still requires a fresh exact-head run |
+| K2 | HOLD-DEPENDENCY | Exact-head run [32111092213](https://github.com/am-selenephos/NUR---Latest/actions/runs/32111092213) passed web/security but failed API Ruff on pre-9cc candidate issues; corrected candidate 9cc7afb still requires a fresh exact-head run |
 | K3–K5 | HOLD-DEPENDENCY | No merge, main CI, or tag while applicable gates remain held |
 | K6 | PASS-CANDIDATE | Rename/rollback runbook documented; rename intentionally unexecuted |
 
@@ -65,7 +65,7 @@ The Chromium desktop/mobile matrices are green at the recorded totals, and the f
 
 ## Required verification commands
 
-Run these commands from candidate SHA `d012c5429bd035deb8a89b7fe19deb49c111356c`, using the repository’s configured services where required:
+Run these commands from candidate SHA `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc`, using the repository’s configured services where required:
 
 ```bash
 cd apps/api
@@ -111,9 +111,9 @@ The following changes deserve manual review because they affect trust boundaries
 
 ## External blockers and next actions
 
-The live provider gate requires an approved reachable model catalog and credential; the local provider-disabled response is the truthful result. I6 requires repository-administrator configuration of branch protection/rulesets. K2 remains held pending a fresh exact-head run for candidate SHA `d012c5429bd035deb8a89b7fe19deb49c111356c`; prior run [32109905634](https://github.com/am-selenephos/NUR---Latest/actions/runs/32109905634) failed on the pre-d012 documentation head because the Systems geometry assertion rejected the canonical global Community navigation entry. Docker cold boot requires release infrastructure with Docker. J8 retains one responsive WebKit page-closure failure and needs either a supported-browser infrastructure exception or a browser-runtime fix. F5 is closed at the candidate browser-proof boundary. J10 requires a reviewer who is independent of this implementation pass.
+The live provider gate requires an approved reachable model catalog and credential; the local provider-disabled response is the truthful result. I6 requires repository-administrator configuration of branch protection/rulesets. K2 remains held pending a fresh exact-head run for candidate SHA `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc`; run [32111092213](https://github.com/am-selenephos/NUR---Latest/actions/runs/32111092213) passed web/security but failed API Ruff on unused imports and the hydrator undefined-budget workaround, all corrected in this candidate. Docker cold boot requires release infrastructure with Docker. J8 retains one responsive WebKit page-closure failure and needs either a supported-browser infrastructure exception or a browser-runtime fix. F5 is closed at the candidate browser-proof boundary. J10 requires a reviewer who is independent of this implementation pass.
 
-The completion branch was pushed through prior documentation head `10dce5f9485e56af820f1c0010d20d3d85be5c74` and PR #2 was updated. The corrected candidate `d012c5429bd035deb8a89b7fe19deb49c111356c` and its final evidence commit now require publication, followed by a fresh exact-head CI run; no canonical-main operation is permitted.
+The completion branch was pushed through documentation head `b084c9df01c0168bab4d0b893605da931ae08e88` and PR #2 was updated. The corrected candidate `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc` and its final evidence commit now require publication, followed by a fresh exact-head CI run; no canonical-main operation is permitted.
 
 ## Review decision record
 

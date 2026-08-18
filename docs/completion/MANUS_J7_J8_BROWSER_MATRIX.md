@@ -2,7 +2,7 @@
 
 **Working branch:** `completion/nur-fullstack-agentend-20260818`
 
-**Release-candidate implementation SHA:** `d012c5429bd035deb8a89b7fe19deb49c111356c`
+**Release-candidate implementation SHA:** `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc`
 
 **Evidence state:** This note records the completed runtime and browser evidence for the immutable implementation candidate above. Documentation commits may advance the branch head, but every release-candidate reference in the completion packet points to this SHA. No canonical `main` changes were made.
 
@@ -52,7 +52,7 @@ CI=1 pnpm exec playwright test e2e/track-a-mobile-webkit.spec.ts -g 'Track A run
 CI=1 pnpm exec playwright test e2e/track-a-mobile-webkit.spec.ts -g 'Track A direct host' --project=webkit-mobile --workers=1
 ```
 
-The exact per-project logs are retained outside the repository for this session; this note records their pass/fail totals and semantic failure boundaries. All reported evidence is bound to implementation SHA `d012c5429bd035deb8a89b7fe19deb49c111356c`. The final independent review packet must use this same SHA.
+The exact per-project logs are retained outside the repository for this session; this note records their pass/fail totals and semantic failure boundaries. All reported evidence is bound to implementation SHA `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc`. The final independent review packet must use this same SHA.
 
 ## Current truthful interpretation
 
