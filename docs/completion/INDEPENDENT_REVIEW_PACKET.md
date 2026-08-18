@@ -7,16 +7,17 @@
 | Repository | `am-selenephos/NUR---Latest` |
 | Completion branch | `completion/nur-fullstack-agentend-20260818` |
 | Canonical base | `6b04918611c6edff9b20b76f0c7df2d950bf4d4d` |
-| Frozen implementation / verification SHA | `a1608eeed715b9716729a184c239565f3a7d0ded` |
+| Frozen implementation SHA | `a1608eeed715b9716729a184c239565f3a7d0ded` |
+| Frozen release-candidate SHA | `13fd8475958cb42d3b4876c3507a48d09f0e5108` |
 | Canonical main mutation | None permitted or performed |
 | Current verdict | `NUR_PARTIAL` |
-| Release artifact | Verified HOLD package; archive SHA-256 `a1b77e72fd83883225d4e63cc600653abcceae3c150796d7bdb7ca921e703a15` |
+| Release artifact | Verified HOLD package from the release candidate; 827 entries, 9,194,920 uncompressed bytes, archive SHA-256 `90ca968acdf9bf6c85c781c5fb4efd8cbca4553d203e7edf4fc0bbfc2038bc5d` |
 
 > This document prepares an independent review. It is **not** an independent review or approval, and it does not convert any held gate into a pass.
 
 ## Review objective
 
-The reviewer should determine whether the completion branch truthfully closes the Full-Stack + Agentend Addendum in dependency order, whether the semantic E3–E8 and F1–F4 implementations have behavioral rather than nominal coverage, and whether the remaining `NUR_PARTIAL` blockers are correctly classified. The reviewer should verify the frozen implementation SHA before relying on any result in this packet.
+The reviewer should determine whether the completion branch truthfully closes the Full-Stack + Agentend Addendum in dependency order, whether the semantic E3–E8 and F1–F4 implementations have behavioral rather than nominal coverage, and whether the remaining `NUR_PARTIAL` blockers are correctly classified. The reviewer should verify both the frozen implementation SHA and the documentation-complete release-candidate SHA before relying on any result in this packet.
 
 The implementation was completed before the SHA was frozen. Documentation-only changes made after the freeze must not be treated as product-code changes. The branch must not be merged, tagged, renamed, or used to alter canonical `main` while any applicable hold remains.
 
@@ -112,7 +113,7 @@ The following changes deserve manual review because they affect trust boundaries
 
 The live provider gate requires an approved reachable model catalog and credential; the local provider-disabled response is the truthful result. I6 requires repository-administrator configuration of branch protection/rulesets. K2 requires an authenticated maintainer to push the frozen branch and wait for definitive exact-head CI. Docker cold boot requires release infrastructure with Docker. J8 requires either correction of the stale WebKit route-boundary proof and investigation of the WebKit crash or an explicitly approved supported-browser infrastructure exception. F5 requires the dedicated browser plan-from-conversation proof. J10 requires a reviewer who is independent of this implementation pass.
 
-The last sandbox push attempt failed because the configured GitHub CLI token was invalid. Therefore, this packet’s exact-SHA evidence is locally frozen but the final remote publication and CI state must be completed by an authenticated maintainer.
+The last sandbox push attempt failed because the configured GitHub CLI token was invalid. Therefore, this packet’s exact-SHA evidence is locally frozen at release-candidate SHA `13fd8475958cb42d3b4876c3507a48d09f0e5108`, but final remote publication and CI state must be completed by an authenticated maintainer.
 
 ## Review decision record
 

@@ -6,7 +6,9 @@
 
 **Canonical base SHA:** `6b04918611c6edff9b20b76f0c7df2d950bf4d4d`
 
-**Frozen implementation / verification SHA:** `a1608eeed715b9716729a184c239565f3a7d0ded`
+**Frozen implementation SHA:** `a1608eeed715b9716729a184c239565f3a7d0ded`
+
+**Frozen release-candidate SHA:** `13fd8475958cb42d3b4876c3507a48d09f0e5108` (documentation-complete candidate used to build the verified HOLD artifact).
 
 **Canonical main:** unchanged. The canonical worktree remains on `main` at `6b04918611c6edff9b20b76f0c7df2d950bf4d4d`; no merge, tag, rename, or protected-main setting change was attempted.
 
@@ -16,7 +18,7 @@
 
 The highest truthful verdict is **`NUR_PARTIAL`**, with a verified HOLD release artifact. `NUR_FULL_PASS` is not claimed because applicable gates remain held or partial: F5 browser plan-from-conversation proof, unresolved Phase-H Insights/Research/full-interface breadth, live provider availability, I6 protected-main authority, J8 WebKit-mobile matrix failures, J10 independent review, and definitive remote CI.
 
-The implementation code was completed before the SHA was frozen at `a1608eeed715b9716729a184c239565f3a7d0ded`. Documentation-only updates after that point must not be interpreted as additional product-code changes.
+The implementation code was completed before the code freeze at `a1608eeed715b9716729a184c239565f3a7d0ded`. The documentation-complete release candidate used for exact artifact verification is `13fd8475958cb42d3b4876c3507a48d09f0e5108`; documentation-only updates after the code freeze must not be interpreted as additional product-code changes.
 
 ## Completed semantic work
 
@@ -58,7 +60,7 @@ pnpm exec vitest run
 pnpm run build
 ```
 
-The persistent ledger is `docs/completion/MANUS_COMPLETION_LEDGER.csv`. The independent-review preparation document is `docs/completion/INDEPENDENT_REVIEW_PACKET.md`. The verified HOLD package remains the previously recorded 818-entry artifact with archive SHA-256 `a1b77e72fd83883225d4e63cc600653abcceae3c150796d7bdb7ca921e703a15`.
+The persistent ledger is `docs/completion/MANUS_COMPLETION_LEDGER.csv`. The independent-review preparation document is `docs/completion/INDEPENDENT_REVIEW_PACKET.md`. The verified HOLD package was rebuilt from release-candidate SHA `13fd8475958cb42d3b4876c3507a48d09f0e5108`: 827 entries, 9,194,920 uncompressed bytes, archive SHA-256 `90ca968acdf9bf6c85c781c5fb4efd8cbca4553d203e7edf4fc0bbfc2038bc5d`, secret scan PASS, V197 integrity PASS, and naming scan PASS.
 
 ## Remote publication status
 
