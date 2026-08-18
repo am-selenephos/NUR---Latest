@@ -28,7 +28,6 @@ const worldLenses = [
   { path: "/universe/timeline", lens: "timeline", root: "#nur-timeline-root" },
   { path: "/universe/insights", lens: "insights", root: "#nur-insights-root" },
   { path: "/universe/research", lens: "system", root: "#page-systems" },
-  { path: "/universe/community", lens: "system", root: "#page-systems" },
   { path: "/universe/web-signals", lens: "system", root: "#page-systems" },
 ] as const;
 
@@ -38,6 +37,8 @@ const adjunctRoutes = [
   { path: "/universe/omega", marker: "Evidence changes the model, deliberately." },
   { path: "/universe/omega/review", marker: "Nothing sensitive becomes truth by accident." },
   { path: `/universe/omega/why-changed/${mockClaim.id}`, marker: "Why NUR changed its mind." },
+  { path: "/universe/consultation", marker: "A question moves when context returns." },
+  { path: "/universe/community", marker: "Shared signal without private spill." },
 ] as const;
 
 test("every primary product route resolves inside canonical V197 without staged replacement UI", async ({ page }) => {
@@ -85,9 +86,9 @@ test("retired research controls stay absent while settings persist through bridg
 
   await page.goto("/universe/research");
   await expect(universe.locator("#page-systems")).toBeVisible();
-  await expect(universe.locator(
-    "#research-query, [data-research-submit], #universe-research, #universe-community",
-  )).toHaveCount(0);
+  await expect(universe.locator("#research-query, [data-research-submit]")).toHaveCount(0);
+  await expect(universe.locator("#universe-community")).toBeVisible();
+  await expect(universe.locator("#universe-community [data-adjunct-action]")).toHaveCount(0);
 
   await page.goto("/settings");
   const locale = universe.locator('[data-adjunct-control="locale"]');
