@@ -2019,6 +2019,20 @@ body.universe-edition #nur-front-v61 .universe-map-panel .universe-system-node.e
 body.universe-edition #nur-front-v61 .universe-map-panel .universe-system-node.relational { --node-x: 82; --node-y: 76; }
 body.universe-edition #nur-front-v61 .universe-map-panel .universe-system-node.neural { --node-x: 50; --node-y: 79; }
 
+/* At the compact desktop height the 24px legacy anchors intrude into the
+ * first and last node rows. Keep the readout visible, but lift it above the
+ * field; center the legend in the deliberate gap between node columns. */
+@media (min-width: 901px) {
+  body.universe-edition #nur-front-v61 #page-systems .universe-field-readout {
+    top: -16px !important;
+  }
+
+  body.universe-edition #nur-front-v61 #page-systems .universe-map-legend {
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+}
+
 body.universe-edition #nur-front-v61 .universe-map-panel .universe-system-node.active {
   border-color: transparent !important;
   background:

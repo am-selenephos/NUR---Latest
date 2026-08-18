@@ -25,6 +25,21 @@ test.beforeAll(async ({ browser }) => {
   sharedContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   sharedPage = await sharedContext.newPage();
   await signIn(sharedPage);
+  await sharedPage.evaluate(async () => {
+    const field = await (await fetch("/api/v1/orbit-field", { credentials: "include" })).json();
+    if (field.people?.length > 0) return;
+    const csrf = document.cookie.split("; ")
+      .find((row) => row.startsWith("nur_csrf="))?.split("=")[1] ?? "";
+    const response = await fetch("/api/v1/orbits/people", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+      body: JSON.stringify({ display_name: "Basis Probe", relationship_type: "Friend" }),
+    });
+    if (![201, 409].includes(response.status)) {
+      throw new Error(`Orbit person fixture failed: ${response.status} ${await response.text()}`);
+    }
+  });
 });
 
 test.afterAll(async () => {
