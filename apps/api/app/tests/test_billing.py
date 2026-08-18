@@ -632,7 +632,7 @@ def test_billing_configuration_fails_closed():
             billing_terms_url="https://nur.example/terms",
             billing_privacy_url="https://nur.example/privacy",
             billing_refund_policy_url="https://nur.example/refunds",
-            lemon_squeezy_api_key="server-only-" + "api-key",
+            lemon_squeezy_api_key="server-only" + "-api-key",
             lemon_squeezy_store_id="123",
             lemon_squeezy_founding_orbit_variant_id="456",
             lemon_squeezy_plus_monthly_variant_id="457",
@@ -661,7 +661,7 @@ async def test_lemon_provider_binds_expiry_variant_and_catalog_price(monkeypatch
         billing_terms_url="https://nur.example/terms",
         billing_privacy_url="https://nur.example/privacy",
         billing_refund_policy_url="https://nur.example/refunds",
-        lemon_squeezy_api_key="server-only-" + "api-key",
+        lemon_squeezy_api_key="server-only" + "-api-key",
         lemon_squeezy_store_id="123",
         lemon_squeezy_founding_orbit_variant_id="456",
         lemon_squeezy_plus_monthly_variant_id="457",
@@ -719,7 +719,7 @@ async def test_lemon_provider_binds_expiry_variant_and_catalog_price(monkeypatch
     assert attributes["preview"] is True
     assert attributes["product_options"]["enabled_variants"] == [456]
     assert attributes["checkout_data"]["custom"] == {"nur_binding": "bound"}
-    assert ("server-only-" + "api-key") not in json.dumps(observed["payload"])
+    assert ("server-only" + "-api-key") not in json.dumps(observed["payload"])
 
     mismatched = CheckoutRequest(
         **{**request.__dict__, "expected_price_minor": 12900}
