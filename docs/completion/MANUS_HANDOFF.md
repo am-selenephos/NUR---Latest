@@ -6,7 +6,7 @@
 
 **Canonical base SHA:** `6b04918611c6edff9b20b76f0c7df2d950bf4d4d`
 
-**Current handoff SHA:** `f04840c9beb19474e87d9d41322c8012dfbc5c8a`
+**Current handoff SHA:** `f7d4f3e9c49a2dad1a0983c2e598d7230e7b74b9`
 
 **Canonical main:** unchanged; `/home/ubuntu/NUR---Latest` remains clean on `main` at `6b04918611c6edff9b20b76f0c7df2d950bf4d4d`.
 
@@ -42,6 +42,6 @@ J1 remains held because Docker is unavailable and the Docker-independent boot sm
 
 ## Phase-K state and next action
 
-The completion branch is 20 commits ahead of canonical `main`, is published at `f04840c9beb19474e87d9d41322c8012dfbc5c8a`, and has draft integration PR [#2](https://github.com/am-selenephos/NUR---Latest/pull/2). Prior exact-head GitHub Readiness run `32087359718` passed for `5fba022333c3f06c0b688721c75833b9d489d554`; definitive-head run `32087845058` has `api` successful while `web-and-security` remains pending at handoff. Do not merge, tag, rename the repository, or modify canonical `main` while any H, F, E/G evaluation, I6, J1, J6–J8, J10, or final-CI blocker remains.
+The completion branch is 20 commits ahead of canonical `main`, is published at `f7d4f3e9c49a2dad1a0983c2e598d7230e7b74b9`, and has draft integration PR [#2](https://github.com/am-selenephos/NUR---Latest/pull/2). Prior exact-head GitHub Readiness run `32087359718` passed for `5fba022333c3f06c0b688721c75833b9d489d554`; definitive-head run `32090019750` remains in progress at handoff with both checks pending. Do not merge, tag, rename the repository, or modify canonical `main` while any H, F, E/G evaluation, I6, J1, J6–J8, J10, or final-CI blocker remains.
 
 `NUR_FULL_PASS` is not truthful on this SHA because applicable release gates remain held. The highest truthful verdict is `NUR_PARTIAL` with a verified `HOLD` release artifact.
