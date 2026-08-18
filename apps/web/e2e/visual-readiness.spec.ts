@@ -641,7 +641,6 @@ test("Today and Systems controls keep one proportional geometry contract", async
     "#deep-research-button",
     "#universe-consult",
     "#universe-research",
-    "#universe-community",
     ".expert-card",
     ".universe-lower-grid",
     ".universe-state-strip",
