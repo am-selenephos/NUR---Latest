@@ -35,7 +35,7 @@ export function checkV197Integrity(repositoryRoot = process.cwd()): V197Integrit
 
 // Keep this CLI guard CommonJS-compatible: the integrity launcher compiles this
 // isolated verifier without inheriting the web package's ESM package boundary.
-if (process.argv[1]?.endsWith("check-v197-integrity.js")) {
+if (process.argv[1]?.endsWith("check-v197-integrity.js") || process.argv[1]?.endsWith("check-v197-integrity.ts")) {
   const result = checkV197Integrity();
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   if (!result.pass) process.exitCode = 1;
