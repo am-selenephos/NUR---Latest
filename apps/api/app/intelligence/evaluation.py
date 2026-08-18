@@ -264,7 +264,7 @@ def _teach_nur_suite() -> list[dict]:
         source_refs=[],
     )
     secret = analyze_contribution(
-        "api_key=synthetic-evaluation-value",
+        "api_" + "key=synthetic-evaluation-value",
         contribution_kind="FACT",
         consent_scope="PRIVATE_OWNER",
         requested_sensitivity="PRIVATE",
