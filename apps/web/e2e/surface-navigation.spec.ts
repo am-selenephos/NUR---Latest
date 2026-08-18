@@ -52,6 +52,23 @@ async function signIn(page: Page): Promise<void> {
       });
       return response.status;
     }, OWNER);
+    if (status === 401) {
+      status = await page.evaluate(async (owner) => {
+        const response = await fetch("/api/v1/auth/register", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chosen_name: "Surface Navigation Owner",
+            email: owner.email,
+            password: owner.password,
+            consent: true,
+          }),
+        });
+        return response.status === 201 ? 200 : response.status;
+      }, OWNER);
+      if (status === 200) break;
+    }
     if (status !== 429) break;
     await page.waitForTimeout(1500);
   }
