@@ -1,4 +1,4 @@
-# Manus Completion Handoff
+# NUR Full-Stack + Agentend Completion Handoff
 
 **Repository:** `am-selenephos/NUR---Latest`
 
@@ -6,42 +6,64 @@
 
 **Canonical base SHA:** `6b04918611c6edff9b20b76f0c7df2d950bf4d4d`
 
-**Current handoff SHA:** `f7d4f3e9c49a2dad1a0983c2e598d7230e7b74b9`
+**Frozen implementation / verification SHA:** `a1608eeed715b9716729a184c239565f3a7d0ded`
 
-**Canonical main:** unchanged; `/home/ubuntu/NUR---Latest` remains clean on `main` at `6b04918611c6edff9b20b76f0c7df2d950bf4d4d`.
+**Canonical main:** unchanged. The canonical worktree remains on `main` at `6b04918611c6edff9b20b76f0c7df2d950bf4d4d`; no merge, tag, rename, or protected-main setting change was attempted.
 
 **Completion worktree:** `/home/ubuntu/NUR-completion-worktree`.
 
-## Completed task IDs
+## Truthful verdict
 
-`A1`–`A5`, `B1`–`B6`, `C2`–`C5`, `D1`–`D6`, `E1`–`E7`, and `G1`–`G5` are recorded as `PASS` in `docs/completion/MANUS_COMPLETION_LEDGER.csv`. `C1` is locally closed only at the provider-disabled boundary; live provider success remains external-blocked. `E8` and `G6` remain held because production evaluation corpus and promotion wiring are incomplete. `F1`–`F3` remain held; `F4` and `F5` remain partial.
+The highest truthful verdict is **`NUR_PARTIAL`**, with a verified HOLD release artifact. `NUR_FULL_PASS` is not claimed because applicable gates remain held or partial: F5 browser plan-from-conversation proof, unresolved Phase-H Insights/Research/full-interface breadth, live provider availability, I6 protected-main authority, J8 WebKit-mobile matrix failures, J10 independent review, and definitive remote CI.
 
-The unresolved candidate branch was inspected file by file. Its valid V197 celestial interaction, dedicated Insights, search repaint, surface-host, styling, and regression-test changes were selectively ported in commit `ef86827abd5c2fa701d24ab3df9cb6c1edb9131c`; no blind merge was performed.
+The implementation code was completed before the SHA was frozen at `a1608eeed715b9716729a184c239565f3a7d0ded`. Documentation-only updates after that point must not be interpreted as additional product-code changes.
 
-The route/client/server contract closures are in commits `e22729e033eeb31ba9fb78e054a85710d78d7245` and `295f6ac40d7aba664bba87affcb1953fb5a8d271`. The real full-stack gateway proof is in `ca1ef16ffb625ac0d2d19994443009132959edd1`.
+## Completed semantic work
 
-## Phase-C and Phase-D–G evidence
+The correction addendum’s behavioral E3–E8 requirements are implemented and tested. TypedPlanner emits multiple candidate plans with constraints, evidence gaps, uncertainty, failure modes, reversibility, cost, time, and approval requirements. BoundedSimulator compares candidate paths across those dimensions without fabricating probabilities. IndependentCritic produces a separate reasoning challenge with counter-evidence and structured verdicts. ResearchBrain performs scoped retrieval, normalization, provenance, synthesis, and verification while excluding instruction-like external content from authority. SpecialistWorker enforces role scope, deadlines, cancellation, token/cost budgets, narrowed context, and typed outputs.
 
-The targeted Phase-C API suite passed 74 tests. The real Redis/Celery broker suite passed 3 tests, including separate-worker delivery and redelivery idempotence. The composed Agentend vertical slice passed 9 tests. The D–G focused suite passed 184 tests and the new Addendum D–G contract suite passed 8 tests.
+EvaluationGate now has a real deterministic offline runner. `run_default_evaluation()` executes planner, simulator, critic, router, research, specialist, and memory-learning safety components across development, held-out, and shadow corpus splits. Promotion requires exact corpus version, non-empty held-out and shadow splits, full pass rates, and no failures. The run passed all 21 cases; this is offline semantic evidence and does not claim live provider success or mutate owner truth.
+
+F1–F4 are closed at the tested implementation boundary. Semantic hydration loads approved memory, beliefs, user model, research, and semantic context families into the cognitive loop and packet builder. DAG execution limits are enforced in plan compilation. The browser-safe capability reducer allowlists event vocabulary and strips raw payloads. WorkerDispatcher constructs WorkflowProposalV2 directly. F5 remains partial because a dedicated browser conversation → preview → explicit save → canonical Plan → reload/idempotency proof is still absent.
 
 ## Phase-H evidence
 
-Detailed route evidence is in `docs/completion/MANUS_PHASE_H_ROUTE_EVIDENCE.md`. Canonical navigation passed 7/7 after self-provisioning the fixed owner fixture. Map and Orbit fixture hardening is committed in `7a78abb95e78f15f95d4501ad53e33b6bdd87b02`; the targeted confirmed-edge explanation and owner-person list assertions pass. The compact-desktop premium map overlap was corrected in the same commit. Track-A still has a later Insights-lens assertion mismatch against the dedicated bridge surface, and Notifications, Localization, full-interface/auth, and several seeded-surface proofs remain incomplete. H therefore remains partial rather than full.
+Community, Capsule, Map, Orbit, Notifications, and Localization focused proofs are green after route, host, fixture, and persistence corrections. The full-interface matrix has been updated for the supported native adjunct routes. Insights remains partial because the broad seeded SOL/full-interface proof is not complete. Research remains partial because the broad seeded surface proof is not green. Today, Talk, Plan, and Systems retain focused green evidence but are not promoted to full route PASS while the independent complete route matrix remains incomplete. Live provider and billing claims remain explicitly external-blocked.
 
-## Phase-I evidence
+## Security and runtime evidence
 
-Phase-I evidence is recorded in the ledger and the security commit `d181dbb9e083db78ab6ef8cdb4c2be681271b4bb`. RLS, CSRF/origin, replay-fencing, and the eight-case prompt/tool injection corpus passed. GitHub Actions are pinned to immutable SHAs with `contents: read`. A deterministic CycloneDX inventory records 133 JavaScript and 63 Python components. The main-branch ruleset is documented in `docs/completion/MANUS_MAIN_BRANCH_RULESET.md`, but canonical repository protection is currently absent and was not changed; I6 remains held.
+RLS, CSRF/origin, replay fencing, injection corpus, Actions hardening, SBOM generation, backup/restore, broker crash/recovery, and the static release gate are recorded in the ledger. The deterministic SBOM records 133 JavaScript and 63 Python components. I6 remains held because canonical branch protection and rulesets require repository-administrator authority and were intentionally not changed.
 
-## Phase-J evidence
+J1 was investigated separately from Docker availability. The Docker-independent smoke passes when supplied with the actual local `nur_b6` PostgreSQL and Redis configuration: `/readyz 200`, `/healthz 200`, `/metrics 200`, and graceful SIGTERM `rc=143`. The official Docker cold boot remains unavailable because Docker is not installed in the sandbox.
 
-The complete runtime and release record is in `docs/completion/MANUS_PHASE_J_RUNTIME_EVIDENCE.md`.
+The complete Chromium desktop matrix recorded **17 passed and 1 skipped**. The complete Chromium-mobile matrix recorded **10 passed**. WebKit-mobile recorded **7 passed, 2 flaky retry-only results, and 2 failed tests**; isolated Track-A and direct-host WebKit proofs passed, but the final HOLD route uses a stale top-level selector and the responsive retry includes a browser page crash. J8 therefore remains PARTIAL rather than being weakened to PASS. Full details are in `docs/completion/MANUS_J7_J8_BROWSER_MATRIX.md`.
 
-The isolated real-database backup/restore drill passed at revision `0058_agentic_insights_engine`; the real-broker crash/recovery suite passed 3 tests. The complete static release gate passed with `STATIC_GATE=PASS` and `RELEASE_GATE=PASS mode=static`. The live gate honestly stopped because the configured provider was disabled. A truthful `HOLD` fresh-extract package was verified with 818 entries, V197 integrity pass, secret scan pass, naming scan pass, and archive SHA-256 `a1b77e72fd83883225d4e63cc600653abcceae3c150796d7bdb7ca921e703a15`, sourced from `375e0f8ebeb9adceabd48840390aed407e1b6fe8`.
+## Verification commands and results
 
-J1 remains held because Docker is unavailable and the Docker-independent boot smoke did not reach `/readyz` 200. J6 remains held for the approved live provider credential and reachable model catalog. J7, J8, and J10 remain held pending the complete browser matrix, independent accessibility/performance review, and independent final review.
+The semantic backend regression passed **20 tests** across the semantic addendum, F1–F4, capability integration, and capability runtime suites. The web unit suite passed **115 tests across 23 files**. Web typecheck and production build passed. The built bundle emitted only existing Vite warnings about native config compatibility and chunk size; no type or build error occurred.
 
-## Phase-K state and next action
+The primary commands were:
 
-The completion branch is 20 commits ahead of canonical `main`, is published at `f7d4f3e9c49a2dad1a0983c2e598d7230e7b74b9`, and has draft integration PR [#2](https://github.com/am-selenephos/NUR---Latest/pull/2). Prior exact-head GitHub Readiness run `32087359718` passed for `5fba022333c3f06c0b688721c75833b9d489d554`; definitive-head run `32090019750` remains in progress at handoff with both checks pending. Do not merge, tag, rename the repository, or modify canonical `main` while any H, F, E/G evaluation, I6, J1, J6–J8, J10, or final-CI blocker remains.
+```bash
+cd apps/api
+python3 -m pytest -q \
+  app/tests/test_brain_semantic_addendum.py \
+  app/tests/test_f1_f4_semantics.py \
+  app/tests/test_capability_loop_integration.py \
+  app/tests/test_capability_runtime_e2e.py
 
-`NUR_FULL_PASS` is not truthful on this SHA because applicable release gates remain held. The highest truthful verdict is `NUR_PARTIAL` with a verified `HOLD` release artifact.
+cd apps/web
+pnpm run typecheck
+pnpm exec vitest run
+pnpm run build
+```
+
+The persistent ledger is `docs/completion/MANUS_COMPLETION_LEDGER.csv`. The independent-review preparation document is `docs/completion/INDEPENDENT_REVIEW_PACKET.md`. The verified HOLD package remains the previously recorded 818-entry artifact with archive SHA-256 `a1b77e72fd83883225d4e63cc600653abcceae3c150796d7bdb7ca921e703a15`.
+
+## Remote publication status
+
+The completion branch and draft PR #2 existed before this tranche. A final push attempt from the sandbox failed because the configured GitHub CLI token was invalid (`Authentication failed`); no alternate credential was available and no canonical-main operation was attempted. The local worktree is the authoritative source for the frozen SHA and must be pushed by an authenticated maintainer before definitive remote CI can run.
+
+## Next actions for an independent reviewer or maintainer
+
+An independent reviewer should verify the frozen SHA against this packet and the ledger, rerun the listed local gates, inspect the architecture-sensitive diffs, and independently decide whether the J8 WebKit failures are product defects or supported-browser infrastructure boundaries. A maintainer with valid GitHub credentials must push the branch, wait for definitive exact-head CI, and update PR #2. Only after F5, remaining applicable Phase-H breadth, J6, I6, J8, J10, and K2–K5 are genuinely green may the verdict change from `NUR_PARTIAL` to `NUR_FULL_PASS`.
