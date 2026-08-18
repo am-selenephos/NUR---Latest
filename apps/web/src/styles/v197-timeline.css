@@ -1070,7 +1070,9 @@
   }
   .nur-timeline-entry.is-branch-left,
   .nur-timeline-entry.is-branch-right {
-    width: auto;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     margin-left: 0;
     margin-right: 0;
     text-align: left;

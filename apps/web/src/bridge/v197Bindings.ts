@@ -9,6 +9,12 @@ import {
 } from "./v197ApiClient";
 import { ensureV197LanguageControls, type WritingPreference } from "./v197I18n";
 import { hydrateTrackAV197 } from "./v197Hydration";
+import {
+  initialCapabilityState,
+  reduceCapabilityEvent,
+  type CapabilityEvent,
+  type CapabilityState,
+} from "./v197CapabilityReducer";
 import { announcePersistedGlow } from "./v197Rewards";
 import { createV197StartupStar } from "./v197StarSeal";
 import {
@@ -87,6 +93,7 @@ export class V197ActionBindings {
   private snapshot: V197BridgeSnapshot;
   private composerMode = "talk";
   private lastSubmittedTalk = "";
+  private capabilityState: CapabilityState = initialCapabilityState();
   private readonly clickHandler = (event: Event) => this.onClick(event);
   private readonly keyHandler = (event: Event) => this.onKeyDown(event as KeyboardEvent);
   private readonly scopeHandler = (event: Event) => this.onScopeChoice(event);
@@ -253,6 +260,7 @@ export class V197ActionBindings {
   private async refresh(): Promise<void> {
     this.snapshot = await this.refreshSnapshot();
     hydrateTrackAV197(this.document, this.snapshot);
+    this.renderCapabilityPanel();
     this.installLanguageControls();
     await this.afterHydrate();
   }
@@ -312,7 +320,7 @@ export class V197ActionBindings {
     this.toast("Journal persisted privately.");
   }
 
-  private async sendTalk(source: "talk" | "today" | "mobile"): Promise<void> {
+  private async sendTalk(source: "talk" | "today" | "mobile", resetCapability = true): Promise<void> {
     const inputSelector = source === "today"
       ? "#today-input"
       : source === "mobile"
@@ -324,6 +332,7 @@ export class V197ActionBindings {
       return;
     }
 
+    if (resetCapability) this.capabilityState = initialCapabilityState();
     const requestId = crypto.randomUUID();
     this.lastSubmittedTalk = message;
     this.universeWindow()?.nurOpenPage?.("talk");
@@ -337,9 +346,12 @@ export class V197ActionBindings {
           locale: this.locale(),
           writing_preference: this.writingPreference(),
           mode: this.composerMode,
+          capability_id: null,
+          memory_mode: "EPHEMERAL",
         },
         {
           onEvent: (event: V197StreamEvent) => {
+            this.reduceCapabilityEvent(event);
             transient.event(event);
             // Clear the composer only once the server has accepted the turn.
             if (event.event === "talk.accepted") setInputValue(this.document, inputSelector, "");
@@ -445,6 +457,84 @@ export class V197ActionBindings {
     await this.refresh();
     this.universeWindow()?.nurOpenPage?.("plan");
     this.toast("Plan persisted with its first move.");
+  }
+
+  private async savePlanFromPreview(): Promise<void> {
+    if (!this.capabilityState.preview) {
+      await this.createPlan(this.lastUserTalk());
+      return;
+    }
+    if (this.capabilityState.workflowId || this.capabilityState.workflowState === "WAITING_APPROVAL") {
+      this.toast("This Plan proposal is already waiting for owner approval.");
+      return;
+    }
+    const source = this.lastUserTalk();
+    if (!source) {
+      this.toast("The Plan preview has no source conversation to save.");
+      return;
+    }
+    setInputValue(this.document, "#talk-input", `Draft a plan to save this reviewed preview: ${source}`);
+    await this.sendTalk("talk", false);
+  }
+
+  private reduceCapabilityEvent(event: V197StreamEvent): void {
+    const lifecycleTypes: ReadonlySet<CapabilityEvent["type"]> = new Set([
+      "talk.scope.resolved",
+      "talk.capability.resolved",
+      "talk.preview.ready",
+      "workflow.proposed",
+      "workflow.approval.required",
+      "workflow.step.executed",
+      "workflow.completed",
+      "workflow.failed",
+    ]);
+    if (!lifecycleTypes.has(event.event as CapabilityEvent["type"])) return;
+    this.capabilityState = reduceCapabilityEvent(this.capabilityState, {
+      type: event.event as CapabilityEvent["type"],
+      payload: event.data,
+    });
+    this.renderCapabilityPanel();
+  }
+
+  private renderCapabilityPanel(): void {
+    const stream = this.document.querySelector<HTMLElement>("#talk-stream");
+    if (!stream) return;
+    const hasPreview = Boolean(this.capabilityState.preview);
+    const hasWorkflow = Boolean(this.capabilityState.workflowId);
+    if (!hasPreview && !hasWorkflow) return;
+
+    let panel = stream.querySelector<HTMLElement>("[data-f5-plan-preview]");
+    if (!panel) {
+      panel = this.document.createElement("section");
+      panel.dataset.f5PlanPreview = "true";
+      panel.className = "talk-capability-panel";
+      panel.setAttribute("aria-live", "polite");
+      const title = this.document.createElement("h3");
+      title.textContent = "Plan from Conversation";
+      const copy = this.document.createElement("p");
+      copy.dataset.f5PreviewCopy = "true";
+      const state = this.document.createElement("p");
+      state.dataset.f5WorkflowState = "true";
+      panel.append(title, copy, state);
+      stream.append(panel);
+    }
+    const copy = panel.querySelector<HTMLElement>("[data-f5-preview-copy]");
+    if (copy) copy.textContent = this.capabilityState.preview?.directResponse ?? "The reviewed Plan proposal is held for owner approval.";
+    const state = panel.querySelector<HTMLElement>("[data-f5-workflow-state]");
+    if (state) {
+      state.textContent = this.capabilityState.workflowState === "WAITING_APPROVAL"
+        ? "Workflow proposed · Owner approval required"
+        : this.capabilityState.workflowState === "PROPOSED"
+          ? "Workflow proposed · awaiting approval details"
+          : "Conversational preview · nothing has been saved";
+    }
+    const saveButton = this.document.querySelector<HTMLElement>('[data-thread-action="plan"]');
+    if (saveButton) {
+      saveButton.textContent = this.capabilityState.workflowId
+        ? "Save submitted · approval pending"
+        : "Save this Plan";
+      saveButton.setAttribute("aria-label", this.capabilityState.workflowId ? "Plan save submitted" : "Save this Plan");
+    }
   }
 
   private async togglePlanStep(control: HTMLElement): Promise<void> {
@@ -750,7 +840,7 @@ export class V197ActionBindings {
         this.universeWindow()?.nurOpenPage?.("journal");
         this.toast("Latest persisted Talk moved into a Journal draft.");
       } else if (action === "plan") {
-        void this.perform(thread, () => this.createPlan(this.lastUserTalk()));
+        void this.perform(thread, () => this.savePlanFromPreview());
       } else if (action === "glow") {
         const row = [...this.snapshot.talkThread].reverse().find(item => item.who === "user");
         if (!row) this.toast("There is no persisted Talk turn to Glow yet.");

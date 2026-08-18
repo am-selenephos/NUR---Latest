@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -220,3 +220,46 @@ class CognitiveResult(BaseModel):
     cost_estimate_cents: int = 0
     workflow_proposal: WorkflowProposal | None = None
     proposed_actions: list[str] = Field(default_factory=list)
+
+
+class CognitiveTaskPacketV2(CognitiveTaskPacket):
+    """Versioned Mind→Brain boundary with a lossless v1 projection."""
+
+    contract_version: Literal["cognitive-task-v2"] = "cognitive-task-v2"
+
+    @classmethod
+    def from_v1(cls, packet: CognitiveTaskPacket) -> "CognitiveTaskPacketV2":
+        return cls.model_validate(packet.model_dump())
+
+
+class CognitiveResultV2(CognitiveResult):
+    """Versioned Brain→Mind result; visible response fields remain unchanged."""
+
+    contract_version: Literal["cognitive-result-v2"] = "cognitive-result-v2"
+
+    @classmethod
+    def from_v1(cls, *, task_id: uuid.UUID, result: dict[str, Any]) -> "CognitiveResultV2":
+        return cls.model_validate({"task_id": task_id, **result})
+
+
+class WorkflowProposalV2(WorkflowProposal):
+    """Canonical proposal version with an explicit Agency projection."""
+
+    contract_version: Literal["workflow-proposal-v2"] = "workflow-proposal-v2"
+
+    @classmethod
+    def from_v1(cls, proposal: WorkflowProposal) -> "WorkflowProposalV2":
+        return cls.model_validate(proposal.model_dump())
+
+    def to_agency_steps(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "key": step.key or f"step-{index}",
+                "role": "operator",
+                "tool_key": step.tool_key,
+                "depends_on": list(step.dependencies),
+                "input_refs": dict(step.arguments),
+                "rationale": step.description,
+            }
+            for index, step in enumerate(self.steps, start=1)
+        ]

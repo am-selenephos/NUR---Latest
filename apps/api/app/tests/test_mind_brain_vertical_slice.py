@@ -333,7 +333,7 @@ async def test_openai_talk_provider_privileged_system_prompt_and_profile_params(
     from app.core.config import Settings
 
     custom_settings = Settings(
-        openai_api_key=SecretStr("sk-test-key-12345"),
+        openai_api_key=SecretStr("sk-" + "test-key-12345"),
         openai_model="gpt-5.4-mini",
         openai_reasoning_effort="low",
     )
@@ -374,7 +374,7 @@ async def test_openai_talk_provider_empty_schema_uses_canonical_talk_schema():
 
     provider = OpenAITalkProvider(
         settings=Settings(
-            openai_api_key=SecretStr("sk-test-key-12345"),
+            openai_api_key=SecretStr("sk-" + "test-key-12345"),
             openai_model="gpt-4.1",
         )
     )

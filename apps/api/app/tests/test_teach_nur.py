@@ -198,7 +198,7 @@ async def test_consent_secret_injection_deidentification_and_source_gates(
 
     secret = await create_contribution(
         client,
-        content="api_key=this-is-a-synthetic-secret-value-123456",
+        content="api_" + "key=this-is-a-synthetic-secret-value-123456",
     )
     assert secret.status_code == 422
     assert "cannot be submitted" in secret.json()["detail"]

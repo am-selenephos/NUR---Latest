@@ -68,6 +68,29 @@ describe("V197 semantic Talk stream", () => {
     );
   });
 
+  it("forwards capability and memory mode fields in the stream request", async () => {
+    document.cookie = "nur_csrf=csrf-test; path=/";
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(response([
+      { id: 1, event: "stream.open", data: { request_id: "request-capability" } },
+      { id: 2, event: "talk.completed", data: { durable: true, result: result() } },
+    ]));
+    const client = new V197StreamClient();
+
+    await client.talk({
+      request_id: "request-capability",
+      message: "Use this capability",
+      locale: "en",
+      writing_preference: "default",
+      capability_id: "capability:create_draft_plan",
+      memory_mode: "REVIEW",
+    });
+
+    expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toMatchObject({
+      capability_id: "capability:create_draft_plan",
+      memory_mode: "REVIEW",
+    });
+  });
+
   it("reconnects once with the same request and Last-Event-ID", async () => {
     document.cookie = "nur_csrf=csrf-test; path=/";
     const fetch = vi.spyOn(globalThis, "fetch")

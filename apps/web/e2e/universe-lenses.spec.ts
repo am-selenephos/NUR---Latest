@@ -39,7 +39,7 @@ async function assertNoHorizontalOverflow(frame: FrameLocator) {
   expect(widths.scroll).toBeLessThanOrEqual(widths.client + 2);
 }
 
-test("Universe topbar routes to distinct canonical lenses and searches the owner ledger", async ({ page }) => {
+test("Universe topbar routes to each dedicated canonical surface", async ({ page }) => {
   const frame = await authenticate(page);
   await page.goto("/universe");
   await expect(frame.locator("#page-systems")).toBeVisible();
@@ -48,23 +48,15 @@ test("Universe topbar routes to distinct canonical lenses and searches the owner
     { label: "Map", route: "/universe/map", focus: "map", root: "#nur-map-root" },
     { label: "Orbits", route: "/universe/orbits", focus: "orbits", root: "#nur-orbit-root" },
     { label: "Timeline", route: "/universe/timeline", focus: "timeline", root: "#nur-timeline-root" },
-    { label: "Insights", route: "/universe/insights", focus: "insights", root: "#page-systems" },
+    { label: "Insights", route: "/universe/insights", focus: "insights", root: "#nur-insights-root" },
   ] as const) {
     await frame.getByRole("tab", { name: lens.label, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${lens.route}$`));
     await expect(frame.locator("body")).toHaveAttribute("data-nur-world-focus", lens.focus);
     await expect(frame.locator(lens.root)).toBeVisible({ timeout: 20_000 });
-    if (lens.focus === "insights") {
-      await expect(frame.locator(".universe-insight-panel")).toHaveAttribute("data-nur-lens", lens.focus);
-    } else {
-      await expect(frame.locator(lens.root)).toHaveAttribute("data-v197-native-adjunct", "true");
-    }
+    await expect(frame.locator(lens.root)).toHaveAttribute("data-v197-native-adjunct", "true");
   }
 
-  await frame.locator("#universe-search").fill("Postgres");
-  await frame.locator("#universe-search").press("Enter");
-  await expect(frame.locator("#universe-research .research-results"))
-    .toContainText("Postgres RLS is the trust boundary.");
 });
 
 test("dedicated Map controls breathe at 1280 without escaping the canonical host", async ({ page }) => {
@@ -91,7 +83,7 @@ test("dedicated Map controls breathe at 1280 without escaping the canonical host
   await expect(root.getByRole("tab", { name: "Focus", exact: true })).toHaveAttribute("aria-selected", "true");
 });
 
-test("timeline, research, web signals, and insights expose distinct persisted truth", async ({ page }) => {
+test("timeline and insights expose persisted truth while retired world routes return to Systems", async ({ page }) => {
   const frame = await authenticate(page);
 
   await page.goto("/universe/timeline");
@@ -101,20 +93,19 @@ test("timeline, research, web signals, and insights expose distinct persisted tr
   await expect(timeline).toContainText("The owner returned a visible outcome.");
 
   await page.goto("/universe/research");
-  await expect(frame.locator(".universe-insight-panel")).toHaveAttribute("data-nur-lens", "research");
-  await expect(frame.locator(".universe-system-lane")).toHaveAttribute("aria-label", "Owner research summary");
-  await expect(frame.locator(".universe-insight-panel")).toContainText("What source should verify this system?");
+  await expect(frame.locator(".universe-insight-panel")).toHaveAttribute("data-nur-lens", "system");
 
   await page.goto("/universe/web-signals");
-  await expect(frame.locator(".universe-insight-panel")).toHaveAttribute("data-nur-lens", "web");
-  await expect(frame.locator(".universe-system-lane")).toHaveAttribute("aria-label", "Owner web-signal staging summary");
-  await expect(frame.locator(".universe-insight-panel")).toContainText("No fetched web signal yet");
+  await expect(frame.locator(".universe-insight-panel")).toHaveAttribute("data-nur-lens", "system");
 
   await page.goto("/universe/insights");
-  await expect(frame.locator(".universe-insight-panel")).toContainText(
+  const insights = frame.locator("#nur-insights-root");
+  await expect(insights).toContainText(
     "Outcome evidence should strengthen planning patterns only after persisted results.",
   );
-  await expect(frame.locator("#nur-v197-insight-controls")).toBeVisible();
+  await expect(insights).toHaveAttribute("data-insights-loaded", "true");
+  await expect(insights).toHaveAttribute("data-nur-brain-surface", "none");
+  await expect(frame.locator("#nur-brain-canvas")).toBeHidden();
 });
 
 test("mobile map first viewport is usable, not clipped", async ({ page }) => {

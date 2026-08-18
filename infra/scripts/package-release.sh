@@ -155,9 +155,13 @@ skip_names = {
 }
 skip_prefixes = ("BUILD_WEEK", "COU" + "SIN_", "FABLE_")
 secret_patterns = [
-    re.compile(rb"sk-[A-Za-z0-9_-]{16,}"),
+    # Provider keys begin at a token boundary; do not match the `sk-` in
+    # ordinary words such as `risk-management`.
+    re.compile(rb"(?<![A-Za-z0-9])sk-[A-Za-z0-9_-]{16,}"),
     re.compile(rb"(?i)authorization:\s*bearer\s+[A-Za-z0-9._~+/=-]{12,}"),
-    re.compile(rb"(?i)(?:openai_api_key|api[_-]?key|secret[_-]?key)\s*[=:]\s*[\"']?[A-Za-z0-9._~+/=-]{12,}"),
+    # Require a literal value; do not flag safe source expressions such as
+    # api_key=settings.openai_api_key.get_secret_value().
+    re.compile(rb"(?i)(?:openai_api_key|api[_-]?key|secret[_-]?key)\s*[=:]\s*[\"']?(?![A-Za-z_][A-Za-z0-9_]*\.)[A-Za-z0-9._~+/=-]{12,}"),
 ]
 
 

@@ -21,6 +21,12 @@
 
 import ORBIT_CSS from "../styles/v197-orbit.css?raw";
 import { markV197HolographicWordmark } from "./v197Brand";
+import {
+  cancelV197SearchCommit,
+  captureV197SearchFocus,
+  restoreV197SearchFocus,
+  scheduleV197SearchCommit,
+} from "./v197SearchInput";
 import { createV197StartupStar } from "./v197StarSeal";
 import { claimV197SurfaceHost, releaseV197SurfaceHost } from "./v197SurfaceHost";
 import type { V197ApiClient } from "./v197ApiClient";
@@ -28,6 +34,8 @@ import type { V197ApiClient } from "./v197ApiClient";
 const ROOT_ID = "nur-orbit-root";
 const STYLE_ID = "nur-orbit-style";
 const BODY_CLASS = "nur-v197-orbit-active";
+const SEARCH_KEY = "orbit";
+const SEARCH_SELECTOR = ".nur-orbit-search";
 
 export const ORBIT_ROUTE = "/universe/orbits";
 
@@ -326,7 +334,9 @@ function orbitHeader(doc: Document, state: OrbitState, actions: Actions): HTMLEl
   search.placeholder = "Search people, groups, plans or threads";
   search.setAttribute("aria-label", "Search people, groups, plans or threads");
   search.value = state.query;
-  search.addEventListener("input", () => actions.setQuery(search.value));
+  search.addEventListener("input", () => {
+    scheduleV197SearchCommit(doc, SEARCH_KEY, search.value, actions.setQuery);
+  });
   header.append(search);
 
   if (state.view !== "orbit") {
@@ -1177,6 +1187,7 @@ const EMPTY_FIELD: OrbitField = {
 export async function renderV197Orbit(
   doc: Document, route: string, api: V197ApiClient,
 ): Promise<boolean> {
+  cancelV197SearchCommit(doc, SEARCH_KEY);
   if (route !== ORBIT_ROUTE) {
     doc.body.classList.remove(BODY_CLASS);
     doc.getElementById(ROOT_ID)?.remove();
@@ -1304,6 +1315,7 @@ export async function renderV197Orbit(
   }
 
   function paint(): void {
+    const searchFocus = captureV197SearchFocus(doc, SEARCH_SELECTOR);
     doc.getElementById(ROOT_ID)?.remove();
     const root = el(doc, "div");
     root.id = ROOT_ID;
@@ -1328,6 +1340,7 @@ export async function renderV197Orbit(
 
     root.append(shell);
     host.append(root);
+    restoreV197SearchFocus(root, SEARCH_SELECTOR, searchFocus);
   }
 
   paint();

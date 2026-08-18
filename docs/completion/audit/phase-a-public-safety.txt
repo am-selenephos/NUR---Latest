@@ -1,0 +1,8 @@
+=== SECRET SCAN ===
+Secret scan passed: no OpenAI key, bearer token, or key assignment pattern found in scanned artifacts.
+=== BRANCH-SPECIFIC DIRECT PROVIDER / RUNTIME SIGNALS ===
+=== DUPLICATE FRONTEND RUNTIME / ROOT SIGNALS ===
+42:     await expect(page.locator("#root")).toHaveCount(0);
+=== WORKTREE STATUS ===
+[31m??[m docs/completion/MANUS_COMPLETION_LEDGER.csv
+[31m??[m docs/completion/audit/

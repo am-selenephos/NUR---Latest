@@ -14,7 +14,9 @@
     "v197:integrity": "bash infra/scripts/check-v197-integrity.sh",
     "web:e2e:mocked": "npm --workspace apps/web run e2e -- e2e/talk.spec.ts e2e/visual-readiness.spec.ts --project=chromium-desktop --project=chromium-mobile --workers=1",
     "mobile:typecheck": "npm --prefix apps/mobile run typecheck",
-    "proof-hygiene": "node infra/scripts/check-proof-hygiene.mjs"
+    "proof-hygiene": "node infra/scripts/check-proof-hygiene.mjs",
+    "api:openapi-drift": "python3 infra/scripts/check_openapi_drift.py --json",
+    "api:openapi-drift:test": "python3 -m unittest -v infra/scripts/test_check_openapi_drift.py"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

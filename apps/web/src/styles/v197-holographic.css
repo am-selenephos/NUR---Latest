@@ -348,6 +348,12 @@ body.universe-edition #journal-input {
   resize: none !important;
 }
 
+/* The owner asked to remove this duplicate visual prompt. Its ledger-backed
+   text stays in the DOM for hydration and existing persistence contracts. */
+#nur-front-v61 #page-journal .journal-prompt {
+  display: none !important;
+}
+
 body.universe-edition .talk-composer,
 body.universe-edition .journal-tools {
   flex: 0 0 auto !important;
