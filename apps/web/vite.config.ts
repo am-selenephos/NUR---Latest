@@ -24,6 +24,8 @@ const nativeV197Routes = new Set([
   "/universe/timeline",
   "/universe/insights",
   "/universe/insights/candidates",
+  "/universe/consultation",
+  "/universe/community",
   "/settings",
   "/memory",
   "/teach-nur",
@@ -35,9 +37,7 @@ const nativeV197Routes = new Set([
 ]);
 
 const retiredUniverseRoutes = [
-  "/universe/consultation",
   "/universe/research",
-  "/universe/community",
   "/universe/experts",
   "/universe/web-signals",
 ] as const;
@@ -56,6 +56,10 @@ function isNativeV197Route(value: string): boolean {
     || value.startsWith("/journal/")
     || value.startsWith("/plan/")
     || value.startsWith("/systems/")
+    || value === "/universe/consultation"
+    || value.startsWith("/universe/consultation/")
+    || value === "/universe/community"
+    || value.startsWith("/universe/community/")
     || value === "/universe/life"
     || value.startsWith("/universe/insights/candidates/")
     || value.startsWith("/capsule/")

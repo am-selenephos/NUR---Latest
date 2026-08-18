@@ -51,6 +51,18 @@ class SourceStatus(enum.StrEnum):
     TRUNCATED = "TRUNCATED"
 
 
+class SemanticHydrationResult(BaseModel):
+    """Owner-scoped semantic families included in a Brain context packet."""
+    approved_memory: list[dict[str, Any]] = Field(default_factory=list)
+    memory_candidates: list[dict[str, Any]] = Field(default_factory=list)
+    beliefs: list[dict[str, Any]] = Field(default_factory=list)
+    user_model_claims: list[dict[str, Any]] = Field(default_factory=list)
+    research_results: list[dict[str, Any]] = Field(default_factory=list)
+    semantic_context: list[dict[str, Any]] = Field(default_factory=list)
+    manifest: ContextManifest
+    estimated_tokens: int = 0
+
+
 class HydratedCapabilityContext(BaseModel):
     """Container for progressively hydrated context bound to a capability run."""
     capability_id: str
@@ -63,6 +75,12 @@ class HydratedCapabilityContext(BaseModel):
     timeline_events: list[dict[str, Any]] = Field(default_factory=list)
     today_state: dict[str, Any] | None = None
     orbit_context: dict[str, Any] | None = None
+    approved_memory: list[dict[str, Any]] = Field(default_factory=list)
+    memory_candidates: list[dict[str, Any]] = Field(default_factory=list)
+    beliefs: list[dict[str, Any]] = Field(default_factory=list)
+    user_model_claims: list[dict[str, Any]] = Field(default_factory=list)
+    research_results: list[dict[str, Any]] = Field(default_factory=list)
+    semantic_context: list[dict[str, Any]] = Field(default_factory=list)
     source_statuses: dict[str, str] = Field(default_factory=dict)
     hydration_report: HydrationReport | None = None
     estimated_tokens: int = 0
@@ -84,6 +102,71 @@ class ContextHydrator:
     """Progressive context hydration engine tailored by CapabilitySpec recipes."""
 
     @staticmethod
+    def hydrate_semantic_sources(
+        scope_envelope: ScopeEnvelope,
+        *,
+        approved_memory: list[dict[str, Any]],
+        memory_candidates: list[dict[str, Any]],
+        beliefs: list[dict[str, Any]],
+        user_model_claims: list[dict[str, Any]],
+        research_results: list[dict[str, Any]],
+        semantic_context: list[dict[str, Any]],
+        token_budget: int,
+    ) -> SemanticHydrationResult:
+        owner = str(scope_envelope.owner_user_id)
+
+        def owned(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            return [item for item in items if str(item.get("owner_user_id")) == owner]
+
+        approved = [
+            item for item in owned(approved_memory)
+            if str(item.get("status", "APPROVED")).upper() in {"APPROVED", "OWNER_APPROVED"}
+        ]
+        # Candidates are always excluded from Brain context even when owner-scoped.
+        excluded_candidate = owned(memory_candidates)
+        families = {
+            "approved_memory": approved,
+            "beliefs": owned(beliefs),
+            "user_model": owned(user_model_claims),
+            "research": owned(research_results),
+            "semantic_context": owned(semantic_context),
+        }
+        included: list[ContextSource] = []
+        excluded: list[ContextSource] = []
+        used = 0
+        output: dict[str, list[dict[str, Any]]] = {key: [] for key in families}
+        for key, items in families.items():
+            for item in items:
+                cost = _estimate_tokens(item)
+                if used + cost > max(0, token_budget):
+                    excluded.append(ContextSource(kind=key, id=str(item.get("id", "unknown")), reason="token budget"))
+                    continue
+                output[key].append(item)
+                used += cost
+                included.append(ContextSource(kind=key, id=str(item.get("id", "unknown")), reason="owner-scoped semantic source"))
+        for item in excluded_candidate:
+            excluded.append(ContextSource(kind="memory_candidates", id=str(item.get("id", "unknown")), reason="unapproved candidate excluded"))
+        for key, items in families.items():
+            if not items:
+                excluded.append(ContextSource(kind=key, id="none", reason="no source supplied"))
+        return SemanticHydrationResult(
+            approved_memory=output["approved_memory"],
+            memory_candidates=[],
+            beliefs=output["beliefs"],
+            user_model_claims=output["user_model"],
+            research_results=output["research"],
+            semantic_context=output["semantic_context"],
+            manifest=ContextManifest(
+                scope_statement=scope_envelope.reason or "owner-scoped semantic context",
+                included=included,
+                excluded=excluded,
+                token_budget=max(0, token_budget),
+                token_used=used,
+            ),
+            estimated_tokens=used,
+        )
+
+    @staticmethod
     async def hydrate(
         db: AsyncSession,
         *,
@@ -93,6 +176,7 @@ class ContextHydrator:
         query: str,
         orbit_id: uuid.UUID | None = None,
         trigger_event_id: uuid.UUID | None = None,
+        semantic_inputs: dict[str, list[dict[str, Any]]] | None = None,
     ) -> HydratedCapabilityContext:
         """Execute the capability's recipe to collect only necessary context sections."""
         if scope_envelope is None:
@@ -110,6 +194,16 @@ class ContextHydrator:
         effective_orbit_id = orbit_id or scope_envelope.orbit_id
         recipe = capability.hydration_recipe
 
+        semantic = ContextHydrator.hydrate_semantic_sources(
+            scope_envelope,
+            approved_memory=(semantic_inputs or {}).get("approved_memory", []),
+            memory_candidates=(semantic_inputs or {}).get("memory_candidates", []),
+            beliefs=(semantic_inputs or {}).get("beliefs", []),
+            user_model_claims=(semantic_inputs or {}).get("user_model_claims", []),
+            research_results=(semantic_inputs or {}).get("research_results", []),
+            semantic_context=(semantic_inputs or {}).get("semantic_context", []),
+            token_budget=remaining_budget if "remaining_budget" in locals() else recipe.max_total_tokens,
+        )
         source_results: dict[str, HydrationSourceResult] = {}
         issues: list[HydrationIssue] = []
         source_statuses: dict[str, str] = {}
@@ -577,6 +671,15 @@ class ContextHydrator:
             truncated_sources=tuple(truncated_sources),
         )
 
+        if semantic_inputs:
+            manifest = ContextManifest(
+                scope_statement=manifest.scope_statement,
+                included=manifest.included + semantic.manifest.included,
+                excluded=manifest.excluded + semantic.manifest.excluded,
+                token_budget=manifest.token_budget,
+                token_used=manifest.token_used + semantic.estimated_tokens,
+            )
+
         return HydratedCapabilityContext(
             capability_id=capability.capability_id,
             scope_envelope=scope_envelope,
@@ -588,7 +691,13 @@ class ContextHydrator:
             timeline_events=timeline_events,
             today_state=today_state,
             orbit_context=orbit_context,
+            approved_memory=semantic.approved_memory,
+            memory_candidates=semantic.memory_candidates,
+            beliefs=semantic.beliefs,
+            user_model_claims=semantic.user_model_claims,
+            research_results=semantic.research_results,
+            semantic_context=semantic.semantic_context,
             source_statuses=source_statuses,
             hydration_report=report,
-            estimated_tokens=total_tokens_used,
+            estimated_tokens=total_tokens_used + semantic.estimated_tokens,
         )

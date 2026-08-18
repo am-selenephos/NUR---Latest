@@ -1218,13 +1218,32 @@ function ensureUniversePortal(
 
 function renderCommunity(document: Document, snapshot: V197BridgeSnapshot): void {
   const rooms = (snapshot.communityRooms ?? []).filter(room => room.status === "ACTIVE");
+  let host = document.querySelector<HTMLElement>("#universe-community");
+  if (!host) {
+    const systems = document.querySelector<HTMLElement>("#page-systems");
+    const insertionPoint = systems?.querySelector<HTMLElement>(".universe-lower-grid") ?? systems;
+    if (insertionPoint) {
+      host = document.createElement("section");
+      host.id = "universe-community";
+      host.className = "universe-card";
+      const head = document.createElement("div");
+      head.className = "universe-card-head";
+      const heading = document.createElement("h2");
+      head.append(heading);
+      const items = document.createElement("div");
+      items.className = "community-items";
+      host.append(head, items);
+      insertionPoint.append(host);
+    }
+  }
+  if (!host) return;
   text(
-    document.querySelector("#universe-community .universe-card-head h2"),
+    host.querySelector(".universe-card-head h2"),
     rooms.length
       ? `${rooms.length} bounded ${rooms.length === 1 ? "room" : "rooms"} · persisted Group NUR.`
       : "No rooms yet. Create one bounded room to open Group NUR.",
   );
-  const community = document.querySelector<HTMLElement>("#universe-community .community-items");
+  const community = host.querySelector<HTMLElement>(".community-items");
   if (community) {
     empty(community);
     if (rooms.length === 0) {

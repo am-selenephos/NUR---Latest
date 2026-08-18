@@ -28,6 +28,7 @@ import datetime as dt
 from dataclasses import dataclass, field
 
 from app.agentic.enums import StepState
+from app.agentic.limits import DAGExecutionLimits, validate_dag_limits
 from app.agentic.policy import Decision, OwnerPolicy, PolicyVerdict, evaluate
 from app.agentic.registry import UnknownToolError, contract, spec
 
@@ -119,12 +120,36 @@ def compile_plan(
     *,
     within_scope: bool = True,
     now: dt.datetime | None = None,
+    limits: DAGExecutionLimits | None = None,
+    elapsed_seconds: float = 0.0,
+    cancellation_requested: bool = False,
 ) -> CompileResult:
     errors: list[CompileError] = []
     policy_now = now or dt.datetime.now(dt.timezone.utc)
 
     if not proposed:
         return CompileResult(False, errors=(CompileError("EMPTY_PLAN", "A plan needs at least one step."),))
+
+    if limits is not None:
+        limit_result = validate_dag_limits(
+            [
+                {
+                    "key": step.key,
+                    "depends_on": list(step.depends_on),
+                    "estimated_tokens": step.input_refs.get("estimated_tokens", 0),
+                    "estimated_cost_cents": step.input_refs.get("estimated_cost_cents", 0),
+                    "failed": step.input_refs.get("failed", False),
+                }
+                for step in proposed
+            ],
+            limits=limits,
+            elapsed_seconds=elapsed_seconds,
+            cancellation_requested=cancellation_requested,
+        )
+        errors.extend(
+            CompileError("DAG_LIMIT", f"Agency DAG limit violated: {violation}")
+            for violation in limit_result.violations
+        )
 
     keys = [s.key for s in proposed]
     duplicates = {k for k in keys if keys.count(k) > 1}

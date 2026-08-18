@@ -26,6 +26,9 @@ test("bounded Community room and message persist through exact V197 controls", a
   test.setTimeout(90_000);
   const universe = await signIn(page);
 
+  await universe.locator('nav [data-page="systems"]').first().click();
+  await expect(page).toHaveURL(/\/systems$/);
+  await expect(universe.locator("#page-systems")).toBeVisible();
   await universe.locator('[data-world-tab="community"], [data-world-focus="community"]').first().click();
   await expect(page).toHaveURL(/\/universe\/community$/);
   await expect(universe.locator("#nur-v197-community-controls")).toBeVisible();
@@ -71,10 +74,10 @@ test("bounded Community room and message persist through exact V197 controls", a
   // Membership grant to the second seeded demo account — the room becomes
   // genuinely multi-user through the V197 surface.
   await universe.locator("#nur-v197-member-email").fill("recipient@nur.app");
-  const memberResponse = page.waitForResponse(response =>
-    response.url().includes("/members") && response.status() === 201);
+  const memberResponse = page.waitForResponse(response => response.url().includes("/members"));
   await universe.locator('[data-adjunct-action="community-member-add"]').click();
-  await memberResponse;
+  const memberResult = await memberResponse;
+  expect(memberResult.status()).toBe(201);
 
   // Council flow: start a Council, persist a position, record the decision.
   const councilTitle = `Recovery council ${Date.now()}`;

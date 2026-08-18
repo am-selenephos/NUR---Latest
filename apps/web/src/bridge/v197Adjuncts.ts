@@ -3394,8 +3394,12 @@ export async function renderV197Adjunct(
     || route.startsWith("/universe/insights/candidates/")
     || route === "/consultations"
     || route.startsWith("/consultations/")
+    || route === "/universe/consultation"
+    || route.startsWith("/universe/consultation/")
     || route === "/community"
+    || route === "/universe/community"
     || route.startsWith("/community/")
+    || route.startsWith("/universe/community/")
     || route === "/projects"
     || route.startsWith("/projects/")
     || route === "/glow"
@@ -3430,12 +3434,16 @@ export async function renderV197Adjunct(
     else if (route === "/agents") await renderAgents(document, api, session);
     else if (route.startsWith("/agents/")) await renderAgenticDetail(document, api, session, decodeURIComponent(route.slice("/agents/".length)));
     else if (route.startsWith("/capsule/")) await renderCapsule(document, api, decodeURIComponent(route.slice("/capsule/".length)));
-    else if (route === "/consultations") await renderConsultationIndex(document, api, session.orbit.id);
+    else if (route === "/consultations" || route === "/universe/consultation") await renderConsultationIndex(document, api, session.orbit.id);
     else if (route.startsWith("/consultations/")) await renderConsultationDetail(document, api, decodeURIComponent(route.split("/")[2] ?? ""));
+    else if (route.startsWith("/universe/consultation/")) await renderConsultationDetail(document, api, decodeURIComponent(route.split("/")[3] ?? ""));
     else if (route === "/universe/insights/candidates" || route.startsWith("/universe/insights/candidates/")) await renderCandidateInsights(document, api);
     else if (route.startsWith("/community/room/")) await renderCommunityRoom(document, api, decodeURIComponent(route.split("/")[3] ?? ""));
+    else if (route.startsWith("/universe/community/room/")) await renderCommunityRoom(document, api, decodeURIComponent(route.split("/")[4] ?? ""));
     else if (route.startsWith("/community/post/")) await renderCommunityPost(document, api, decodeURIComponent(route.split("/")[3] ?? ""));
-    else if (route === "/community" || route.startsWith("/community/")) await renderCommunityIndex(document, api, route);
+    else if (route.startsWith("/universe/community/post/")) await renderCommunityPost(document, api, decodeURIComponent(route.split("/")[4] ?? ""));
+    else if (route === "/community" || route === "/universe/community" || route.startsWith("/community/")) await renderCommunityIndex(document, api, route);
+    else if (route.startsWith("/universe/community/")) await renderCommunityIndex(document, api, route);
     else if (route === "/projects" || route === "/projects/new") await renderProjectsIndex(document, api);
     else if (route.startsWith("/projects/")) await renderProjectDetail(document, api, decodeURIComponent(route.split("/")[2] ?? ""), route);
     else if (route === "/glow") {

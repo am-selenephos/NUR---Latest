@@ -60,9 +60,7 @@ declare global {
 function nativeRoute(pathname: string): V197NativeRoute {
   const value = pathname.replace(/\/+$/, "") || "/";
   if ([
-    "/universe/consultation",
     "/universe/research",
-    "/universe/community",
     "/universe/experts",
     "/universe/web-signals",
   ].some(route => value === route || value.startsWith(`${route}/`))) {

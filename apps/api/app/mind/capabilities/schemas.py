@@ -35,6 +35,11 @@ KNOWN_CONTEXT_SOURCE_KEYS = frozenset({
     "timeline",
     "today_state",
     "orbit_context",
+    "approved_memory",
+    "beliefs",
+    "user_model",
+    "research",
+    "semantic_context",
 })
 
 

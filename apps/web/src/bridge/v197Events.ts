@@ -101,6 +101,8 @@ const worldRoutes: Record<string, V197NativeRoute> = {
   orbits: "/universe/orbits",
   timeline: "/universe/timeline",
   insights: "/universe/insights/candidates",
+  community: "/universe/community",
+  consult: "/universe/consultation",
 };
 
 const worldTabRoutes: Record<string, V197NativeRoute> = Object.fromEntries(

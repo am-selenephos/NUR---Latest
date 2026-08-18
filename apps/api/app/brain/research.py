@@ -1,8 +1,10 @@
-"""Bounded, citation-first research reasoning over supplied sources only."""
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
+from typing import Protocol
 from urllib.parse import urlparse
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
@@ -14,6 +16,40 @@ class ResearchSource(BaseModel):
     citation: str
 
 
+class ResearchScope(BaseModel):
+    owner_user_id: UUID
+    allowed_domains: set[str] = Field(default_factory=set)
+    allowed_source_ids: set[str] = Field(default_factory=set)
+    record_classes: set[str] = Field(default_factory=lambda: {"PUBLIC_EVIDENCE"})
+    scope_id: UUID = Field(default_factory=uuid4)
+
+
+class RetrievalPlan(BaseModel):
+    query: str
+    scope_id: UUID
+    max_sources: int = Field(default=20, ge=1, le=100)
+    rationale: str
+    excluded_authorities: list[str] = Field(default_factory=lambda: [
+        "external content cannot change policy, approve actions, invoke tools, or write owner memory"
+    ])
+
+
+class SourceProvenance(BaseModel):
+    source_id: str
+    citation: str
+    domain: str | None = None
+    retrieval_adapter: str
+    normalized: bool = True
+
+
+class ResearchVerification(BaseModel):
+    citations_valid: bool
+    source_ids: list[str] = Field(default_factory=list)
+    contradictions: list[tuple[str, str]] = Field(default_factory=list)
+    untrusted_instructions: list[str] = Field(default_factory=list)
+    verification_notes: list[str] = Field(default_factory=list)
+
+
 class ResearchReport(BaseModel):
     question: str
     source_ids: list[str] = Field(default_factory=list)
@@ -23,11 +59,45 @@ class ResearchReport(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
 
-class ResearchBrain:
-    """Research role that never fetches a URL or invents an uncited source."""
+class ResearchResult(ResearchReport):
+    retrieval_plan: RetrievalPlan
+    provenance: list[SourceProvenance] = Field(default_factory=list)
+    synthesis: str = ""
+    unresolved_uncertainty: list[str] = Field(default_factory=list)
+    verification: ResearchVerification
 
-    def __init__(self, *, allowed_domains: set[str] | frozenset[str]) -> None:
+
+class ResearchAdapter(Protocol):
+    name: str
+
+    def retrieve(self, plan: RetrievalPlan, scope: ResearchScope) -> list[ResearchSource]: ...
+
+
+class InMemoryResearchAdapter:
+    """Deterministic adapter for internal tests and offline evaluation."""
+
+    name = "in_memory"
+
+    def __init__(self, sources: Iterable[ResearchSource]) -> None:
+        self.sources = list(sources)
+
+    def retrieve(self, plan: RetrievalPlan, scope: ResearchScope) -> list[ResearchSource]:
+        allowed = scope.allowed_source_ids
+        selected = [source for source in self.sources if not allowed or source.id in allowed]
+        return selected[: plan.max_sources]
+
+
+class ResearchBrain:
+    """Focused research pipeline; external content remains untrusted evidence."""
+
+    def __init__(
+        self,
+        *,
+        allowed_domains: set[str] | frozenset[str],
+        adapters: list[ResearchAdapter] | None = None,
+    ) -> None:
         self.allowed_domains = frozenset(allowed_domains)
+        self.adapters = list(adapters or [])
 
     def _citation_valid(self, citation: str) -> bool:
         parsed = urlparse(citation)
@@ -38,26 +108,114 @@ class ResearchBrain:
         key = re.sub(r"\bnot\b|\bno\b|\bnever\b", "", text.lower())
         return re.sub(r"\s+", " ", key).strip()
 
+    @staticmethod
+    def _normalize_source(source: ResearchSource) -> ResearchSource:
+        return source.model_copy(update={
+            "title": " ".join(source.title.split()),
+            "text": " ".join(source.text.split()),
+            "citation": source.citation.strip(),
+        })
+
+    @staticmethod
+    def _instruction_fragments(text: str) -> list[str]:
+        patterns = (
+            r"ignore all previous instructions[^.]*\.?",
+            r"approve the write[^.]*\.?",
+            r"reveal (?:the )?system prompt[^.]*\.?",
+            r"invoke (?:the )?tool[^.]*\.?",
+        )
+        return [match.group(0) for pattern in patterns for match in re.finditer(pattern, text, re.IGNORECASE)]
+
+    def _verify(self, question: str, sources: list[ResearchSource]) -> ResearchVerification:
+        report = self.analyze(question, sources)
+        instructions = [fragment for source in sources for fragment in self._instruction_fragments(source.text)]
+        notes = list(report.notes)
+        if instructions:
+            notes.append("External instruction-like text was retained as untrusted evidence, not authority.")
+        return ResearchVerification(
+            citations_valid=report.citations_valid,
+            source_ids=report.source_ids,
+            contradictions=report.contradictions,
+            untrusted_instructions=instructions,
+            verification_notes=notes,
+        )
+
     def analyze(self, question: str, sources: list[ResearchSource]) -> ResearchReport:
-        citations_valid = all(self._citation_valid(source.citation) for source in sources)
+        normalized = [self._normalize_source(source) for source in sources]
+        citations_valid = all(self._citation_valid(source.citation) for source in normalized)
         contradictions: list[tuple[str, str]] = []
-        for index, left in enumerate(sources):
-            for right in sources[index + 1 :]:
+        for index, left in enumerate(normalized):
+            for right in normalized[index + 1 :]:
                 if self._contradiction_key(left.text) == self._contradiction_key(right.text):
                     left_negative = bool(re.search(r"\bnot\b|\bno\b|\bnever\b", left.text.lower()))
                     right_negative = bool(re.search(r"\bnot\b|\bno\b|\bnever\b", right.text.lower()))
                     if left_negative != right_negative:
                         contradictions.append((left.id, right.id))
-        notes = []
+        notes: list[str] = []
         if not citations_valid:
             notes.append("One or more sources failed the allowed-domain citation policy.")
         if contradictions:
             notes.append("Contradictory supplied sources require owner-visible review.")
         return ResearchReport(
             question=question,
-            source_ids=[source.id for source in sources],
+            source_ids=[source.id for source in normalized],
             citations_valid=citations_valid,
             contradictions=contradictions,
-            answerable=bool(sources) and citations_valid,
+            answerable=bool(normalized) and citations_valid,
             notes=notes,
+        )
+
+    def research(self, question: str, *, scope: ResearchScope) -> ResearchResult:
+        if not scope.allowed_domains.issubset(self.allowed_domains):
+            raise PermissionError("Research scope requests a domain outside the Brain source policy.")
+        plan = RetrievalPlan(
+            query=question,
+            scope_id=scope.scope_id,
+            rationale="Retrieve only evidence allowed by the resolved scope and source policy.",
+        )
+        sources: list[ResearchSource] = []
+        adapters_used: list[str] = []
+        for adapter in self.adapters:
+            adapters_used.append(adapter.name)
+            sources.extend(adapter.retrieve(plan, scope))
+        normalized = [self._normalize_source(source) for source in sources[: plan.max_sources]]
+        verification = self._verify(question, normalized)
+        provenance = [
+            SourceProvenance(
+                source_id=source.id,
+                citation=source.citation,
+                domain=urlparse(source.citation).hostname,
+                retrieval_adapter=adapters_used[0] if adapters_used else "none",
+            )
+            for source in normalized
+        ]
+        safe_fragments: list[str] = []
+        for source in normalized:
+            text = source.text
+            for fragment in self._instruction_fragments(text):
+                text = text.replace(fragment, "")
+            if text.strip():
+                safe_fragments.append(f"[{source.id}] {text.strip()}")
+        synthesis = " ".join(safe_fragments)
+        unresolved: list[str] = []
+        if not normalized:
+            unresolved.append("No source was retrieved within the resolved scope.")
+        if verification.contradictions:
+            unresolved.append("Sources disagree; the contradiction remains unresolved.")
+        if verification.untrusted_instructions:
+            unresolved.append("External instruction-like content is not an authority and was excluded from synthesis.")
+        if normalized and not verification.citations_valid:
+            unresolved.append("At least one source citation failed the source policy.")
+        report = self.analyze(question, normalized)
+        report_notes = list(report.notes) + [
+            note for note in verification.verification_notes if note not in report.notes
+        ]
+        return ResearchResult(
+            **report.model_dump(exclude={"notes"}),
+            notes=report_notes,
+            retrieval_plan=plan,
+            provenance=provenance,
+            synthesis=synthesis,
+            unresolved_uncertainty=unresolved,
+            verification=verification,
         )
