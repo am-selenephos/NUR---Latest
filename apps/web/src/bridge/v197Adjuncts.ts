@@ -64,6 +64,8 @@ const adjunctBackgrounds = new WeakMap<Document, AdjunctBackgroundState>();
 const UNIVERSE_CHAMBERS = [
   { route: "/universe", label: "Live Universe", glyph: "✦" },
   { route: "/universe/insights/candidates", label: "Candidates", glyph: "✧" },
+  { route: "/universe/consultation", label: "Consultation", glyph: "◌" },
+  { route: "/universe/community", label: "Community", glyph: "◎" },
 ] as const;
 
 type RefreshSnapshot = () => Promise<V197BridgeSnapshot>;

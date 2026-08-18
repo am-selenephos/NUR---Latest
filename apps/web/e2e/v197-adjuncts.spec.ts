@@ -250,18 +250,6 @@ test("dedicated Universe chambers fetch only their scoped owner data", async ({ 
       ],
     },
     {
-      route: "/universe/research",
-      title: "Research that shows its evidence.",
-      current: "⌕ Research",
-      requests: [
-        "GET /api/v1/auth/me",
-        "GET /api/v1/research/briefs",
-        "GET /api/v1/research/jobs",
-        "GET /api/v1/research/sources",
-        "GET /api/v1/research/claims",
-      ],
-    },
-    {
       route: "/universe/community",
       title: "Shared signal without private spill.",
       current: "◎ Community",
@@ -269,19 +257,6 @@ test("dedicated Universe chambers fetch only their scoped owner data", async ({ 
         "GET /api/v1/auth/me",
         "GET /api/v1/community/rooms",
         `GET /api/v1/community/rooms/${roomId}/posts`,
-      ],
-    },
-    {
-      route: "/universe/experts",
-      title: "Expert voice with provenance attached.",
-      current: "✣ Experts",
-      requests: [
-        "GET /api/v1/auth/me",
-        "GET /api/v1/experts/profiles",
-        "GET /api/v1/experts/verifications",
-        "GET /api/v1/community/rooms",
-        "GET /api/v1/research/sources",
-        `GET /api/v1/experts/rooms/${roomId}/contributions`,
       ],
     },
     {

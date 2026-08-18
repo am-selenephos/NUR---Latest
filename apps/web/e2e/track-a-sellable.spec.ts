@@ -344,11 +344,13 @@ test("Track A owner mutation loop uses exact V197 controls", async ({ page }, te
   await expect(timelineRoot).toContainText(outcomeLine);
   await universe.locator('[data-world-tab="insights"]').click();
   await expect(page).toHaveURL(/\/universe\/insights$/);
-  await expect(universe.locator(".universe-insight-panel")).toContainText("candidate claims");
-  // The owner review controls always render in this lens; they stay honestly
-  // disabled until a dedicated evidence-linked Insight exists to act on.
-  await expect(universe.locator("#nur-v197-insight-controls")).toBeVisible();
-  await expect(universe.locator('[data-action="insight-accept"]')).toHaveCount(1);
+  const insightsRoot = universe.locator("#nur-insights-root");
+  await expect(insightsRoot).toBeVisible();
+  await expect(insightsRoot).toHaveAttribute("data-v197-native-adjunct", "true");
+  await expect(insightsRoot).toContainText("Candidate claims");
+  // Review mutations belong to the dedicated Candidate Insights route; the
+  // aggregate Insights surface must not duplicate or invent owner controls.
+  await expect(universe.locator("#nur-v197-insight-controls")).toHaveCount(0);
   await expect(universe.locator("#toast")).not.toHaveClass(/show/, { timeout: 7_000 });
   await shot(page, "04-v197-real-insights-lens");
 
@@ -425,7 +427,9 @@ test("Track A persists across a fresh session and keeps the premium V197 map cle
   await page.setViewportSize({ width: 1600, height: 900 });
   await refreshed.locator('[data-page="systems"]:visible').first().click();
   await expect(refreshed.locator("#universe-search, #deep-research-button, #universe-research")).toHaveCount(0);
-  await expect(refreshed.locator("#universe-consult, #universe-community, .expert-card")).toHaveCount(0);
+  await expect(refreshed.locator("#universe-community")).toBeVisible();
+  await expect(refreshed.locator("#universe-community")).toContainText(/owner|local|persisted/i);
+  await expect(refreshed.locator(".expert-card")).toHaveCount(0);
   await refreshed.locator('[data-action="add-system"]').click();
   await expect(refreshed.locator("#nur-v197-system-create")).toBeVisible();
   await refreshed.locator("#nur-v197-system-title").fill(extraSystem);

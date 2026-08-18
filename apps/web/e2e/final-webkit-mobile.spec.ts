@@ -62,6 +62,7 @@ async function json(route: Route, body: unknown, status = 200) {
 
 async function installMocks(page: Page) {
   const thread: Array<{ id: string; who: "user" | "nur"; text: string; structured_payload: Record<string, unknown>; created_at: string }> = [];
+  await page.context().addCookies([{ name: "nur_csrf", value: "webkit-proof", domain: "localhost", path: "/" }]);
   await page.route("**/api/v1/auth/me", route => json(route, user));
   await page.route("**/api/v1/orbits/current-state", route => json(route, {
     active_systems: 1,
@@ -93,7 +94,7 @@ async function installMocks(page: Page) {
   await page.route("**/api/v1/capsules/cap-active/view", route => json(route, capsuleView("ACTIVE")));
   await page.route("**/api/v1/capsules/cap-revoked/view", route => json(route, capsuleView("REVOKED")));
   await page.route("**/api/v1/cognition/talk-thread**", route => json(route, thread));
-  await page.route("**/api/v1/cognition/talk", async route => {
+  await page.route("**/api/v1/cognition/talk/stream", async route => {
     const body = JSON.parse(route.request().postData() || "{}") as { message?: string };
     const output = {
       direct_response: "I saved this turn, but live AI is disabled on this server.",
@@ -115,7 +116,7 @@ async function installMocks(page: Page) {
         created_at: now,
       },
     );
-    return json(route, {
+    const result = {
       turn_event_id: "turn-1",
       response_event_id: "turn-2",
       model_run_id: "model-run-1",
@@ -133,9 +134,26 @@ async function installMocks(page: Page) {
         unresolved_predictions: ["If the owner returns an outcome..."],
         memory_note: "I can hold this as a hypothesis, not a fact.",
       },
-    });
+    };
+    const sse = [
+      `id: 1\nevent: talk.accepted\ndata: ${JSON.stringify({ event_id: "turn-1" })}`,
+      `id: 2\nevent: talk.validated\ndata: ${JSON.stringify({ event_id: "turn-1" })}`,
+      `id: 3\nevent: talk.completed\ndata: ${JSON.stringify({ result })}`,
+    ].join("\n\n") + "\n\n";
+    return route.fulfill({ status: 200, headers: { "content-type": "text/event-stream", "cache-control": "no-cache" }, body: sse });
   });
+  await page.route("**/api/v1/glow/rewards", route => json(route, {
+    id: "glow-talk-1",
+    event_type: "talk_meaningful",
+    source_kind: "COGNITIVE_EVENT",
+    source_id: "turn-1",
+    awarded_points: 0,
+    balance: 0,
+    idempotency_key: "talk:turn-1:meaningful",
+  }, 201));
   await page.route("**/api/v1/omega/dashboard", route => json(route, omegaDashboard()));
+  await page.route("**/api/v1/omega/scheduler-status", route => json(route, { enabled: true, scheduled_consolidation: true, interval_hours: 24, worker_mode: "local_celery_beat", last_consolidation_run_at: null, last_consolidation_status: "none_yet", provenance_label: "owner_ledger" }));
+  await page.route("**/api/v1/omega/review-queue", route => json(route, omegaDashboard().review_queue));
   await page.route("**/api/v1/omega/claims/*/evidence", route => json(route, [{
     id: "edge-1",
     claim_id: "claim-1",
@@ -163,6 +181,36 @@ async function installMocks(page: Page) {
     safety: { owner_only: true, chain_of_thought_excluded: true },
     counts: { claims: 1, review_queue: 1 },
     ...omegaDashboard(),
+  }));
+  await page.route("**/api/v1/universe/live", route => json(route, {
+    generated_at: now,
+    provenance_label: "OWNER_LEDGER_AGGREGATE",
+    owner: { id: user.id, email: user.email, chosen_name: "Selene", timezone: "UTC", locale: "en", writing_preference: "default", default_boundary: "PRIVATE_ORBIT" },
+    state: { summary: "One owner-ledger System is active.", source_count: 1, confidence: 1, confidence_kind: "source_coverage_not_truth_probability", last_updated: now, today: null, provenance_label: "DETERMINISTIC_OWNER_LEDGER_SYNTHESIS" },
+    active_systems: [],
+    active_goals: [],
+    active_objectives: [],
+    active_plans: [],
+    people_orbits: [],
+    group_orbits: [],
+    projects: [],
+    latest_insights: [],
+    timeline_highlights: [],
+    open_loops: [],
+    next_moves: [],
+    glow: { today_points: 0 },
+    signals: [],
+    community: { live_connected: false, status: "LOCAL_NOTES_ONLY", note_count: 0, latest_note: null, honest_state: "No live community activity is invented." },
+    what_changed: [],
+  }));
+  await page.route("**/api/v1/profile/preferences", route => json(route, {
+    locale: "en",
+    writing_preference: "default",
+    sound_enabled: false,
+    reduced_effects: true,
+    omega_enabled: true,
+    timezone: "UTC",
+    default_boundary: "PRIVATE_ORBIT",
   }));
 }
 
@@ -289,8 +337,8 @@ function omegaDashboard() {
   };
 }
 
-async function assertNoHorizontalOverflow(page: Page) {
-  const overflow = await page.evaluate(() => ({
+async function assertNoHorizontalOverflow(body: Locator) {
+  const overflow = await body.evaluate(() => ({
     documentScrollWidth: document.documentElement.scrollWidth,
     documentClientWidth: document.documentElement.clientWidth,
     bodyScrollWidth: document.body.scrollWidth,
@@ -320,55 +368,68 @@ test("final HOLD WebKit mobile proof covers Systems, Talk, Share Orbit, Omega, a
   await page.setViewportSize({ width: 393, height: 852 });
 
   await page.goto("/systems");
-  await expect(page.locator("#page-systems")).toBeVisible();
-  await assertNoHorizontalOverflow(page);
-  await expect(page.getByTestId("map-master-star")).toBeVisible();
-  await expect(page.getByTestId("map-subtitle")).toBeVisible();
-  if (await page.getByTestId("system-field-readout").isVisible()) {
-    const readoutBox = await page.getByTestId("system-field-readout").boundingBox();
+  const universe = page.frameLocator("#nur-universe-stage");
+  const universeBody = universe.locator("body");
+  const systemsPage = universe.locator("#page-systems");
+  await expect(systemsPage).toBeVisible();
+  await assertNoHorizontalOverflow(universeBody);
+  await expect(universe.locator(".universe-master-star")).toBeVisible();
+  await expect(universe.locator(".universe-map-title")).toBeVisible();
+  const readout = universe.locator(".universe-field-readout");
+  if (await readout.isVisible()) {
+    const readoutBox = await readout.boundingBox();
     expect(readoutBox?.x ?? -1).toBeGreaterThanOrEqual(0);
     expect((readoutBox?.x ?? 0) + (readoutBox?.width ?? 0)).toBeLessThanOrEqual(393);
   }
-  const titleBox = await page.getByTestId("map-subtitle").boundingBox();
+  const titleBox = await universe.locator(".universe-map-title").boundingBox();
   expect(titleBox?.x ?? -1).toBeGreaterThanOrEqual(0);
   expect((titleBox?.x ?? 0) + (titleBox?.width ?? 0)).toBeLessThanOrEqual(393);
-  const addSystem = page.getByTestId("pw-add-system");
+  const addSystem = universe.locator('[data-action="add-system"]');
   if (await addSystem.isVisible()) {
     const box = await addSystem.boundingBox();
     expect((box?.y ?? 999) + (box?.height ?? 0)).toBeLessThan(760);
   }
   await page.screenshot({ path: shot("webkit-mobile-systems-393x852.png"), fullPage: false });
 
-  await page.getByTestId("share-orbit").scrollIntoViewIfNeeded();
-  await page.getByTestId("share-orbit").click();
-  await expect(page.getByTestId("share-sheet")).toBeVisible();
-  await assertNotNativeWhite(page.getByTestId("new-decision"), "decision input");
-  await assertNotNativeWhite(page.getByTestId("keep-decision"), "decision keep control");
+  // The current V197 boundary chamber is the canonical Share Orbit affordance.
+  await universe.locator("#scope-open").scrollIntoViewIfNeeded();
+  await universe.locator("#scope-open").click();
+  const scopeModal = universe.locator("#scope-modal");
+  await expect(scopeModal).toHaveClass(/open/);
+  await expect(scopeModal).toHaveAttribute("aria-hidden", "false");
+  await assertNotNativeWhite(scopeModal.locator('.scope-option[data-scope="System Shared"]'), "System Shared boundary");
+  await expect(scopeModal).toContainText("Share pseudonymously in one selected Star System.");
   await page.screenshot({ path: shot("webkit-mobile-share-orbit-393x852.png"), fullPage: false });
+  await scopeModal.locator(".scope-modal-close").click();
+  await expect(scopeModal).toHaveAttribute("aria-hidden", "true");
 
   await page.goto("/talk");
-  await expect(page.locator("#page-talk")).toBeVisible();
-  await page.locator("#talk-input").fill("Hold this without fake AI.");
-  await page.getByRole("button", { name: "Send to NUR" }).click();
-  await expect(page.getByText("I saved this turn, but live AI is disabled on this server.")).toBeVisible();
-  await expect(page.getByLabel("Structured NUR response").getByText("AI provider is disabled.")).toBeVisible();
-  await assertNoHorizontalOverflow(page);
+  await expect(universe.locator("#page-talk")).toBeVisible();
+  await universe.locator("#talk-input").fill("Hold this without fake AI.");
+  await universe.getByRole("button", { name: "Send to NUR" }).click();
+  await expect(universe.getByText("I saved this turn, but live AI is disabled on this server.")).toBeVisible();
+  await expect(universe.locator("#toast")).toHaveText("AI provider is disabled.");
+  await assertNoHorizontalOverflow(universeBody);
   await page.screenshot({ path: shot("webkit-mobile-talk-393x852.png"), fullPage: false });
 
   await page.goto("/universe/omega");
-  await expect(page.getByTestId("omega-research-page")).toBeVisible();
-  await expect(page.getByTestId("omega-review-queue")).toContainText("owner confirmation gate");
-  await assertNoHorizontalOverflow(page);
+  const omega = universe.locator("#nur-v197-adjunct-root");
+  await expect(omega).toBeVisible();
+  await expect(omega).toContainText("Evidence changes the model, deliberately.");
+  await expect(omega).toContainText("sensitive inferences still require owner review.");
+  await assertNoHorizontalOverflow(universeBody);
   await page.screenshot({ path: shot("webkit-mobile-omega-393x852.png"), fullPage: false });
 
   await page.goto("/capsule/cap-active");
-  await expect(page.getByTestId("capsule-room")).toBeVisible();
-  await expect(page.getByTestId("capsule-state")).toHaveText("ACTIVE");
-  await assertNoHorizontalOverflow(page);
+  const activeCapsule = universe.locator("#nur-v197-adjunct-root");
+  await expect(activeCapsule).toBeVisible();
+  await expect(activeCapsule).toContainText("What is included");
+  await expect(activeCapsule).toContainText("ACTIVE");
+  await assertNoHorizontalOverflow(universeBody);
   await page.screenshot({ path: shot("webkit-mobile-capsule-393x852.png"), fullPage: false });
 
   await page.goto("/capsule/cap-revoked");
-  await expect(page.getByTestId("capsule-room")).toBeVisible();
-  await expect(page.getByTestId("capsule-state")).toHaveText("REVOKED");
-  await page.screenshot({ path: shot("webkit-mobile-capsule-revoked-393x852.png"), fullPage: false });
+  const revokedCapsule = universe.locator("#nur-v197-adjunct-root");
+  await expect(revokedCapsule).toBeVisible();
+  await expect(revokedCapsule).toContainText("REVOKED");
 });
