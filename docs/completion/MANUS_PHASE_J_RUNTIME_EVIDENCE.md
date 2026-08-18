@@ -52,16 +52,16 @@ No live-provider success is claimed. J6 remains externally blocked until an appr
 
 ## J9 — fresh-extract artifact
 
-A truthful `HOLD` package was created and verified from the exact code SHA above:
+A truthful `HOLD` package was created and independently verified from frozen implementation SHA `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc`:
 
 | Artifact | Value |
 |---|---|
-| Archive | `/home/ubuntu/nur-release/NUR_V5_HOLD_20260818.zip` |
-| Archive SHA-256 | `a1b77e72fd83883225d4e63cc600653abcceae3c150796d7bdb7ca921e703a15` |
-| Manifest | `/home/ubuntu/nur-release/NUR_V5_HOLD_20260818_MANIFEST.json` |
-| Manifest source SHA | `375e0f8ebeb9adceabd48840390aed407e1b6fe8` |
-| Archive entries | `818` |
-| Uncompressed bytes | `9,092,759` |
+| Archive | `/home/ubuntu/NUR-final-evidence/NUR_V5_HOLD_20260818.zip` |
+| Archive SHA-256 | `21b5902ba18a6dc991682a1e12c42e17158459c3f08f39683170be85c29db2d7` |
+| Manifest | `/home/ubuntu/NUR-final-evidence/NUR_V5_HOLD_20260818_MANIFEST.json` |
+| Manifest source SHA | `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc` |
+| Archive entries | `829` |
+| Uncompressed bytes | `9,225,297` |
 | V197 integrity | `PASS` in the extracted tree |
 | Secret scan | `PASS` in the extracted tree |
 | Naming scan | `PASS` in the extracted tree |
