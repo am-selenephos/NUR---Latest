@@ -73,6 +73,45 @@ async def test_context_hydrator_honors_recipe():
 
 
 @pytest.mark.asyncio
+async def test_context_hydrator_applies_effective_budget_to_semantic_inputs():
+    owner_id = uuid.uuid4()
+    scope = ScopeEnvelope(
+        owner_user_id=owner_id,
+        surface="talk",
+        sensitivity_ceiling="NORMAL",
+        sharing_boundary="PRIVATE",
+    )
+    recipe = ContextHydrationRecipe(
+        include_workspace_frame=False,
+        hybrid_retrieval_limit=0,
+        max_total_tokens=30,
+        max_context_tokens=10,
+    )
+    spec = CapabilitySpec(
+        capability_id="test:semantic_budget",
+        name="Semantic Budget Test",
+        description="",
+        intent_signatures=["semantic budget"],
+        execution_mode=ExecutionMode.COGNITIVE_SYNTHESIS,
+        hydration_recipe=recipe,
+    )
+
+    hydrated = await ContextHydrator.hydrate(
+        AsyncMock(),
+        owner_user_id=owner_id,
+        scope_envelope=scope,
+        capability=spec,
+        query="semantic budget",
+        semantic_inputs={"approved_memory": [{"id": "m1", "owner_user_id": str(owner_id), "content": "brief"}]},
+    )
+
+    assert hydrated.approved_memory == []
+    assert hydrated.manifest.token_budget == 10
+    assert hydrated.manifest.token_used <= 10
+    assert hydrated.estimated_tokens <= 10
+
+
+@pytest.mark.asyncio
 async def test_context_hydrator_rejects_missing_scope():
     owner_id = uuid.uuid4()
     spec = CapabilitySpec(

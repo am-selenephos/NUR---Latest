@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-import pytest
-
 from app.agentic.limits import DAGExecutionLimits, validate_dag_limits
 from app.brain.schemas import ContextManifest, ScopeEnvelope, WorkflowProposalV2
 from app.mind.capabilities.dispatcher import WorkerDispatcher

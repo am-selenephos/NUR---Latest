@@ -194,6 +194,16 @@ class ContextHydrator:
         effective_orbit_id = orbit_id or scope_envelope.orbit_id
         recipe = capability.hydration_recipe
 
+        # Semantic and runtime sources share one hard budget; semantic hydration
+        # must initialize first so it cannot bypass max_context_tokens.
+        effective_total_budget = (
+            min(recipe.max_total_tokens, recipe.max_context_tokens)
+            if recipe.max_context_tokens > 0
+            else recipe.max_total_tokens
+        )
+        effective_total_budget = max(0, effective_total_budget)
+        remaining_budget = effective_total_budget
+
         semantic = ContextHydrator.hydrate_semantic_sources(
             scope_envelope,
             approved_memory=(semantic_inputs or {}).get("approved_memory", []),
@@ -202,17 +212,13 @@ class ContextHydrator:
             user_model_claims=(semantic_inputs or {}).get("user_model_claims", []),
             research_results=(semantic_inputs or {}).get("research_results", []),
             semantic_context=(semantic_inputs or {}).get("semantic_context", []),
-            token_budget=remaining_budget if "remaining_budget" in locals() else recipe.max_total_tokens,
+            token_budget=remaining_budget,
         )
+        remaining_budget = max(0, remaining_budget - semantic.estimated_tokens)
         source_results: dict[str, HydrationSourceResult] = {}
         issues: list[HydrationIssue] = []
         source_statuses: dict[str, str] = {}
         max_items_map = recipe.items_per_source_map
-
-        # Strict hard total token budget
-        effective_total_budget = min(recipe.max_total_tokens, recipe.max_context_tokens) if recipe.max_context_tokens > 0 else recipe.max_total_tokens
-        effective_total_budget = max(0, effective_total_budget)
-        remaining_budget = effective_total_budget
 
         def record_failure(source_key: str, exc: Exception) -> None:
             is_required = (
