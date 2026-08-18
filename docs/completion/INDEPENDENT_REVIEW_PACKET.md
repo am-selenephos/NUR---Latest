@@ -45,7 +45,7 @@ The implementation and browser-proof changes are frozen at the candidate SHA abo
 | J9 | PASS | Verified HOLD package and integrity scans |
 | J10 | HOLD-DEPENDENCY | This packet is review preparation, not independent signoff |
 | K1 | PASS-CANDIDATE | Draft PR #2 exists from the dedicated branch |
-| K2 | PASS-CANDIDATE | Current exact-head run [32120734284](https://github.com/am-selenephos/NUR---Latest/actions/runs/32120734284) passed on final documentation head 2911651; API and web/security jobs were green |
+| K2 | PASS-CANDIDATE | Current exact-head run [32120734284](https://github.com/am-selenephos/NUR---Latest/actions/runs/32120734284) passed on code-equivalent head 2911651; API and web/security jobs were green; final documentation head 0818d52 contains documentation-only corrections |
 | K3–K5 | HOLD-DEPENDENCY | No merge, main CI, or tag while applicable gates remain held |
 | K6 | PASS-CANDIDATE | Rename/rollback runbook documented; rename intentionally unexecuted |
 
@@ -111,9 +111,9 @@ The following changes deserve manual review because they affect trust boundaries
 
 ## External blockers and next actions
 
-The live provider gate requires an approved reachable model catalog and credential; the local provider-disabled response is the truthful result. I6 requires repository-administrator configuration of branch protection/rulesets. K2 is PASS-CANDIDATE on current exact-head run [32120734284](https://github.com/am-selenephos/NUR---Latest/actions/runs/32120734284), whose API and web/security jobs were green on final documentation head 2911651. Run 32113268060 is historical evidence for the preceding c129 documentation head. The current run is evidence for implementation candidate `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc`; no merge or main mutation was performed. Docker cold boot requires release infrastructure with Docker. J8 retains one responsive WebKit page-closure failure and needs either a supported-browser infrastructure exception or a browser-runtime fix. F5 is closed at the candidate browser-proof boundary. J10 requires a reviewer who is independent of this implementation pass.
+The live provider gate requires an approved reachable model catalog and credential; the local provider-disabled response is the truthful result. I6 requires repository-administrator configuration of branch protection/rulesets. K2 is PASS-CANDIDATE on current exact-head run [32120734284](https://github.com/am-selenephos/NUR---Latest/actions/runs/32120734284), whose API and web/security jobs were green on code-equivalent head 2911651. Final documentation head 0818d52 contains documentation-only evidence corrections. Run 32113268060 is historical evidence for the preceding c129 documentation head. The current run is evidence for implementation candidate `9cc7afb9dd6b8f20d2c92fb98999a1f23f9c56cc`; no merge or main mutation was performed. Docker cold boot requires release infrastructure with Docker. J8 retains one responsive WebKit page-closure failure and needs either a supported-browser infrastructure exception or a browser-runtime fix. F5 is closed at the candidate browser-proof boundary. J10 requires a reviewer who is independent of this implementation pass.
 
-The completion branch and draft PR #2 are current at final documentation head `2911651a1c4b1e308704694a530b4eb8c452823f`. Current exact-head run [32120734284](https://github.com/am-selenephos/NUR---Latest/actions/runs/32120734284) passed both API and web/security jobs on this head; no canonical-main operation is permitted.
+The completion branch and draft PR #2 are current at final documentation head `0818d52873a1b1fbd61fb5bddd286ab54c654788`. Current exact-head run [32120734284](https://github.com/am-selenephos/NUR---Latest/actions/runs/32120734284) passed both API and web/security jobs on code-equivalent head `2911651a1c4b1e308704694a530b4eb8c452823f`; no canonical-main operation is permitted.
 
 ## Review decision record
 
