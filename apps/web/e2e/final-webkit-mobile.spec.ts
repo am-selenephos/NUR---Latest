@@ -362,12 +362,17 @@ async function assertNotNativeWhite(locator: Locator, label: string) {
   expect(style.color, `${label} not native black`).not.toBe("rgb(0, 0, 0)");
 }
 
-test("final HOLD WebKit mobile proof covers Systems, Talk, Share Orbit, Omega, and Capsule", async ({ page }, testInfo) => {
+function requireWebkitMobile(testInfo: { project: { name: string } }): void {
   test.skip(testInfo.project.name !== "webkit-mobile", "This proof must run in the real WebKit mobile project.");
+}
+
+test("final WebKit mobile Systems surface is bounded and geometrically safe", async ({ page }, testInfo) => {
+  requireWebkitMobile(testInfo);
+  test.setTimeout(30_000);
   await installMocks(page);
   await page.setViewportSize({ width: 393, height: 852 });
-
   await page.goto("/systems");
+
   const universe = page.frameLocator("#nur-universe-stage");
   const universeBody = universe.locator("body");
   const systemsPage = universe.locator("#page-systems");
@@ -390,7 +395,17 @@ test("final HOLD WebKit mobile proof covers Systems, Talk, Share Orbit, Omega, a
     expect((box?.y ?? 999) + (box?.height ?? 0)).toBeLessThan(760);
   }
   await page.screenshot({ path: shot("webkit-mobile-systems-393x852.png"), fullPage: false });
+});
 
+test("final WebKit mobile Share Orbit boundary is explicit", async ({ page }, testInfo) => {
+  requireWebkitMobile(testInfo);
+  test.setTimeout(30_000);
+  await installMocks(page);
+  await page.setViewportSize({ width: 393, height: 852 });
+  await page.goto("/systems");
+
+  const universe = page.frameLocator("#nur-universe-stage");
+  await expect(universe.locator("#page-systems")).toBeVisible();
   // The current V197 boundary chamber is the canonical Share Orbit affordance.
   await universe.locator("#scope-open").scrollIntoViewIfNeeded();
   await universe.locator("#scope-open").click();
@@ -402,24 +417,54 @@ test("final HOLD WebKit mobile proof covers Systems, Talk, Share Orbit, Omega, a
   await page.screenshot({ path: shot("webkit-mobile-share-orbit-393x852.png"), fullPage: false });
   await scopeModal.locator(".scope-modal-close").click();
   await expect(scopeModal).toHaveAttribute("aria-hidden", "true");
+});
 
+test("final WebKit mobile Talk proves actionable honest provider-disabled behavior", async ({ page }, testInfo) => {
+  requireWebkitMobile(testInfo);
+  test.setTimeout(30_000);
+  await installMocks(page);
+  await page.setViewportSize({ width: 393, height: 852 });
   await page.goto("/talk");
+
+  const universe = page.frameLocator("#nur-universe-stage");
+  const universeBody = universe.locator("body");
   await expect(universe.locator("#page-talk")).toBeVisible();
   await universe.locator("#talk-input").fill("Hold this without fake AI.");
-  await universe.getByRole("button", { name: "Send to NUR" }).click();
+  const sendButton = universe.getByRole("button", { name: "Send to NUR" });
+  await expect(sendButton).toBeVisible();
+  await expect(sendButton).toBeEnabled();
+  await sendButton.click();
   await expect(universe.getByText("I saved this turn, but live AI is disabled on this server.")).toBeVisible();
   await expect(universe.locator("#toast")).toHaveText("AI provider is disabled.");
   await assertNoHorizontalOverflow(universeBody);
   await page.screenshot({ path: shot("webkit-mobile-talk-393x852.png"), fullPage: false });
+});
 
+test("final WebKit mobile Omega surface renders governed evidence state", async ({ page }, testInfo) => {
+  requireWebkitMobile(testInfo);
+  test.setTimeout(30_000);
+  await installMocks(page);
+  await page.setViewportSize({ width: 393, height: 852 });
   await page.goto("/universe/omega");
+
+  const universe = page.frameLocator("#nur-universe-stage");
+  const universeBody = universe.locator("body");
   const omega = universe.locator("#nur-v197-adjunct-root");
   await expect(omega).toBeVisible();
   await expect(omega).toContainText("Evidence changes the model, deliberately.");
   await expect(omega).toContainText("sensitive inferences still require owner review.");
   await assertNoHorizontalOverflow(universeBody);
   await page.screenshot({ path: shot("webkit-mobile-omega-393x852.png"), fullPage: false });
+});
 
+test("final WebKit mobile Capsule and revocation surfaces remain bounded", async ({ page }, testInfo) => {
+  requireWebkitMobile(testInfo);
+  test.setTimeout(30_000);
+  await installMocks(page);
+  await page.setViewportSize({ width: 393, height: 852 });
+
+  const universe = page.frameLocator("#nur-universe-stage");
+  const universeBody = universe.locator("body");
   await page.goto("/capsule/cap-active");
   const activeCapsule = universe.locator("#nur-v197-adjunct-root");
   await expect(activeCapsule).toBeVisible();

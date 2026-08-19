@@ -16,6 +16,7 @@
     {"id":"nav.local-tabs","selector":"[data-context-tab]","status":"SOURCE_NATIVE","proof":"button-registry.spec.ts"},
     {"id":"systems.select","selector":".universe-system-node[data-orbit-id], .clean-system-row[data-orbit-id]","status":"WIRED","endpoint":"PATCH /api/v1/profile/preferences","proof":"track-a-sellable.spec.ts"},
     {"id":"systems.add","selector":"[data-action='add-system']","status":"WIRED","endpoint":"POST /api/v1/orbits","proof":"track-a-sellable.spec.ts"},
+    {"id":"research.staging","route":"/universe/research","selector":"#research-query, [data-research-submit]","status":"WIRED","endpoint":"POST /api/v1/research/briefs","proof":"full-interface.spec.ts"},
     {"id":"top.scope","selector":"#scope-open, #talk-scope, [data-open-scope], .scope-modal-close","status":"SOURCE_NATIVE","proof":"button-registry.spec.ts"},
     {"id":"context.actions","selector":"[data-context-action]","status":"SOURCE_NATIVE","proof":"button-registry.spec.ts"},
     {"id":"top.star","selector":"#front-nur-star, #burst-btn, .nur-user, #iSpark","status":"SOURCE_NATIVE","proof":"button-registry.spec.ts"},

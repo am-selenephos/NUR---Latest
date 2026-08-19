@@ -80,13 +80,19 @@ test("every primary product route resolves inside canonical V197 without staged 
   );
 });
 
-test("retired research controls stay absent while settings persist through bridge bindings", async ({ page }) => {
+test("Research remains Systems-hosted local staging while settings persist through bridge bindings", async ({ page }) => {
   const state = await authenticate(page);
   const universe = page.frameLocator("#nur-universe-stage");
 
   await page.goto("/universe/research");
   await expect(universe.locator("#page-systems")).toBeVisible();
-  await expect(universe.locator("#research-query, [data-research-submit]")).toHaveCount(0);
+  await expect(universe.locator("#research-staging")).toBeVisible();
+  const researchQuestion = `Which local evidence should NUR hold? ${Date.now()}`;
+  await universe.locator("#research-query").fill(researchQuestion);
+  await universe.locator("[data-research-submit]").click();
+  await expect.poll(() => state.researchBriefs.some(row => row.question === researchQuestion)).toBe(true);
+  await page.reload({ waitUntil: "load" });
+  await expect(universe.locator(".research-results")).toContainText(researchQuestion);
   await expect(universe.locator("#universe-community")).toBeVisible();
   await expect(universe.locator("#universe-community [data-adjunct-action]")).toHaveCount(0);
 

@@ -1164,9 +1164,54 @@ function makeHonestResult(document: Document, mark: string, title: string, detai
   return article;
 }
 
+function ensureResearchStaging(document: Document, host: HTMLElement, results: HTMLElement | null): void {
+  if (host.querySelector("#research-staging")) return;
+  const staging = document.createElement("section");
+  staging.id = "research-staging";
+  staging.setAttribute("aria-labelledby", "research-staging-title");
+  const title = document.createElement("h3");
+  title.id = "research-staging-title";
+  title.textContent = "Stage a local question";
+  const note = document.createElement("p");
+  note.textContent = "Saved to your owner ledger. No external source or citation is invented.";
+  const input = document.createElement("textarea");
+  input.id = "research-query";
+  input.rows = 2;
+  input.maxLength = 4000;
+  input.placeholder = "What should NUR hold for later evidence?";
+  input.setAttribute("aria-label", "Research question");
+  const submit = document.createElement("button");
+  submit.type = "button";
+  submit.dataset.researchSubmit = "true";
+  submit.textContent = "Save local question";
+  staging.append(title, note, input, submit);
+  if (results) results.before(staging);
+  else host.append(staging);
+}
+
 function renderResearch(document: Document, snapshot: V197BridgeSnapshot): void {
-  text(document.querySelector("#universe-research .universe-card-head h2"), "Research evidence, held honestly.");
-  const results = document.querySelector<HTMLElement>("#universe-research .research-results");
+  let host = document.querySelector<HTMLElement>("#universe-research");
+  if (!host) {
+    const systems = document.querySelector<HTMLElement>("#page-systems");
+    const insertionPoint = systems?.querySelector<HTMLElement>(".universe-lower-grid") ?? systems;
+    if (insertionPoint) {
+      host = document.createElement("section");
+      host.id = "universe-research";
+      host.className = "universe-card";
+      const head = document.createElement("div");
+      head.className = "universe-card-head";
+      const heading = document.createElement("h2");
+      const results = document.createElement("div");
+      results.className = "research-results";
+      head.append(heading);
+      host.append(head, results);
+      insertionPoint.append(host);
+    }
+  }
+  if (!host) return;
+  text(host.querySelector(".universe-card-head h2"), "Research evidence, held honestly.");
+  const results = host.querySelector<HTMLElement>(".research-results");
+  ensureResearchStaging(document, host, results);
   if (results) {
     empty(results);
     if (snapshot.researchBriefs.length === 0) {
@@ -1174,7 +1219,7 @@ function renderResearch(document: Document, snapshot: V197BridgeSnapshot): void 
         document,
         "⌕",
         "No persisted research question yet.",
-        "Open the Research chamber to stage a question without inventing sources.",
+        "Stage a local question below; no external source is invented.",
       ));
     } else {
       snapshot.researchBriefs.slice(0, 2).forEach(row => {

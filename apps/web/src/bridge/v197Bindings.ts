@@ -29,6 +29,7 @@ export type V197ActionApi = Pick<
   | "event"
   | "talk"
   | "createJournal"
+  | "createResearchBrief"
   | "createPlan"
   | "patchPlanStep"
   | "createOutcome"
@@ -318,6 +319,19 @@ export class V197ActionBindings {
     setInputValue(this.document, "#journal-input", "");
     await this.refresh();
     this.toast("Journal persisted privately.");
+  }
+
+  private async saveResearchBrief(): Promise<void> {
+    const question = inputValue(this.document, "#research-query");
+    if (!question) {
+      this.toast("Enter one research question first.");
+      this.document.querySelector<HTMLTextAreaElement>("#research-query")?.focus();
+      return;
+    }
+    await this.api.createResearchBrief(question, this.activeOrbitId());
+    setInputValue(this.document, "#research-query", "");
+    await this.refresh();
+    this.toast("Research question saved locally. No external source was fetched.");
   }
 
   private async sendTalk(source: "talk" | "today" | "mobile", resetCapability = true): Promise<void> {
@@ -813,6 +827,13 @@ export class V197ActionBindings {
     if (journal) {
       this.blockNative(event);
       void this.perform(journal, () => this.saveJournal());
+      return;
+    }
+
+    const researchSubmit = closest(event.target, "[data-research-submit]");
+    if (researchSubmit) {
+      this.blockNative(event);
+      void this.perform(researchSubmit, () => this.saveResearchBrief());
       return;
     }
 
