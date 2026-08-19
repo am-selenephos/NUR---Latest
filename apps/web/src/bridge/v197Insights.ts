@@ -246,7 +246,7 @@ export function renderV197Insights(
     document,
     "Owner review",
     insights?.review_queue ?? [],
-    ["title", "claim_text", "description"],
+    ["title", "claim_text", "candidate_claim_text", "description"],
     "Nothing is waiting for owner review.",
   ));
 

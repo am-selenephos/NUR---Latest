@@ -1,6 +1,10 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 
+import { installNurMocks } from "./helpers/nurMocks";
+
+test.use({ serviceWorkers: "block" });
+
 const proofRoot = process.cwd().endsWith("/apps/web") ? "../../proof/omega/screenshots" : "proof/omega/screenshots";
 mkdirSync(proofRoot, { recursive: true });
 const omegaFlagEnabled = process.env.VITE_NUR_ENABLE_OMEGA_RESEARCH === "true" || process.env.NUR_ENABLE_OMEGA_RESEARCH === "true";
@@ -100,7 +104,19 @@ async function json(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
 }
 
+async function sse(route: Route, result: unknown) {
+  await route.fulfill({
+    status: 200,
+    headers: { "cache-control": "no-cache", "content-type": "text/event-stream; charset=utf-8" },
+    body: [
+      `id: 1\nevent: talk.accepted\ndata: ${JSON.stringify({ event_id: "omega-talk-user" })}\n\n`,
+      `id: 2\nevent: talk.completed\ndata: ${JSON.stringify({ result })}\n\n`,
+    ].join(""),
+  });
+}
+
 async function installOmegaMocks(page: Page) {
+  await installNurMocks(page);
   const thread: Array<{ id: string; who: "user" | "nur"; text: string; structured_payload: Record<string, unknown>; created_at: string }> = [];
   let dashboard = {
     statuses: {
@@ -158,6 +174,50 @@ async function installOmegaMocks(page: Page) {
   await page.route("**/api/v1/plans", route => json(route, []));
   await page.route("**/api/v1/cognition/talk-thread**", route => json(route, thread));
   await page.route("**/api/v1/omega/dashboard", route => json(route, dashboard));
+  await page.route("**/api/v1/cognition/talk/stream", async route => {
+    const body = JSON.parse(route.request().postData() || "{}") as { message?: string };
+    const output = {
+      direct_response: "I saved this turn, but live AI is disabled on this server.",
+      observed: [],
+      inferred: [],
+      hypotheses: [],
+      uncertainty: ["AI provider is disabled."],
+      next_move: "Keep one concrete next line.",
+      memory_candidates: [],
+      source_refs: [],
+    };
+    const omega = {
+      enabled: true,
+      workspace_frame_id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+      what_changed: ["Claim strengthened: outcome evidence gate"],
+      open_contradictions: ["Potential conflict: shortcutting outcome proof."],
+      unresolved_predictions: ["If the owner returns an outcome..."],
+      memory_note: "I can hold this as a hypothesis, not a fact.",
+    };
+    thread.push(
+      { id: "omega-talk-user", who: "user", text: body.message || "", structured_payload: {}, created_at: new Date().toISOString() },
+      { id: "omega-talk-response", who: "nur", text: output.direct_response, structured_payload: { talk_output: output, omega, provider_available: false, provider_reason: "AI provider is disabled." }, created_at: new Date().toISOString() },
+    );
+    return sse(route, {
+      turn_event_id: "omega-talk-user",
+      response_event_id: "omega-talk-response",
+      model_run_id: "omega-talk-model",
+      provider: "disabled",
+      provider_available: false,
+      provider_reason: "AI provider is disabled.",
+      output,
+      omega,
+      evidence: { retrieval: [], withheld: [] },
+      verification: { verdict: "WARN", checks: {} },
+    });
+  });
+  await page.route("**/api/v1/omega/scheduler-status", route => json(route, {
+    enabled: true,
+    scheduled_consolidation: true,
+    worker_mode: "LOCAL",
+    last_consolidation_status: "COMPLETED",
+    interval_hours: 24,
+  }));
   await page.route("**/api/v1/omega/claims/*/evidence", route => json(route, [{
     id: "edge-1",
     claim_id: claim.id,
@@ -263,53 +323,62 @@ async function installOmegaMocks(page: Page) {
   });
 }
 
-test("omega research route renders evidence graph, predictions, contradictions and proposals", async ({ page }) => {
+test("seeded Omega dashboard renders inside the canonical iframe and supports governed actions", async ({ page }) => {
   test.skip(!omegaFlagEnabled, "Omega route is hidden unless NUR_ENABLE_OMEGA_RESEARCH=true or VITE_NUR_ENABLE_OMEGA_RESEARCH=true.");
   const shot = (name: string) => `${proofRoot}/${test.info().project.name}-${name}`;
   await installOmegaMocks(page);
   await page.goto("/universe/omega");
-  await expect(page.getByTestId("omega-research-page")).toBeVisible();
-  await expect(page.getByText("A private evidence layer")).toBeVisible();
-  await expect(page.getByTestId("omega-evidence-graph")).toContainText("Outcome evidence");
-  await expect(page.getByTestId("omega-open-predictions")).toContainText("owner returns an outcome");
-  await expect(page.getByTestId("omega-contradiction-review")).toContainText("shortcutting outcome proof");
-  await expect(page.getByTestId("omega-learning-proposals")).toContainText("PLANNING_HEURISTIC");
-  await expect(page.getByTestId("omega-review-queue")).toContainText("requires confirmation");
-  await expect(page.getByTestId("omega-why-changed")).toContainText("supporting evidence");
+  const universe = page.frameLocator("#nur-universe-stage");
+  const adjunct = universe.locator("#nur-v197-adjunct-root");
+  await expect(adjunct).toBeVisible();
+  await expect(adjunct).toContainText("Evidence changes the model, deliberately.");
+  await expect(adjunct.locator(".nur-adjunct-panel").filter({ hasText: "Candidate understanding" })).toContainText(claim.claim_text);
+  await expect(adjunct.locator(".nur-adjunct-panel").filter({ hasText: "Open tension" })).toContainText(contradiction.description);
+  await expect(adjunct.locator(".nur-adjunct-panel").filter({ hasText: "Unresolved future" })).toContainText(prediction.prediction_text);
+  await expect(adjunct.locator(".nur-adjunct-panel").filter({ hasText: "Governed learning" })).toContainText(proposal.description);
+  await expect(adjunct).toContainText("Open review queue (1)");
   await page.screenshot({ path: shot("omega-dashboard.png"), fullPage: false });
-  await page.getByTestId("omega-evidence-graph").screenshot({ path: shot("claim-evidence-graph.png") });
-  await page.getByTestId("omega-why-changed").screenshot({ path: shot("why-changed.png") });
-  await page.getByTestId("omega-review-queue").screenshot({ path: shot("review-queue.png") });
-  await page.getByTestId("omega-open-predictions").screenshot({ path: shot("open-predictions.png") });
-  await page.getByTestId("omega-contradiction-review").screenshot({ path: shot("contradiction-review.png") });
-  await page.getByTestId("omega-learning-proposals").screenshot({ path: shot("learning-proposals.png") });
-  await page.getByTestId("omega-run-consolidation").click();
-  await expect(page.getByTestId("omega-consolidation-run")).toContainText("2 claims");
-  await page.getByTestId("omega-consolidation-run").screenshot({ path: shot("consolidation-run-panel.png") });
-  await page.getByTestId("omega-export-owner").click();
-  await expect(page.getByTestId("omega-export-status")).toContainText("raw dumps and chain-of-thought excluded");
-  await page.screenshot({ path: shot("consolidation-run.png"), fullPage: false });
+
+  await adjunct.locator('[data-adjunct-action="omega-consolidate"]').click();
+  await expect(adjunct.locator(".nur-adjunct-status")).toContainText("Run COMPLETED: 2 claims created");
+  await adjunct.locator('[data-adjunct-action="omega-export"]').click();
+  await expect(adjunct.locator(".nur-adjunct-status")).toContainText("Owner-scoped Omega export prepared locally.");
+  await adjunct.locator('[data-adjunct-action="omega-review"]').click();
+  await expect(page).toHaveURL(/\/universe\/omega\/review$/);
+  await expect(universe.locator("#nur-v197-adjunct-root")).toContainText("Owner confirmation gate");
+  await page.screenshot({ path: shot("omega-review-deep-link.png"), fullPage: false });
 });
 
-test("omega review route opens the confirmation queue directly", async ({ page }) => {
+test("seeded Omega review approval survives reload and why-changed deep link", async ({ page }) => {
   test.skip(!omegaFlagEnabled, "Omega proof run uses the flagged build.");
   const shot = (name: string) => `${proofRoot}/${test.info().project.name}-${name}`;
   await installOmegaMocks(page);
   await page.goto("/universe/omega/review");
-  await expect(page.getByTestId("omega-review-queue")).toBeVisible();
-  await expect(page.getByTestId("omega-review-queue")).toContainText("owner confirmation gate");
-  await page.screenshot({ path: shot("omega-review-route.png"), fullPage: false });
+  const universe = page.frameLocator("#nur-universe-stage");
+  const adjunct = universe.locator("#nur-v197-adjunct-root");
+  await expect(adjunct).toContainText("Pending review · 1");
+  await expect(adjunct).toContainText(reviewItem.candidate_claim_text);
+  await adjunct.locator(`[data-adjunct-action="omega-review-approve-${reviewItem.id}"]`).click();
+  await expect(adjunct).toContainText("Pending review · 0");
+  await page.reload();
+  await expect(universe.locator("#nur-v197-adjunct-root")).toContainText("Pending review · 0");
+
+  await page.goto(`/universe/omega/why-changed/${claim.id}`);
+  await expect(universe.locator("#nur-v197-adjunct-root")).toContainText("Why NUR changed its mind.");
+  await expect(universe.locator("#nur-v197-adjunct-root")).toContainText("supporting evidence");
+  await page.screenshot({ path: shot("omega-why-changed-deep-link.png"), fullPage: false });
 });
 
-test("talk can show compact omega holding panel without chain of thought", async ({ page }) => {
+test("talk preserves provider-disabled honesty without chain of thought", async ({ page }) => {
   test.skip(!omegaFlagEnabled, "Omega proof run uses the flagged build.");
   const shot = (name: string) => `${proofRoot}/${test.info().project.name}-${name}`;
   await installOmegaMocks(page);
   await page.goto("/talk");
-  await page.locator("#talk-input").fill("What changed?");
-  await page.getByRole("button", { name: "Send to NUR" }).click();
-  await expect(page.getByTestId("talk-omega-holding")).toBeVisible();
-  await expect(page.getByTestId("talk-omega-holding")).toContainText("I can hold this as a hypothesis, not a fact.");
-  await expect(page.getByTestId("talk-omega-holding")).not.toContainText("chain-of-thought");
+  const universe = page.frameLocator("#nur-universe-stage");
+  await universe.locator("#talk-input").fill("What changed?");
+  await universe.getByRole("button", { name: "Send to NUR" }).click();
+  await expect(universe.locator("#talk-stream")).toContainText("I saved this turn, but live AI is disabled on this server.");
+  await expect(universe.locator("body")).not.toContainText("chain-of-thought");
+  await expect(universe.locator("body")).not.toContainText("workspace_frame_id");
   await page.screenshot({ path: shot("talk-with-omega-context.png"), fullPage: false });
 });

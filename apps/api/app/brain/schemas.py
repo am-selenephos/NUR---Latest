@@ -169,10 +169,25 @@ class CognitiveClaim(BaseModel):
 
 # ── WorkflowProposal (Brain → Mind → Agency) ───────────────────────────────
 
+class WorkflowRole(StrEnum):
+    """Closed execution and independent-review roles carried into Agency."""
+    OPERATOR = "operator"
+    RESEARCHER = "researcher"
+    IMPLEMENTER = "implementer"
+    WRITER = "writer"
+    TRANSLATOR = "translator"
+    VERIFIER = "verifier"
+    CRITIC = "critic"
+    QA = "qa"
+    SECURITY_REVIEWER = "security_reviewer"
+    VISUAL_REVIEWER = "visual_reviewer"
+
+
 class WorkflowStepProposal(BaseModel):
     """A single proposed workflow step for Agency approval."""
     key: str = ""
     title: str
+    role: WorkflowRole = WorkflowRole.OPERATOR
     description: str
     tool_key: str
     tool_version: str
@@ -255,7 +270,7 @@ class WorkflowProposalV2(WorkflowProposal):
         return [
             {
                 "key": step.key or f"step-{index}",
-                "role": "operator",
+                "role": step.role.value,
                 "tool_key": step.tool_key,
                 "depends_on": list(step.dependencies),
                 "input_refs": dict(step.arguments),
