@@ -1,6 +1,7 @@
 import asyncio
 import json
-from typing import Any
+import os
+from typing import Any, ClassVar
 
 from app.ai.errors import (
     AIOutputValidationError,
@@ -14,7 +15,12 @@ from app.ai.errors import (
     AIProviderUnsupportedModel,
 )
 from app.ai.prompts import TALK_SYSTEM_PROMPT, talk_user_prompt
-from app.ai.schemas import AIProviderResult, AIStreamSink, NURTalkOutput, TalkProviderRequest
+from app.ai.schemas import (
+    AIProviderResult,
+    AIStreamSink,
+    NURTalkOutput,
+    TalkProviderRequest,
+)
 from app.ai.structured_outputs import talk_json_schema
 from app.core.config import get_settings
 
@@ -100,7 +106,7 @@ class OpenAITalkProvider:
         chosen_effort = request.reasoning_effort or self._settings.openai_reasoning_effort
         if _supports_reasoning_effort(chosen_model):
             payload["reasoning"] = {"effort": chosen_effort}
-        elif request.temperature is not None:
+        elif request.temperature is not None and _supports_temperature_parameter():
             payload["temperature"] = request.temperature
 
         if request.max_output_tokens is not None:
@@ -143,6 +149,31 @@ class OpenAITalkProvider:
                         return await stream.get_final_response()
             except asyncio.CancelledError:
                 raise
+            except RuntimeError as exc:
+                # Some OpenAI-compatible gateways complete the request only
+                # through the non-streaming Responses endpoint and return no
+                # response.completed event from responses.stream(). The
+                # structured response is still real provider output, so fall
+                # back once rather than converting a reachable provider into a
+                # fabricated disabled answer or retry loop.
+                if "Didn't receive a `response.completed` event." not in str(exc):
+                    mapped = _classify_provider_exception(exc)
+                    if attempt == 0 and not emitted_text and mapped.retryable:
+                        continue
+                    if mapped is exc:
+                        raise
+                    raise mapped from exc
+                await event_sink("provider.fallback", {"transport": "responses.create", "reason": "stream_completion_missing"})
+                fallback = await self._create_response(payload)
+                await event_sink(
+                    "provider.created",
+                    {"response_id": getattr(fallback, "id", None), "transport": "responses.create"},
+                )
+                parsed_fallback = _extract_response_json(fallback)
+                visible = parsed_fallback.get("direct_response")
+                if isinstance(visible, str) and visible:
+                    await event_sink("response.text.delta", {"delta": visible, "transport": "responses.create"})
+                return fallback
             except Exception as exc:
                 mapped = _classify_provider_exception(exc)
                 if attempt == 0 and not emitted_text and mapped.retryable:
@@ -172,6 +203,16 @@ def _supports_reasoning_effort(model: str) -> bool:
     (e.g. gpt-4.1) with 400 unsupported_parameter, so only send it to
     reasoning-capable families."""
     return model.lower().startswith(("o1", "o3", "o4", "gpt-5"))
+
+
+def _supports_temperature_parameter() -> bool:
+    """The Manus OpenAI-compatible gateway rejects Responses temperature.
+
+    The canonical OpenAI endpoint remains eligible for the parameter; the
+    gateway-specific omission keeps the same provider path usable in the
+    sandbox without changing model, token, or schema controls.
+    """
+    return "api.manus.im" not in os.getenv("OPENAI_BASE_URL", "").lower()
 
 
 def _extract_response_json(response) -> dict:
@@ -239,8 +280,8 @@ def _classify_provider_exception(exc: Exception) -> AIProviderError:
 class _DirectResponseDeltaExtractor:
     """Incrementally decode only the first structured `direct_response` value."""
 
-    _MARKER = '"direct_response"'
-    _ESCAPES = {
+    _MARKER: ClassVar[str] = '"direct_response"'
+    _ESCAPES: ClassVar[dict[str, str]] = {
         '"': '"',
         "\\": "\\",
         "/": "/",

@@ -304,9 +304,10 @@ test("Insights owns its dedicated host and Universe restores the canonical page"
   ).toEqual({ mounted: [], host: false, starBrain: true, rail: "visible" });
 });
 
-test("browser back and forward still route correctly", async () => {
+test("browser back and forward still route correctly", async ({ page }) => {
   test.slow();
-  const page = sharedPage;
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await signIn(page);
   await page.goto("/systems", { waitUntil: "networkidle" });
   await page.waitForTimeout(2500);
 

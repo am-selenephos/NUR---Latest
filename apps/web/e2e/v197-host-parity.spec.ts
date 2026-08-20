@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { buildV197PerformanceBootstrap } from "../src/bridge/v197PerformanceProfile";
 import { installNurMocks } from "./helpers/nurMocks";
 
-const CANONICAL_SHA256 = "c4699091db9f1ebc3a6e2076d483a3d41303d3e261ace0111c9411322f7ea3a5";
+const CANONICAL_SHA256 = "397c302579472e60f5bd667546a96b6e3f262aa40bd932d10c1946e13b046dd2";
 const PWA_METADATA = '<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#000000">';
 const BRIDGE_LOADER = '<script type="module" src="/assets/v197-bridge.js"></script>';
 const PRESENTATION_GUARD = [
