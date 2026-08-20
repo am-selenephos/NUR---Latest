@@ -685,6 +685,7 @@ export async function installNurMocks(page: Page) {
     });
     if (path === "/api/v1/projects/summary") return json(route, null);
     if (path === "/api/v1/community/rooms" && method === "GET") return json(route, []);
+    if (path === "/api/v1/consultations" && method === "GET") return json(route, []);
     if (path === "/api/v1/orbits/current-state") return json(route, {
       active_systems: mockSystems.length,
       outcomes_returned: state.outcomePosts,
@@ -1096,6 +1097,7 @@ export async function installNurMocks(page: Page) {
       last_consolidation_status: "COMPLETED",
       provenance_label: "owner_ledger",
     });
+    if (path === "/api/v1/omega/review-queue") return json(route, omegaDashboard().review_queue);
     if (path === `/api/v1/omega/claims/${mockClaim.id}/evidence`) return json(route, [{
       id: "edge-1",
       claim_id: mockClaim.id,

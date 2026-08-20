@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.brain.schemas import (
     BrainProfileKey,
     CognitiveResult,
-    WorkflowProposal,
+    WorkflowProposalV2,
     WorkflowStepProposal,
 )
 from app.mind.capabilities.hydrator import HydratedCapabilityContext
@@ -197,7 +197,7 @@ class WorkerDispatcher:
             estimated_cost_cents=capability.estimated_cost_cents,
         )
 
-        proposal = WorkflowProposal(
+        proposal = WorkflowProposalV2(
             task_id=task_id,
             title=f"Plan: {title}",
             rationale=f"Generated via capability '{capability.name}' from user request: {query}",

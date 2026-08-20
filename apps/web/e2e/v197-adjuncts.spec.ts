@@ -34,6 +34,15 @@ async function installMocks(page: Page): Promise<{
   const passwordWrites: Array<Record<string, unknown>> = [];
   let notificationRead = false;
   let passwordChanged = false;
+  let notificationPreferences = {
+    category_settings: {} as Record<string, unknown>, frequency: "BALANCED", quiet_hours_start: "22:00",
+    quiet_hours_end: "08:00", push_enabled: false, email_enabled: false,
+    delivery_status: "IN_APP_ONLY",
+  };
+  let savedPreferences = {
+    locale: "en", writing_preference: "default", sound_enabled: true,
+    reduced_effects: false, omega_enabled: true, timezone: "Asia/Karachi",
+  };
   await page.context().addCookies([{ name: "nur_csrf", value: "adjunct-proof", domain: "localhost", path: "/" }]);
   await page.route("**/healthz", route => json(route, { status: "healthy", ai_provider: "openai" }));
   await page.route("**/api/v1/**", async route => {
@@ -54,12 +63,10 @@ async function installMocks(page: Page): Promise<{
     if (path === "/profile/preferences" && request.method() === "PATCH") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       preferenceWrites.push(payload);
-      return json(route, payload);
+      savedPreferences = { ...savedPreferences, ...payload };
+      return json(route, savedPreferences);
     }
-    if (path === "/profile/preferences") return json(route, {
-      locale: "en", writing_preference: "default", sound_enabled: true,
-      reduced_effects: false, omega_enabled: true, timezone: "Asia/Karachi",
-    });
+    if (path === "/profile/preferences") return json(route, savedPreferences);
     if (path === "/orbits/current-state") return json(route, { active_systems: 7, outcomes_returned: 2, insights_evolving: 1, open_questions: 1, research_staged: 1, plans_active: 1, live_status: "OWNER_LEDGER" });
     if (path === "/universe/live") return json(route, {
       generated_at: new Date().toISOString(),
@@ -183,15 +190,12 @@ async function installMocks(page: Page): Promise<{
       projectWrites.push({ path, body: request.postDataJSON() as Record<string, unknown> });
       return json(route, { id: "run-2", project_id: projectId, status: "PROPOSED" }, 201);
     }
-    if (path === "/notifications/preferences" && request.method() === "GET") return json(route, {
-      category_settings: {}, frequency: "BALANCED", quiet_hours_start: "22:00",
-      quiet_hours_end: "08:00", push_enabled: false, email_enabled: false,
-      delivery_status: "IN_APP_ONLY",
-    });
+    if (path === "/notifications/preferences" && request.method() === "GET") return json(route, notificationPreferences);
     if (path === "/notifications/preferences" && request.method() === "PATCH") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       notificationWrites.push({ path, body: payload });
-      return json(route, { ...payload, delivery_status: "IN_APP_ONLY" });
+      notificationPreferences = { ...notificationPreferences, ...payload, delivery_status: "IN_APP_ONLY" };
+      return json(route, notificationPreferences);
     }
     if (path === "/notifications" && request.method() === "GET") return json(route, [{
       id: notificationId, category: "PROGRESS", title: "Return to one real move",
@@ -246,18 +250,6 @@ test("dedicated Universe chambers fetch only their scoped owner data", async ({ 
       ],
     },
     {
-      route: "/universe/research",
-      title: "Research that shows its evidence.",
-      current: "⌕ Research",
-      requests: [
-        "GET /api/v1/auth/me",
-        "GET /api/v1/research/briefs",
-        "GET /api/v1/research/jobs",
-        "GET /api/v1/research/sources",
-        "GET /api/v1/research/claims",
-      ],
-    },
-    {
       route: "/universe/community",
       title: "Shared signal without private spill.",
       current: "◎ Community",
@@ -265,19 +257,6 @@ test("dedicated Universe chambers fetch only their scoped owner data", async ({ 
         "GET /api/v1/auth/me",
         "GET /api/v1/community/rooms",
         `GET /api/v1/community/rooms/${roomId}/posts`,
-      ],
-    },
-    {
-      route: "/universe/experts",
-      title: "Expert voice with provenance attached.",
-      current: "✣ Experts",
-      requests: [
-        "GET /api/v1/auth/me",
-        "GET /api/v1/experts/profiles",
-        "GET /api/v1/experts/verifications",
-        "GET /api/v1/community/rooms",
-        "GET /api/v1/research/sources",
-        `GET /api/v1/experts/rooms/${roomId}/contributions`,
       ],
     },
     {
@@ -537,4 +516,32 @@ test("Notifications are owner-written, persisted, and never fake social pressure
   await universe.locator('[data-adjunct-action="notification-reminder-create"]').click();
   await expect.poll(() => state.notificationWrites.some(row => row.path === "/notifications/reminders")).toBe(true);
   await screenshot(page, `${testInfo.project.name}-notifications-owner-ledger.png`);
+});
+
+test("Phase-H Notifications and Localization routes persist owner state across reload", async ({ page }) => {
+  const state = await installMocks(page);
+  const universe = page.frameLocator("#nur-universe-stage");
+
+  await page.goto("/notifications", { waitUntil: "networkidle" });
+  const notifications = universe.locator("#nur-v197-adjunct-root");
+  await expect(notifications).toContainText("Return cues, under your control");
+  await expect(notifications).toContainText("IN_APP_ONLY");
+  await universe.locator('[data-adjunct-control="notification-frequency"]').selectOption("QUIET");
+  await universe.locator('[data-adjunct-action="notification-preferences-save"]').click();
+  await expect.poll(() => state.notificationWrites.some(row => row.path === "/notifications/preferences" && row.body.frequency === "QUIET")).toBe(true);
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(universe.locator('[data-adjunct-control="notification-frequency"]')).toHaveValue("QUIET");
+
+  await page.goto("/settings", { waitUntil: "networkidle" });
+  const settings = universe.locator("#nur-v197-adjunct-root");
+  await expect(settings).toContainText("Language and voice");
+  await universe.locator('[data-adjunct-control="locale"]').selectOption("ur");
+  await universe.locator('[data-adjunct-control="writing-preference"]').selectOption("roman");
+  await universe.locator('[data-adjunct-action="settings-save"]').click();
+  await expect.poll(() => state.preferenceWrites.some(row => row.locale === "ur" && row.writing_preference === "roman")).toBe(true);
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(universe.locator('[data-adjunct-control="locale"]')).toHaveValue("ur");
+  await expect(universe.locator('[data-adjunct-control="writing-preference"]')).toHaveValue("roman");
+  await expect(universe.locator("html")).toHaveAttribute("lang", "ur");
+  await expect(universe.locator("html")).toHaveAttribute("dir", "ltr");
 });

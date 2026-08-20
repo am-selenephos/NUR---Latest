@@ -1,6 +1,6 @@
 {
   "architecture": "track-a-v197-native-host",
-  "source_sha256": "c4699091db9f1ebc3a6e2076d483a3d41303d3e261ace0111c9411322f7ea3a5",
+  "source_sha256": "397c302579472e60f5bd667546a96b6e3f262aa40bd932d10c1946e13b046dd2",
   "statuses": ["WIRED", "SOURCE_NATIVE", "HONEST_DISABLED"],
   "controls": [
     {"id":"entry.navigation","selector":"#f4-brand, #f4-begin, #f4-signin, #f4-what, [data-switch], #f4-close","status":"SOURCE_NATIVE","proof":"track-a-sellable.spec.ts"},
@@ -16,6 +16,7 @@
     {"id":"nav.local-tabs","selector":"[data-context-tab]","status":"SOURCE_NATIVE","proof":"button-registry.spec.ts"},
     {"id":"systems.select","selector":".universe-system-node[data-orbit-id], .clean-system-row[data-orbit-id]","status":"WIRED","endpoint":"PATCH /api/v1/profile/preferences","proof":"track-a-sellable.spec.ts"},
     {"id":"systems.add","selector":"[data-action='add-system']","status":"WIRED","endpoint":"POST /api/v1/orbits","proof":"track-a-sellable.spec.ts"},
+    {"id":"research.staging","route":"/universe/research","selector":"#research-query, [data-research-submit]","status":"WIRED","endpoint":"POST /api/v1/research/briefs","proof":"full-interface.spec.ts"},
     {"id":"top.scope","selector":"#scope-open, #talk-scope, [data-open-scope], .scope-modal-close","status":"SOURCE_NATIVE","proof":"button-registry.spec.ts"},
     {"id":"context.actions","selector":"[data-context-action]","status":"SOURCE_NATIVE","proof":"button-registry.spec.ts"},
     {"id":"top.star","selector":"#front-nur-star, #burst-btn, .nur-user, #iSpark","status":"SOURCE_NATIVE","proof":"button-registry.spec.ts"},

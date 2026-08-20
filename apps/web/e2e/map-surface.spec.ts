@@ -25,6 +25,29 @@ test.beforeAll(async ({ browser }) => {
   sharedContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   sharedPage = await sharedContext.newPage();
   await signIn(sharedPage);
+  await sharedPage.evaluate(async () => {
+    const csrf = document.cookie.split("; ")
+      .find((row) => row.startsWith("nur_csrf="))?.split("=")[1] ?? "";
+    const existing = await (await fetch("/api/v1/map/edges", { credentials: "include" })).json();
+    if (existing.items?.some((row: { user_confirmed?: boolean }) => row.user_confirmed)) return;
+    const response = await fetch("/api/v1/map/edges", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
+      body: JSON.stringify({
+        source_ref_type: "nur",
+        source_ref_id: "nur",
+        target_ref_type: "system",
+        target_ref_id: "ambition",
+        edge_type: "SUPPORTS",
+        direction: "DIRECTED",
+        note: "Owner-confirmed connection: deliberate movement is anchored in Ambition.",
+      }),
+    });
+    if (![201, 409].includes(response.status)) {
+      throw new Error(`Map edge fixture failed: ${response.status} ${await response.text()}`);
+    }
+  });
 });
 
 test.afterAll(async () => {
@@ -44,6 +67,18 @@ async function signIn(page: Page): Promise<void> {
       });
       return response.status;
     }, OWNER);
+    if (status === 401) {
+      status = await page.evaluate(async (owner) => {
+        const response = await fetch("/api/v1/auth/register", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chosen_name: "Map Owner", email: owner.email, password: owner.password, consent: true }),
+        });
+        return response.status === 201 ? 200 : response.status;
+      }, OWNER);
+      if (status === 200) break;
+    }
     if (status !== 429) break;
     await page.waitForTimeout(1500);
   }

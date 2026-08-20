@@ -627,7 +627,7 @@ test("systems map keeps label breathing at secondary desktop and mobile breakpoi
   }
 });
 
-test("Today and Systems controls keep one proportional geometry contract", async ({ page }, testInfo) => {
+test("Today and Systems controls keep one proportional geometry contract with local Research staging", async ({ page }, testInfo) => {
   await installVisualMocks(page);
   const mobile = testInfo.project.name.endsWith("-mobile");
   await page.setViewportSize(mobile ? { width: 393, height: 852 } : { width: 1440, height: 900 });
@@ -635,18 +635,10 @@ test("Today and Systems controls keep one proportional geometry contract", async
 
   await page.goto("/systems");
   await expect(frame.locator("#page-systems")).toBeVisible();
-  await expect(frame.locator([
-    'section.clean-rail-section[aria-label="Universe tools"]',
-    "#universe-search",
-    "#deep-research-button",
-    "#universe-consult",
-    "#universe-research",
-    "#universe-community",
-    ".expert-card",
-    ".universe-lower-grid",
-    ".universe-state-strip",
-    ".universe-composer-shell",
-  ].join(","))).toHaveCount(0);
+  await expect(frame.locator("#universe-research")).toBeVisible();
+  await expect(frame.locator("#research-staging")).toBeVisible();
+  await expect(frame.locator("#research-query")).toBeVisible();
+  await expect(frame.locator("[data-research-submit]")).toBeVisible();
   await expect(frame.locator(".universe-command-row .world-command")).toHaveCount(2);
   await expect(frame.locator("#page-systems #front-nur-star"))
     .toHaveAttribute("data-nur-point-count", mobile ? "1640" : "2540");

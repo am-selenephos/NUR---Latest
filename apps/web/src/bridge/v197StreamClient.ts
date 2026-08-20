@@ -7,6 +7,8 @@ export interface V197TalkStreamPayload {
   locale: string;
   writing_preference: string;
   mode?: string;
+  capability_id?: string | null;
+  memory_mode?: "EPHEMERAL" | "REVIEW";
 }
 
 export interface V197StreamEvent {

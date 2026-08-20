@@ -32,7 +32,7 @@ from app.core.config import get_settings
 from app.mind.capabilities.dispatcher import WorkerDispatcher
 from app.mind.capabilities.hydrator import ContextHydrator
 from app.mind.capabilities.resolver import CapabilityResolver, ResolutionFallbackMode
-from app.mind.context import build_cognitive_task_packet
+from app.mind.context import build_cognitive_task_packet, load_semantic_hydration_inputs
 from app.mind.metacognition import run_metacognitive_review
 from app.mind.scope import ScopeResolutionError, resolve_scope
 from app.models import CognitiveEvent, ModelRun, ModelRunSource
@@ -149,6 +149,11 @@ async def run_mind_cognitive_loop(
         )
 
     # 4 & 5. Progressive Context Hydration (recipe-driven)
+    semantic_inputs = await load_semantic_hydration_inputs(
+        db,
+        owner_user_id=owner_user_id,
+        orbit_id=orbit_id,
+    )
     if resolution.selected_capability is not None:
         hydrated_ctx = await ContextHydrator.hydrate(
             db,
@@ -158,6 +163,7 @@ async def run_mind_cognitive_loop(
             query=user_line,
             orbit_id=orbit_id,
             trigger_event_id=turn.id,
+            semantic_inputs=semantic_inputs,
         )
         frame = hydrated_ctx.workspace_frame or await build_workspace_frame(
             db,
@@ -202,6 +208,7 @@ async def run_mind_cognitive_loop(
         retrieved_refs=retrieval_dicts,
         workspace_frame=frame,
         scope_envelope=scope_envelope,
+        semantic_inputs=semantic_inputs,
     )
 
     # 7. Initialize ModelRun trace record

@@ -27,7 +27,8 @@ write_config() {
 
 write_config openai "gpt-test" "$KEY"
 OUTPUT="$(NUR_OPENAI_ENV_FILE="$ENV_FILE" bash "$VALIDATOR" 2>&1)"
-[[ "$OUTPUT" == "OpenAI local configuration is valid." ]] || fail "valid config was rejected"
+[[ "$OUTPUT" == *"OpenAI configuration file is structurally valid."* ]] || fail "valid config was rejected"
+[[ "$OUTPUT" == *"Live authentication has not yet been tested."* ]] || fail "valid config did not preserve the honest live-auth boundary"
 [[ "$OUTPUT" != *"$KEY"* ]] || fail "valid config output exposed the key"
 
 chmod 640 "$ENV_FILE"

@@ -147,7 +147,6 @@ test("Systems uses unframed native symbols and non-overlapping mobile rows", asy
 });
 
 test("Entry primary action is transparent spectral glass with a real seal", async ({ page }) => {
-  await installNurMocks(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/", { waitUntil: "load" });
   const frame = page.frameLocator("#nur-entry-stage");
@@ -156,7 +155,7 @@ test("Entry primary action is transparent spectral glass with a real seal", asyn
   });
   const button = frame.locator("#f4-begin");
   await expect(button).toBeVisible({ timeout: 20_000 });
-  await expect(button.locator(":scope > .nur-star-seal--control > .spark")).toHaveCount(1);
+  await expect(frame.locator("#f4-begin > .nur-star-seal--control > .spark")).toHaveCount(1);
   const material = await button.evaluate(element => {
     const style = getComputedStyle(element);
     const channels = style.backgroundColor.match(/[\d.]+/g)?.map(Number) ?? [];

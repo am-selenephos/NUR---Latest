@@ -3,6 +3,7 @@ import { renderV197Adjunct } from "./v197Adjuncts";
 import { ORBIT_ROUTE, renderV197Orbit } from "./v197Orbit";
 import { MAP_ROUTE, renderV197Map } from "./v197Map";
 import { TIMELINE_ROUTE, renderV197Timeline } from "./v197Timeline";
+import { INSIGHTS_ROUTE, renderV197Insights } from "./v197Insights";
 import { bindV197Actions, bindV197EntryAuth } from "./v197Bindings";
 import {
   emitBridgeEvent,
@@ -18,6 +19,7 @@ import {
   ensureV197EntryPolish,
   ensureV197PremiumPolish,
 } from "./v197Polish";
+import { cancelAllV197SearchCommits } from "./v197SearchInput";
 import { selectRequired, V197_SELECTORS } from "./v197Selectors";
 
 /** Routes a bridge-native surface owns end to end.
@@ -29,11 +31,16 @@ const SURFACE_ROOTS: readonly (readonly [string, string])[] = [
   [ORBIT_ROUTE, "nur-orbit-root"],
   [MAP_ROUTE, "nur-map-root"],
   [TIMELINE_ROUTE, "nur-timeline-root"],
+  [INSIGHTS_ROUTE, "nur-insights-root"],
 ];
 
 function isDedicatedUniverseRoute(route: string): boolean {
   return route === "/universe/insights/candidates"
-    || route.startsWith("/universe/insights/candidates/");
+    || route.startsWith("/universe/insights/candidates/")
+    || route === "/universe/consultation"
+    || route.startsWith("/universe/consultation/")
+    || route === "/universe/community"
+    || route.startsWith("/universe/community/");
 }
 
 
@@ -57,9 +64,7 @@ declare global {
 function nativeRoute(pathname: string): V197NativeRoute {
   const value = pathname.replace(/\/+$/, "") || "/";
   if ([
-    "/universe/consultation",
     "/universe/research",
-    "/universe/community",
     "/universe/experts",
     "/universe/web-signals",
   ].some(route => value === route || value.startsWith(`${route}/`))) {
@@ -146,6 +151,7 @@ export class V197Bridge {
   private authenticatedSessionActive = false;
   private stageGuard: MutationObserver | null = null;
   private entryPresentationTransition: Promise<void> | null = null;
+  private routeRevision = 0;
 
   constructor(
     private readonly hostWindow: V197HostWindow,
@@ -217,6 +223,14 @@ export class V197Bridge {
   async applyCurrentRoute(): Promise<void> {
     if (!this.universeDocument || !this.session) return;
     const route = nativeRoute(window.location.pathname);
+    const revision = ++this.routeRevision;
+    const stillCurrent = (): boolean => (
+      revision === this.routeRevision && nativeRoute(window.location.pathname) === route
+    );
+    // Route dispatch early-returns on the matching dedicated surface. Cancel
+    // every prior search commit here so a detached surface cannot repaint and
+    // remount itself after the owner has already entered another world.
+    cancelAllV197SearchCommits(this.universeDocument);
     const canonicalRoute: V197NativeRoute = route.startsWith("/talk/")
       ? "/talk"
       : route.startsWith("/journal/")
@@ -256,6 +270,7 @@ export class V197Bridge {
     try {
       if (!isDedicatedUniverseRoute(route)) {
         await this.ensureFullSnapshot();
+        if (!stillCurrent()) return;
       }
       const adjunctRendered = await renderV197Adjunct(
         this.universeDocument,
@@ -265,6 +280,7 @@ export class V197Bridge {
         async () => this.refreshSnapshot(),
         this.session,
       );
+      if (!stillCurrent()) return;
       if (adjunctRendered) return;
       // Clear any surface root that does not own this route, *before* the chain
       // below. Each surface removes its own root only when it is called with a
@@ -278,6 +294,7 @@ export class V197Bridge {
       // Orbit is a bridge-native surface like the other adjuncts: plain DOM and
       // SVG in the canonical document, never a React tree owning a product page.
       const orbitRendered = await renderV197Orbit(this.universeDocument, route, this.api);
+      if (!stillCurrent()) return;
       if (orbitRendered) {
         this.markWorldFocus("orbits");
         return;
@@ -285,6 +302,7 @@ export class V197Bridge {
       // Map, likewise: it composes canonical Systems, goals, plans, decisions and
       // outcomes into a causal surface, and owns no life entity of its own.
       const mapRendered = await renderV197Map(this.universeDocument, route, this.api);
+      if (!stillCurrent()) return;
       if (mapRendered) {
         this.markWorldFocus("map");
         return;
@@ -293,8 +311,15 @@ export class V197Bridge {
       // scheduled_actions into a temporal surface and owns no life entity of
       // its own.
       const timelineRendered = await renderV197Timeline(this.universeDocument, route, this.api);
+      if (!stillCurrent()) return;
       if (timelineRendered) {
         this.markWorldFocus("timeline");
+        return;
+      }
+      if (!stillCurrent()) return;
+      const insightsRendered = renderV197Insights(this.universeDocument, route, this.snapshot);
+      if (insightsRendered) {
+        this.markWorldFocus("insights", false);
         return;
       }
       const page = pageByRoute[canonicalRoute];
@@ -306,12 +331,14 @@ export class V197Bridge {
         // repaint the selected System, so yield one task before applying the
         // owner-ledger lens as the final route state.
         if (world !== "universe") await pause(0);
+        if (!stillCurrent()) return;
         renderWorldLens(this.universeDocument, this.snapshot, world);
         if (world === "insights") {
           const routeInsightId = route.startsWith("/universe/insights/")
             ? decodeURIComponent(route.slice("/universe/insights/".length))
             : null;
           await this.renderInsightRoute(routeInsightId);
+          if (!stillCurrent()) return;
         }
         this.compactRenderedMiniStars(this.universeDocument);
       }
@@ -571,7 +598,7 @@ export class V197Bridge {
     button?.click();
   }
 
-  private markWorldFocus(focus: string): void {
+  private markWorldFocus(focus: string, renderCanonicalLens = true): void {
     if (!this.universeDocument || !this.snapshot) return;
     this.universeDocument.body.dataset.nurWorldFocus = focus;
     this.universeDocument.querySelectorAll<HTMLElement>("[data-world-focus], [data-world-tab]").forEach(control => {
@@ -581,7 +608,7 @@ export class V197Bridge {
         control.setAttribute("aria-selected", String(active));
       }
     });
-    renderWorldLens(this.universeDocument, this.snapshot, focus);
+    if (renderCanonicalLens) renderWorldLens(this.universeDocument, this.snapshot, focus);
     this.compactRenderedMiniStars(this.universeDocument);
   }
 

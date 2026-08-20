@@ -10,6 +10,10 @@ import {
 } from "./helpers/v197Geometry";
 import { installNurMocks } from "./helpers/nurMocks";
 
+test.beforeEach(async ({}, testInfo) => {
+  test.skip(testInfo.project.name.startsWith("webkit"), "WebKit evidence uses the partitioned Safari projects and isolated matrix.");
+});
+
 async function authenticate(page: Page): Promise<void> {
   await installNurMocks(page);
   await page.context().addCookies([
