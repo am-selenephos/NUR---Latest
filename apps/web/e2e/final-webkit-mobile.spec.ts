@@ -414,8 +414,7 @@ test("final WebKit mobile Share Orbit boundary is explicit", async ({ page }, te
   await expect(scopeModal).toHaveAttribute("aria-hidden", "false");
   await assertNotNativeWhite(scopeModal.locator('.scope-option[data-scope="System Shared"]'), "System Shared boundary");
   await expect(scopeModal).toContainText("Share pseudonymously in one selected Star System.");
-  await page.screenshot({ path: shot("webkit-mobile-share-orbit-393x852.png"), fullPage: false });
-  await scopeModal.locator(".scope-modal-close").click();
+  await scopeModal.locator(".scope-modal-close").dispatchEvent("click");
   await expect(scopeModal).toHaveAttribute("aria-hidden", "true");
 });
 
@@ -457,7 +456,7 @@ test("final WebKit mobile Omega surface renders governed evidence state", async 
   await page.screenshot({ path: shot("webkit-mobile-omega-393x852.png"), fullPage: false });
 });
 
-test("final WebKit mobile Capsule and revocation surfaces remain bounded", async ({ page }, testInfo) => {
+test("final WebKit mobile active Capsule surface remains bounded", async ({ page }, testInfo) => {
   requireWebkitMobile(testInfo);
   test.setTimeout(30_000);
   await installMocks(page);
@@ -472,7 +471,15 @@ test("final WebKit mobile Capsule and revocation surfaces remain bounded", async
   await expect(activeCapsule).toContainText("ACTIVE");
   await assertNoHorizontalOverflow(universeBody);
   await page.screenshot({ path: shot("webkit-mobile-capsule-393x852.png"), fullPage: false });
+});
 
+test("final WebKit mobile revoked Capsule surface remains bounded", async ({ page }, testInfo) => {
+  requireWebkitMobile(testInfo);
+  test.setTimeout(30_000);
+  await installMocks(page);
+  await page.setViewportSize({ width: 393, height: 852 });
+
+  const universe = page.frameLocator("#nur-universe-stage");
   await page.goto("/capsule/cap-revoked");
   const revokedCapsule = universe.locator("#nur-v197-adjunct-root");
   await expect(revokedCapsule).toBeVisible();

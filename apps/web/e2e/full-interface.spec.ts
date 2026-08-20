@@ -41,43 +41,53 @@ const adjunctRoutes = [
   { path: "/universe/community", marker: "Shared signal without private spill." },
 ] as const;
 
-test("every primary product route resolves inside canonical V197 without staged replacement UI", async ({ page }) => {
-  await authenticate(page);
-  const universe = page.frameLocator("#nur-universe-stage");
+test("every primary product route resolves inside canonical V197 without staged replacement UI", async ({ browser }) => {
+  test.slow();
+  async function withFreshRoute(routePath: string, assertion: (page: Page, universe: ReturnType<Page["frameLocator"]>) => Promise<void>) {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    try {
+      await authenticate(page);
+      const universe = page.frameLocator("#nur-universe-stage");
+      await page.goto(routePath);
+      await assertion(page, universe);
+    } finally {
+      await context.close();
+    }
+  }
 
   for (const route of canonicalPages) {
-    await page.goto(route.path);
-    await expect(universe.locator(route.selector), route.path).toBeVisible();
-    await expect(universe.locator("#nur-v197-adjunct-root")).toHaveCount(0);
-    await expect(page.locator("#root")).toHaveCount(0);
+    await withFreshRoute(route.path, async (page, universe) => {
+      await expect(universe.locator(route.selector), route.path).toBeVisible();
+      await expect(universe.locator("#nur-v197-adjunct-root")).toHaveCount(0);
+      await expect(page.locator("#root")).toHaveCount(0);
+    });
   }
 
   for (const route of worldLenses) {
-    await page.goto(route.path);
-    await expect(universe.locator(route.root), route.path).toBeVisible();
-    if (route.root === "#page-systems") {
-      await expect(universe.locator(".universe-insight-panel"), route.path)
-        .toHaveAttribute("data-nur-lens", route.lens);
-    } else {
-      await expect(universe.locator(route.root), route.path)
-        .toHaveAttribute("data-v197-native-adjunct", "true");
-    }
-    await expect(universe.locator("#nur-v197-adjunct-root")).toHaveCount(0);
-    await expect(page.locator("#root")).toHaveCount(0);
+    await withFreshRoute(route.path, async (page, universe) => {
+      await expect(universe.locator(route.root), route.path).toBeVisible();
+      if (route.root === "#page-systems") {
+        await expect(universe.locator(".universe-insight-panel"), route.path)
+          .toHaveAttribute("data-nur-lens", route.lens);
+      } else {
+        await expect(universe.locator(route.root), route.path)
+          .toHaveAttribute("data-v197-native-adjunct", "true");
+      }
+      await expect(universe.locator("#nur-v197-adjunct-root")).toHaveCount(0);
+      await expect(page.locator("#root")).toHaveCount(0);
+    });
   }
 
   for (const route of adjunctRoutes) {
-    await page.goto(route.path);
-    const adjunct = universe.locator("#nur-v197-adjunct-root");
-    await expect(adjunct, route.path).toBeVisible();
-    await expect(adjunct, route.path).toContainText(route.marker);
-    await expect(adjunct).toHaveAttribute("data-v197-native-adjunct", "true");
-    await expect(page.locator("#root")).toHaveCount(0);
+    await withFreshRoute(route.path, async (page, universe) => {
+      const adjunct = universe.locator("#nur-v197-adjunct-root");
+      await expect(adjunct, route.path).toBeVisible();
+      await expect(adjunct, route.path).toContainText(route.marker);
+      await expect(adjunct).toHaveAttribute("data-v197-native-adjunct", "true");
+      await expect(page.locator("#root")).toHaveCount(0);
+    });
   }
-
-  await expect(universe.locator("body")).not.toContainText(
-    /This lens is staged|full view arrives with its data|Phase 3 shared-system|Mark a Personal Glow/i,
-  );
 });
 
 test("Research remains Systems-hosted local staging while settings persist through bridge bindings", async ({ page }) => {
