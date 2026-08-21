@@ -209,6 +209,18 @@ async def run_mind_cognitive_loop(
         workspace_frame=frame,
         scope_envelope=scope_envelope,
         semantic_inputs=semantic_inputs,
+        hydrated_context=hydrated_ctx,
+        max_model_calls=1,
+        max_cost_cents=(
+            resolution.selected_capability.estimated_cost_cents
+            if resolution.selected_capability is not None
+            else 0
+        ),
+        deadline_seconds=(
+            float(resolution.selected_capability.timeout_seconds)
+            if resolution.selected_capability is not None
+            else 30.0
+        ),
     )
 
     # 7. Initialize ModelRun trace record
@@ -298,6 +310,7 @@ async def run_mind_cognitive_loop(
                 query=user_line,
                 task_id=packet.task_id,
                 extracted_parameters=resolution.extracted_parameters,
+                packet=packet,
             )
 
         if worker_result is not None:

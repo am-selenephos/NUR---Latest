@@ -22,7 +22,6 @@ type SlotCopy = {
   insights: string;
   research: string;
   community: string;
-  webSignals: string;
   send: string;
 };
 
@@ -39,7 +38,6 @@ const EN: SlotCopy = {
   insights: "Insights",
   research: "Research",
   community: "Community",
-  webSignals: "Web Signals",
   send: "Send",
 };
 
@@ -58,7 +56,6 @@ const SLOT_COPY: Partial<Record<SupportedLocale, SlotCopy>> = {
     insights: "Samajh",
     research: "Tehqeeq",
     community: "Community",
-    webSignals: "Web Signals",
     send: "Bhej",
   },
   ko: {
@@ -74,7 +71,6 @@ const SLOT_COPY: Partial<Record<SupportedLocale, SlotCopy>> = {
     insights: "인사이트",
     research: "리서치",
     community: "커뮤니티",
-    webSignals: "웹 시그널",
     send: "보내기",
   },
   hi: { ...EN, today: "आज", talk: "बात", journal: "जर्नल", plan: "योजना", systems: "सिस्टम" },
@@ -156,7 +152,6 @@ export function applyV197Locale(
 
   setText(document, '[data-world-focus="research"] .clean-tool-button b', copy.research);
   setText(document, '[data-world-focus="community"] .clean-tool-button b', copy.community);
-  setText(document, '[data-world-focus="web"] .clean-tool-button b', copy.webSignals);
   setText(document, '[data-send="talk"] > span', copy.send);
   setText(document, '[data-send="today"] > span', copy.send);
   setPlaceholder(document, "#talk-input", CORE_COPY[locale].askPlaceholder);

@@ -9,7 +9,10 @@ if ! command -v rg >/dev/null 2>&1; then
   exit 2
 fi
 
-PATTERN='sk-(proj-)?[A-Za-z0-9_-]{20,}|(OPENAI_API_KEY|VITE_OPENAI_API_KEY|NEXT_PUBLIC_OPENAI_API_KEY)[[:space:]]*=[[:space:]]*[^[:space:]#]+|Authorization:[[:space:]]*Bearer[[:space:]]+[^[:space:]]+'
+# Match credential formats rather than variable names alone. The lookbehind
+# prevents ordinary prose such as "risk-management" from looking like an
+# OpenAI key while still catching keys embedded in JSON, logs and bundles.
+PATTERN='(?<![A-Za-z0-9])sk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,}|sk_live_[A-Za-z0-9]{16,}|rk_live_[A-Za-z0-9]{16,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|Authorization:[[:space:]]*Bearer[[:space:]]+[^[:space:]"'"'"'<>]+'
 
 scan_tree() {
   local label="$1"
@@ -24,7 +27,7 @@ scan_tree() {
     --glob '!**/.venv/**' \
     --glob '!.git/**' \
     --glob '!.env' \
-    --glob '!.env.*' \
+    --glob '!.env.local' \
     --glob '!*.sha256' \
     --glob '!infra/scripts/secret-scan.sh'
   then
@@ -34,7 +37,7 @@ scan_tree() {
 }
 
 SOURCE_PATHS=()
-for path in apps packages infra .github package.json package-lock.json pyproject.toml .env.example .dockerignore .gitignore; do
+for path in apps packages infra .github docs contracts package.json package-lock.json pyproject.toml .env.example .dockerignore .gitignore; do
   [[ -e "$path" ]] && SOURCE_PATHS+=("$path")
 done
 scan_tree "tracked source" "${SOURCE_PATHS[@]}"

@@ -10,7 +10,7 @@ import uuid
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ── Profile keys ────────────────────────────────────────────────────────────
@@ -109,6 +109,21 @@ class ContextSource(BaseModel):
     kind: str
     id: str
     reason: str
+    scope: str = "PRIVATE"
+    status: Literal[
+        "INCLUDED",
+        "EXCLUDED",
+        "DEGRADED",
+        "FAILED",
+        "SKIPPED",
+        "TRUNCATED",
+    ] = "INCLUDED"
+    owner_user_id: uuid.UUID | None = None
+    token_estimate: int = Field(default=0, ge=0)
+    truncated: bool = False
+    degraded: bool = False
+    freshness: str | None = None
+    provenance: str | None = None
 
 
 class ContextManifest(BaseModel):
@@ -116,8 +131,17 @@ class ContextManifest(BaseModel):
     scope_statement: str
     included: list[ContextSource] = Field(default_factory=list)
     excluded: list[ContextSource] = Field(default_factory=list)
-    token_budget: int = 0
-    token_used: int = 0
+    degraded: list[ContextSource] = Field(default_factory=list)
+    token_budget: int = Field(default=0, ge=0)
+    token_used: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def enforce_hard_budget(self) -> "ContextManifest":
+        if self.token_used > self.token_budget:
+            raise ValueError(
+                f"context token usage exceeds hard budget ({self.token_used} > {self.token_budget})"
+            )
+        return self
 
 
 class CognitiveTaskPacket(BaseModel):
@@ -195,6 +219,7 @@ class WorkflowStepProposal(BaseModel):
     requires_approval: bool = True
     arguments: dict[str, Any] = Field(default_factory=dict)
     dependencies: list[str] = Field(default_factory=list)
+    estimated_tokens: int = Field(default=0, ge=0)
     estimated_cost_cents: int = 0
     timeout_seconds: int = 30
     idempotency_key: str | None = None
@@ -237,14 +262,130 @@ class CognitiveResult(BaseModel):
     proposed_actions: list[str] = Field(default_factory=list)
 
 
+class OwnerIdentitySnapshot(BaseModel):
+    """Owner and governing scope identity frozen at packet construction time."""
+
+    owner_user_id: uuid.UUID
+    orbit_id: uuid.UUID | None = None
+    scope_envelope_id: uuid.UUID | None = None
+
+
+class UserModelSnapshot(BaseModel):
+    """Correctable owner-model claims admitted by the current scope."""
+
+    claims: list[dict[str, Any]] = Field(default_factory=list)
+    corrections: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class WorldModelSnapshot(BaseModel):
+    """Current scoped environment, never a global or cross-owner world dump."""
+
+    orbit: dict[str, Any] = Field(default_factory=dict)
+    today: dict[str, Any] = Field(default_factory=dict)
+    workspace: dict[str, Any] = Field(default_factory=dict)
+
+
+class ProjectModelSnapshot(BaseModel):
+    """Current owner projects admitted to the task scope."""
+
+    projects: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class BeliefSnapshot(BaseModel):
+    id: str
+    claim: str
+    status: str = "EMERGING"
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    supporting_evidence: list[dict[str, Any]] = Field(default_factory=list)
+    counterevidence: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class GoalSnapshot(BaseModel):
+    id: str
+    title: str
+    status: str = "ACTIVE"
+    why: str | None = None
+    orbit_id: uuid.UUID | None = None
+    project_id: uuid.UUID | None = None
+
+
+class IntentionSnapshot(BaseModel):
+    """Intent precedence is explicit and inspectable."""
+
+    explicit_owner_intent: str
+    inferred_intentions: list[str] = Field(default_factory=list)
+    effective_intent: str
+    precedence: Literal["explicit_owner_intent", "inferred_intent"] = "explicit_owner_intent"
+
+
+class CognitiveBudget(BaseModel):
+    """Hard limits carried across Mind and Brain for this one task."""
+
+    max_context_tokens: int = Field(default=0, ge=0)
+    max_output_tokens: int = Field(default=2_000, ge=1)
+    max_model_calls: int = Field(default=1, ge=1, le=32)
+    max_cost_cents: int = Field(default=0, ge=0)
+    deadline_seconds: float = Field(default=30.0, gt=0)
+
+
+class ContextLineage(BaseModel):
+    scope_envelope_id: uuid.UUID | None = None
+    capability_id: str | None = None
+    source_ids: list[str] = Field(default_factory=list)
+    excluded_source_ids: list[str] = Field(default_factory=list)
+    degradation_reasons: list[str] = Field(default_factory=list)
+
+
+class SemanticRoutingSnapshot(BaseModel):
+    """Non-mutating planner/research/specialist preflight supplied to the provider."""
+
+    planner_candidates: list[dict[str, Any]] = Field(default_factory=list)
+    simulation: dict[str, Any] = Field(default_factory=dict)
+    research: dict[str, Any] = Field(default_factory=dict)
+    specialists: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class CognitiveTaskPacketV2(CognitiveTaskPacket):
-    """Versioned Mind→Brain boundary with a lossless v1 projection."""
+    """Rich, owner-scoped Mind→Brain contract with a lossless v1 adapter."""
 
     contract_version: Literal["cognitive-task-v2"] = "cognitive-task-v2"
+    owner_identity: OwnerIdentitySnapshot | None = None
+    user_model: UserModelSnapshot = Field(default_factory=UserModelSnapshot)
+    world_model: WorldModelSnapshot = Field(default_factory=WorldModelSnapshot)
+    project_model: ProjectModelSnapshot = Field(default_factory=ProjectModelSnapshot)
+    beliefs: list[BeliefSnapshot] = Field(default_factory=list)
+    goals: list[GoalSnapshot] = Field(default_factory=list)
+    intention: IntentionSnapshot | None = None
+    approved_memory: list[dict[str, Any]] = Field(default_factory=list)
+    research_context: list[dict[str, Any]] = Field(default_factory=list)
+    budget: CognitiveBudget = Field(default_factory=CognitiveBudget)
+    context_lineage: ContextLineage = Field(default_factory=ContextLineage)
+    semantic_routing: SemanticRoutingSnapshot = Field(default_factory=SemanticRoutingSnapshot)
 
     @classmethod
     def from_v1(cls, packet: CognitiveTaskPacket) -> "CognitiveTaskPacketV2":
-        return cls.model_validate(packet.model_dump())
+        payload = packet.model_dump()
+        payload.update(
+            owner_identity=OwnerIdentitySnapshot(
+                owner_user_id=packet.owner_user_id,
+                orbit_id=packet.orbit_id,
+                scope_envelope_id=packet.scope_envelope_id,
+            ),
+            intention=IntentionSnapshot(
+                explicit_owner_intent=packet.user_input,
+                effective_intent=packet.user_input,
+            ),
+            budget=CognitiveBudget(
+                max_context_tokens=packet.context_manifest.token_budget,
+                max_model_calls=max(1, packet.max_turns),
+            ),
+            context_lineage=ContextLineage(
+                scope_envelope_id=packet.scope_envelope_id,
+                source_ids=[source.id for source in packet.context_manifest.included],
+                excluded_source_ids=[source.id for source in packet.context_manifest.excluded],
+            ),
+        )
+        return cls.model_validate(payload)
 
 
 class CognitiveResultV2(CognitiveResult):

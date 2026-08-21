@@ -19,7 +19,11 @@ from app.models._mixins import now_utc
 from app.omega.due_owner_service import omega_consolidation_due_owner_ids
 from app.omega.replay_service import omega_consolidate_owner
 from app.services.account_service import purge_due_account_deletions
-from app.services.project_execution import execute_run
+from app.services.project_execution import execute_run, recover_stale_runs
+from app.services.project_recovery import (
+    project_recovery_owner_ids,
+    queued_project_run_ids,
+)
 from app.workers.asyncrun import run_task
 from app.workers.celery_app import celery
 
@@ -84,6 +88,78 @@ async def _execute_project_run(run_id: str, owner_user_id: str, worker_id: str |
             failure_code=result.failure_code, idempotent_noop=result.idempotent_noop)
         return {"run_id": str(result.run_id), "status": result.status,
                 "failure_code": result.failure_code, "artifact_id": str(result.artifact_id) if result.artifact_id else None}
+
+
+@celery.task(name="nur.reconcile_project_runs", ignore_result=False, acks_late=True)
+def reconcile_project_runs_task() -> dict:
+    """Recover stale runs and republish queued run IDs after broker outages."""
+    return run_task(lambda: _reconcile_project_runs())
+
+
+async def _reconcile_project_runs() -> dict:
+    settings = get_settings()
+    async with get_sessionmaker()() as db:
+        owners = await project_recovery_owner_ids(
+            db, limit=settings.project_run_recovery_owner_batch
+        )
+
+    totals = {
+        "owner_count": len(owners),
+        "scanned": 0,
+        "requeued": 0,
+        "dead_lettered": 0,
+        "dispatched": 0,
+        "dispatch_failed": 0,
+    }
+    for owner_id in owners:
+        result = await _reconcile_project_runs_for_owner(owner_id)
+        for key in (
+            "scanned",
+            "requeued",
+            "dead_lettered",
+            "dispatched",
+            "dispatch_failed",
+        ):
+            totals[key] += result[key]
+    log(logger, "project run recovery sweep", **totals)
+    return totals
+
+
+async def _reconcile_project_runs_for_owner(owner_user_id: uuid.UUID) -> dict[str, int]:
+    settings = get_settings()
+    async with get_sessionmaker()() as db:
+        await set_user_context(db, owner_user_id)
+        recovery = await recover_stale_runs(db)
+        # recover_stale_runs commits when it changes rows, which clears the
+        # transaction-local RLS context. Re-arm it before reading queued IDs.
+        await set_user_context(db, owner_user_id)
+        queued_ids = await queued_project_run_ids(
+            db,
+            owner_user_id=owner_user_id,
+            limit=settings.project_run_recovery_run_batch,
+        )
+
+    dispatched = 0
+    dispatch_failed = 0
+    for run_id in queued_ids:
+        try:
+            execute_project_run_task.delay(str(run_id), str(owner_user_id))
+            dispatched += 1
+        except Exception as exc:  # noqa: BLE001 - next Beat tick retries the ID
+            dispatch_failed += 1
+            log(
+                logger,
+                "project run redispatch unavailable",
+                run_id=str(run_id),
+                owner_user_id=str(owner_user_id),
+                error_type=type(exc).__name__,
+            )
+
+    return {
+        **recovery,
+        "dispatched": dispatched,
+        "dispatch_failed": dispatch_failed,
+    }
 
 
 @celery.task(name="nur.omega_consolidate_due_owners", ignore_result=False)

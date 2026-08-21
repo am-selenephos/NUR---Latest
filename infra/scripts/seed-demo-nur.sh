@@ -16,6 +16,7 @@ fi
 # API_ORIGIN/DATABASE_URL wins over the file.
 __caller_api_origin="${API_ORIGIN:-}"
 __caller_database_url="${DATABASE_URL:-}"
+__caller_app_env="${APP_ENV:-}"
 
 set -a
 # shellcheck disable=SC1091
@@ -24,6 +25,12 @@ set +a
 
 [[ -n "$__caller_api_origin" ]] && export API_ORIGIN="$__caller_api_origin"
 [[ -n "$__caller_database_url" ]] && export DATABASE_URL="$__caller_database_url"
+[[ -n "$__caller_app_env" ]] && export APP_ENV="$__caller_app_env"
+
+if [[ "${APP_ENV:-development}" == "production" ]]; then
+  printf 'seed-demo-nur.sh refuses to run when APP_ENV=production.\n' >&2
+  exit 2
+fi
 printf 'seeding against %s\n' "${API_ORIGIN:-http://localhost:8000}" >&2
 
 apps/api/.venv/bin/python - <<'PY'

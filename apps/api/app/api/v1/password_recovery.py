@@ -1,6 +1,13 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 
-from app.api.deps import DB, Identity, require_csrf, require_trusted_origin
+from app.api.deps import (
+    DB,
+    Identity,
+    require_csrf,
+    require_public_browser_csrf,
+    require_trusted_origin,
+    set_bootstrap_csrf_cookie,
+)
 from app.core.config import get_settings
 from app.core.security import email_fingerprint, opaque_fingerprint
 from app.schemas.auth import (
@@ -22,14 +29,14 @@ def _request_ip(request: Request) -> str:
 def _clear_auth_cookies(response: Response) -> None:
     settings = get_settings()
     response.delete_cookie(settings.session_cookie_name, path="/")
-    response.delete_cookie(settings.csrf_cookie_name, path="/")
+    set_bootstrap_csrf_cookie(response)
 
 
 @router.post(
     "/forgot",
     status_code=202,
     response_model=ForgotPasswordResponse,
-    dependencies=[Depends(require_trusted_origin)],
+    dependencies=[Depends(require_public_browser_csrf)],
 )
 async def forgot_password(
     payload: ForgotPasswordRequest,
@@ -64,7 +71,7 @@ async def forgot_password(
 @router.post(
     "/reset",
     status_code=204,
-    dependencies=[Depends(require_trusted_origin)],
+    dependencies=[Depends(require_public_browser_csrf)],
 )
 async def reset_password(
     payload: ResetPasswordRequest,

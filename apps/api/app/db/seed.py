@@ -2,12 +2,9 @@
 import asyncio
 import secrets
 
-from sqlalchemy import select
-
 from app.core.config import get_settings
-from app.db.rls import set_auth_context
+from app.db.rls import lookup_user_id_by_email
 from app.db.session import get_sessionmaker
-from app.models import User
 from app.services import auth_service
 
 
@@ -18,8 +15,7 @@ async def main() -> None:
     email = "demo@nur.local"
     async with get_sessionmaker()() as db:
         async with db.begin():
-            await set_auth_context(db)
-            exists = (await db.execute(select(User.id).where(User.email == email))).scalar_one_or_none()
+            exists = await lookup_user_id_by_email(db, email)
         if exists:
             print(f"seed: {email} already present — nothing to do")
             return

@@ -111,6 +111,8 @@ def build_default_evaluation_corpus() -> EvaluationCorpus:
 
 class EvaluationGate(BaseModel):
     cases: list[EvaluationCase] = Field(default_factory=list)
+    # Retained for V1 input compatibility only. Promotion never trusts this
+    # self-reported scalar; observed shadow cases are required below.
     shadow_pass_rate: float = 0.0
     min_held_out_pass_rate: float = 1.0
     min_shadow_pass_rate: float = 1.0
@@ -134,20 +136,57 @@ class EvaluationGate(BaseModel):
         )
 
     def evaluate(self, report: EvaluationReport) -> PromotionDecision:
+        held_out_cases = [case for case in self.cases if case.split == "held_out"]
+        shadow_cases = [case for case in self.cases if case.split == "shadow"]
         failures = list(report.held_out.failures) + list(report.shadow.failures)
         shadow_rate = report.shadow.pass_rate
         held_out_rate = report.held_out.pass_rate
-        if self.shadow_pass_rate:
-            shadow_rate = min(shadow_rate, self.shadow_pass_rate)
+        missing_held_out = [case.case_id for case in held_out_cases if case.case_id not in report.observed]
+        missing_shadow = [case.case_id for case in shadow_cases if case.case_id not in report.observed]
+        errored = [
+            case.case_id
+            for case in held_out_cases + shadow_cases
+            if report.observed.get(case.case_id) == "ERROR"
+        ]
+        if missing_held_out:
+            failures.extend(missing_held_out)
+        if missing_shadow:
+            failures.extend(missing_shadow)
+        if errored:
+            failures.extend(errored)
+        complete_counts = (
+            report.held_out.total == len(held_out_cases)
+            and report.shadow.total == len(shadow_cases)
+        )
         promote = bool(
             report.corpus_version == self.corpus_version
-            and report.held_out.total > 0
-            and report.shadow.total > 0
+            and held_out_cases
+            and shadow_cases
+            and complete_counts
+            and not missing_held_out
+            and not missing_shadow
+            and not errored
             and held_out_rate >= self.min_held_out_pass_rate
             and shadow_rate >= self.min_shadow_pass_rate
             and not failures
         )
-        reason = "held-out and shadow empirical thresholds passed" if promote else "empirical promotion thresholds failed"
+        if promote:
+            reason = "held-out and shadow empirical thresholds passed"
+        else:
+            reasons: list[str] = []
+            if not held_out_cases or missing_held_out or report.held_out.total == 0:
+                reasons.append("missing empirical held-out observations")
+            if not shadow_cases or missing_shadow or report.shadow.total == 0:
+                reasons.append("missing empirical shadow observations")
+            if errored:
+                reasons.append("evaluation errors fail closed")
+            if not complete_counts:
+                reasons.append("evaluation corpus/report mismatch")
+            if report.corpus_version != self.corpus_version:
+                reasons.append("evaluation corpus version mismatch")
+            if not reasons:
+                reasons.append("empirical promotion thresholds failed")
+            reason = "; ".join(reasons)
         return PromotionDecision(
             promote=promote,
             corpus_version=report.corpus_version,
@@ -158,11 +197,15 @@ class EvaluationGate(BaseModel):
         )
 
     def can_promote(self, observed: dict[str, str]) -> bool:
-        """Compatibility boundary for legacy callers; still requires held-out data."""
+        """Compatibility boundary that still requires both empirical splits."""
         held_out = [case for case in self.cases if case.split == "held_out"]
-        if not held_out or self.shadow_pass_rate < self.min_shadow_pass_rate:
+        shadow = [case for case in self.cases if case.split == "shadow"]
+        if not held_out or not shadow:
             return False
-        return all(observed.get(case.case_id) == case.expected for case in held_out)
+        return all(
+            observed.get(case.case_id) == case.expected
+            for case in held_out + shadow
+        )
 
 
 def _evaluation_packet(category: str):
@@ -299,5 +342,5 @@ def run_default_evaluation() -> tuple[EvaluationReport, PromotionDecision]:
     """
     corpus = build_default_evaluation_corpus()
     report = EvaluationRunner(corpus).run(_evaluate_default_case)
-    gate = EvaluationGate.from_corpus(corpus, shadow_pass_rate=1.0)
+    gate = EvaluationGate.from_corpus(corpus)
     return report, gate.evaluate(report)

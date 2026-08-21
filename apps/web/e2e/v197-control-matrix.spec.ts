@@ -205,11 +205,15 @@ for (const projectName of ["chromium-desktop", "chromium-mobile"]) {
       .toBe("rgba(3, 3, 7, 0.68)");
     expect(buttonStyle.font).toContain("Crimson Pro");
 
-    // a tab without a dedicated surface says so honestly.
+    // Retired placeholder tabs are absent. A stale deep link falls back to the
+    // implemented Project overview instead of exposing a fake empty surface.
+    for (const tab of ["insights", "settings", "share"]) {
+      await expect(root.locator(`[data-adjunct-action="project-tab-${tab}"]`)).toHaveCount(0);
+    }
     await page.goto(`/projects/${PROJECT_ID}/insights`);
-    await expect(root).toContainText("Not a separate surface yet");
-    await expect(root).toContainText("not part of this beta");
-    await expect(root.locator('[data-adjunct-panel="deliverables"]')).toHaveCount(0);
+    await expect(root).toContainText("Project Orbit");
+    await expect(root.locator('[data-adjunct-action="project-task-create"]')).toBeVisible();
+    await expect(root).not.toContainText("Not a separate surface yet");
   });
 
   test(`[${projectName}] journal save persists and hydrates after reload`, async ({ page }, testInfo) => {

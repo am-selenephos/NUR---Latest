@@ -1,6 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response  # noqa: F401
 
-from app.api.deps import DB, Identity, require_csrf
+from app.api.deps import (
+    DB,
+    Identity,
+    require_csrf,
+    require_public_browser_csrf,
+    set_bootstrap_csrf_cookie,
+)
 from app.core.config import get_settings
 from app.core.security import csrf_token_for, email_fingerprint, split_session_cookie
 from app.schemas.auth import LoginRequest, MeResponse, OrbitOut, ProfileOut, RegisterRequest
@@ -23,10 +29,15 @@ def _set_auth_cookies(response: Response, session_value: str) -> None:
 def _clear_auth_cookies(response: Response) -> None:
     s = get_settings()
     response.delete_cookie(s.session_cookie_name, path="/")
-    response.delete_cookie(s.csrf_cookie_name, path="/")
+    set_bootstrap_csrf_cookie(response)
 
 
-@router.post("/register", status_code=201, response_model=MeResponse)
+@router.post(
+    "/register",
+    status_code=201,
+    response_model=MeResponse,
+    dependencies=[Depends(require_public_browser_csrf)],
+)
 async def register(payload: RegisterRequest, request: Request, response: Response, db: DB):
     ip = request.client.host if request.client else "unknown"
     if not await rate_limit.allow_registration(request.app.state.redis, ip=ip):
@@ -46,7 +57,11 @@ async def register(payload: RegisterRequest, request: Request, response: Respons
     )
 
 
-@router.post("/login", response_model=dict)
+@router.post(
+    "/login",
+    response_model=dict,
+    dependencies=[Depends(require_public_browser_csrf)],
+)
 async def login(payload: LoginRequest, request: Request, response: Response, db: DB):
     ip = request.client.host if request.client else "unknown"
     allowed = await rate_limit.allow_login(request.app.state.redis, ip=ip,

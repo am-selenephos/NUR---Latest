@@ -69,7 +69,7 @@ class IndependentCritic:
 
     def critique(self, packet: CognitiveTaskPacket, result: CognitiveResult) -> CritiqueResult:
         notes: list[str] = []
-        if packet.context_manifest.included and any(
+        if (packet.context_manifest.included or packet.evidence_refs) and any(
             claim.claim_kind in ("observed", "inferred") and not claim.source_refs
             for claim in result.claims
         ):

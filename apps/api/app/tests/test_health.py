@@ -9,6 +9,26 @@ async def test_healthz_returns_healthy(client):
     assert r.headers["x-content-type-options"] == "nosniff"
     assert r.headers["x-frame-options"] == "DENY"
     assert "camera=()" in r.headers["permissions-policy"]
+    assert "strict-transport-security" not in r.headers
+
+
+async def test_production_responses_enable_hsts(client, monkeypatch):
+    import app.main as main
+
+    settings = main.get_settings()
+    monkeypatch.setattr(
+        main,
+        "get_settings",
+        lambda: settings.model_copy(update={"app_env": "production"}),
+    )
+
+    r = await client.get("/healthz")
+
+    assert r.status_code == 200
+    assert (
+        r.headers["strict-transport-security"]
+        == "max-age=63072000; includeSubDomains; preload"
+    )
 
 
 async def test_readyz_reflects_dependencies_ok(client):

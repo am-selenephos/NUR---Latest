@@ -17,7 +17,11 @@ from app.core.security import (
     opaque_fingerprint,
     verify_password,
 )
-from app.db.rls import set_auth_context, set_user_context
+from app.db.rls import (
+    lookup_user_id_by_email,
+    lookup_user_id_by_reset_digest,
+    set_user_context,
+)
 from app.db.session import get_sessionmaker
 from app.models import PasswordResetChallenge, Session, User
 from app.models._mixins import now_utc
@@ -52,10 +56,14 @@ async def request_password_reset(
     dispatch = None
 
     async with db.begin():
-        await set_auth_context(db)
-        user = (
-            await db.execute(select(User).where(User.email == email_normalized))
-        ).scalar_one_or_none()
+        user_id = await lookup_user_id_by_email(db, email_normalized, active_only=True)
+        if user_id is not None:
+            await set_user_context(db, user_id)
+            user = (
+                await db.execute(select(User).where(User.id == user_id))
+            ).scalar_one_or_none()
+        else:
+            user = None
         active_user = user if user and user.status == "active" else None
         if active_user:
             await db.execute(
@@ -118,7 +126,7 @@ async def deliver_password_reset(
 
     async with get_sessionmaker()() as db:
         async with db.begin():
-            await set_auth_context(db)
+            await set_user_context(db, dispatch.user_id)
             challenge = (
                 await db.execute(
                     select(PasswordResetChallenge)
@@ -160,14 +168,18 @@ async def reset_password(db: AsyncSession, *, token: str, new_password: str) -> 
     revoked_sessions = 0
 
     async with db.begin():
-        await set_auth_context(db)
-        challenge = (
-            await db.execute(
-                select(PasswordResetChallenge)
-                .where(PasswordResetChallenge.token_digest == digest)
-                .with_for_update()
-            )
-        ).scalar_one_or_none()
+        user_id = await lookup_user_id_by_reset_digest(db, digest)
+        if user_id is not None:
+            await set_user_context(db, user_id)
+            challenge = (
+                await db.execute(
+                    select(PasswordResetChallenge)
+                    .where(PasswordResetChallenge.token_digest == digest)
+                    .with_for_update()
+                )
+            ).scalar_one_or_none()
+        else:
+            challenge = None
         if challenge is None:
             failure = "not_found"
         elif challenge.consumed_at is not None:
@@ -180,7 +192,6 @@ async def reset_password(db: AsyncSession, *, token: str, new_password: str) -> 
         elif challenge.delivery_status != "DELIVERED":
             failure = "not_delivered"
         else:
-            await set_user_context(db, challenge.user_id)
             user = (
                 await db.execute(select(User).where(User.id == challenge.user_id).with_for_update())
             ).scalar_one_or_none()

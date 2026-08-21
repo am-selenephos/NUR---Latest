@@ -83,7 +83,7 @@ test("dedicated Map controls breathe at 1280 without escaping the canonical host
   await expect(root.getByRole("tab", { name: "Focus", exact: true })).toHaveAttribute("aria-selected", "true");
 });
 
-test("timeline and insights expose persisted truth while retired world routes return to Systems", async ({ page }) => {
+test("timeline and insights expose persisted truth while retired Research returns to Systems", async ({ page }) => {
   const frame = await authenticate(page);
 
   await page.goto("/universe/timeline");
@@ -93,9 +93,6 @@ test("timeline and insights expose persisted truth while retired world routes re
   await expect(timeline).toContainText("The owner returned a visible outcome.");
 
   await page.goto("/universe/research");
-  await expect(frame.locator(".universe-insight-panel")).toHaveAttribute("data-nur-lens", "system");
-
-  await page.goto("/universe/web-signals");
   await expect(frame.locator(".universe-insight-panel")).toHaveAttribute("data-nur-lens", "system");
 
   await page.goto("/universe/insights");

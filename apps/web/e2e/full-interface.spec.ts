@@ -28,7 +28,6 @@ const worldLenses = [
   { path: "/universe/timeline", lens: "timeline", root: "#nur-timeline-root" },
   { path: "/universe/insights", lens: "insights", root: "#nur-insights-root" },
   { path: "/universe/research", lens: "system", root: "#page-systems" },
-  { path: "/universe/web-signals", lens: "system", root: "#page-systems" },
 ] as const;
 
 const adjunctRoutes = [

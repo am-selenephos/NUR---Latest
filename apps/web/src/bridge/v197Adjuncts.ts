@@ -26,6 +26,7 @@ import {
   buildApprovalCard,
   describeRisk,
   groupWorkflows,
+  resolveApprovalEditor,
   type AgenticRiskClass,
   type V197AgenticPolicy,
   type V197AgenticWorkflow,
@@ -2057,24 +2058,11 @@ async function loadCommunityFeed(api: V197ApiClient): Promise<{
   return { rooms, posts };
 }
 
-async function renderCommunityIndex(document: Document, api: V197ApiClient, route: string): Promise<void> {
+async function renderCommunityIndex(document: Document, api: V197ApiClient): Promise<void> {
   const { rooms, posts } = await loadCommunityFeed(api);
   const shell = mount(document, "Shared signal without private spill.", "Community is built from real bounded rooms and persisted contributions. No fake people, replies, activity or live public count appears here.", "/universe");
   const grid = element(document, "div", "nur-adjunct-grid");
   shell.append(grid);
-
-  if (["/community/people", "/community/saved", "/community/notifications", "/community/moderation"].includes(route)) {
-    const unavailable = panel(document, "Honest product state", route.split("/").pop()?.replaceAll("-", " ") ?? "Community");
-    unavailable.classList.add("is-wide");
-    unavailable.append(empty(document, "Not connected in this build", "This route has no fabricated records. Bounded rooms, posts, comments, reactions and Consultations remain available."));
-    const actions = element(document, "div", "nur-adjunct-actions");
-    const back = button(document, "Open bounded Community", "community-return", true);
-    back.addEventListener("click", () => navigate("/universe/community"));
-    actions.append(back);
-    unavailable.append(actions);
-    grid.append(unavailable);
-    return;
-  }
 
   const roomPanel = panel(document, "Group NUR boundaries", `Rooms · ${rooms.length}`);
   roomPanel.id = "nur-v197-community-controls";
@@ -2447,7 +2435,7 @@ async function renderProjectDetail(document: Document, api: V197ApiClient, proje
   ]);
   const shell = mount(document, text(project.title), text(project.objective), "/projects");
   const tabs = element(document, "nav", "nur-adjunct-actions");
-  const tabNames = ["overview", "tasks", "evidence", "agents", "runs", "insights", "deliverables", "settings", "share"];
+  const tabNames = ["overview", "tasks", "evidence", "agents", "runs", "deliverables"];
   for (const tab of tabNames) {
     const control = button(document, tab.replaceAll("-", " "), `project-tab-${tab}`, route.endsWith(`/${tab}`));
     control.addEventListener("click", () => navigate(`/projects/${projectId}/${tab}`));
@@ -2611,9 +2599,8 @@ async function renderProjectDetail(document: Document, api: V197ApiClient, proje
   });
   const deliverables = buildDeliverablesPanel(document, api, projectId, route, files, tasks);
 
-  // Each tab now shows its own real surface instead of every tab rendering the
-  // same six panels. Tabs without a dedicated surface in this beta say so
-  // honestly rather than repeating identical content.
+  // Every visible tab owns an implemented surface. Retired deep links resolve
+  // to overview without exposing an empty placeholder tab.
   const activeTab = tabNames.find(tab => route.endsWith(`/${tab}`)) ?? "overview";
   const panelsByTab: Record<string, HTMLElement[]> = {
     overview: [state, taskPanel, proof, agent, deliverables, review],
@@ -2623,16 +2610,7 @@ async function renderProjectDetail(document: Document, api: V197ApiClient, proje
     runs: [state, agent],
     deliverables: [state, deliverables],
   };
-  let visible = panelsByTab[activeTab];
-  if (!visible) {
-    const pending = panel(document, "Not a separate surface yet", activeTab.replaceAll("-", " "));
-    pending.append(empty(
-      document,
-      "Summarized in the Project Orbit above",
-      `A dedicated ${activeTab} view is not part of this beta. Nothing is hidden: every persisted record appears under overview.`,
-    ));
-    visible = [state, pending];
-  }
+  const visible = panelsByTab[activeTab] ?? panelsByTab.overview;
   grid.append(...visible);
 }
 
@@ -3204,6 +3182,15 @@ async function renderAgents(
       editInput.setAttribute("aria-label", "Edit the owner-visible approval arguments as JSON");
       editInput.hidden = true;
       submitEdit.hidden = true;
+      const editorContract = resolveApprovalEditor(approval);
+      const editorBoundary = status(
+        document,
+        editorContract.mode === "RAW_JSON"
+          ? `${editorContract.reason} Review and submit the complete JSON object.`
+          : "The API supplied an object input schema for this approval.",
+      );
+      editorBoundary.dataset.approvalEditorMode = editorContract.mode.toLowerCase().replace("_", "-");
+      editorBoundary.hidden = true;
       const decide = async (choice: "APPROVE" | "REJECT" | "EDIT", editedArguments?: Record<string, unknown>) => {
         approve.disabled = true;
         reject.disabled = true;
@@ -3224,6 +3211,7 @@ async function renderAgents(
       const toggleEdit = () => {
         editInput.hidden = !editInput.hidden;
         submitEdit.hidden = editInput.hidden;
+        editorBoundary.hidden = editInput.hidden;
         if (!editInput.hidden) editInput.focus();
       };
       submitEdit.addEventListener("click", () => {
@@ -3241,7 +3229,7 @@ async function renderAgents(
       approve.addEventListener("click", () => void decide("APPROVE"));
       reject.addEventListener("click", () => void decide("REJECT"));
       edit.addEventListener("click", toggleEdit);
-      decisions.append(approve, reject, edit, editInput, submitEdit);
+      decisions.append(approve, reject, edit, editorBoundary, editInput, submitEdit);
     }
     row.append(
       head,
@@ -3334,8 +3322,8 @@ async function renderAgenticDetail(
       retry.addEventListener("click", async () => {
         retry.disabled = true;
         try {
-          await api.retryAgenticWorkflow(workflow.id, requestKey("agentic-retry"), workflow.plan_version);
-          await renderAgenticDetail(document, api, session, workflow.id);
+          const successor = await api.retryAgenticWorkflow(workflow.id, requestKey("agentic-retry"), workflow.plan_version);
+          navigate(`/agents/${successor.id}`);
         } catch (error) {
           lifecycleState.textContent = error instanceof Error ? error.message : "Workflow retry was refused.";
           lifecycleState.className = "nur-adjunct-status is-warn";
@@ -3444,8 +3432,8 @@ export async function renderV197Adjunct(
     else if (route.startsWith("/universe/community/room/")) await renderCommunityRoom(document, api, decodeURIComponent(route.split("/")[4] ?? ""));
     else if (route.startsWith("/community/post/")) await renderCommunityPost(document, api, decodeURIComponent(route.split("/")[3] ?? ""));
     else if (route.startsWith("/universe/community/post/")) await renderCommunityPost(document, api, decodeURIComponent(route.split("/")[4] ?? ""));
-    else if (route === "/community" || route === "/universe/community" || route.startsWith("/community/")) await renderCommunityIndex(document, api, route);
-    else if (route.startsWith("/universe/community/")) await renderCommunityIndex(document, api, route);
+    else if (route === "/community" || route === "/universe/community" || route.startsWith("/community/")) await renderCommunityIndex(document, api);
+    else if (route.startsWith("/universe/community/")) await renderCommunityIndex(document, api);
     else if (route === "/projects" || route === "/projects/new") await renderProjectsIndex(document, api);
     else if (route.startsWith("/projects/")) await renderProjectDetail(document, api, decodeURIComponent(route.split("/")[2] ?? ""), route);
     else if (route === "/glow") {

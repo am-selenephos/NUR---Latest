@@ -19,6 +19,16 @@ from app.core.logging import log
 logger = logging.getLogger("nur.rate_limit")
 
 
+_FIXED_WINDOW_LUA = """
+local count = redis.call('INCR', KEYS[1])
+local ttl = redis.call('TTL', KEYS[1])
+if count == 1 or ttl < 0 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return count
+"""
+
+
 def namespaced(key: str) -> str:
     """Prefix a limiter key with the configured Redis namespace, if any."""
     prefix = get_settings().redis_key_namespace
@@ -29,9 +39,10 @@ async def _fixed_window(redis: Redis, *, key: str, max_n: int, window_s: int) ->
     s = get_settings()
     key = namespaced(key)
     try:
-        n = await redis.incr(key)
-        if n == 1:
-            await redis.expire(key, window_s)
+        # INCR and TTL installation are one Redis operation. A process loss can
+        # no longer strand a permanent limiter key between two commands; the
+        # ttl < 0 branch also repairs keys created by the old split-command path.
+        n = int(await redis.eval(_FIXED_WINDOW_LUA, 1, key, window_s))
         allowed = n <= max_n
         if not allowed:
             log(logger, "rate limit exceeded", key=key, count=n)

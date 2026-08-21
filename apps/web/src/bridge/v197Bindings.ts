@@ -90,9 +90,33 @@ function talkFailureMessage(error: unknown): string {
   return `NUR could not answer this turn: ${reason} Your message was kept; nothing was invented.`;
 }
 
+export type V197TalkAction = "talk" | "reflect" | "plan" | "challenge" | "explore" | "summarize";
+
+export type V197TalkActionSemantics = Pick<
+  V197TalkStreamPayload,
+  "mode" | "capability_id" | "memory_mode"
+>;
+
+export function talkSemanticsForAction(action: string): V197TalkActionSemantics {
+  if (action === "reflect") {
+    return { mode: "reflect", capability_id: "capability:contextual_answer", memory_mode: "REVIEW" };
+  }
+  if (action === "plan") {
+    return { mode: "plan", capability_id: "capability:plan_from_conversation", memory_mode: "EPHEMERAL" };
+  }
+  if (["challenge", "explore", "summarize"].includes(action)) {
+    return {
+      mode: action,
+      capability_id: "capability:contextual_answer",
+      memory_mode: "EPHEMERAL",
+    };
+  }
+  return { mode: "talk", capability_id: null, memory_mode: "EPHEMERAL" };
+}
+
 export class V197ActionBindings {
   private snapshot: V197BridgeSnapshot;
-  private composerMode = "talk";
+  private composerMode: V197TalkAction = "talk";
   private lastSubmittedTalk = "";
   private capabilityState: CapabilityState = initialCapabilityState();
   private readonly clickHandler = (event: Event) => this.onClick(event);
@@ -348,6 +372,7 @@ export class V197ActionBindings {
 
     if (resetCapability) this.capabilityState = initialCapabilityState();
     const requestId = crypto.randomUUID();
+    const semantics = talkSemanticsForAction(this.composerMode);
     this.lastSubmittedTalk = message;
     this.universeWindow()?.nurOpenPage?.("talk");
     const transient = this.beginTalkStream(message, requestId);
@@ -359,9 +384,7 @@ export class V197ActionBindings {
           orbit_id: this.activeOrbitId(),
           locale: this.locale(),
           writing_preference: this.writingPreference(),
-          mode: this.composerMode,
-          capability_id: null,
-          memory_mode: "EPHEMERAL",
+          ...semantics,
         },
         {
           onEvent: (event: V197StreamEvent) => {
@@ -610,7 +633,7 @@ export class V197ActionBindings {
   }
 
   private setComposerMode(control: HTMLElement, mode: string): void {
-    this.composerMode = mode === "ask" ? "talk" : mode;
+    this.composerMode = mode === "ask" ? "talk" : mode as V197TalkAction;
     this.document.querySelectorAll<HTMLElement>(".universe-prompt-row [data-action]").forEach(button => {
       button.classList.toggle("active", button === control);
       button.setAttribute("aria-pressed", String(button === control));

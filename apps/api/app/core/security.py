@@ -13,6 +13,7 @@ invalidates outstanding tokens without touching sessions.
 import hashlib
 import hmac
 import secrets
+import time
 import uuid
 
 from argon2 import PasswordHasher
@@ -24,6 +25,7 @@ from app.core.config import get_settings
 _ph = PasswordHasher(time_cost=3, memory_cost=64 * 1024, parallelism=2)
 # Constant dummy hash so unknown-email logins cost the same as bad-password logins.
 _DUMMY_HASH = _ph.hash("nur-timing-equalizer")
+BOOTSTRAP_CSRF_TTL_SECONDS = 15 * 60
 
 
 def _mac(key: str, message: str) -> str:
@@ -103,6 +105,35 @@ def csrf_matches(supplied: str | None, expected: str) -> bool:
     if not supplied:
         return False
     return hmac.compare_digest(supplied, expected)
+
+
+def new_bootstrap_csrf_token(*, now: int | None = None) -> str:
+    """Mint short-lived CSRF state before an authenticated session exists."""
+    issued_at = int(time.time()) if now is None else now
+    nonce = secrets.token_urlsafe(24)
+    payload = f"v1.{issued_at}.{nonce}"
+    signature = _mac(get_settings().csrf_secret, f"bootstrap-csrf:{payload}")
+    return f"{payload}.{signature}"
+
+
+def bootstrap_csrf_matches(token: str | None, *, now: int | None = None) -> bool:
+    """Validate the signature and bounded lifetime of pre-auth CSRF state."""
+    if not token:
+        return False
+    try:
+        version, issued_raw, nonce, supplied_signature = token.split(".", 3)
+        issued_at = int(issued_raw)
+    except (TypeError, ValueError):
+        return False
+    if version != "v1" or len(nonce) < 16:
+        return False
+    current = int(time.time()) if now is None else now
+    age = current - issued_at
+    if age < -30 or age > BOOTSTRAP_CSRF_TTL_SECONDS:
+        return False
+    payload = f"{version}.{issued_at}.{nonce}"
+    expected = _mac(get_settings().csrf_secret, f"bootstrap-csrf:{payload}")
+    return hmac.compare_digest(supplied_signature, expected)
 
 
 def email_fingerprint(email: str) -> str:

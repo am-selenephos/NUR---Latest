@@ -23,7 +23,7 @@ from app.core.security import (
     opaque_fingerprint,
     verify_password,
 )
-from app.db.rls import set_auth_context, set_user_context
+from app.db.rls import lookup_user_id_by_email, set_user_context
 from app.db.session import get_sessionmaker
 from app.models import (
     AccountCleanupItem,
@@ -563,12 +563,14 @@ async def cancel_account_deletion(
         raise AuthError(400, generic)
 
     normalized_email = email.strip().lower()
-    await set_auth_context(db)
-    user = (
-        await db.execute(
-            select(User).where(User.email == normalized_email)
-        )
-    ).scalar_one_or_none()
+    owner_user_id = await lookup_user_id_by_email(db, normalized_email)
+    if owner_user_id is not None:
+        await set_user_context(db, owner_user_id)
+        user = (
+            await db.execute(select(User).where(User.id == owner_user_id))
+        ).scalar_one_or_none()
+    else:
+        user = None
     password_ok = verify_password(password, user.password_hash if user else None)
     if user is None or not password_ok or user.status != "deletion_pending":
         await audit_service.record(
@@ -581,7 +583,6 @@ async def cancel_account_deletion(
         raise AuthError(400, generic)
 
     owner_user_id = user.id
-    await set_user_context(db, owner_user_id)
     user = (
         await db.execute(
             select(User).where(User.id == owner_user_id).with_for_update()

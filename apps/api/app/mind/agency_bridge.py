@@ -6,13 +6,15 @@ Ensures durable execution never occurs before required approval.
 """
 from __future__ import annotations
 
+import datetime as dt
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agentic.compiler import CompileResult, ProposedStep, compile_plan
+from app.agentic.compiler import CompileError, CompileResult, ProposedStep, compile_plan
 from app.agentic.enums import StepState, WorkflowState
 from app.agentic.input_schemas import validate_arguments
+from app.agentic.limits import DAGExecutionLimits, DAGValidationResult, validate_dag_limits
 from app.agentic.orchestrator import record_event
 from app.agentic.policy_store import load_policy
 from app.agentic.redaction import contains_secret
@@ -64,6 +66,42 @@ _RISK_RANK = {
     "R4_IRREVERSIBLE": 4,
 }
 
+DEFAULT_PRODUCTION_DAG_LIMITS = DAGExecutionLimits()
+
+
+def validate_workflow_proposal_limits(
+    proposal: WorkflowProposal,
+    *,
+    limits: DAGExecutionLimits = DEFAULT_PRODUCTION_DAG_LIMITS,
+    elapsed_seconds: float = 0.0,
+    cancellation_requested: bool = False,
+) -> tuple[DAGValidationResult, list[dict]]:
+    """Validate every proposal dimension before resolving or compiling tools."""
+    nodes = [
+        {
+            "key": step.key,
+            "depends_on": list(step.dependencies),
+            "estimated_tokens": step.estimated_tokens,
+            "estimated_cost_cents": step.estimated_cost_cents,
+        }
+        for step in proposal.steps
+    ]
+    result = validate_dag_limits(
+        nodes,
+        limits=limits,
+        elapsed_seconds=elapsed_seconds,
+        cancellation_requested=cancellation_requested,
+    )
+    if proposal.total_estimated_cost_cents > limits.max_cost_cents and "MAX_COST" not in result.violations:
+        result = result.model_copy(
+            update={
+                "allowed": False,
+                "cost_cents": max(result.cost_cents, proposal.total_estimated_cost_cents),
+                "violations": [*result.violations, "MAX_COST"],
+            }
+        )
+    return result, nodes
+
 
 async def submit_workflow_proposal(
     db: AsyncSession,
@@ -72,8 +110,26 @@ async def submit_workflow_proposal(
     proposal: WorkflowProposal,
     orbit_id: uuid.UUID | None = None,
     project_id: uuid.UUID | None = None,
+    execution_limits: DAGExecutionLimits = DEFAULT_PRODUCTION_DAG_LIMITS,
+    elapsed_seconds: float = 0.0,
+    cancellation_requested: bool = False,
 ) -> tuple[AgentWorkflow | None, CompileResult]:
     """Compile a ``WorkflowProposal`` through existing Agency compiler and persist rows."""
+    limit_result, dag_nodes = validate_workflow_proposal_limits(
+        proposal,
+        limits=execution_limits,
+        elapsed_seconds=elapsed_seconds,
+        cancellation_requested=cancellation_requested,
+    )
+    if not limit_result.allowed:
+        return None, CompileResult(
+            False,
+            errors=tuple(
+                CompileError("DAG_LIMIT", f"Agency DAG limit violated: {violation}")
+                for violation in limit_result.violations
+            ),
+        )
+
     proposed_steps: list[ProposedStep] = []
     for idx, step in enumerate(proposal.steps):
         step_key = getattr(step, "key", None)
@@ -138,7 +194,13 @@ async def submit_workflow_proposal(
         )
 
     policy = await load_policy(db, owner_user_id=owner_user_id, orbit_id=orbit_id, project_id=project_id)
-    compile_result = compile_plan(tuple(proposed_steps), policy)
+    compile_result = compile_plan(
+        tuple(proposed_steps),
+        policy,
+        limits=execution_limits,
+        elapsed_seconds=elapsed_seconds,
+        cancellation_requested=cancellation_requested,
+    )
 
     if not compile_result.ok or not compile_result.steps:
         return None, compile_result
@@ -169,6 +231,15 @@ async def submit_workflow_proposal(
         budget_cents=proposal.total_estimated_cost_cents,
         cost_cents=0,
         max_risk_class=highest_risk,
+        context_manifest={
+            "dag_limits": execution_limits.model_dump(mode="json"),
+            "dag_validation": limit_result.model_dump(mode="json"),
+            "dag_nodes": dag_nodes,
+        },
+        expires_at=(
+            dt.datetime.now(dt.timezone.utc)
+            + dt.timedelta(seconds=max(0.0, execution_limits.deadline_seconds - elapsed_seconds))
+        ),
     )
     db.add(workflow)
     await db.flush()

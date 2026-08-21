@@ -1,5 +1,6 @@
 """Test 10: the database itself must refuse cross-user access for the runtime
 role — not the ORM, not the service layer. Uses the real nur_app role."""
+import pytest
 from sqlalchemy import text
 
 from app.tests.conftest import register_user
@@ -43,6 +44,83 @@ async def test_rls_default_deny_without_context(client, app_engine):
         profiles = (await conn.execute(text("SELECT count(*) FROM profiles"))).scalar_one()
         await conn.rollback()
     assert users == 0 and profiles == 0
+
+
+async def test_runtime_role_cannot_turn_on_broad_auth_reads(client, app_engine):
+    """The request role can set custom GUCs, so auth_context must grant nothing."""
+    await register_user(client)
+    client.cookies.clear()
+    await register_user(client)
+
+    async with app_engine.connect() as conn:
+        await conn.execute(text("SELECT set_config('app.auth_context','on',true)"))
+        users = (await conn.execute(text("SELECT count(*) FROM users"))).scalar_one()
+        sessions = (await conn.execute(text("SELECT count(*) FROM sessions"))).scalar_one()
+        await conn.rollback()
+
+    assert users == 0
+    assert sessions == 0
+
+
+async def test_exact_email_lookup_crosses_rls_only_through_narrow_functions(
+    client, app_engine, super_engine
+):
+    ra, email_a, _ = await register_user(client)
+    client.cookies.clear()
+    rb, email_b, _ = await register_user(client)
+    uid_a, uid_b = ra.json()["id"], rb.json()["id"]
+
+    async with app_engine.connect() as conn:
+        await conn.execute(text(SET_USER), {"uid": uid_a})
+        active_id = (await conn.execute(
+            text("SELECT fn_active_user_id_by_email(:email)"), {"email": email_b}
+        )).scalar_one()
+        capsule_id = (await conn.execute(
+            text("SELECT fn_user_id_by_email(:email)"), {"email": email_b}
+        )).scalar_one()
+        direct_cross = (await conn.execute(
+            text("SELECT count(*) FROM users WHERE email = :email"), {"email": email_b}
+        )).scalar_one()
+        with pytest.raises(Exception):
+            await conn.execute(text("SET ROLE nur_email_lookup"))
+        await conn.rollback()
+
+    assert str(active_id) == uid_b
+    assert str(capsule_id) == uid_b
+    assert direct_cross == 0
+    assert email_a != email_b
+
+    async with super_engine.connect() as conn:
+        rows = (await conn.execute(text("""
+            SELECT p.proname, pg_get_userbyid(p.proowner) AS owner,
+                   p.prosecdef, p.proconfig
+            FROM pg_proc AS p
+            JOIN pg_namespace AS n ON n.oid = p.pronamespace
+            WHERE n.nspname = 'public'
+              AND p.proname IN ('fn_user_id_by_email', 'fn_active_user_id_by_email')
+            ORDER BY p.proname
+        """))).mappings().all()
+        role = (await conn.execute(text("""
+            SELECT rolcanlogin, rolbypassrls,
+                   pg_has_role('nur_app', 'nur_email_lookup', 'MEMBER') AS app_member,
+                   has_table_privilege('nur_email_lookup', 'public.users', 'SELECT') AS broad_select,
+                   has_column_privilege('nur_email_lookup', 'public.users', 'id', 'SELECT') AS id_select,
+                   has_column_privilege('nur_email_lookup', 'public.users', 'password_hash', 'SELECT') AS password_select
+            FROM pg_roles WHERE rolname = 'nur_email_lookup'
+        """))).mappings().one()
+
+    assert len(rows) == 2
+    assert all(row["owner"] == "nur_email_lookup" for row in rows)
+    assert all(row["prosecdef"] for row in rows)
+    assert all(row["proconfig"] == ["search_path=pg_catalog, public"] for row in rows)
+    assert role == {
+        "rolcanlogin": False,
+        "rolbypassrls": True,
+        "app_member": False,
+        "broad_select": False,
+        "id_select": True,
+        "password_select": False,
+    }
 
 
 async def test_rls_app_role_cannot_read_audit_log(client, app_engine):

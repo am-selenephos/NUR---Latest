@@ -45,7 +45,8 @@ class TestEntityType:
             "belief", "user_model_claim", "world_edge", "plan",
             "recommendation", "route_policy", "prompt", "identity",
             "memory", "review_strategy", "prediction", "attention_item",
-            "model_checkpoint", "curriculum", "insight",
+            "model_checkpoint", "curriculum", "insight", "outcome",
+            "learning_candidate",
         }
         actual = {t.value for t in EntityType}
         assert actual == expected

@@ -67,7 +67,6 @@ export type V197NativeRoute =
   | "/universe/community"
   | `/universe/community/${string}`
   | "/universe/experts"
-  | "/universe/web-signals"
   | "/settings"
   | "/memory"
   | "/teach-nur"

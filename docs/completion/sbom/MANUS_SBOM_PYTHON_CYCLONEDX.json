@@ -37,16 +37,16 @@
       "version": "4.14.1"
     },
     {
-      "bom-ref": "pkg:pypi/argon2-cffi@25.1.0",
-      "name": "argon2-cffi",
-      "purl": "pkg:pypi/argon2-cffi@25.1.0",
+      "bom-ref": "pkg:pypi/argon2-cffi-bindings@25.1.0",
+      "name": "argon2-cffi-bindings",
+      "purl": "pkg:pypi/argon2-cffi-bindings@25.1.0",
       "type": "library",
       "version": "25.1.0"
     },
     {
-      "bom-ref": "pkg:pypi/argon2-cffi-bindings@25.1.0",
-      "name": "argon2-cffi-bindings",
-      "purl": "pkg:pypi/argon2-cffi-bindings@25.1.0",
+      "bom-ref": "pkg:pypi/argon2-cffi@25.1.0",
+      "name": "argon2-cffi",
+      "purl": "pkg:pypi/argon2-cffi@25.1.0",
       "type": "library",
       "version": "25.1.0"
     },
@@ -86,13 +86,6 @@
       "version": "2.0.0"
     },
     {
-      "bom-ref": "pkg:pypi/click@8.4.2",
-      "name": "click",
-      "purl": "pkg:pypi/click@8.4.2",
-      "type": "library",
-      "version": "8.4.2"
-    },
-    {
       "bom-ref": "pkg:pypi/click-didyoumean@0.3.1",
       "name": "click-didyoumean",
       "purl": "pkg:pypi/click-didyoumean@0.3.1",
@@ -112,6 +105,13 @@
       "purl": "pkg:pypi/click-repl@0.3.0",
       "type": "library",
       "version": "0.3.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/click@8.4.2",
+      "name": "click",
+      "purl": "pkg:pypi/click@8.4.2",
+      "type": "library",
+      "version": "8.4.2"
     },
     {
       "bom-ref": "pkg:pypi/distro@1.9.0",
@@ -254,13 +254,6 @@
       "version": "3.0"
     },
     {
-      "bom-ref": "pkg:pypi/pydantic@2.13.4",
-      "name": "pydantic",
-      "purl": "pkg:pypi/pydantic@2.13.4",
-      "type": "library",
-      "version": "2.13.4"
-    },
-    {
       "bom-ref": "pkg:pypi/pydantic-core@2.46.4",
       "name": "pydantic-core",
       "purl": "pkg:pypi/pydantic-core@2.46.4",
@@ -275,6 +268,13 @@
       "version": "2.14.2"
     },
     {
+      "bom-ref": "pkg:pypi/pydantic@2.13.4",
+      "name": "pydantic",
+      "purl": "pkg:pypi/pydantic@2.13.4",
+      "type": "library",
+      "version": "2.13.4"
+    },
+    {
       "bom-ref": "pkg:pypi/pygments@2.20.0",
       "name": "pygments",
       "purl": "pkg:pypi/pygments@2.20.0",
@@ -282,18 +282,18 @@
       "version": "2.20.0"
     },
     {
-      "bom-ref": "pkg:pypi/pytest@9.1.1",
-      "name": "pytest",
-      "purl": "pkg:pypi/pytest@9.1.1",
-      "type": "library",
-      "version": "9.1.1"
-    },
-    {
       "bom-ref": "pkg:pypi/pytest-asyncio@1.4.0",
       "name": "pytest-asyncio",
       "purl": "pkg:pypi/pytest-asyncio@1.4.0",
       "type": "library",
       "version": "1.4.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/pytest@9.1.1",
+      "name": "pytest",
+      "purl": "pkg:pypi/pytest@9.1.1",
+      "type": "library",
+      "version": "9.1.1"
     },
     {
       "bom-ref": "pkg:pypi/python-dateutil@2.9.0.post0",
@@ -445,9 +445,10 @@
   ],
   "metadata": {
     "component": {
+      "bom-ref": "pkg:generic/nur@1c6f5f1e9f3380204f6809d2a78364e046e4908e",
       "name": "NUR",
       "type": "application",
-      "version": "completion-branch"
+      "version": "1c6f5f1e9f3380204f6809d2a78364e046e4908e"
     },
     "properties": [
       {
@@ -456,11 +457,19 @@
       },
       {
         "name": "source.git_sha",
-        "value": "7a78abb95e78f15f95d4501ad53e33b6bdd87b02"
+        "value": "1c6f5f1e9f3380204f6809d2a78364e046e4908e"
+      },
+      {
+        "name": "source.input_sha256",
+        "value": "45d6b08b250d8d50ab8096c63d1a17d9e239dc97b33e2852d7f25f0de19ed4ef"
+      },
+      {
+        "name": "source.ecosystem",
+        "value": "python"
       }
     ]
   },
-  "serialNumber": "urn:uuid:nur-completion-ledger",
+  "serialNumber": "urn:uuid:55974b25-7fab-5101-9357-3df91565320a",
   "specVersion": "1.5",
   "version": 1
 }

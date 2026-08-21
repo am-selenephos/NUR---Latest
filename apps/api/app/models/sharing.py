@@ -70,7 +70,15 @@ class CapsuleAccessEvent(Base):
     __tablename__ = "capsule_access_events"
     id = uuid_pk()
     capsule_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("context_capsules.id", ondelete="CASCADE"), nullable=False)
-    grant_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("capsule_grants.id", ondelete="SET NULL"))
+    grant_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "capsule_grants.id",
+            ondelete="SET NULL",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+    )
     actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
     )

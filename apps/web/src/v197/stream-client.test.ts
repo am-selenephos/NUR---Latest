@@ -81,12 +81,12 @@ describe("V197 semantic Talk stream", () => {
       message: "Use this capability",
       locale: "en",
       writing_preference: "default",
-      capability_id: "capability:create_draft_plan",
+      capability_id: "capability:plan_from_conversation",
       memory_mode: "REVIEW",
     });
 
     expect(JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))).toMatchObject({
-      capability_id: "capability:create_draft_plan",
+      capability_id: "capability:plan_from_conversation",
       memory_mode: "REVIEW",
     });
   });

@@ -1,0 +1,23 @@
+[Unit]
+Description=NUR cross-owner object storage reconciliation
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=nur
+Group=nur
+WorkingDirectory=/opt/nur
+EnvironmentFile=/etc/nur/storage-hygiene.env
+Environment=NUR_STORAGE_HYGIENE_LOCK_FILE=/run/nur/storage-hygiene.lock
+ExecStart=/opt/nur/infra/scripts/storage-hygiene-run.sh
+RuntimeDirectory=nur
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/nur /run/nur
+
+[Install]
+WantedBy=multi-user.target

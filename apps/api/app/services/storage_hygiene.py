@@ -22,10 +22,11 @@ rows that were marked DELETED long enough ago.
 from __future__ import annotations
 
 import datetime as dt
+import os
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import AMProjectFile
@@ -93,7 +94,38 @@ async def purge_deleted_files(
     return result.rowcount or 0
 
 
-async def _run_reconcile(*, database_url: str, object_root: str, delete_orphans: bool) -> int:
+async def assert_cross_owner_maintenance_role(db: AsyncSession) -> str:
+    """Fail closed unless this session can see across forced-RLS owner rows."""
+    row = (
+        await db.execute(
+            text(
+                "SELECT r.rolname, r.rolsuper, r.rolbypassrls "
+                "FROM pg_roles AS r WHERE r.rolname = current_user"
+            )
+        )
+    ).mappings().one()
+    role_name = str(row["rolname"])
+    if not (bool(row["rolsuper"]) or bool(row["rolbypassrls"])):
+        raise RuntimeError(
+            f"storage reconciliation role {role_name!r} does not hold BYPASSRLS; "
+            "refusing a cross-owner scan that could misclassify live objects"
+        )
+    return role_name
+
+
+def reconcile_exit_code(report: ReconcileReport, *, delete_orphans: bool) -> int:
+    """Return a monitor-friendly status after the requested reconciliation."""
+    unresolved_orphans = bool(report.orphans) and not delete_orphans
+    return 2 if unresolved_orphans or report.dangling else 0
+
+
+async def _run_reconcile(
+    *,
+    database_url: str,
+    object_root: str,
+    delete_orphans: bool,
+    deleted_retention_seconds: int,
+) -> int:
     """Cross-owner orphan reconciliation for a maintenance context.
 
     ``database_url`` must be an elevated role that reads every owner's rows;
@@ -107,6 +139,13 @@ async def _run_reconcile(*, database_url: str, object_root: str, delete_orphans:
     engine = create_async_engine(database_url)
     try:
         async with AsyncSession(engine) as db:
+            role_name = await assert_cross_owner_maintenance_role(db)
+            purged_rows = 0
+            if deleted_retention_seconds > 0:
+                purged_rows = await purge_deleted_files(
+                    db,
+                    older_than_seconds=deleted_retention_seconds,
+                )
             db_keys = await all_object_keys(db)
     finally:
         await engine.dispose()
@@ -116,14 +155,15 @@ async def _run_reconcile(*, database_url: str, object_root: str, delete_orphans:
         storage, db_object_keys=db_keys, delete_orphans=delete_orphans
     )
     print(
-        f"reconcile: db_rows={len(set(db_keys))} orphans={len(report.orphans)} "
+        f"reconcile: role={role_name} db_rows={len(set(db_keys))} "
+        f"purged_rows={purged_rows} orphans={len(report.orphans)} "
         f"dangling={len(report.dangling)} "
         f"deleted={len(report.orphans) if delete_orphans else 0}",
         file=sys.stderr,
     )
     for key in report.dangling:
         print(f"DANGLING {key}", file=sys.stderr)
-    return 0
+    return reconcile_exit_code(report, delete_orphans=delete_orphans)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -133,15 +173,32 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m app.services.storage_hygiene")
     sub = parser.add_subparsers(dest="command", required=True)
     rec = sub.add_parser("reconcile", help="reconcile object store against the database")
-    rec.add_argument("--database-url", required=True, help="elevated (cross-owner) DSN")
+    rec.add_argument(
+        "--database-url-env",
+        default="NUR_STORAGE_HYGIENE_DATABASE_URL",
+        help="environment variable containing the elevated cross-owner DSN",
+    )
     rec.add_argument("--object-root", required=True)
     rec.add_argument("--delete", action="store_true", help="delete orphaned bytes")
+    rec.add_argument(
+        "--deleted-retention-seconds",
+        type=int,
+        default=604800,
+        help="hard-delete DELETED metadata rows older than this age; 0 disables purge",
+    )
     args = parser.parse_args(argv)
-    url = args.database_url
+    url = os.environ.get(args.database_url_env, "").strip()
+    if not url:
+        parser.error(f"{args.database_url_env} is required")
     if url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
     return asyncio.run(
-        _run_reconcile(database_url=url, object_root=args.object_root, delete_orphans=args.delete)
+        _run_reconcile(
+            database_url=url,
+            object_root=args.object_root,
+            delete_orphans=args.delete,
+            deleted_retention_seconds=max(0, args.deleted_retention_seconds),
+        )
     )
 
 

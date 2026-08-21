@@ -10,6 +10,7 @@ from sqlalchemy import select
 
 from app.api.deps import Identity, Scoped, require_csrf
 from app.cognition.provenance import prediction_error, revise_hypothesis_from_outcome
+from app.learning.outcome_loop import reconcile_observed_outcome
 from app.models import CognitiveEvent, Experiment, Hypothesis, Outcome, Plan, PlanStep
 from app.observability.metrics import record_counter
 from app.services.glow_service import award_glow_if_eligible
@@ -156,9 +157,24 @@ async def report_outcome(exp_id: uuid.UUID, payload: OutcomeIn, request: Request
         claim = await revise_hypothesis_from_outcome(
             db, owner_user_id=user_id, hypothesis=h, outcome=o,
             supports=payload.supports, rationale=payload.rationale or payload.observed_result[:200])
-    db.add(CognitiveEvent(owner_user_id=user_id, event_kind="OUTCOME_REPORTED",
-                          content_text=payload.observed_result[:400], source_ref=f"outcome:{o.id}",
-                          structured_payload={"experiment_id": str(e.id), "difference_from_prediction": diff}))
+    event = CognitiveEvent(owner_user_id=user_id, orbit_id=e.orbit_id,
+                           event_kind="OUTCOME_REPORTED",
+                           content_text=payload.observed_result[:400], source_ref=f"outcome:{o.id}",
+                           structured_payload={"experiment_id": str(e.id), "difference_from_prediction": diff})
+    db.add(event)
+    await db.flush()
+    await reconcile_observed_outcome(
+        db,
+        owner_user_id=user_id,
+        outcome=o,
+        event=event,
+        subject_ref=f"hypothesis:{h.id}" if h else f"outcome:{o.id}",
+        claim_text=h.hypothesis_text if h else o.observed_result,
+        supports=payload.supports,
+        rationale=payload.rationale or payload.observed_result[:200],
+        orbit_id=e.orbit_id,
+        existing_claim=claim,
+    )
     await record_observed_outcome(
         db,
         owner_user_id=user_id,
@@ -198,17 +214,30 @@ async def report_step_outcome(payload: OutcomeIn, request: Request, db: Scoped, 
     step = (await db.execute(select(PlanStep).where(PlanStep.id == payload.plan_step_id, PlanStep.owner_user_id == user_id))).scalar_one_or_none()
     if not step:
         raise HTTPException(404, "Plan step not found.")
-    o = Outcome(owner_user_id=user_id, plan_step_id=step.id, observed_result=payload.observed_result,
-                structured_measurements=payload.structured_measurements, confidence=payload.confidence,
-                difference_from_prediction={})
-    db.add(o)
-    db.add(CognitiveEvent(owner_user_id=user_id, event_kind="OUTCOME_REPORTED",
-                          content_text=payload.observed_result[:400], source_ref=f"outcome_step:{step.id}"))
-    await db.flush()
     plan = (await db.execute(select(Plan).where(
         Plan.id == step.plan_id,
         Plan.owner_user_id == user_id,
     ))).scalar_one()
+    o = Outcome(owner_user_id=user_id, plan_step_id=step.id, observed_result=payload.observed_result,
+                structured_measurements=payload.structured_measurements, confidence=payload.confidence,
+                difference_from_prediction={})
+    db.add(o)
+    event = CognitiveEvent(owner_user_id=user_id, orbit_id=plan.orbit_id,
+                           event_kind="OUTCOME_REPORTED",
+                           content_text=payload.observed_result[:400], source_ref=f"outcome_step:{step.id}")
+    db.add(event)
+    await db.flush()
+    await reconcile_observed_outcome(
+        db,
+        owner_user_id=user_id,
+        outcome=o,
+        event=event,
+        subject_ref=f"outcome:{o.id}",
+        claim_text=o.observed_result,
+        supports=True if step.done else None,
+        rationale=o.observed_result,
+        orbit_id=plan.orbit_id,
+    )
     await record_observed_outcome(
         db,
         owner_user_id=user_id,

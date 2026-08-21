@@ -8,9 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.brain.schemas import (
     BrainProfileKey,
     CognitiveResult,
+    CognitiveTaskPacket,
+    CognitiveTaskPacketV2,
     WorkflowProposalV2,
     WorkflowStepProposal,
 )
+from app.brain.critic import IndependentCritic
+from app.brain.planner import BoundedSimulator, PlanBudget, TypedPlanner
+from app.brain.specialists import SpecialistBudget, SpecialistContext, SpecialistWorker
 from app.mind.capabilities.hydrator import HydratedCapabilityContext
 from app.mind.capabilities.schemas import CapabilitySpec, ExecutionMode
 
@@ -43,6 +48,7 @@ class WorkerDispatcher:
         query: str,
         task_id: uuid.UUID | None = None,
         extracted_parameters: dict[str, Any] | None = None,
+        packet: CognitiveTaskPacket | None = None,
     ) -> CognitiveResult | None:
         """Execute the capability worker.
 
@@ -71,6 +77,7 @@ class WorkerDispatcher:
                 query=query,
                 task_id=task_uuid,
                 params=params,
+                packet=packet,
             )
 
         return None
@@ -102,8 +109,13 @@ class WorkerDispatcher:
         query: str,
         task_id: uuid.UUID,
         params: dict[str, Any],
+        packet: CognitiveTaskPacket | None = None,
     ) -> CognitiveResult:
         """Construct a preview or structured WorkflowProposal for Agency submission."""
+        semantic_summary = WorkerDispatcher._bounded_plan_preflight(
+            packet=packet,
+            hydrated_context=hydrated_context,
+        )
         # Derive clean plan title from first line
         lines = query.strip().splitlines()
         first_line = lines[0].strip() if lines else query.strip()
@@ -173,7 +185,10 @@ class WorkerDispatcher:
                 profile_used=BrainProfileKey.BALANCED,
                 direct_response=preview_response,
                 workflow_proposal=None,
-                decision_summary=f"Plan preview outline generated for '{title}' (no workflow proposal created).",
+                decision_summary=(
+                    f"Plan preview outline generated for '{title}' (no workflow proposal created)."
+                    f"{semantic_summary}"
+                ),
                 cost_estimate_cents=capability.estimated_cost_cents,
             )
 
@@ -216,6 +231,93 @@ class WorkerDispatcher:
             profile_used=BrainProfileKey.BALANCED,
             direct_response=direct_response,
             workflow_proposal=proposal,
-            decision_summary=f"Proposed workflow via {capability.worker_role} ({capability.capability_id}).",
+            decision_summary=(
+                f"Proposed workflow via {capability.worker_role} ({capability.capability_id})."
+                f"{semantic_summary}"
+            ),
             cost_estimate_cents=capability.estimated_cost_cents,
+        )
+
+    @staticmethod
+    def _bounded_plan_preflight(
+        *,
+        packet: CognitiveTaskPacket | None,
+        hydrated_context: HydratedCapabilityContext,
+    ) -> str:
+        """Run planner, simulator, critic and specialist without tool authority."""
+        if packet is None:
+            return ""
+        if isinstance(packet, CognitiveTaskPacketV2):
+            max_cost = packet.budget.max_cost_cents
+            deadline = packet.budget.deadline_seconds
+            max_tokens = packet.budget.max_context_tokens
+        else:
+            max_cost = 1_000
+            deadline = 300.0
+            max_tokens = max(1, packet.context_manifest.token_budget)
+        candidates = TypedPlanner().plan_candidates(
+            packet,
+            success_criteria=["the owner can review a reversible plan before any durable action"],
+            capability_constraints={"retrieve", "summarize"},
+            resource_constraints={
+                "max_cost_cents": max_cost,
+                "max_time_seconds": max(1, int(deadline)),
+            },
+            authority_constraints=["owner approval required before durable write"],
+        )
+        simulation = BoundedSimulator().simulate_candidates(
+            candidates,
+            budget=PlanBudget(
+                max_steps=8,
+                max_cost_cents=max_cost,
+                max_time_seconds=max(1, int(deadline)),
+            ),
+        )
+        evidence = [
+            {
+                "id": str(item.get("id", "unknown")),
+                "supports": item.get("supports"),
+                "text": item.get("excerpt") or item.get("text") or "scoped evidence",
+            }
+            for item in hydrated_context.retrieved_evidence
+        ]
+        critique = IndependentCritic().critique_plan(
+            candidates[0],
+            evidence=evidence,
+            alternatives=candidates[1:],
+        )
+        specialist = SpecialistWorker("planning", allowed_capabilities={"compare"})
+        try:
+            specialist_result = specialist.run_reasoning(
+                "compare",
+                {"objective": packet.user_input, "record_class": "OWNER_CONTEXT"},
+                SpecialistBudget(
+                    max_calls=1,
+                    max_tokens=max(1, max_tokens),
+                    max_cost_cents=max(1, max_cost),
+                ),
+                context=SpecialistContext(
+                    owner_user_id=packet.owner_user_id,
+                    allowed_record_classes={"OWNER_CONTEXT"},
+                    included_context={
+                        str(item.get("id", "unknown")): str(item.get("excerpt") or "")
+                        for item in hydrated_context.retrieved_evidence
+                    },
+                ),
+                deadline_seconds=deadline,
+            )
+            specialist_status = f"completed={specialist_result.completed}"
+        except RuntimeError as exc:
+            # This role is a non-authoritative semantic enrichment. If the
+            # packet cannot fund it, omit its output and keep the deterministic,
+            # approval-gated proposal inside the declared budget.
+            if "budget exhausted" not in str(exc).lower():
+                raise
+            specialist_status = f"skipped={str(exc).lower()}"
+        if not simulation.allowed:
+            raise RuntimeError("Bounded simulator refused the workflow proposal.")
+        return (
+            " Typed planner produced alternatives; bounded simulator admitted the selected budget;"
+            f" independent critic verdict={critique.verdict};"
+            f" planning specialist {specialist_status}."
         )

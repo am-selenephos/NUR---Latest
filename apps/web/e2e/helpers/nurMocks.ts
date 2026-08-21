@@ -582,6 +582,42 @@ export async function installNurMocks(page: Page) {
       if (listRow) listRow.state = "CANCEL_REQUESTED";
       return json(route, detail);
     }
+    const retryMatch = path.match(/^\/api\/v1\/agentic\/workflows\/([^/]+)\/retry$/);
+    if (retryMatch && method === "POST") {
+      const body = JSON.parse(request.postData() || "{}") as Record<string, unknown>;
+      state.agenticWrites.push({ path, body });
+      const previous = state.agenticDetails[retryMatch[1]];
+      if (!previous) return json(route, { detail: "workflow not found" }, 404);
+      const id = "eeeeeeee-2222-4222-8222-eeeeeeeeeeee";
+      const successor: Record<string, unknown> = {
+        ...previous,
+        id,
+        state: "PLAN_READY",
+        plan_version: 1,
+        failure_code: null,
+        steps: (previous.steps as Array<Record<string, unknown>>).map(step => ({
+          ...step,
+          state: "READY",
+          attempt: 0,
+          failure_code: null,
+          retryable: false,
+        })),
+      };
+      state.agenticDetails[id] = successor;
+      state.agenticWorkflows.unshift({
+        id,
+        title: successor.title,
+        objective: successor.objective,
+        state: "PLAN_READY",
+        kind: successor.kind,
+        step_count: (successor.steps as Array<unknown>).length,
+        steps_done: 0,
+        cost_cents: 0,
+        failure_code: null,
+        updated_at: now,
+      });
+      return json(route, successor, 201);
+    }
     const eventMatch = path.match(/^\/api\/v1\/agentic\/workflows\/([^/]+)\/events$/);
     if (eventMatch && method === "GET") return json(route, {
       events: [{ sequence: 1, event_type: "WORKFLOW_CREATED", from_state: null, to_state: "PLAN_READY", summary: "owner created an explicit workflow draft", actor: "OWNER", created_at: now }],

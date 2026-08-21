@@ -14,6 +14,7 @@ import {
   formatCost,
   groupWorkflows,
   isApprovalActionable,
+  resolveApprovalEditor,
   sectionFor,
   type AgenticWorkflowState,
   type V197AgenticApproval,
@@ -105,6 +106,14 @@ describe("risk wording", () => {
 });
 
 describe("approval cards", () => {
+  it("uses the typed raw-JSON fallback when the API exposes no input schema", () => {
+    expect(resolveApprovalEditor(approval())).toEqual({
+      mode: "RAW_JSON",
+      schema: null,
+      reason: "The API did not expose an input schema for this approval.",
+    });
+  });
+
   it("carries every field an owner needs to decide", () => {
     const card = buildApprovalCard(approval());
     for (const field of [card.what, card.why, card.scope, card.toolLabel,

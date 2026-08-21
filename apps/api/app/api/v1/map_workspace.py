@@ -40,6 +40,7 @@ from app.api.deps import Identity, Scoped, require_csrf
 from app.api.v1.map import _map_snapshot
 from app.living.catalog import SYSTEMS
 from app.living.service import all_system_snapshots
+from app.learning.outcome_loop import reconcile_prediction_resolution
 from app.models import (
     Decision,
     Goal,
@@ -1807,6 +1808,11 @@ async def resolve_prediction(
     row.resolved_at = dt.datetime.now(dt.UTC)
     row.status = "RESOLVED"
     await db.flush()
+    await reconcile_prediction_resolution(
+        db,
+        owner_user_id=owner_user_id,
+        prediction=row,
+    )
     out = {
         "id": str(row.id),
         "statement": row.statement,

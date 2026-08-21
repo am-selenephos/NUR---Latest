@@ -107,6 +107,7 @@ gate_G01_STATIC() {
   run ruff apps/api/.venv/bin/ruff check apps/api
   run backend_tests bash -c 'cd apps/api && .venv/bin/python -m pytest -q'
   run alembic_single_head bash -c 'cd apps/api && ../../apps/api/.venv/bin/alembic heads | grep -c "(head)" | grep -qx 1'
+  run mutation_security npm run --silent api:mutation-security
   run web_typecheck npm run --silent web:typecheck
   run web_unit_tests npm run --silent web:test
   run web_build npm run --silent web:build
