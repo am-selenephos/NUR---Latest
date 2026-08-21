@@ -46,6 +46,8 @@ describe("V197 cleaned canonical host", () => {
     expect(entry).not.toContain("react-dom");
     expect(viteConfig).toContain("nur-v197-direct-host");
     expect(viteConfig).toContain('src="/assets/v197-bridge.js"');
+    expect(viteConfig).toContain('fileName: "index.html"');
+    expect(viteConfig).toContain("source: composedV197Document(canonicalSource)");
   });
 
   it("keeps Phase 1 mutations text-only", () => {

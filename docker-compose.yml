@@ -10,6 +10,7 @@ services:
       - "${NUR_POSTGRES_PORT:-5432}:5432"
     volumes:
       - nur_postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/001-nur-roles-and-database.sql:/docker-entrypoint-initdb.d/001-nur-roles-and-database.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 5s
@@ -38,16 +39,21 @@ services:
       DATABASE_URL: postgresql+asyncpg://nur_app:nur_app_pw@postgres:5432/nur
       ALEMBIC_DATABASE_URL: postgresql+asyncpg://nur_admin:nur_admin_pw@postgres:5432/nur
       REDIS_URL: redis://redis:6379/0
-      WEB_ORIGIN: http://localhost:5173
-      API_ORIGIN: http://localhost:8000
+      WEB_ORIGIN: ${NUR_WEB_ORIGIN:-http://localhost:5173}
+      API_ORIGIN: ${NUR_API_ORIGIN:-http://localhost:8000}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "${NUR_API_PORT:-8000}:8000"
     command: ["bash", "-lc", "python -m alembic.config upgrade head && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=2).read()"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
   worker:
     profiles: ["full"]
@@ -90,17 +96,18 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    env_file:
-      - .env
-    environment:
-      VITE_API_BASE_URL: ""
-      VITE_NUR_ENABLE_OMEGA_RESEARCH: "true"
+      args:
+        VITE_NUR_ENABLE_OMEGA_RESEARCH: "true"
     depends_on:
       api:
-        condition: service_started
+        condition: service_healthy
     ports:
-      - "5173:5173"
-    command: ["npm", "run", "dev", "--workspace", "apps/web", "--", "--host", "0.0.0.0", "--port", "5173"]
+      - "${NUR_WEB_PORT:-5173}:5173"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:5173/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
 volumes:
   nur_postgres_data:

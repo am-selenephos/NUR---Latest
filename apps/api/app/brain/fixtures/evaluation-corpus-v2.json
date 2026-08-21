@@ -1,0 +1,173 @@
+{
+  "version": "brain-agentend-semantic-v2",
+  "cases": [
+    {
+      "case_id": "development.planner.bounded",
+      "split": "development",
+      "expected": "PASS",
+      "category": "planner",
+      "input": {"scenario": "development_bounded_plan"}
+    },
+    {
+      "case_id": "development.simulator.bounded",
+      "split": "development",
+      "expected": "PASS",
+      "category": "simulator",
+      "input": {"scenario": "development_candidate_simulation"}
+    },
+    {
+      "case_id": "development.critic.counter-evidence",
+      "split": "development",
+      "expected": "PASS",
+      "category": "critic",
+      "input": {"scenario": "development_counter_evidence"}
+    },
+    {
+      "case_id": "development.router.bounded",
+      "split": "development",
+      "expected": "PASS",
+      "category": "router",
+      "input": {"scenario": "development_route_selection"}
+    },
+    {
+      "case_id": "development.research.untrusted-instruction",
+      "split": "development",
+      "expected": "PASS",
+      "category": "research",
+      "input": {"scenario": "development_untrusted_instruction"}
+    },
+    {
+      "case_id": "development.specialist.scoped",
+      "split": "development",
+      "expected": "PASS",
+      "category": "specialist",
+      "input": {"scenario": "development_scoped_specialist"}
+    },
+    {
+      "case_id": "development.memory-learning.authority",
+      "split": "development",
+      "expected": "PASS",
+      "category": "memory_learning",
+      "input": {"scenario": "development_memory_authority"}
+    },
+    {
+      "case_id": "development.planner.over-budget",
+      "split": "development",
+      "expected": "FAIL",
+      "category": "planner",
+      "input": {"scenario": "over_budget_plan"}
+    },
+    {
+      "case_id": "held-out.planner.reversible",
+      "split": "held_out",
+      "expected": "PASS",
+      "category": "planner",
+      "input": {"scenario": "held_out_reversible_plan"}
+    },
+    {
+      "case_id": "held-out.simulator.uncertainty",
+      "split": "held_out",
+      "expected": "PASS",
+      "category": "simulator",
+      "input": {"scenario": "held_out_uncertainty_preserved"}
+    },
+    {
+      "case_id": "held-out.critic.alternatives",
+      "split": "held_out",
+      "expected": "PASS",
+      "category": "critic",
+      "input": {"scenario": "held_out_missed_alternatives"}
+    },
+    {
+      "case_id": "held-out.router.profile",
+      "split": "held_out",
+      "expected": "PASS",
+      "category": "router",
+      "input": {"scenario": "held_out_profile_selection"}
+    },
+    {
+      "case_id": "held-out.research.provenance",
+      "split": "held_out",
+      "expected": "PASS",
+      "category": "research",
+      "input": {"scenario": "held_out_citation_provenance"}
+    },
+    {
+      "case_id": "held-out.specialist.typed",
+      "split": "held_out",
+      "expected": "PASS",
+      "category": "specialist",
+      "input": {"scenario": "held_out_typed_result"}
+    },
+    {
+      "case_id": "held-out.memory-learning.truth-status",
+      "split": "held_out",
+      "expected": "PASS",
+      "category": "memory_learning",
+      "input": {"scenario": "held_out_truth_status"}
+    },
+    {
+      "case_id": "held-out.specialist.forbidden-class",
+      "split": "held_out",
+      "expected": "FAIL",
+      "category": "specialist",
+      "input": {"scenario": "forbidden_record_class"}
+    },
+    {
+      "case_id": "shadow.planner.authority",
+      "split": "shadow",
+      "expected": "PASS",
+      "category": "planner",
+      "input": {"scenario": "shadow_authority_bounded_plan"}
+    },
+    {
+      "case_id": "shadow.simulator.resource-budget",
+      "split": "shadow",
+      "expected": "PASS",
+      "category": "simulator",
+      "input": {"scenario": "shadow_resource_budget"}
+    },
+    {
+      "case_id": "shadow.critic.authority",
+      "split": "shadow",
+      "expected": "PASS",
+      "category": "critic",
+      "input": {"scenario": "shadow_authority_mismatch"}
+    },
+    {
+      "case_id": "shadow.router.estimated-budget",
+      "split": "shadow",
+      "expected": "PASS",
+      "category": "router",
+      "input": {"scenario": "shadow_estimated_budget"}
+    },
+    {
+      "case_id": "shadow.research.scope",
+      "split": "shadow",
+      "expected": "PASS",
+      "category": "research",
+      "input": {"scenario": "shadow_scope_bounded"}
+    },
+    {
+      "case_id": "shadow.specialist.context",
+      "split": "shadow",
+      "expected": "PASS",
+      "category": "specialist",
+      "input": {"scenario": "shadow_context_ids"}
+    },
+    {
+      "case_id": "shadow.memory-learning.sensitivity",
+      "split": "shadow",
+      "expected": "PASS",
+      "category": "memory_learning",
+      "input": {"scenario": "shadow_sensitivity_policy"}
+    },
+    {
+      "case_id": "shadow.research.cross-owner",
+      "split": "shadow",
+      "expected": "FAIL",
+      "category": "research",
+      "input": {"scenario": "cross_owner_source"}
+    }
+  ]
+}

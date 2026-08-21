@@ -6,7 +6,7 @@ from typing import Protocol
 from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ResearchSource(BaseModel):
@@ -14,14 +14,25 @@ class ResearchSource(BaseModel):
     title: str
     text: str
     citation: str
+    owner_user_id: UUID | None = None
+    record_class: str = "PUBLIC_EVIDENCE"
 
 
 class ResearchScope(BaseModel):
     owner_user_id: UUID
     allowed_domains: set[str] = Field(default_factory=set)
     allowed_source_ids: set[str] = Field(default_factory=set)
+    allowed_source_adapters: dict[str, str] = Field(default_factory=dict)
     record_classes: set[str] = Field(default_factory=lambda: {"PUBLIC_EVIDENCE"})
     scope_id: UUID = Field(default_factory=uuid4)
+
+    @model_validator(mode="after")
+    def source_ids_have_resolved_adapter_authority(self) -> "ResearchScope":
+        if set(self.allowed_source_adapters) != self.allowed_source_ids:
+            raise ValueError(
+                "Every allowed research source id must be bound to exactly one retrieval adapter."
+            )
+        return self
 
 
 class RetrievalPlan(BaseModel):
@@ -39,7 +50,14 @@ class SourceProvenance(BaseModel):
     citation: str
     domain: str | None = None
     retrieval_adapter: str
+    record_class: str
     normalized: bool = True
+
+
+class ExcludedResearchSource(BaseModel):
+    source_id: str
+    retrieval_adapter: str
+    reason: str
 
 
 class ResearchVerification(BaseModel):
@@ -48,6 +66,7 @@ class ResearchVerification(BaseModel):
     contradictions: list[tuple[str, str]] = Field(default_factory=list)
     untrusted_instructions: list[str] = Field(default_factory=list)
     verification_notes: list[str] = Field(default_factory=list)
+    excluded_sources: list[ExcludedResearchSource] = Field(default_factory=list)
 
 
 class ResearchReport(BaseModel):
@@ -173,21 +192,93 @@ class ResearchBrain:
             scope_id=scope.scope_id,
             rationale="Retrieve only evidence allowed by the resolved scope and source policy.",
         )
-        sources: list[ResearchSource] = []
-        adapters_used: list[str] = []
+        retrieved: list[tuple[ResearchSource, str]] = []
+        excluded: list[ExcludedResearchSource] = []
+        seen_source_ids: set[str] = set()
         for adapter in self.adapters:
-            adapters_used.append(adapter.name)
-            sources.extend(adapter.retrieve(plan, scope))
-        normalized = [self._normalize_source(source) for source in sources[: plan.max_sources]]
+            for source in adapter.retrieve(plan, scope):
+                normalized_source = self._normalize_source(source)
+                if (
+                    scope.allowed_source_ids
+                    and normalized_source.id not in scope.allowed_source_ids
+                ):
+                    excluded.append(ExcludedResearchSource(
+                        source_id=normalized_source.id,
+                        retrieval_adapter=adapter.name,
+                        reason="source id is outside the resolved research scope",
+                    ))
+                    continue
+                expected_adapter = scope.allowed_source_adapters.get(normalized_source.id)
+                if expected_adapter is not None and expected_adapter != adapter.name:
+                    excluded.append(ExcludedResearchSource(
+                        source_id=normalized_source.id,
+                        retrieval_adapter=adapter.name,
+                        reason="retrieval adapter is not authoritative for this source id",
+                    ))
+                    continue
+                if normalized_source.record_class not in scope.record_classes:
+                    excluded.append(ExcludedResearchSource(
+                        source_id=normalized_source.id,
+                        retrieval_adapter=adapter.name,
+                        reason="record class is outside the resolved research scope",
+                    ))
+                    continue
+                if (
+                    normalized_source.owner_user_id is not None
+                    and normalized_source.owner_user_id != scope.owner_user_id
+                ):
+                    excluded.append(ExcludedResearchSource(
+                        source_id=normalized_source.id,
+                        retrieval_adapter=adapter.name,
+                        reason="source belongs to another owner",
+                    ))
+                    continue
+                if (
+                    normalized_source.record_class != "PUBLIC_EVIDENCE"
+                    and normalized_source.owner_user_id is None
+                ):
+                    excluded.append(ExcludedResearchSource(
+                        source_id=normalized_source.id,
+                        retrieval_adapter=adapter.name,
+                        reason="owner-bound source is missing owner provenance",
+                    ))
+                    continue
+                domain = urlparse(normalized_source.citation).hostname
+                if (
+                    not self._citation_valid(normalized_source.citation)
+                    or domain not in scope.allowed_domains
+                ):
+                    excluded.append(ExcludedResearchSource(
+                        source_id=normalized_source.id,
+                        retrieval_adapter=adapter.name,
+                        reason="citation domain is outside the resolved source policy",
+                    ))
+                    continue
+                if normalized_source.id in seen_source_ids:
+                    excluded.append(ExcludedResearchSource(
+                        source_id=normalized_source.id,
+                        retrieval_adapter=adapter.name,
+                        reason="duplicate source id was already accepted",
+                    ))
+                    continue
+                retrieved.append((normalized_source, adapter.name))
+                seen_source_ids.add(normalized_source.id)
+                if len(retrieved) >= plan.max_sources:
+                    break
+            if len(retrieved) >= plan.max_sources:
+                break
+        normalized = [source for source, _adapter_name in retrieved]
         verification = self._verify(question, normalized)
+        verification = verification.model_copy(update={"excluded_sources": excluded})
         provenance = [
             SourceProvenance(
                 source_id=source.id,
                 citation=source.citation,
                 domain=urlparse(source.citation).hostname,
-                retrieval_adapter=adapters_used[0] if adapters_used else "none",
+                retrieval_adapter=adapter_name,
+                record_class=source.record_class,
             )
-            for source in normalized
+            for source, adapter_name in retrieved
         ]
         safe_fragments: list[str] = []
         for source in normalized:
@@ -206,6 +297,10 @@ class ResearchBrain:
             unresolved.append("External instruction-like content is not an authority and was excluded from synthesis.")
         if normalized and not verification.citations_valid:
             unresolved.append("At least one source citation failed the source policy.")
+        if excluded:
+            unresolved.append(
+                f"{len(excluded)} retrieved source(s) were excluded by the resolved scope or source policy."
+            )
         report = self.analyze(question, normalized)
         report_notes = list(report.notes) + [
             note for note in verification.verification_notes if note not in report.notes

@@ -48,6 +48,8 @@ def _research_sources(packet: CognitiveTaskPacketV2) -> tuple[list[ResearchSourc
                 title=str(ref.get("title") or ref.get("kind") or "Scoped evidence"),
                 text=str(ref.get("excerpt") or ref.get("text") or ref.get("note") or ""),
                 citation=citation,
+                owner_user_id=packet.owner_user_id,
+                record_class=str(ref.get("record_class") or "PUBLIC_EVIDENCE"),
             )
         )
     return sources, domains
@@ -111,6 +113,8 @@ def _bounded_semantic_preflight(
                 owner_user_id=packet.owner_user_id,
                 allowed_domains=domains,
                 allowed_source_ids={source.id for source in sources},
+                allowed_source_adapters={source.id: "in_memory" for source in sources},
+                record_classes={source.record_class for source in sources},
             ),
         )
         research_payload = research.model_dump(mode="json")

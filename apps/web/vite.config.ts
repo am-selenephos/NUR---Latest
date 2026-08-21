@@ -143,6 +143,14 @@ function v197DirectHost(): Plugin {
 
   return {
     name: "nur-v197-direct-host",
+    generateBundle() {
+      const canonicalSource = path.resolve(publicV197Directory, canonicalV197Filename);
+      this.emitFile({
+        type: "asset",
+        fileName: "index.html",
+        source: composedV197Document(canonicalSource),
+      });
+    },
     configureServer(server) {
       attach(server, false);
     },

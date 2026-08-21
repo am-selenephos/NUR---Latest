@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Callable
+from pathlib import Path
 
 from pydantic import BaseModel, Field
 
@@ -13,8 +16,20 @@ class EvaluationCase(BaseModel):
     input: dict[str, str] = Field(default_factory=dict)
 
 
+class EvaluationProbe(BaseModel):
+    """Evaluator input that deliberately excludes the expected oracle label."""
+
+    case_id: str
+    split: str
+    category: str
+    input: dict[str, str] = Field(default_factory=dict)
+
+    model_config = {"extra": "forbid", "frozen": True}
+
+
 class EvaluationCorpus(BaseModel):
     version: str
+    source_sha256: str = ""
     cases: list[EvaluationCase] = Field(default_factory=list)
 
     def by_split(self, split: str) -> list[EvaluationCase]:
@@ -53,11 +68,17 @@ class EvaluationRunner:
     def __init__(self, corpus: EvaluationCorpus) -> None:
         self.corpus = corpus
 
-    def run(self, evaluator: Callable[[EvaluationCase], str]) -> EvaluationReport:
+    def run(self, evaluator: Callable[[EvaluationProbe], str]) -> EvaluationReport:
         observed: dict[str, str] = {}
         for case in self.corpus.cases:
             try:
-                observed[case.case_id] = str(evaluator(case))
+                probe = EvaluationProbe(
+                    case_id=case.case_id,
+                    split=case.split,
+                    category=case.category,
+                    input=dict(case.input),
+                )
+                observed[case.case_id] = str(evaluator(probe))
             except Exception:
                 observed[case.case_id] = "ERROR"
 
@@ -83,30 +104,40 @@ class EvaluationRunner:
         )
 
 
+DEFAULT_EVALUATION_CORPUS_PATH = (
+    Path(__file__).resolve().parent / "fixtures" / "evaluation-corpus-v2.json"
+)
+DEFAULT_EVALUATION_CORPUS_SHA256 = (
+    "91908d0ab1a12e6c9cb440a55dcdfa1fe403999574221b4c8ee9ac20680d8794"
+)
+
+
 def build_default_evaluation_corpus() -> EvaluationCorpus:
-    categories = (
-        "planner",
-        "simulator",
-        "critic",
-        "router",
-        "research",
-        "specialist",
-        "memory_learning",
-    )
-    cases: list[EvaluationCase] = []
-    for split in ("development", "held_out", "shadow"):
-        for category in categories:
-            case_id = f"{split}.{category}.bounded"
-            cases.append(
-                EvaluationCase(
-                    case_id=case_id,
-                    split=split,
-                    category=category,
-                    expected="PASS",
-                    input={"category": category, "split": split},
-                )
-            )
-    return EvaluationCorpus(version="brain-agentend-semantic-v1", cases=cases)
+    raw = DEFAULT_EVALUATION_CORPUS_PATH.read_bytes()
+    digest = hashlib.sha256(raw).hexdigest()
+    if digest != DEFAULT_EVALUATION_CORPUS_SHA256:
+        raise ValueError(
+            "The frozen Brain evaluation corpus digest does not match its reviewed version."
+        )
+    payload = json.loads(raw)
+    payload["source_sha256"] = digest
+    corpus = EvaluationCorpus.model_validate(payload)
+    case_ids = [case.case_id for case in corpus.cases]
+    if len(case_ids) != len(set(case_ids)):
+        raise ValueError("The frozen Brain evaluation corpus contains duplicate case IDs.")
+    semantic_fingerprints = [
+        json.dumps(
+            {"category": case.category, "input": case.input},
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        for case in corpus.cases
+    ]
+    if len(semantic_fingerprints) != len(set(semantic_fingerprints)):
+        raise ValueError(
+            "Development, held-out, and shadow cases must be semantically distinct."
+        )
+    return corpus
 
 
 class EvaluationGate(BaseModel):
@@ -230,7 +261,7 @@ def _evaluation_packet(category: str):
     )
 
 
-def _evaluate_default_case(case: EvaluationCase) -> str:
+def evaluate_semantic_probe(case: EvaluationProbe) -> str:
     """Exercise one real semantic boundary and return only its typed verdict."""
     from app.brain.critic import IndependentCritic
     from app.brain.planner import BoundedSimulator, PlanBudget, TypedPlanner
@@ -241,6 +272,23 @@ def _evaluate_default_case(case: EvaluationCase) -> str:
 
     packet = _evaluation_packet(case.category)
     if case.category == "planner":
+        if case.input.get("scenario") == "over_budget_plan":
+            proposal = TypedPlanner().plan(
+                packet,
+                tool_key="get_timeline",
+                arguments={"limit": 3},
+                budget=PlanBudget(max_steps=1, max_cost_cents=1),
+            )
+            costly = proposal.model_copy(update={
+                "steps": [
+                    proposal.steps[0].model_copy(update={"estimated_cost_cents": 1})
+                ],
+            })
+            blocked = BoundedSimulator().simulate(
+                costly,
+                budget=PlanBudget(max_steps=1, max_cost_cents=0),
+            )
+            return "FAIL" if not blocked.allowed else "PASS"
         candidates = TypedPlanner().plan_candidates(
             packet,
             success_criteria=["the owner receives a reversible comparison"],
@@ -283,6 +331,34 @@ def _evaluate_default_case(case: EvaluationCase) -> str:
         return "PASS" if decision.selected_profile and decision.reason and decision.estimated_tokens > 0 else "FAIL"
 
     if case.category == "research":
+        if case.input.get("scenario") == "cross_owner_source":
+            from uuid import UUID
+
+            source_id = "cross-owner-source"
+            brain = ResearchBrain(
+                allowed_domains={"evidence.nur.test"},
+                adapters=[InMemoryResearchAdapter([
+                    ResearchSource(
+                        id=source_id,
+                        title="Other owner source",
+                        text="This private source must not enter synthesis.",
+                        citation="https://evidence.nur.test/private",
+                        owner_user_id=UUID("00000000-0000-0000-0000-000000000002"),
+                        record_class="PRIVATE_RESEARCH",
+                    ),
+                ])],
+            )
+            result = brain.research(
+                "Can another owner's source enter this scope?",
+                scope=ResearchScope(
+                    owner_user_id=packet.owner_user_id,
+                    allowed_domains={"evidence.nur.test"},
+                    allowed_source_ids={source_id},
+                    allowed_source_adapters={source_id: "in_memory"},
+                    record_classes={"PRIVATE_RESEARCH"},
+                ),
+            )
+            return "FAIL" if not result.answerable and not result.source_ids else "PASS"
         brain = ResearchBrain(
             allowed_domains={"evidence.nur.test"},
             adapters=[InMemoryResearchAdapter([
@@ -311,6 +387,22 @@ def _evaluate_default_case(case: EvaluationCase) -> str:
 
     if case.category == "specialist":
         worker = SpecialistWorker("research", allowed_capabilities={"retrieve"})
+        if case.input.get("scenario") == "forbidden_record_class":
+            try:
+                worker.run_reasoning(
+                    "retrieve",
+                    {"query": "bounded evaluation", "record_class": "PRIVATE_MEMORY"},
+                    SpecialistBudget(max_calls=1, max_tokens=200),
+                    context=SpecialistContext(
+                        owner_user_id=packet.owner_user_id,
+                        allowed_record_classes={"PUBLIC_EVIDENCE"},
+                        included_context={"evaluation-source": "scoped evidence"},
+                    ),
+                    deadline_seconds=1,
+                )
+            except PermissionError:
+                return "FAIL"
+            return "PASS"
         result = worker.run_reasoning(
             "retrieve",
             {"query": "bounded evaluation", "record_class": "PUBLIC_EVIDENCE"},
@@ -341,6 +433,6 @@ def run_default_evaluation() -> tuple[EvaluationReport, PromotionDecision]:
     write owner memory, approve a workflow, or mutate production state.
     """
     corpus = build_default_evaluation_corpus()
-    report = EvaluationRunner(corpus).run(_evaluate_default_case)
+    report = EvaluationRunner(corpus).run(evaluate_semantic_probe)
     gate = EvaluationGate.from_corpus(corpus)
     return report, gate.evaluate(report)
