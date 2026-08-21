@@ -15,7 +15,17 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BACKUP_DIR="${1:?Usage: dr-backup.sh <backup-dir>}"
 DB_URL="${NUR_DR_DATABASE_URL:-${DATABASE_URL:-}}"
 OBJECT_ROOT="${NUR_DR_OBJECT_ROOT:-$ROOT/.nur-runtime/project-objects}"
-PYTHON="${NUR_DR_PYTHON:-$ROOT/apps/api/.venv/bin/python}"
+if [[ -n "${NUR_DR_PYTHON:-}" ]]; then
+  PYTHON="$NUR_DR_PYTHON"
+elif [[ -x "$ROOT/apps/api/.venv/bin/python" ]]; then
+  PYTHON="$ROOT/apps/api/.venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
+  PYTHON="$(command -v python3)"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON="$(command -v python)"
+else
+  PYTHON=""
+fi
 SOURCE_OBJECTS_BEFORE=""
 SOURCE_OBJECTS_AFTER=""
 COPIED_OBJECTS=""
@@ -42,8 +52,8 @@ if [[ -z "$DB_URL" ]]; then
   printf "Set NUR_DR_DATABASE_URL (or DATABASE_URL) before backup.\n" >&2
   exit 2
 fi
-if [[ ! -x "$PYTHON" ]]; then
-  printf "DR Python is unavailable: %s\n" "$PYTHON" >&2
+if [[ -z "$PYTHON" || ! -x "$PYTHON" ]]; then
+  printf "DR Python is unavailable: %s\n" "${PYTHON:-<not found>}" >&2
   exit 2
 fi
 DB_URL="${DB_URL/postgresql+asyncpg:/postgresql:}"

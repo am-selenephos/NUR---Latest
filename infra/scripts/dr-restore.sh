@@ -18,14 +18,24 @@ DB_URL="${NUR_DR_RESTORE_DATABASE_URL:-}"
 OBJECT_ROOT="${NUR_DR_RESTORE_OBJECT_ROOT:-}"
 CONFIRM_DATABASE="${NUR_DR_RESTORE_CONFIRM_DATABASE:-}"
 CONFIRM_OBJECT_ROOT="${NUR_DR_RESTORE_CONFIRM_OBJECT_ROOT:-}"
-PYTHON="${NUR_DR_PYTHON:-$ROOT/apps/api/.venv/bin/python}"
+if [[ -n "${NUR_DR_PYTHON:-}" ]]; then
+  PYTHON="$NUR_DR_PYTHON"
+elif [[ -x "$ROOT/apps/api/.venv/bin/python" ]]; then
+  PYTHON="$ROOT/apps/api/.venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
+  PYTHON="$(command -v python3)"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON="$(command -v python)"
+else
+  PYTHON=""
+fi
 
 if [[ -z "$DB_URL" || -z "$OBJECT_ROOT" ]]; then
   printf "Set NUR_DR_RESTORE_DATABASE_URL and NUR_DR_RESTORE_OBJECT_ROOT.\n" >&2
   exit 2
 fi
-if [[ ! -x "$PYTHON" ]]; then
-  printf "DR Python is unavailable: %s\n" "$PYTHON" >&2
+if [[ -z "$PYTHON" || ! -x "$PYTHON" ]]; then
+  printf "DR Python is unavailable: %s\n" "${PYTHON:-<not found>}" >&2
   exit 2
 fi
 DB_URL="${DB_URL/postgresql+asyncpg:/postgresql:}"
