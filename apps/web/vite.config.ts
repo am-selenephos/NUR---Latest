@@ -41,6 +41,12 @@ const retiredUniverseRoutes = [
   "/universe/experts",
   "/universe/web-signals",
 ] as const;
+const retiredCommunityRoutes = new Set([
+  "/community/people",
+  "/community/saved",
+  "/community/notifications",
+  "/community/moderation",
+]);
 
 function isRetiredUniverseRoute(value: string): boolean {
   return retiredUniverseRoutes.some(route => value === route || value.startsWith(`${route}/`));
@@ -103,9 +109,14 @@ function v197DirectHost(): Plugin {
   const attach = (server: ViteDevServer | PreviewServer, preview: boolean) => {
     server.middlewares.use((request, response, next) => {
       const route = pathname(request.url);
-      if (isRetiredUniverseRoute(route)) {
+      const retiredLocation = isRetiredUniverseRoute(route)
+        ? "/systems"
+        : retiredCommunityRoutes.has(route)
+          ? "/universe/community"
+          : null;
+      if (retiredLocation) {
         response.statusCode = 302;
-        response.setHeader("location", "/systems");
+        response.setHeader("location", retiredLocation);
         response.setHeader("cache-control", "no-store");
         response.end();
         return;
@@ -132,6 +143,14 @@ function v197DirectHost(): Plugin {
 
   return {
     name: "nur-v197-direct-host",
+    generateBundle() {
+      const canonicalSource = path.resolve(publicV197Directory, canonicalV197Filename);
+      this.emitFile({
+        type: "asset",
+        fileName: "index.html",
+        source: composedV197Document(canonicalSource),
+      });
+    },
     configureServer(server) {
       attach(server, false);
     },

@@ -87,6 +87,9 @@ test("V197 landing preserves its hero and the mocked auth lifecycle", async ({ p
     await expect(page.locator("#nur-universe-stage")).toBeHidden();
 
     const returnedEntry = page.frameLocator("#nur-entry-stage");
+    await expect(returnedEntry.locator("#f4-signin")).toBeVisible();
+    await expect(returnedEntry.locator("#intro")).toBeHidden();
+    expect(await page.evaluate(() => sessionStorage.getItem("nur:v197:logout-entry"))).toBeNull();
     await returnedEntry.locator("#f4-signin").click();
     await returnedEntry.locator("#f4-signin-email").fill("selene@nurapp.dev");
     await returnedEntry.locator("#f4-signin-password").fill("orbit-pass-2026");

@@ -130,8 +130,9 @@ async def test_model_generated_claim_not_observed_and_owner_written_can_be_obser
     assert owner_claim["truth_status"] == "OBSERVED"
 
 
-async def test_outcome_contradicts_prediction_and_correction_weakens_claim(client):
-    await register_user(client)
+async def test_outcome_contradicts_prediction_and_correction_weakens_claim(client, super_engine):
+    response, _, _ = await register_user(client)
+    owner_user_id = response.json()["id"]
     plan = (await client.post("/api/v1/plans", headers=H(client), json={
         "title": "Omega prediction route",
         "steps": [{"title": "Ship the owner proof"}],
@@ -165,6 +166,24 @@ async def test_outcome_contradicts_prediction_and_correction_weakens_claim(clien
     assert run["updated_claims"] >= 1
     assert weakened["truth_status"] == "CONTRADICTED"
     assert resolved["status"] == "DISCONFIRMED"
+    why = (await client.get(
+        f"/api/v1/omega/claims/{claim['id']}/why-changed"
+    )).json()
+    assert any("HYPOTHESIS" in item for item in why["changed_because"])
+
+    async with super_engine.connect() as db:
+        row = (
+            await db.execute(
+                text(
+                    "SELECT previous_version, new_version FROM why_changed_records "
+                    "WHERE owner_user_id=:owner_user_id AND entity_id=:claim_id "
+                    "AND change_class='contradicted'"
+                ),
+                {"owner_user_id": owner_user_id, "claim_id": claim["id"]},
+            )
+        ).mappings().one()
+    assert row["previous_version"].startswith("HYPOTHESIS:")
+    assert row["new_version"].startswith("CONTRADICTED:")
 
 
 async def test_contradiction_detected_between_decision_and_constraint(client):
@@ -336,6 +355,62 @@ async def test_why_changed_reports_evidence_edges_not_hidden_reasoning(client):
     assert why["supporting_edges"]
     assert "supporting evidence" in " ".join(why["changed_because"]).lower()
     assert "chain" not in str(why).lower()
+
+
+async def test_omega_claim_lifecycle_uses_canonical_why_changed_ledger(client, super_engine):
+    response, _, _ = await register_user(client)
+    owner_user_id = response.json()["id"]
+    claim = (await client.post("/api/v1/omega/claims", headers=H(client), json={
+        "claim_text": "A durable claim changes only through reviewed evidence.",
+        "claim_type": "HYPOTHESIS",
+        "truth_status": "HYPOTHESIS",
+        "provenance_label": "OWNER_WRITTEN",
+        "confidence": 0.45,
+    })).json()
+
+    confirmed = await client.post(
+        f"/api/v1/omega/claims/{claim['id']}/confirm",
+        headers=H(client),
+    )
+    assert confirmed.status_code == 200
+    retired = await client.post(
+        f"/api/v1/omega/claims/{claim['id']}/retire",
+        headers=H(client),
+    )
+    assert retired.status_code == 200
+
+    why = (await client.get(
+        f"/api/v1/omega/claims/{claim['id']}/why-changed"
+    )).json()
+    joined_reasons = " ".join(why["changed_because"]).lower()
+    assert "owner retired" in joined_reasons
+    assert "owner confirmed" in joined_reasons
+    assert "held owner-visible record" in joined_reasons
+
+    async with super_engine.connect() as conn:
+        rows = (
+            await conn.execute(
+                text(
+                    "SELECT entity_type, change_class, previous_version, "
+                    "new_version, trigger FROM why_changed_records "
+                    "WHERE owner_user_id=:owner_user_id AND entity_id=:claim_id"
+                ),
+                {"owner_user_id": owner_user_id, "claim_id": claim["id"]},
+            )
+        ).mappings().all()
+
+    assert len(rows) == 3
+    assert {row["entity_type"] for row in rows} == {"omega_claim"}
+    assert {row["change_class"] for row in rows} == {
+        "created",
+        "promoted",
+        "retracted",
+    }
+    assert {(row["previous_version"], row["new_version"]) for row in rows} == {
+        (None, "HYPOTHESIS"),
+        ("HYPOTHESIS", "OBSERVED"),
+        ("OBSERVED", "RETIRED"),
+    }
 
 
 async def test_consolidation_lock_blocks_double_run(client, super_engine):

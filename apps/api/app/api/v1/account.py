@@ -2,7 +2,15 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
-from app.api.deps import DB, Identity, Scoped, require_csrf, require_trusted_origin
+from app.api.deps import (
+    DB,
+    Identity,
+    Scoped,
+    require_csrf,
+    require_public_browser_csrf,
+    require_trusted_origin,
+    set_bootstrap_csrf_cookie,
+)
 from app.core.config import get_settings
 from app.core.security import email_fingerprint, opaque_fingerprint
 from app.schemas.account import (
@@ -29,7 +37,7 @@ def _privacy_write_dependencies() -> list:
 def _clear_auth_cookies(response: Response) -> None:
     settings = get_settings()
     response.delete_cookie(settings.session_cookie_name, path="/")
-    response.delete_cookie(settings.csrf_cookie_name, path="/")
+    set_bootstrap_csrf_cookie(response)
 
 
 @router.post(
@@ -149,7 +157,7 @@ async def request_account_deletion(
 @router.post(
     "/account/deletion/cancel",
     response_model=AccountDeletionCancelled,
-    dependencies=[Depends(require_trusted_origin)],
+    dependencies=[Depends(require_public_browser_csrf)],
 )
 async def cancel_account_deletion(
     payload: AccountDeletionCancelIn,
@@ -181,7 +189,7 @@ async def cancel_account_deletion(
 @router.post(
     "/account/deletion/receipt",
     response_model=AccountDeletionReceiptOut,
-    dependencies=[Depends(require_trusted_origin)],
+    dependencies=[Depends(require_public_browser_csrf)],
 )
 async def account_deletion_receipt(
     payload: AccountDeletionReceiptIn,

@@ -159,9 +159,30 @@ async def _states(db, workflow_id, step_id) -> dict:
             {"w": workflow_id},
         )
     ).scalars().all()
+    learning = (
+        await db.execute(
+            text(
+                "SELECT "
+                "(SELECT count(*) FROM learning_signals "
+                " WHERE idempotency_key = :learning_key) AS signals, "
+                "(SELECT count(*) FROM memory_candidates "
+                " WHERE source_object_ids->>'agent_step_id' = :step) AS memories, "
+                "(SELECT count(*) FROM semantic_claims "
+                " WHERE subject_ref = :subject_ref) AS claims, "
+                "(SELECT count(*) FROM why_changed_records "
+                " WHERE entity_id = :step) AS changes"
+            ),
+            {
+                "learning_key": f"agent_step:{step_id}:verification",
+                "step": str(step_id),
+                "subject_ref": f"agent_step:{step_id}",
+            },
+        )
+    ).mappings().one()
     return {
         "step": step["state"], "verdict": step["verification_verdict"],
         "workflow": workflow, "calls": calls, "events": events,
+        "learning": dict(learning),
     }
 
 
@@ -216,6 +237,12 @@ async def test_slice_a_auto_run(session_for, owner, monkeypatch):
     assert succeeded[0]["approval_id"] is None, "auto-run cited an approval"
     assert "STEP_EXECUTED" in state["events"]
     assert "STEP_VERIFIED" in state["events"]
+    assert state["learning"] == {
+        "signals": 1,
+        "memories": 1,
+        "claims": 1,
+        "changes": 1,
+    }
 
 
 # ── B. approval ──────────────────────────────────────────────────────────────

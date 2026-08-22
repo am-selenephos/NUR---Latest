@@ -83,6 +83,7 @@ jobs:
         working-directory: apps/api
       - run: npm run api:openapi-drift:test
       - run: npm run api:openapi-drift
+      - run: npm run api:mutation-security
       - run: python -m ruff check app
         working-directory: apps/api
       - run: python -m pytest

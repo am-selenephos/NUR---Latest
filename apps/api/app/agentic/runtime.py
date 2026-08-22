@@ -872,6 +872,33 @@ async def run_step(
         from_state=StepState.VERIFYING.value, to_state=final.value,
         trace_id=trace.trace_id,
     )
+    # The tool result remains authoritative even if this secondary projection
+    # fails; the savepoint keeps feedback replayable by its idempotency key.
+    try:
+        async with db.begin_nested():
+            from app.learning.outcome_loop import reconcile_agent_verification
+
+            await reconcile_agent_verification(
+                db,
+                owner_user_id=owner_user_id,
+                step_id=step_id,
+                orbit_id=None,
+                tool_key=step["tool_key"],
+                verdict=verification.verdict.value,
+                reasons=list(verification.reasons),
+                result_digest=digest,
+            )
+    except Exception as error:  # noqa: BLE001
+        await record_event(
+            db,
+            owner_user_id=owner_user_id,
+            workflow_id=workflow_id,
+            step_id=step_id,
+            event_type="LEARNING_FEEDBACK_FAILED",
+            summary=f"governed feedback projection failed: {type(error).__name__}",
+            detail={"result_digest": digest},
+            trace_id=trace.trace_id,
+        )
     await transition_step(
         db, owner_user_id=owner_user_id, step_id=step_id,
         current=StepState.VERIFYING, nxt=final,

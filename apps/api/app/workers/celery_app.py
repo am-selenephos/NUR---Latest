@@ -20,8 +20,14 @@ celery.conf.update(
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
-    task_acks_late=True,
+    task_acks_late=_s.celery_task_acks_late,
+    task_reject_on_worker_lost=_s.celery_task_reject_on_worker_lost,
+    task_soft_time_limit=_s.celery_task_soft_time_limit_seconds,
+    task_time_limit=_s.celery_task_time_limit_seconds,
+    worker_concurrency=_s.celery_worker_concurrency,
+    worker_prefetch_multiplier=_s.celery_worker_prefetch_multiplier,
     worker_hijack_root_logger=False,
+    broker_connection_retry_on_startup=True,
     task_default_queue="nur_default",
     # Job payloads carry IDs only — never private raw text (constitution §17/§20).
 )
@@ -81,6 +87,16 @@ if _s.account_deletion_purge_enabled:
         "args": (),
         "options": {
             "expires": max(60, int(_s.account_deletion_purge_interval_seconds))
+        },
+    }
+
+if _s.project_run_recovery_enabled:
+    _beat["nur-project-run-recovery"] = {
+        "task": "nur.reconcile_project_runs",
+        "schedule": int(_s.project_run_recovery_interval_seconds),
+        "args": (),
+        "options": {
+            "expires": int(_s.project_run_recovery_interval_seconds)
         },
     }
 

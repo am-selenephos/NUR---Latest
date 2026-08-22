@@ -27,6 +27,33 @@ class Settings(BaseSettings):
     # invocations cannot read, increment, or delete each other's limiter state.
     redis_key_namespace: str = Field(default="", validation_alias="NUR_REDIS_KEY_NAMESPACE")
 
+    # Workers are bounded and late-acknowledged. Queued jobs are fenced and
+    # idempotent, so an interrupted delivery can safely return to Redis.
+    celery_worker_concurrency: int = Field(
+        default=2, ge=1, le=64, validation_alias="NUR_CELERY_WORKER_CONCURRENCY"
+    )
+    celery_worker_prefetch_multiplier: int = Field(
+        default=1, ge=1, le=16, validation_alias="NUR_CELERY_WORKER_PREFETCH_MULTIPLIER"
+    )
+    celery_task_acks_late: bool = Field(
+        default=True, validation_alias="NUR_CELERY_TASK_ACKS_LATE"
+    )
+    celery_task_reject_on_worker_lost: bool = Field(
+        default=True, validation_alias="NUR_CELERY_TASK_REJECT_ON_WORKER_LOST"
+    )
+    celery_task_soft_time_limit_seconds: int = Field(
+        default=150,
+        ge=1,
+        le=3600,
+        validation_alias="NUR_CELERY_TASK_SOFT_TIME_LIMIT_SECONDS",
+    )
+    celery_task_time_limit_seconds: int = Field(
+        default=180,
+        ge=2,
+        le=7200,
+        validation_alias="NUR_CELERY_TASK_TIME_LIMIT_SECONDS",
+    )
+
     session_secret: str = "dev_only_change_me"
     csrf_secret: str = "dev_only_change_me"
 
@@ -91,8 +118,17 @@ class Settings(BaseSettings):
     openai_reasoning_effort: str = Field(default="high", validation_alias="NUR_OPENAI_REASONING_EFFORT")
     openai_critical_reasoning_effort: str = Field(default="high", validation_alias="NUR_OPENAI_CRITICAL_REASONING_EFFORT")
     openai_request_timeout_seconds: int = Field(default=45, validation_alias="NUR_OPENAI_REQUEST_TIMEOUT_SECONDS")
-    ai_per_user_daily_limit: int = Field(default=50, validation_alias="NUR_AI_PER_USER_DAILY_LIMIT")
-    ai_daily_budget_cents: int = Field(default=500, validation_alias="NUR_AI_DAILY_BUDGET_CENTS")
+    ai_per_user_daily_limit: int = Field(
+        default=50, ge=1, validation_alias="NUR_AI_PER_USER_DAILY_LIMIT"
+    )
+    ai_daily_budget_cents: int = Field(
+        default=500, ge=1, validation_alias="NUR_AI_DAILY_BUDGET_CENTS"
+    )
+    # Conservative per-request ceiling reserved before provider dispatch. This
+    # is operator policy, never represented as provider-reported actual cost.
+    ai_request_cost_ceiling_cents: int = Field(
+        default=10, ge=1, validation_alias="NUR_AI_REQUEST_COST_CEILING_CENTS"
+    )
     ai_allow_external_web_research: bool = Field(default=False, validation_alias="NUR_AI_ALLOW_EXTERNAL_WEB_RESEARCH")
     ai_log_prompts: bool = Field(default=False, validation_alias="NUR_AI_LOG_PROMPTS")
     demo_mode: bool = Field(default=False, validation_alias="DEMO_MODE")
@@ -166,6 +202,27 @@ class Settings(BaseSettings):
     )
     run_max_attempts: int = Field(
         default=5, ge=1, validation_alias="NUR_PROJECT_RUN_MAX_ATTEMPTS"
+    )
+    project_run_recovery_enabled: bool = Field(
+        default=True, validation_alias="NUR_PROJECT_RUN_RECOVERY_ENABLED"
+    )
+    project_run_recovery_interval_seconds: int = Field(
+        default=60,
+        ge=60,
+        le=3600,
+        validation_alias="NUR_PROJECT_RUN_RECOVERY_INTERVAL_SECONDS",
+    )
+    project_run_recovery_owner_batch: int = Field(
+        default=50,
+        ge=1,
+        le=100,
+        validation_alias="NUR_PROJECT_RUN_RECOVERY_OWNER_BATCH",
+    )
+    project_run_recovery_run_batch: int = Field(
+        default=50,
+        ge=1,
+        le=100,
+        validation_alias="NUR_PROJECT_RUN_RECOVERY_RUN_BATCH",
     )
     # Deterministic adapters run in-process during tests and local smoke; production
     # dispatches them onto the Celery queue. This never enables provider-backed AI runs.
@@ -257,6 +314,15 @@ class Settings(BaseSettings):
         if normalized not in {"disabled", "local_capture", "smtp"}:
             raise ValueError("PASSWORD_RESET_DELIVERY must be 'disabled', 'local_capture', or 'smtp'.")
         return normalized
+
+    @model_validator(mode="after")
+    def _celery_time_limits_are_ordered(self) -> "Settings":
+        if self.celery_task_soft_time_limit_seconds >= self.celery_task_time_limit_seconds:
+            raise ValueError(
+                "NUR_CELERY_TASK_SOFT_TIME_LIMIT_SECONDS must be lower than "
+                "NUR_CELERY_TASK_TIME_LIMIT_SECONDS."
+            )
+        return self
 
     @model_validator(mode="after")
     def _no_decorative_secrets_in_production(self) -> "Settings":

@@ -5,6 +5,124 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RUNTIME="$ROOT/.nur-runtime"
 cd "$ROOT"
 
+DEPENDENCIES_ONLY=0
+usage() {
+  cat >&2 <<'TXT'
+Usage: bash infra/scripts/bootstrap-dev.sh [--dependencies-only]
+
+  --dependencies-only  Install only the lockfile-pinned Node and Python
+                       dependencies. No environment file, database, Redis,
+                       container, role, or migration is touched.
+TXT
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dependencies-only)
+      DEPENDENCIES_ONLY=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'Unknown bootstrap option: %s\n' "$1" >&2
+      usage
+      exit 2
+      ;;
+  esac
+done
+
+API_ROOT="$ROOT/apps/api"
+API_VENV="$API_ROOT/.venv"
+API_PY="$API_VENV/bin/python"
+
+verify_dependency_locks() {
+  [[ -s "$ROOT/package-lock.json" ]] || {
+    printf 'Missing package-lock.json; refusing an unlocked Node install.\n' >&2
+    return 1
+  }
+  python3 - "$API_ROOT/requirements.lock" "$API_ROOT/requirements-dev.lock" <<'PY'
+from __future__ import annotations
+
+import re
+import sys
+from pathlib import Path
+
+pin = re.compile(r"[A-Za-z0-9_.-]+==[^;\s]+(?:\s*;\s*.+)?$")
+for raw_path in sys.argv[1:]:
+    path = Path(raw_path)
+    if not path.is_file():
+        raise SystemExit(f"Missing Python dependency lock: {path}")
+    for number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("-r "):
+            included = (path.parent / line[3:].strip()).resolve()
+            if not included.is_file():
+                raise SystemExit(f"Missing included lock at {path}:{number}: {included}")
+            continue
+        if not pin.fullmatch(line):
+            raise SystemExit(f"Unpinned Python requirement at {path}:{number}: {line}")
+PY
+}
+
+# A venv survives boots but breaks when the system interpreter moves (common on
+# Arch after a Python upgrade). Only an executable interpreter that imports pip
+# is reusable; anything else is rebuilt from scratch.
+api_venv_healthy() {
+  [[ -x "$API_PY" ]] && "$API_PY" -c 'import pip' >/dev/null 2>&1
+}
+
+create_api_venv() {
+  if command -v uv >/dev/null 2>&1; then
+    uv venv --seed "$API_VENV" && return 0
+  fi
+  if command -v virtualenv >/dev/null 2>&1; then
+    virtualenv "$API_VENV" && return 0
+  fi
+  python3 -m venv "$API_VENV" && return 0
+  return 1
+}
+
+install_locked_dependencies() {
+  verify_dependency_locks
+  if ! api_venv_healthy; then
+    if [[ -e "$API_VENV" ]]; then
+      printf 'Existing %s is not usable; recreating it.\n' "$API_VENV"
+      rm -rf "$API_VENV"
+    fi
+    if ! create_api_venv; then
+      cat >&2 <<'TXT'
+ERROR: could not create apps/api/.venv with any available mechanism.
+Tried, in order:
+  1. uv venv --seed   (install: https://docs.astral.sh/uv/ or pacman -S uv)
+  2. virtualenv       (install: python3 -m pip install --user virtualenv)
+  3. python3 -m venv  (needs working ensurepip; on Arch: pacman -S python-pip)
+Install one of the above, then rerun: bash RUN_NUR.sh
+TXT
+      return 1
+    fi
+  fi
+
+  # requirements-dev.lock includes requirements.lock. --no-deps makes the two
+  # reviewed lockfiles the complete dependency authority instead of allowing
+  # pip to discover newer transitives. NUR runs the API from apps/api, so an
+  # editable package install (and its otherwise-unlocked build backend) is not
+  # needed.
+  "$API_PY" -m pip install --disable-pip-version-check --no-deps \
+    -r "$API_ROOT/requirements-dev.lock"
+  (cd "$ROOT" && npm ci)
+}
+
+if [[ "$DEPENDENCIES_ONLY" == "1" ]]; then
+  install_locked_dependencies
+  printf 'Locked dependency bootstrap complete.\n'
+  exit 0
+fi
+
 if [[ ! -f .env ]]; then
   cp .env.example .env
   printf 'Created .env from .env.example\n'
@@ -69,7 +187,10 @@ start_local_postgres() {
       printf 'host all all ::1/128 trust\n'
     } >> "$PGDATA/pg_hba.conf"
   fi
-  pg_ctl -D "$PGDATA" -l "$RUNTIME/postgres.log" -o "-p ${PG_PORT} -h ${PG_HOST} -k ${RUNTIME}" -w -t 60 start >/dev/null
+  # The socket directory is already written to postgresql.conf. Keeping it out
+  # of pg_ctl's option string avoids re-tokenizing a repository path containing
+  # spaces.
+  pg_ctl -D "$PGDATA" -l "$RUNTIME/postgres.log" -o "-p ${PG_PORT} -h ${PG_HOST}" -w -t 60 start >/dev/null
 }
 
 start_local_redis() {
@@ -209,6 +330,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='nur_app') THEN
     CREATE ROLE nur_app LOGIN NOSUPERUSER NOCREATEROLE NOCREATEDB NOBYPASSRLS;
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='nur_email_lookup') THEN
+    CREATE ROLE nur_email_lookup NOLOGIN NOSUPERUSER NOCREATEROLE NOCREATEDB BYPASSRLS;
+  END IF;
 END $$;
 ALTER ROLE nur_admin PASSWORD 'nur_admin_pw';
 ALTER ROLE nur_app PASSWORD 'nur_app_pw';
@@ -218,6 +342,16 @@ ALTER ROLE nur_app PASSWORD 'nur_app_pw';
 -- reconciliation) silently affects zero rows. Only superuser can grant this,
 -- which is why it runs here and not inside a migration.
 ALTER ROLE nur_admin BYPASSRLS;
+-- Exact-email sharing receives one narrow RLS exception. The app can execute
+-- the owned functions but can never SET ROLE to their NOLOGIN owner.
+ALTER ROLE nur_email_lookup NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION BYPASSRLS;
+GRANT nur_email_lookup TO nur_admin WITH ADMIN OPTION;
+DO $$
+BEGIN
+  IF pg_has_role('nur_app', 'nur_email_lookup', 'MEMBER') THEN
+    EXECUTE 'REVOKE nur_email_lookup FROM nur_app';
+  END IF;
+END $$;
 SELECT 'CREATE DATABASE nur OWNER nur_admin'
 WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname='nur')\gexec
 SQL
@@ -227,50 +361,8 @@ ALTER SCHEMA public OWNER TO nur_admin;
 GRANT USAGE ON SCHEMA public TO nur_app;
 SQL
 
-API_VENV="apps/api/.venv"
-API_PY="$API_VENV/bin/python"
+install_locked_dependencies
 
-# A venv survives boots but breaks when the system interpreter moves (common on
-# Arch after a python upgrade): the bin/python symlink dangles or pip's
-# site-packages no longer import. Only a venv that runs and can import pip is
-# reusable; anything else must be rebuilt from scratch.
-api_venv_healthy() {
-  [[ -x "$API_PY" ]] && "$API_PY" -c 'import pip' >/dev/null 2>&1
-}
-
-create_api_venv() {
-  if command -v uv >/dev/null 2>&1; then
-    uv venv --seed "$API_VENV" && return 0
-  fi
-  if command -v virtualenv >/dev/null 2>&1; then
-    virtualenv "$API_VENV" && return 0
-  fi
-  # Last resort: stdlib venv, which needs a working ensurepip.
-  python3 -m venv "$API_VENV" && return 0
-  return 1
-}
-
-if ! api_venv_healthy; then
-  if [[ -e "$API_VENV" ]]; then
-    printf 'Existing %s is not usable; recreating it.\n' "$API_VENV"
-    rm -rf "$API_VENV"
-  fi
-  if ! create_api_venv; then
-    cat >&2 <<'TXT'
-ERROR: could not create apps/api/.venv with any available mechanism.
-Tried, in order:
-  1. uv venv --seed   (install: https://docs.astral.sh/uv/ or pacman -S uv)
-  2. virtualenv       (install: python3 -m pip install --user virtualenv)
-  3. python3 -m venv  (needs working ensurepip; on Arch: pacman -S python-pip)
-Install one of the above, then rerun: bash RUN_NUR.sh
-TXT
-    exit 1
-  fi
-  "$API_PY" -m pip install --upgrade pip
-fi
-"$API_PY" -m pip install -e "apps/api[dev]"
-npm install
-
-(cd apps/api && .venv/bin/python -m alembic.config upgrade head)
+(cd "$API_ROOT" && "$API_PY" -m alembic.config upgrade head)
 
 printf 'Bootstrap complete. Start with: bash infra/scripts/start-nur.sh disabled\n'

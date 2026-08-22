@@ -1,27 +1,28 @@
 # NUR Completion Source Authority
 
-Generated during the full-completion pass. This file records provenance; it
-does not claim that every product requirement is complete.
+Refreshed on 2026-08-21 during the final-closure pass. This file records
+provenance; it does not claim that every product requirement is complete.
 
 ## Repository Authority
 
-- Repository: `https://github.com/am-selenephos/NUR.git`
-- Required base branch: `integration/nur-ui-reconcile-20260726`
-- Verified base SHA: `2a4860aec319383c21844292821496532b48b0b5`
-- Completion branch: `codex/nur-full-completion-20260726`
-- Current evidence SHA when this record was created:
-  `5f14ef55014e5dde7775773bf824a2e35e7a0497`
-- Draft completion PR: `#8`
-- PR URL: `https://github.com/am-selenephos/NUR/pull/8`
-- The completion branch was created from the exact PR #7 head, not from
-  `main`.
+- Repository: `https://github.com/am-selenephos/NUR---Latest.git`
+- Base branch: `main`
+- Verified base SHA: `1c6f5f1e9f3380204f6809d2a78364e046e4908e`
+- Completion branch: `codex/nur-final-closure-20260820`
+- Verified pushed baseline before the 2026-08-21 closure edits:
+  `633acc9d5567de92a802a691570afec253a39123`
+- Draft completion PR: `#5`
+- PR URL: `https://github.com/am-selenephos/NUR---Latest/pull/5`
+- The final evidence SHA is intentionally not predeclared. It becomes
+  authoritative only after the complete gate sequence passes and that exact
+  commit is pushed.
 
 ## Canonical Presentation
 
 - Canonical host:
   `apps/web/public/v197/NUR_V197_CHECKBOX_TICK_RESTORED.html`
 - Canonical host SHA-256:
-  `d4f7f2d3e4c8e36dfc0c6edd51a028f28a04afbc2afa434a319009cb2f122bc6`
+  `397c302579472e60f5bd667546a96b6e3f262aa40bd932d10c1946e13b046dd2`
 - Presentation authority remains canonical V197.
 - `apps/web/src/bridge/` is the nonvisual behavior and hydration owner.
 - A generic replacement React interface is not an accepted source.
@@ -31,11 +32,18 @@ does not claim that every product requirement is complete.
 ## Dependency Authority
 
 - Root `package-lock.json` SHA-256:
-  `764b54b19f3c2dce3efe6f0feaac04ef923073538864897f85d5f8c96eff804e`
+  `d8cce9f3614d615e11c62976b203fb6b439bf9d50c8b17c469bf4d23f05c0baf`
 - API `apps/api/requirements.lock` SHA-256:
   `e228367862675103cb87bce3825a14ac89c490f16b76ec85f239e4b389c3f273`
 - Root npm workspaces own web and mobile JavaScript dependency resolution.
 - API requirements are installed from the pinned lock in CI.
+
+## Superseded Git Lineage
+
+The former repository `am-selenephos/NUR` and its PR #8 remain historical
+lineage, not the active release authority. Its relevant work was reconciled
+into `NUR---Latest` before this closure branch. The legacy remote remains
+readable for provenance only.
 
 ## Git and Agent Lineage
 
@@ -72,15 +80,11 @@ tests. Wholesale copying is prohibited.
 
 ## Dirty State Preservation
 
-The official completion worktree contains untracked generated Playwright proof
-directories:
-
-- `proof/100/`
-- `proof/100-delta/`
-
-They are not source authority and are intentionally not staged. Local `.env`
-and `.nur-runtime` state are ignored runtime material and must not enter the
-release.
+The official closure worktree is
+`/home/nur/Downloads/AM -Clean/NUR-FINAL-CLOSURE-20260820`. During active work
+it may contain reviewed source and evidence-document edits. Generated proof,
+local `.env*`, `.nur-runtime`, caches, reports, and test results are not source
+authority and must not enter the release commit.
 
 ## Truth Boundaries
 

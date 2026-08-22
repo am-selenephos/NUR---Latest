@@ -4,6 +4,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.mind.why_changed import ChangeClass, EntityType, WhyChangedService
 from app.models import OmegaClaim
 from app.omega.evidence_graph import link_evidence
 from app.omega.safety_law import allowed_truth_status_for_provenance, redact_secrets
@@ -40,6 +41,31 @@ async def create_claim(
             relation="SUPPORTS",
             note=f"created from {payload.provenance_label}",
         )
+    supporting_evidence = (
+        [f"{payload.evidence_kind}:{payload.evidence_id}"]
+        if payload.evidence_id
+        else []
+    )
+    evidence_note = (
+        " Supporting evidence was linked."
+        if supporting_evidence
+        else ""
+    )
+    await WhyChangedService.record_change(
+        db,
+        owner_user_id=owner_user_id,
+        entity_type=EntityType.OMEGA_CLAIM,
+        entity_id=str(row.id),
+        change_class=ChangeClass.CREATED,
+        trigger=(
+            "Claim created as a held owner-visible record; this ledger exposes "
+            f"state transitions, not hidden reasoning.{evidence_note}"
+        ),
+        new_version=row.truth_status,
+        supporting_evidence=supporting_evidence,
+        actor=("owner" if payload.provenance_label.startswith("OWNER_") else "system"),
+        affected_future_behavior="The claim may inform Insights only within its governed truth status.",
+    )
     return row
 
 
@@ -69,17 +95,45 @@ async def list_claims(
 
 async def confirm_claim(db: AsyncSession, *, owner_user_id: uuid.UUID, claim_id: uuid.UUID) -> OmegaClaim:
     row = await _claim(db, owner_user_id=owner_user_id, claim_id=claim_id)
+    previous_status = row.truth_status
     row.truth_status = "OBSERVED"
     row.confidence = max(float(row.confidence or 0.5), 0.8)
     row.updated_at = dt.datetime.now(dt.timezone.utc)
+    await WhyChangedService.record_change(
+        db,
+        owner_user_id=owner_user_id,
+        entity_type=EntityType.OMEGA_CLAIM,
+        entity_id=str(row.id),
+        change_class=ChangeClass.PROMOTED,
+        trigger="Owner confirmed the held claim as observed.",
+        previous_version=previous_status,
+        new_version=row.truth_status,
+        owner_correction=True,
+        actor="owner",
+        affected_future_behavior="The confirmed claim may be shown as owner-observed evidence.",
+    )
     await db.flush()
     return row
 
 
 async def retire_claim(db: AsyncSession, *, owner_user_id: uuid.UUID, claim_id: uuid.UUID) -> OmegaClaim:
     row = await _claim(db, owner_user_id=owner_user_id, claim_id=claim_id)
+    previous_status = row.truth_status
     row.truth_status = "RETIRED"
     row.updated_at = dt.datetime.now(dt.timezone.utc)
+    await WhyChangedService.record_change(
+        db,
+        owner_user_id=owner_user_id,
+        entity_type=EntityType.OMEGA_CLAIM,
+        entity_id=str(row.id),
+        change_class=ChangeClass.RETRACTED,
+        trigger="Owner retired the claim from active interpretation.",
+        previous_version=previous_status,
+        new_version=row.truth_status,
+        owner_correction=True,
+        actor="owner",
+        affected_future_behavior="The retired claim is excluded from active interpretation.",
+    )
     await db.flush()
     return row
 
@@ -93,6 +147,8 @@ async def weaken_claim_for_correction(
     note: str,
 ) -> OmegaClaim:
     row = await _claim(db, owner_user_id=owner_user_id, claim_id=claim_id)
+    previous_status = row.truth_status
+    previous_confidence = float(row.confidence or 0.5)
     await link_evidence(
         db,
         owner_user_id=owner_user_id,
@@ -105,6 +161,20 @@ async def weaken_claim_for_correction(
     )
     row.confidence = max(0.05, float(row.confidence or 0.5) - 0.25)
     row.updated_at = dt.datetime.now(dt.timezone.utc)
+    await WhyChangedService.record_change(
+        db,
+        owner_user_id=owner_user_id,
+        entity_type=EntityType.OMEGA_CLAIM,
+        entity_id=str(row.id),
+        change_class=ChangeClass.CONTRADICTED,
+        trigger="Owner correction linked counter-evidence and weakened the claim.",
+        previous_version=f"{previous_status}:{previous_confidence:.4f}",
+        new_version=f"{row.truth_status}:{float(row.confidence):.4f}",
+        counter_evidence=[f"CORRECTION:{correction_event_id}"],
+        owner_correction=True,
+        actor="owner",
+        affected_future_behavior="Later interpretation must account for the owner correction.",
+    )
     await db.flush()
     return row
 

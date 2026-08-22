@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { V197ApiError, type V197BridgeSnapshot } from "../bridge/v197ApiClient";
-import { bindV197Actions, bindV197EntryAuth, type V197ActionApi, type V197TalkTransport } from "../bridge/v197Bindings";
+import {
+  bindV197Actions,
+  bindV197EntryAuth,
+  talkSemanticsForAction,
+  type V197ActionApi,
+  type V197TalkTransport,
+} from "../bridge/v197Bindings";
 
 function snapshot(): V197BridgeSnapshot {
   return {
@@ -121,8 +127,58 @@ describe("Track A V197 write bindings", () => {
       locale: "ur",
       writing_preference: "roman",
       orbit_id: "system-1",
+      mode: "talk",
+      capability_id: null,
+      memory_mode: "EPHEMERAL",
     }));
     expect(fake.rewardGlow).toHaveBeenCalledWith(expect.objectContaining({ source_id: "turn-1", event_type: "talk_meaningful" }));
+  });
+
+  it.each([
+    ["reflect", "capability:contextual_answer", "REVIEW"],
+    ["plan", "capability:plan_from_conversation", "EPHEMERAL"],
+    ["challenge", "capability:contextual_answer", "EPHEMERAL"],
+    ["explore", "capability:contextual_answer", "EPHEMERAL"],
+    ["summarize", "capability:contextual_answer", "EPHEMERAL"],
+  ] as const)("maps the explicit %s action to its capability and memory semantics", (mode, capabilityId, memoryMode) => {
+    expect(talkSemanticsForAction(mode)).toEqual({
+      mode,
+      capability_id: capabilityId,
+      memory_mode: memoryMode,
+    });
+  });
+
+  it("keeps an explicit capability refusal visible without inventing an assistant answer", async () => {
+    const document = window.document.implementation.createHTMLDocument("Talk refusal");
+    document.body.innerHTML = `
+      <div class="universe-prompt-row"><button data-action="reflect">Reflect</button></div>
+      <input id="talk-input" value="Reflect this honestly">
+      <button data-send="talk">Send</button>
+      <div id="talk-stream"></div>
+    `;
+    const fake = api();
+    fake.talk.mockRejectedValue(new V197ApiError("This capability is outside the owner's current grant.", 403, "capability_denied"));
+
+    bindV197Actions(
+      document,
+      fake as unknown as V197ActionApi,
+      snapshot(),
+      vi.fn().mockResolvedValue(snapshot()),
+      () => undefined,
+      talkTransport(fake),
+    );
+    document.querySelector<HTMLButtonElement>('[data-action="reflect"]')?.click();
+    document.querySelector<HTMLButtonElement>('[data-send="talk"]')?.click();
+    await settle();
+
+    expect(fake.talk).toHaveBeenCalledWith(expect.objectContaining({
+      capability_id: "capability:contextual_answer",
+      memory_mode: "REVIEW",
+    }));
+    const refusal = document.querySelector<HTMLElement>('[data-nur-talk-error="true"]');
+    expect(refusal?.textContent).toContain("outside the owner's current grant");
+    expect(refusal?.textContent).toContain("nothing was invented");
+    expect(document.querySelectorAll(".talk-message.nur")).toHaveLength(1);
   });
 
   it("hydrates a persisted Talk turn even when Glow is anti-spam gated", async () => {

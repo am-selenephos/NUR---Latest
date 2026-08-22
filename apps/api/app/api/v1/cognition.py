@@ -13,7 +13,10 @@ from sqlalchemy import func, or_, select
 from app.api.deps import Identity, Scoped, require_csrf
 from app.ai.schemas import NURTalkOutput
 from app.cognition.cycle import CycleResult, run_cognitive_cycle
-from app.cognition.correction_service import persist_user_correction
+from app.cognition.correction_service import (
+    CorrectionTargetNotFound,
+    persist_user_correction,
+)
 from app.ai.errors import AIRequestBudgetExceeded
 from app.cognition.intelligence_kernel import TalkProviderFailure, TalkRunConflict, run_talk_kernel
 from app.cognition.schemas import EvidencePacket, VerificationResult
@@ -316,14 +319,17 @@ async def talk_thread(db: Scoped, identity: Identity, orbit_id: uuid.UUID | None
 @router.post("/corrections", status_code=201, dependencies=[Depends(require_csrf)])
 async def correct(payload: CorrectionIn, request: Request, db: Scoped, identity: Identity) -> dict:
     user_id, _ = identity
-    row = await persist_user_correction(
-        db,
-        owner_user_id=user_id,
-        orbit_id=payload.orbit_id,
-        target_event_id=payload.target_event_id,
-        correction_text=payload.correction_text,
-        reason=payload.reason,
-    )
+    try:
+        row = await persist_user_correction(
+            db,
+            owner_user_id=user_id,
+            orbit_id=payload.orbit_id,
+            target_event_id=payload.target_event_id,
+            correction_text=payload.correction_text,
+            reason=payload.reason,
+        )
+    except CorrectionTargetNotFound as exc:
+        raise HTTPException(404, str(exc)) from exc
     record_counter(request, "nur_corrections_total")
     await db.commit()
     return {"id": str(row.id)}

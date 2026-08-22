@@ -83,3 +83,99 @@ test("approval action is bound to the displayed digest and plan versions", async
     },
   });
 });
+
+test("approval EDIT uses the typed raw-JSON fallback and rerenders after persistence", async ({ page }) => {
+  const state = await installNurMocks(page);
+  state.agenticApprovals.push({
+    id: "bcbcbcbc-bcbc-4cbc-8cbc-bcbcbcbcbcbc",
+    approval_id: "bcbcbcbc-bcbc-4cbc-8cbc-bcbcbcbcbcbc",
+    workflow_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    workflow_title: "Read a bounded Today window",
+    step_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    tool_key: "get_today_state",
+    tool_version: "1",
+    redacted_arguments: { window: "today" },
+    rationale: "The owner must edit the exact call before it can run.",
+    expected_result: "One bounded Today snapshot.",
+    risk_class: "R0_READ_ONLY",
+    reversible: true,
+    scope_summary: "This private Orbit only",
+    cost_ceiling_cents: 0,
+    expires_at: null,
+    argument_digest: "sha256:editable-arguments",
+    plan_version: 4,
+    call_version: "call-version-edit",
+  });
+
+  await page.goto("/agents", { waitUntil: "networkidle" });
+  const adjunct = page.frameLocator("#nur-universe-stage").locator("#nur-v197-adjunct-root");
+  await adjunct.locator('[data-adjunct-action="agentic-approval-edit-bcbcbcbc-bcbc-4cbc-8cbc-bcbcbcbcbcbc"]').click();
+  const fallback = adjunct.locator('[data-approval-editor-mode="raw-json"]');
+  await expect(fallback).toContainText("API did not expose an input schema");
+  const editor = adjunct.getByLabel("Edit the owner-visible approval arguments as JSON");
+  await expect(editor).toBeVisible();
+  await editor.fill('{"window":"week","include_completed":false}');
+  await adjunct.locator('[data-adjunct-action="agentic-approval-submit-edit-bcbcbcbc-bcbc-4cbc-8cbc-bcbcbcbcbcbc"]').click();
+
+  await expect(adjunct.getByText("No approval is waiting")).toBeVisible();
+  expect(state.agenticWrites.at(-1)).toEqual({
+    path: "/api/v1/agentic/approvals/bcbcbcbc-bcbc-4cbc-8cbc-bcbcbcbcbcbc/decide",
+    body: {
+      decision: "EDIT",
+      seen_digest: "sha256:editable-arguments",
+      seen_plan_version: 4,
+      seen_call_version: "call-version-edit",
+      note: null,
+      edited_arguments: { window: "week", include_completed: false },
+    },
+  });
+});
+
+test("retry opens the immutable successor returned by the API", async ({ page }) => {
+  const state = await installNurMocks(page);
+  const workflowId = "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa";
+  const successorId = "eeeeeeee-2222-4222-8222-eeeeeeeeeeee";
+  state.agenticDetails[workflowId] = {
+    id: workflowId,
+    title: "Retry the bounded read",
+    objective: "Retry from an immutable plan without mutating history.",
+    kind: "OWNER_DEFINED",
+    state: "FAILED",
+    plan_version: 5,
+    context_manifest: {},
+    success_criteria: ["A successor workflow is returned."],
+    cost_cents: 0,
+    failure_code: "TRANSIENT_FAILURE",
+    idempotent_replay: false,
+    steps: [{
+      id: "ffffffff-3333-4333-8333-ffffffffffff",
+      key: "step-1",
+      ordinal: 1,
+      state: "FAILED",
+      role: "operator",
+      tool_key: "get_today_state",
+      tool_version: "1",
+      risk_class: "R0_READ_ONLY",
+      approval_required: false,
+      depends_on: [],
+      input_refs: {},
+      verification_verdict: null,
+      attempt: 1,
+      execution_attempt: "attempt-old",
+      idempotency_key: "retry-old",
+      failure_code: "TRANSIENT_FAILURE",
+      retryable: true,
+    }],
+  };
+
+  await page.goto(`/agents/${workflowId}`, { waitUntil: "networkidle" });
+  const adjunct = page.frameLocator("#nur-universe-stage").locator("#nur-v197-adjunct-root");
+  await adjunct.locator(`[data-adjunct-action="agentic-workflow-retry-${workflowId}"]`).click();
+
+  await expect(page).toHaveURL(new RegExp(`/agents/${successorId}$`));
+  await expect(adjunct.getByText("PLAN_READY", { exact: true })).toBeVisible();
+  expect(state.agenticWrites.at(-1)).toMatchObject({
+    path: `/api/v1/agentic/workflows/${workflowId}/retry`,
+    body: { seen_plan_version: 5 },
+  });
+});

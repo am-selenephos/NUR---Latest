@@ -20,6 +20,7 @@ import {
   ensureV197PremiumPolish,
 } from "./v197Polish";
 import { cancelAllV197SearchCommits } from "./v197SearchInput";
+import { consumeImmediateLogoutReturn, markImmediateLogoutReturn } from "./v197LogoutReturn";
 import { selectRequired, V197_SELECTORS } from "./v197Selectors";
 
 /** Routes a bridge-native surface owns end to end.
@@ -63,6 +64,14 @@ declare global {
 
 function nativeRoute(pathname: string): V197NativeRoute {
   const value = pathname.replace(/\/+$/, "") || "/";
+  if ([
+    "/community/people",
+    "/community/saved",
+    "/community/notifications",
+    "/community/moderation",
+  ].includes(value)) {
+    return "/universe/community";
+  }
   if ([
     "/universe/research",
     "/universe/experts",
@@ -200,6 +209,11 @@ export class V197Bridge {
     }
     if (session) {
       await this.activateSession(hostApi, session);
+      return;
+    }
+
+    if (consumeImmediateLogoutReturn()) {
+      (entryDocument.defaultView as V197EntryWindow | null)?.nurShowFront?.();
       return;
     }
 
@@ -438,6 +452,7 @@ export class V197Bridge {
         return next;
       },
       async () => {
+        markImmediateLogoutReturn();
         window.location.replace("/");
       },
       undefined,

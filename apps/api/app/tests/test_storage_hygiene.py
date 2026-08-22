@@ -8,7 +8,9 @@ retention window.
 
 import datetime as dt
 import uuid
+from types import SimpleNamespace
 
+import pytest
 from sqlalchemy import select
 
 from app.db.rls import set_user_context
@@ -21,7 +23,9 @@ from app.services.object_storage import (
     get_object_storage,
 )
 from app.services.storage_hygiene import (
+    assert_cross_owner_maintenance_role,
     purge_deleted_files,
+    reconcile_exit_code,
     reconcile_object_index,
     sweep_orphan_objects,
 )
@@ -56,6 +60,52 @@ def test_reconcile_object_index_separates_orphans_from_dangling():
     assert report.dangling == ["b" * 32]
     assert not report.clean
     assert reconcile_object_index(db_object_keys=["a" * 32], disk_object_keys=["a" * 32]).clean
+
+
+class _RoleProbeResult:
+    def __init__(self, *, name: str, superuser: bool, bypass_rls: bool) -> None:
+        self._row = {
+            "rolname": name,
+            "rolsuper": superuser,
+            "rolbypassrls": bypass_rls,
+        }
+
+    def mappings(self):
+        return SimpleNamespace(one=lambda: self._row)
+
+
+class _RoleProbeSession:
+    def __init__(self, *, name: str, superuser: bool = False, bypass_rls: bool = False) -> None:
+        self._result = _RoleProbeResult(
+            name=name,
+            superuser=superuser,
+            bypass_rls=bypass_rls,
+        )
+
+    async def execute(self, _statement):
+        return self._result
+
+
+async def test_cross_owner_reconcile_refuses_rls_scoped_runtime_role():
+    db = _RoleProbeSession(name="nur_app")
+    with pytest.raises(RuntimeError, match="BYPASSRLS"):
+        await assert_cross_owner_maintenance_role(db)  # type: ignore[arg-type]
+
+
+async def test_cross_owner_reconcile_accepts_narrow_bypass_maintenance_role():
+    db = _RoleProbeSession(name="nur_storage_maintenance", bypass_rls=True)
+    assert await assert_cross_owner_maintenance_role(db) == "nur_storage_maintenance"  # type: ignore[arg-type]
+
+
+def test_reconcile_exit_code_reports_unresolved_drift():
+    clean = reconcile_object_index(db_object_keys=["a" * 32], disk_object_keys=["a" * 32])
+    orphan = reconcile_object_index(db_object_keys=[], disk_object_keys=["b" * 32])
+    dangling = reconcile_object_index(db_object_keys=["c" * 32], disk_object_keys=[])
+
+    assert reconcile_exit_code(clean, delete_orphans=False) == 0
+    assert reconcile_exit_code(orphan, delete_orphans=False) == 2
+    assert reconcile_exit_code(orphan, delete_orphans=True) == 0
+    assert reconcile_exit_code(dangling, delete_orphans=True) == 2
 
 
 async def test_sweep_deletes_orphan_bytes_only(tmp_path):

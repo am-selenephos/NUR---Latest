@@ -906,18 +906,6 @@ function renderVisibleLens(
     signals.push(...briefs.slice(0, 3).map(row => `${row.question} · ${row.provider_status.toLowerCase()}`));
   }
 
-  if (focus === "web") {
-    const briefs = snapshot.researchBriefs;
-    const connected = briefs.filter(row => row.provider_status === "CONNECTED");
-    count = connected.length;
-    title = connected.length ? `${connected.length} provider-returned web signals` : "No fetched web signal yet";
-    copy = connected.length
-      ? `${briefs.length} staged questions · ${connected.length} connected provider results.`
-      : `${briefs.length} owner-staged ${briefs.length === 1 ? "question" : "questions"} · no external result is presented as fetched.`;
-    uncertainty = "Web Signals remains provider-neutral and labels disconnected evidence honestly.";
-    signals.push(...briefs.slice(0, 3).map(row => `${row.question} · ${row.provider_status.toLowerCase()}`));
-  }
-
   if (focus === "insights") {
     const insight = snapshot.insights;
     const claim = primaryInsight(snapshot);
@@ -1343,13 +1331,7 @@ function renderHonestDisabledSurfaces(document: Document): void {
     ritual.setAttribute("title", "Ritual scheduling is not connected in this Track A build.");
   }
   const editDirection = document.querySelector<HTMLButtonElement>("#page-plan .panel-top .tiny-link:not([data-page])");
-  if (editDirection) {
-    editDirection.dataset.trackAAction = "edit-direction";
-    editDirection.textContent = "Direction editing opens in Track B";
-    editDirection.disabled = true;
-    editDirection.setAttribute("aria-disabled", "true");
-    editDirection.setAttribute("title", "Plan direction editing is not connected in this Track A build.");
-  }
+  editDirection?.remove();
 }
 
 export function hydrateTrackAV197(document: Document, snapshot: V197BridgeSnapshot): void {

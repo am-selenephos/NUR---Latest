@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.mind.why_changed import EntityType, WhyChangedRecord, WhyChangedService
 from app.models import OmegaClaim, OmegaEvidenceEdge
 from app.omega.schemas import OmegaWhyChanged
 
@@ -25,15 +26,23 @@ async def explain_why_claim_changed(
     ).order_by(OmegaEvidenceEdge.created_at.desc()).limit(25))).scalars())
     supports = [_edge_summary(e) for e in edges if e.relation == "SUPPORTS"]
     contradicts = [_edge_summary(e) for e in edges if e.relation == "CONTRADICTS"]
-    changed: list[str] = []
-    if supports:
-        changed.append(f"{len(supports)} supporting evidence edge(s) increased confidence or support count.")
-    if contradicts:
-        changed.append(f"{len(contradicts)} contradiction edge(s) weakened or contradicted this claim.")
-    if claim.truth_status == "CONTRADICTED":
-        changed.append("The current truth status is CONTRADICTED because at least one correction/outcome conflict was linked.")
+    history = await WhyChangedService.get_change_history(
+        db,
+        owner_user_id=owner_user_id,
+        entity_type=EntityType.OMEGA_CLAIM.value,
+        entity_id=str(claim_id),
+        limit=25,
+    )
+    changed = [
+        _change_summary(record)
+        for record in history
+        if record.trigger
+    ]
     if not changed:
-        changed.append("No evidence change has been linked yet; this remains a held claim, not hidden reasoning.")
+        changed.append(
+            "No canonical WhyChanged transition is recorded for this legacy claim; "
+            "evidence edges remain visible but do not invent an explanation."
+        )
     return OmegaWhyChanged(
         claim_id=claim.id,
         claim_text=claim.claim_text,
@@ -49,3 +58,11 @@ async def explain_why_claim_changed(
 def _edge_summary(edge: OmegaEvidenceEdge) -> str:
     note = f" · {edge.note}" if edge.note else ""
     return f"{edge.relation} via {edge.evidence_kind} ({edge.evidence_id}) strength {float(edge.strength or 0):.2f}{note}"
+
+
+def _change_summary(record: WhyChangedRecord) -> str:
+    if record.previous_version is None and record.new_version is None:
+        return record.trigger
+    previous = record.previous_version or "none"
+    current = record.new_version or "none"
+    return f"{record.trigger} [{previous} -> {current}]"

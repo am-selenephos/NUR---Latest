@@ -698,7 +698,7 @@ export async function renderV197Map(
     ));
     tools.append(capsule(
       doc, "Add Signal",
-      "Not built yet. Signals arrive from Talk, Journal, Today, Research and Web Signals.",
+      "Not built yet. Signals arrive from Talk, Journal, Today and Research.",
     ));
     const ask = capsule(doc, "Ask NUR to Map");
     ask.addEventListener("click", () => actions.generate());

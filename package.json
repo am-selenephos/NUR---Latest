@@ -15,8 +15,9 @@
     "web:e2e:mocked": "npm --workspace apps/web run e2e -- e2e/talk.spec.ts e2e/visual-readiness.spec.ts --project=chromium-desktop --project=chromium-mobile --workers=1",
     "mobile:typecheck": "npm --prefix apps/mobile run typecheck",
     "proof-hygiene": "node infra/scripts/check-proof-hygiene.mjs",
-    "api:openapi-drift": "python3 infra/scripts/check_openapi_drift.py --json",
-    "api:openapi-drift:test": "python3 -m unittest -v infra/scripts/test_check_openapi_drift.py"
+    "api:openapi-drift": "if [ -x apps/api/.venv/bin/python ]; then apps/api/.venv/bin/python infra/scripts/check_openapi_drift.py --json; else python3 infra/scripts/check_openapi_drift.py --json; fi",
+    "api:openapi-drift:test": "if [ -x apps/api/.venv/bin/python ]; then apps/api/.venv/bin/python -m unittest -v infra/scripts/test_check_openapi_drift.py; else python3 -m unittest -v infra/scripts/test_check_openapi_drift.py; fi",
+    "api:mutation-security": "python3 infra/scripts/generate-mutation-security-matrix.py --check"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

@@ -10,6 +10,7 @@ dist
 build
 **/build
 playwright-report
+playwright-report-*
 test-results
 .pytest_cache
 **/.pytest_cache

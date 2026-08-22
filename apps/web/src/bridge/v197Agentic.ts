@@ -124,6 +124,34 @@ export interface V197AgenticApproval {
   argument_digest: string;
   plan_version: number;
   call_version: string;
+  /** Optional future server contract. The current API does not expose it. */
+  input_schema?: V197AgenticApprovalInputSchema | null;
+}
+
+export interface V197AgenticApprovalInputSchema {
+  type: "object";
+  properties?: Record<string, {
+    type?: "string" | "number" | "integer" | "boolean" | "array" | "object";
+    title?: string;
+    description?: string;
+  }>;
+  required?: string[];
+  additionalProperties?: boolean;
+}
+
+export type V197ApprovalEditor =
+  | { mode: "SCHEMA"; schema: V197AgenticApprovalInputSchema; reason: null }
+  | { mode: "RAW_JSON"; schema: null; reason: string };
+
+export function resolveApprovalEditor(approval: V197AgenticApproval): V197ApprovalEditor {
+  if (approval.input_schema?.type === "object") {
+    return { mode: "SCHEMA", schema: approval.input_schema, reason: null };
+  }
+  return {
+    mode: "RAW_JSON",
+    schema: null,
+    reason: "The API did not expose an input schema for this approval.",
+  };
 }
 
 /**

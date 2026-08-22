@@ -17,6 +17,7 @@ from app.models import AMProjectRun
 from app.models._mixins import now_utc
 from app.services.project_execution import recover_stale_runs
 from app.tests.conftest import register_user
+from app.workers import tasks as worker_tasks
 
 
 def H(client) -> dict[str, str]:
@@ -142,3 +143,74 @@ async def test_fresh_running_run_is_not_reclaimed(client):
         assert row.status == "RUNNING"
     finally:
         await db.close()
+
+
+async def test_scheduled_recovery_republishes_requeued_run_with_ids_only(client, monkeypatch):
+    owner = (await register_user(client, chosen_name="Scheduled Recovery"))[0].json()["id"]
+    project_id = await _make_project(client)
+    db = await _scoped_db(owner)
+    try:
+        run_id = await _flush_running_run(
+            db,
+            owner=owner,
+            project_id=project_id,
+            attempt=1,
+            started_at=now_utc() - dt.timedelta(seconds=3600),
+        )
+        await db.commit()
+    finally:
+        await db.close()
+
+    published: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        worker_tasks.execute_project_run_task,
+        "delay",
+        lambda *args: published.append(args),
+    )
+
+    result = await worker_tasks._reconcile_project_runs_for_owner(uuid.UUID(owner))
+
+    assert result == {
+        "scanned": 1,
+        "requeued": 1,
+        "dead_lettered": 0,
+        "dispatched": 1,
+        "dispatch_failed": 0,
+    }
+    assert published == [(str(run_id), owner)]
+
+
+async def test_recovery_broker_failure_leaves_run_queued_for_next_tick(client, monkeypatch):
+    owner = (await register_user(client, chosen_name="Recovery Broker Outage"))[0].json()["id"]
+    project_id = await _make_project(client)
+    db = await _scoped_db(owner)
+    try:
+        run_id = await _flush_running_run(
+            db,
+            owner=owner,
+            project_id=project_id,
+            attempt=1,
+            started_at=now_utc() - dt.timedelta(seconds=3600),
+        )
+        await db.commit()
+    finally:
+        await db.close()
+
+    def unavailable(*_args):
+        raise ConnectionError("broker unavailable")
+
+    monkeypatch.setattr(worker_tasks.execute_project_run_task, "delay", unavailable)
+    result = await worker_tasks._reconcile_project_runs_for_owner(uuid.UUID(owner))
+
+    assert result["requeued"] == 1
+    assert result["dispatched"] == 0
+    assert result["dispatch_failed"] == 1
+
+    db2 = await _scoped_db(owner)
+    try:
+        row = (
+            await db2.execute(select(AMProjectRun).where(AMProjectRun.id == run_id))
+        ).scalar_one()
+        assert row.status == "QUEUED"
+    finally:
+        await db2.close()

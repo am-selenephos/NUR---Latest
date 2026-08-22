@@ -29,7 +29,6 @@ const ROUTES = [
   { route: "/universe/timeline", surface: "Timeline", tier: "B" },
   { route: "/universe/insights", surface: "Insights", tier: "B" },
   { route: "/universe/research", surface: "Research", tier: "A" },
-  { route: "/universe/web-signals", surface: "Web Signals", tier: "B" },
   { route: "/universe/community", surface: "Community lens", tier: "B" },
   { route: "/community", surface: "Community", tier: "B" },
   { route: "/consultations", surface: "Consultations", tier: "B" },

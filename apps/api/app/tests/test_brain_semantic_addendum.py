@@ -168,6 +168,90 @@ def test_research_brain_runs_policy_retrieval_provenance_synthesis_and_verificat
     assert result.notes
 
 
+def test_research_brain_enforces_scope_after_every_adapter_and_tracks_provenance() -> None:
+    owner_user_id = uuid4()
+    other_owner_user_id = uuid4()
+    allowed_adapter = InMemoryResearchAdapter(
+        [
+            ResearchSource(
+                id="allowed-a",
+                title="Allowed",
+                text="Owner-visible bounded evidence.",
+                citation="https://a.test/allowed",
+                owner_user_id=owner_user_id,
+                record_class="PRIVATE_RESEARCH",
+            )
+        ]
+    )
+
+    class UntrustedAdapter:
+        name = "untrusted_fixture"
+
+        def retrieve(self, plan, scope):  # noqa: ANN001, ANN201, ARG002
+            return [
+                ResearchSource(
+                    id="not-in-scope",
+                    title="Wrong source id",
+                    text="This source must never enter synthesis.",
+                    citation="https://a.test/outside-id",
+                ),
+                ResearchSource(
+                    id="allowed-a",
+                    title="Wrong adapter",
+                    text="An adapter cannot impersonate an allowed source id.",
+                    citation="https://a.test/wrong-adapter",
+                    owner_user_id=owner_user_id,
+                    record_class="PRIVATE_RESEARCH",
+                ),
+                ResearchSource(
+                    id="wrong-owner",
+                    title="Wrong owner",
+                    text="Another owner's record must never enter synthesis.",
+                    citation="https://a.test/wrong-owner",
+                    owner_user_id=other_owner_user_id,
+                    record_class="PRIVATE_RESEARCH",
+                ),
+                ResearchSource(
+                    id="wrong-class",
+                    title="Wrong record class",
+                    text="A disallowed record class must never enter synthesis.",
+                    citation="https://a.test/wrong-class",
+                    owner_user_id=owner_user_id,
+                    record_class="PRIVATE_MEMORY",
+                ),
+            ]
+
+    brain = ResearchBrain(
+        allowed_domains={"a.test"},
+        adapters=[allowed_adapter, UntrustedAdapter()],
+    )
+    result = brain.research(
+        "Use only the resolved research scope.",
+        scope=ResearchScope(
+            owner_user_id=owner_user_id,
+            allowed_domains={"a.test"},
+            allowed_source_ids={"allowed-a", "wrong-owner", "wrong-class"},
+            allowed_source_adapters={
+                "allowed-a": "in_memory",
+                "wrong-owner": "untrusted_fixture",
+                "wrong-class": "untrusted_fixture",
+            },
+            record_classes={"PRIVATE_RESEARCH"},
+        ),
+    )
+
+    assert result.source_ids == ["allowed-a"]
+    assert [item.retrieval_adapter for item in result.provenance] == ["in_memory"]
+    assert {item.source_id for item in result.verification.excluded_sources} == {
+        "not-in-scope",
+        "allowed-a",
+        "wrong-owner",
+        "wrong-class",
+    }
+    assert "must never enter synthesis" not in result.synthesis
+    assert "cannot impersonate" not in result.synthesis
+
+
 def test_specialist_reasoning_is_role_bounded_deadline_aware_scoped_and_typed() -> None:
     worker = SpecialistWorker("research", allowed_capabilities={"retrieve"})
     context = SpecialistContext(
@@ -207,11 +291,24 @@ def test_specialist_reasoning_is_role_bounded_deadline_aware_scoped_and_typed() 
 
 
 def test_evaluation_corpus_runner_requires_empirical_held_out_and_shadow_evidence() -> None:
+    from app.brain.evaluation import evaluate_semantic_probe
+
     corpus = build_default_evaluation_corpus()
     categories = {case.category for case in corpus.cases}
     assert {"planner", "simulator", "critic", "research", "specialist", "router"} <= categories
+    assert len(corpus.source_sha256) == 64
+    assert all(
+        any(case.expected == "FAIL" for case in corpus.by_split(split))
+        for split in ("development", "held_out", "shadow")
+    )
 
-    report = EvaluationRunner(corpus).run(lambda case: case.expected)
+    fingerprints = {
+        (case.category, tuple(sorted(case.input.items())))
+        for case in corpus.cases
+    }
+    assert len(fingerprints) == len(corpus.cases)
+
+    report = EvaluationRunner(corpus).run(evaluate_semantic_probe)
     gate = EvaluationGate.from_corpus(corpus, shadow_pass_rate=1.0)
     decision = gate.evaluate(report)
 
@@ -229,10 +326,10 @@ def test_default_evaluation_runner_wires_real_semantic_components() -> None:
 
     report, decision = run_default_evaluation()
 
-    assert report.corpus_version == "brain-agentend-semantic-v1"
+    assert report.corpus_version == "brain-agentend-semantic-v2"
     assert report.development.total > 0
     assert report.held_out.total > 0
     assert report.shadow.total > 0
-    assert all(value == "PASS" for value in report.observed.values())
+    assert set(report.observed.values()) == {"PASS", "FAIL"}
     assert decision.promote is True
     assert decision.failures == []

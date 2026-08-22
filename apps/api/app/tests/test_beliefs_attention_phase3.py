@@ -1,9 +1,12 @@
 """Unit tests for Phase 3: Beliefs, User Model & Attention.
 
 Tests:
-1. Belief lifecycle: create, support, contest, correct, restore, stale detection
-2. User model: claim promotion rules, sensitive inference blocking, owner correction precedence
-3. Attention: scoring determinism, lifecycle transitions, dismissed items don't resurface
+1. User model: claim promotion rules, sensitive inference blocking, owner correction precedence
+2. Attention: scoring determinism, lifecycle transitions, dismissed items don't resurface
+
+Durable belief lifecycle coverage lives in ``test_outcome_learning_loop.py``.
+The former in-memory belief service was removed so ``SemanticClaim`` and
+``ClaimEvidence`` remain the single Mind belief authority.
 """
 
 import datetime as dt
@@ -11,165 +14,12 @@ import uuid
 
 import pytest
 
-from app.mind.beliefs import BeliefKind, BeliefService, BeliefStatus
 from app.mind.user_model import ClaimClass, ClaimSensitivity, UserModelService
 from app.mind.attention import (
     AttentionService,
     AttentionStatus,
     SalienceFeatures,
 )
-
-
-# ── Belief lifecycle tests ────────────────────────────────────────────────
-
-class TestBeliefLifecycle:
-    def test_create_candidate(self):
-        b = BeliefService.create_belief(
-            owner_user_id=uuid.uuid4(),
-            claim_text="Owner prefers morning routines",
-            kind=BeliefKind.INFERENCE,
-            domain="lifestyle",
-        )
-        assert b.status == BeliefStatus.CANDIDATE
-        assert b.kind == BeliefKind.INFERENCE
-        assert b.confidence == 0.5
-        assert b.version == 1
-
-    def test_support_promotes_to_supported(self):
-        b = BeliefService.create_belief(
-            owner_user_id=uuid.uuid4(),
-            claim_text="Owner exercises regularly",
-            kind=BeliefKind.OBSERVATION,
-        )
-        updated = BeliefService.support_belief(b, new_evidence=["event:123"])
-        assert updated.status == BeliefStatus.SUPPORTED
-        assert "event:123" in updated.evidence_for
-        assert updated.confidence > b.confidence
-        assert updated.version == 2
-
-    def test_contest_moves_to_contested(self):
-        b = BeliefService.create_belief(
-            owner_user_id=uuid.uuid4(),
-            claim_text="Owner prefers tea over coffee",
-            kind=BeliefKind.INFERENCE,
-            confidence=0.7,
-        )
-        updated = BeliefService.contest_belief(b, counter_evidence=["event:456"])
-        assert updated.status == BeliefStatus.CONTESTED
-        assert "event:456" in updated.evidence_against
-        assert updated.confidence < b.confidence
-        assert updated.version == 2
-
-    def test_owner_correction_takes_precedence(self):
-        b = BeliefService.create_belief(
-            owner_user_id=uuid.uuid4(),
-            claim_text="Owner is vegetarian",
-            kind=BeliefKind.INFERENCE,
-            confidence=0.8,
-        )
-        corrected = BeliefService.correct_belief(b, correction_text="I am not vegetarian")
-        assert corrected.status == BeliefStatus.OWNER_CORRECTED
-        assert corrected.owner_correction_text == "I am not vegetarian"
-        assert corrected.source_authority == "owner"
-        assert corrected.correction_count == 1
-
-    def test_retract_belief(self):
-        b = BeliefService.create_belief(
-            owner_user_id=uuid.uuid4(),
-            claim_text="Test belief",
-            kind=BeliefKind.HYPOTHESIS,
-        )
-        retracted = BeliefService.retract_belief(b, reason="No longer relevant")
-        assert retracted.status == BeliefStatus.RETRACTED
-
-    def test_restore_from_retracted(self):
-        b = BeliefService.create_belief(
-            owner_user_id=uuid.uuid4(),
-            claim_text="Test belief",
-            kind=BeliefKind.HYPOTHESIS,
-        )
-        retracted = BeliefService.retract_belief(b, reason="test")
-        restored = BeliefService.restore_belief(retracted)
-        assert restored.status == BeliefStatus.CANDIDATE
-
-    def test_restore_from_corrected(self):
-        b = BeliefService.create_belief(
-            owner_user_id=uuid.uuid4(),
-            claim_text="Test belief",
-            kind=BeliefKind.INFERENCE,
-        )
-        corrected = BeliefService.correct_belief(b, correction_text="Wrong")
-        restored = BeliefService.restore_belief(corrected)
-        assert restored.status == BeliefStatus.CANDIDATE
-
-    def test_restore_from_supported_raises(self):
-        b = BeliefService.create_belief(
-            owner_user_id=uuid.uuid4(),
-            claim_text="Test belief",
-            kind=BeliefKind.OBSERVATION,
-        )
-        supported = BeliefService.support_belief(b, new_evidence=["e1"])
-        with pytest.raises(ValueError, match="Cannot restore"):
-            BeliefService.restore_belief(supported)
-
-    def test_staleness_detection(self):
-        b = BeliefService.create_belief(
-            owner_user_id=uuid.uuid4(),
-            claim_text="Old belief",
-            kind=BeliefKind.INFERENCE,
-        )
-        # Simulate old creation date
-        old = b.model_copy(update={
-            "created_at": dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=100),
-            "staleness_window_days": 90,
-        })
-        stale = BeliefService.check_staleness(old)
-        assert stale.status == BeliefStatus.STALE
-
-    def test_fresh_belief_not_stale(self):
-        b = BeliefService.create_belief(
-            owner_user_id=uuid.uuid4(),
-            claim_text="Fresh belief",
-            kind=BeliefKind.INFERENCE,
-        )
-        result = BeliefService.check_staleness(b)
-        assert result.status == BeliefStatus.CANDIDATE  # unchanged
-
-    def test_corrected_belief_immune_to_staleness(self):
-        b = BeliefService.create_belief(
-            owner_user_id=uuid.uuid4(),
-            claim_text="Old but corrected",
-            kind=BeliefKind.INFERENCE,
-        )
-        corrected = BeliefService.correct_belief(b, correction_text="Still valid")
-        old = corrected.model_copy(update={
-            "created_at": dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=200),
-        })
-        result = BeliefService.check_staleness(old)
-        assert result.status == BeliefStatus.OWNER_CORRECTED  # not stale
-
-    def test_falsification_condition(self):
-        b = BeliefService.create_belief(
-            owner_user_id=uuid.uuid4(),
-            claim_text="Owner will get promoted this quarter",
-            kind=BeliefKind.PREDICTION,
-            falsification_condition="Quarter ends without promotion",
-        )
-        assert b.falsification_condition == "Quarter ends without promotion"
-
-    def test_version_increments(self):
-        b = BeliefService.create_belief(
-            owner_user_id=uuid.uuid4(),
-            claim_text="Test",
-            kind=BeliefKind.INFERENCE,
-        )
-        assert b.version == 1
-        b2 = BeliefService.support_belief(b, new_evidence=["e1"])
-        assert b2.version == 2
-        b3 = BeliefService.contest_belief(b2, counter_evidence=["e2"])
-        assert b3.version == 3
-        b4 = BeliefService.correct_belief(b3, correction_text="Fix")
-        assert b4.version == 4
 
 
 # ── User Model tests ──────────────────────────────────────────────────────

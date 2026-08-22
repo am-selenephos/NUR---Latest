@@ -57,6 +57,15 @@ fi
 
 SOURCE_SHA="$(git rev-parse HEAD)"
 SOURCE_BRANCH="$(git branch --show-current)"
+SBOM_TMP="$(mktemp -d)"
+trap 'rm -rf "$SBOM_TMP"' EXIT
+python3 "$ROOT/infra/scripts/generate_sbom.py" \
+  --source-sha "$SOURCE_SHA" \
+  --output-dir "$SBOM_TMP" >/dev/null
+python3 "$ROOT/infra/scripts/generate_sbom.py" \
+  --check \
+  --source-sha "$SOURCE_SHA" \
+  --output-dir "$SBOM_TMP" >/dev/null
 mkdir -p "$OUTPUT_DIR"
 OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd)"
 BASE="NUR_${VERSION}_${VERDICT}_${DATE_STAMP}"
@@ -111,6 +120,7 @@ export NUR_PACKAGE_DATE="$DATE_STAMP"
 export NUR_PACKAGE_SOURCE_SHA="$SOURCE_SHA"
 export NUR_PACKAGE_SOURCE_BRANCH="$SOURCE_BRANCH"
 export NUR_PACKAGE_EVIDENCE_DIR="$EVIDENCE_DIR"
+export NUR_PACKAGE_SBOM_DIR="$SBOM_TMP"
 
 python3 - <<'PY'
 from __future__ import annotations
@@ -130,6 +140,11 @@ zip_path = Path(os.environ["NUR_PACKAGE_ZIP"]).resolve()
 manifest_path = Path(os.environ["NUR_PACKAGE_MANIFEST"]).resolve()
 evidence_value = os.environ["NUR_PACKAGE_EVIDENCE_DIR"]
 evidence_dir = Path(evidence_value).resolve() if evidence_value else None
+sbom_dir = Path(os.environ["NUR_PACKAGE_SBOM_DIR"]).resolve()
+sbom_sources = {
+    "docs/completion/sbom/MANUS_SBOM_NODE_CYCLONEDX.json": sbom_dir / "MANUS_SBOM_NODE_CYCLONEDX.json",
+    "docs/completion/sbom/MANUS_SBOM_PYTHON_CYCLONEDX.json": sbom_dir / "MANUS_SBOM_PYTHON_CYCLONEDX.json",
+}
 
 skip_roots = {
     ".git",
@@ -209,7 +224,7 @@ for relative_text in tracked:
     relative = PurePosixPath(relative_text)
     if excluded(relative):
         continue
-    source = root / relative_text
+    source = sbom_sources.get(relative_text, root / relative_text)
     if source.is_symlink():
         raise SystemExit(f"Release package refuses tracked symlink: {relative}")
     payload = source.read_bytes()
@@ -240,6 +255,32 @@ for name, (payload, mode, source_class) in sorted(entries.items()):
         "class": source_class,
     })
 
+sboms = []
+for ecosystem, relative in (
+    ("node", "docs/completion/sbom/MANUS_SBOM_NODE_CYCLONEDX.json"),
+    ("python", "docs/completion/sbom/MANUS_SBOM_PYTHON_CYCLONEDX.json"),
+):
+    archive_name = f"NUR/{relative}"
+    if archive_name not in entries:
+        raise SystemExit(f"Required {ecosystem} SBOM is absent from the release payload")
+    payload = entries[archive_name][0]
+    document = json.loads(payload)
+    properties = {
+        item["name"]: item["value"]
+        for item in document.get("metadata", {}).get("properties", [])
+    }
+    if properties.get("source.git_sha") != os.environ["NUR_PACKAGE_SOURCE_SHA"]:
+        raise SystemExit(f"Generated {ecosystem} SBOM source SHA mismatch")
+    sboms.append({
+        "ecosystem": ecosystem,
+        "path": archive_name,
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "bytes": len(payload),
+        "components": len(document.get("components", [])),
+        "source_git_sha": properties["source.git_sha"],
+        "source_input_sha256": properties.get("source.input_sha256"),
+    })
+
 manifest = {
     "schema_version": 1,
     "product": "NUR",
@@ -257,6 +298,7 @@ manifest = {
             (root / "apps/web/public/v197/NUR_V197_CHECKBOX_TICK_RESTORED.html").read_bytes()
         ).hexdigest(),
     },
+    "sboms": sboms,
     "archive_entries": archive_entries,
 }
 manifest_payload = json.dumps(manifest, indent=2, sort_keys=True).encode() + b"\n"

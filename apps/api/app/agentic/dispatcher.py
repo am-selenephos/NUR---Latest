@@ -22,10 +22,15 @@ picks up while the first is mid-flight.
 from __future__ import annotations
 
 import uuid
+import datetime as dt
 from dataclasses import dataclass
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.agentic.limits import DAGExecutionLimits, DAGValidationResult, validate_dag_limits
+from app.db.rls import set_user_context
 
 # Bounded backoff. Capped so a poison row is retried forever at a low rate
 # rather than escalating into an unbounded wait nobody notices.
@@ -114,6 +119,117 @@ async def mark_failed(db: AsyncSession, intent: DispatchIntent, error: str) -> b
     )
 
 
+async def mark_cancelled(db: AsyncSession, intent: DispatchIntent, reason: str) -> bool:
+    """Permanently refuse a claimed intent that fails runtime admission."""
+    result = await db.execute(
+        text(
+            "UPDATE agent_dispatch_outbox SET state = 'CANCELLED', "
+            "claimed_by = NULL, claim_token = NULL, lease_expires_at = NULL, "
+            "last_error = :reason "
+            "WHERE id = :id AND owner_user_id = :owner "
+            "AND state = 'CLAIMED' AND claim_token = :token"
+        ),
+        {
+            "id": intent.id,
+            "owner": intent.owner_user_id,
+            "token": intent.claim_token,
+            "reason": reason[:200],
+        },
+    )
+    return bool(result.rowcount == 1)
+
+
+async def load_dispatch_snapshot(db: AsyncSession, intent: DispatchIntent) -> dict[str, Any] | None:
+    """Load the owner-scoped workflow and its complete DAG after a trusted claim."""
+    await set_user_context(db, intent.owner_user_id)
+    row = (
+        await db.execute(
+            text(
+                "SELECT w.state AS workflow_state, s.state AS step_state, "
+                "w.created_at, w.expires_at, w.cost_cents, w.context_manifest, "
+                "COALESCE((SELECT jsonb_agg(jsonb_build_object("
+                "'key', n.key, 'depends_on', n.depends_on, 'state', n.state) "
+                "ORDER BY n.ordinal) FROM agent_steps n "
+                "WHERE n.owner_user_id = w.owner_user_id AND n.workflow_id = w.id), "
+                "'[]'::jsonb) AS actual_nodes "
+                "FROM agent_workflows w JOIN agent_steps s "
+                "ON s.workflow_id = w.id AND s.owner_user_id = w.owner_user_id "
+                "WHERE w.id = :workflow AND s.id = :step AND w.owner_user_id = :owner"
+            ),
+            {
+                "workflow": intent.workflow_id,
+                "step": intent.step_id,
+                "owner": intent.owner_user_id,
+            },
+        )
+    ).mappings().one_or_none()
+    if row is None:
+        return None
+    manifest = dict(row["context_manifest"] or {})
+    actual_nodes = [dict(item) for item in (row["actual_nodes"] or [])]
+    actual_by_key = {str(item.get("key")): item for item in actual_nodes}
+    planned_nodes = [dict(item) for item in manifest.get("dag_nodes", [])]
+    nodes = planned_nodes or actual_nodes
+    for node in nodes:
+        actual = actual_by_key.get(str(node.get("key")), {})
+        state = str(actual.get("state") or node.get("state") or "")
+        node["state"] = state
+        node["failed"] = state in {"FAILED", "CANCELLED"}
+    return {
+        "workflow_state": row["workflow_state"],
+        "step_state": row["step_state"],
+        "created_at": row["created_at"],
+        "expires_at": row["expires_at"],
+        "cost_cents": row["cost_cents"],
+        "limits": manifest.get("dag_limits") or DAGExecutionLimits().model_dump(),
+        "nodes": nodes,
+    }
+
+
+def validate_dispatch_snapshot(
+    snapshot: dict[str, Any] | None,
+    *,
+    now: dt.datetime | None = None,
+) -> DAGValidationResult:
+    """Revalidate persisted DAG limits immediately before broker publication."""
+    if snapshot is None:
+        return DAGValidationResult(allowed=False, violations=["MISSING_RUNTIME_CONTEXT"])
+    try:
+        limits = DAGExecutionLimits.model_validate(snapshot.get("limits") or {})
+    except Exception:
+        return DAGValidationResult(allowed=False, violations=["INVALID_RUNTIME_LIMITS"])
+
+    current = now or dt.datetime.now(dt.timezone.utc)
+    created_at = snapshot.get("created_at")
+    elapsed = 0.0
+    if isinstance(created_at, dt.datetime):
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=dt.timezone.utc)
+        elapsed = max(0.0, (current - created_at).total_seconds())
+    workflow_state = str(snapshot.get("workflow_state") or "")
+    step_state = str(snapshot.get("step_state") or "")
+    cancellation_requested = workflow_state in {"CANCEL_REQUESTED", "CANCELLED"} or step_state == "CANCELLED"
+    nodes = [dict(item) for item in snapshot.get("nodes") or []]
+    result = validate_dag_limits(
+        nodes,
+        limits=limits,
+        elapsed_seconds=elapsed,
+        cancellation_requested=cancellation_requested,
+    )
+    violations = list(result.violations)
+    expires_at = snapshot.get("expires_at")
+    if isinstance(expires_at, dt.datetime):
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=dt.timezone.utc)
+        if expires_at <= current and "DEADLINE" not in violations:
+            violations.append("DEADLINE")
+    if int(snapshot.get("cost_cents") or 0) > limits.max_cost_cents and "MAX_COST" not in violations:
+        violations.append("MAX_COST")
+    if not nodes:
+        violations.append("MISSING_DAG")
+    return result.model_copy(update={"allowed": not violations, "violations": violations})
+
+
 async def dispatch_once(
     db: AsyncSession,
     *,
@@ -133,8 +249,17 @@ async def dispatch_once(
     # row a second dispatcher grabs while the first is still in flight.
     await db.commit()
 
-    sent, failed, fenced = [], [], []
+    sent, failed, fenced, cancelled = [], [], [], []
     for intent in intents:
+        snapshot = await load_dispatch_snapshot(db, intent)
+        admission = validate_dispatch_snapshot(snapshot)
+        if not admission.allowed:
+            reason = "runtime admission refused: " + ",".join(admission.violations)
+            if await mark_cancelled(db, intent, reason):
+                cancelled.append(str(intent.id))
+            else:
+                fenced.append(str(intent.id))
+            continue
         try:
             publish(
                 str(intent.step_id),
@@ -155,4 +280,10 @@ async def dispatch_once(
                 # may still arrive; the step claim makes that harmless.
                 fenced.append(str(intent.id))
     await db.commit()
-    return {"claimed": len(intents), "sent": sent, "failed": failed, "fenced": fenced}
+    return {
+        "claimed": len(intents),
+        "sent": sent,
+        "failed": failed,
+        "fenced": fenced,
+        "cancelled": cancelled,
+    }

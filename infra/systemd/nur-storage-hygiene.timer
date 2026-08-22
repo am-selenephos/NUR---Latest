@@ -1,0 +1,11 @@
+[Unit]
+Description=Run NUR storage reconciliation daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=30m
+Unit=nur-storage-hygiene.service
+
+[Install]
+WantedBy=timers.target

@@ -139,12 +139,19 @@ def test_workflow_proposal_v2_has_one_canonical_agency_projection() -> None:
 
 def test_evaluation_gate_requires_held_out_and_shadow_before_promotion() -> None:
     gate = EvaluationGate(
-        cases=[EvaluationCase(case_id="one", split="held_out", expected="pass")],
+        cases=[
+            EvaluationCase(case_id="one", split="held_out", expected="pass"),
+            EvaluationCase(case_id="shadow", split="shadow", expected="pass"),
+        ],
         shadow_pass_rate=1.0,
     )
-    assert gate.can_promote({"one": "pass"}) is True
+    assert gate.can_promote({"one": "pass"}) is False
+    assert gate.can_promote({"one": "pass", "shadow": "pass"}) is True
     blocked = EvaluationGate(
-        cases=[EvaluationCase(case_id="one", split="held_out", expected="pass")],
-        shadow_pass_rate=0.5,
+        cases=[
+            EvaluationCase(case_id="one", split="held_out", expected="pass"),
+            EvaluationCase(case_id="shadow", split="shadow", expected="pass"),
+        ],
+        shadow_pass_rate=1.0,
     )
-    assert blocked.can_promote({"one": "pass"}) is False
+    assert blocked.can_promote({"one": "pass", "shadow": "fail"}) is False

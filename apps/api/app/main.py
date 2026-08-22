@@ -10,6 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.health import router as health_router
 from app.api.v1.auth import router as auth_router
+from app.api.deps import set_bootstrap_csrf_cookie
 from app.core.config import get_settings
 from app.core.logging import configure_logging, log, request_id_var
 from app.services.password_delivery import build_password_reset_delivery
@@ -46,8 +47,29 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("cross-origin-resource-policy", "same-origin")
         response.headers.setdefault("x-permitted-cross-domain-policies", "none")
         response.headers.setdefault("content-security-policy", "default-src 'none'")
+        if get_settings().app_env == "production":
+            response.headers.setdefault(
+                "strict-transport-security",
+                "max-age=63072000; includeSubDomains; preload",
+            )
         if request.url.path.startswith("/api/"):
             response.headers.setdefault("cache-control", "no-store")
+        return response
+
+
+class BootstrapCSRFMiddleware(BaseHTTPMiddleware):
+    """Issue anonymous CSRF state on the canonical unauthenticated probe."""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if (
+            request.method == "GET"
+            and request.url.path == "/api/v1/auth/me"
+            and response.status_code == 401
+        ):
+            settings = get_settings()
+            response.delete_cookie(settings.session_cookie_name, path="/")
+            set_bootstrap_csrf_cookie(response)
         return response
 
 
@@ -88,6 +110,7 @@ def create_app() -> FastAPI:
     app.state.domain_counters = defaultdict(int)
     app.state.password_reset_delivery = build_password_reset_delivery(s)
 
+    app.add_middleware(BootstrapCSRFMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestContextMiddleware)
     app.add_middleware(

@@ -18,7 +18,11 @@ from app.core.security import (
     split_session_cookie,
     verify_password,
 )
-from app.db.rls import set_auth_context, set_user_context
+from app.db.rls import (
+    lookup_user_id_by_email,
+    lookup_user_id_by_session,
+    set_user_context,
+)
 from app.models import ConsentRecord, Orbit, Profile, Session, User
 from app.services import audit_service
 
@@ -58,10 +62,15 @@ async def register(db: AsyncSession, *, chosen_name: str, email: str, password: 
     if not consent:
         raise AuthError(400, "Consent is required to create an Orbit.")
     email_n = _normalize_email(email)
+    user_id = uuid.uuid4()
     try:
         async with db.begin():
-            await set_auth_context(db)
-            user = User(email=email_n, password_hash=hash_password(password))
+            await set_user_context(db, user_id)
+            user = User(
+                id=user_id,
+                email=email_n,
+                password_hash=hash_password(password),
+            )
             db.add(user)
             await db.flush()  # user.id
 
@@ -103,18 +112,23 @@ async def login(db: AsyncSession, *, email: str, password: str):
     """Returns (user_id, session_cookie_value) or raises AuthError(401, generic)."""
     email_n = _normalize_email(email)
     async with db.begin():
-        await set_auth_context(db)
-        user = (await db.execute(select(User).where(User.email == email_n))).scalar_one_or_none()
+        user_id = await lookup_user_id_by_email(db, email_n)
+        if user_id is not None:
+            await set_user_context(db, user_id)
+            user = (
+                await db.execute(select(User).where(User.id == user_id))
+            ).scalar_one_or_none()
+        else:
+            user = None
     ok = verify_password(password, user.password_hash if user else None)
     if not user or not ok or user.status != "active":
         # audit in its OWN transaction so the failure record survives the raise
         async with db.begin():
-            await set_auth_context(db)
             await audit_service.record(db, event_type="auth.login_failed", object_type="user",
                                        metadata={"email_fp": email_fingerprint(email_n)})
         raise AuthError(401, GENERIC_LOGIN_FAIL)
     async with db.begin():
-        await set_auth_context(db)
+        await set_user_context(db, user.id)
         sid, cookie_value, secret_hash = new_session_token()
         db.add(Session(id=sid, user_id=user.id, session_secret_hash=secret_hash, expires_at=_expiry()))
         await audit_service.record(db, event_type="session.created", object_type="session",
@@ -131,7 +145,10 @@ async def resolve_session(db: AsyncSession, cookie_value: str | None) -> tuple[u
         return None
     sid, secret = parsed
     async with db.begin():
-        await set_auth_context(db)
+        user_id = await lookup_user_id_by_session(db, sid)
+        if user_id is None:
+            return None
+        await set_user_context(db, user_id)
         resolved = (
             await db.execute(
                 select(Session, User.status)
@@ -158,7 +175,7 @@ async def revoke_session(db: AsyncSession, *, session_id: uuid.UUID, user_id: uu
     future caller mistakenly passes a foreign session id, this function cannot
     revoke another user's session (regression-tested in test_rls.py)."""
     async with db.begin():
-        await set_auth_context(db)
+        await set_user_context(db, user_id)
         row = (await db.execute(
             select(Session).where(Session.id == session_id, Session.user_id == user_id)
         )).scalar_one_or_none()

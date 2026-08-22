@@ -36,6 +36,21 @@ afterEach(() => {
 });
 
 describe("Agentend browser contracts", () => {
+  it("requests only workflow events after the last rendered sequence", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ events: [] }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }));
+    const client = new V197ApiClient();
+
+    await client.agenticWorkflowEvents("workflow-1", 17);
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/v1/agentic/workflows/workflow-1/events?after_sequence=17",
+      expect.objectContaining({ credentials: "include" }),
+    );
+  });
+
   it("retries the immutable workflow through the public workflow-level route", async () => {
     document.cookie = "nur_csrf=csrf-test; path=/";
     const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(ok());

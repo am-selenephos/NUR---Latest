@@ -14,7 +14,7 @@ import uuid
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import Identity, Scoped, require_csrf
@@ -1089,12 +1089,23 @@ async def upload_file(
     if not await rate_limit.allow_owner_upload(request.app.state.redis, user_id=str(owner_user_id)):
         raise HTTPException(429, "Upload rate limit reached. Try again shortly.")
 
+    # Serialize quota accounting for this owner until the metadata insert is
+    # committed. The advisory lock does not bypass RLS; it only prevents two
+    # owner-scoped transactions from both approving against the same stale sum.
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:lock_key, 0))"),
+        {"lock_key": f"nur:project-storage-quota:{owner_user_id}"},
+    )
+
     # Per-owner storage quota — bound the total stored bytes, not just per-file.
     # The owner's real current usage; reject before reading the body if already
     # at the cap so an over-quota owner cannot even spend bandwidth.
     used = (await db.execute(
         select(func.coalesce(func.sum(AMProjectFile.byte_size), 0))
-        .where(AMProjectFile.owner_user_id == owner_user_id)
+        .where(
+            AMProjectFile.owner_user_id == owner_user_id,
+            AMProjectFile.storage_state != "DELETED",
+        )
     )).scalar_one()
     quota = settings.project_storage_quota_bytes
     if used >= quota:
@@ -1206,7 +1217,7 @@ async def verify_file(file_id: uuid.UUID, db: Scoped, identity: Identity) -> dic
     }
 
 
-@router.delete("/files/{file_id}")
+@router.delete("/files/{file_id}", dependencies=[Depends(require_csrf)])
 async def delete_file(file_id: uuid.UUID, db: Scoped, identity: Identity) -> dict:
     owner_user_id, _ = identity
     row = await _owned_file(db, owner_user_id, file_id)

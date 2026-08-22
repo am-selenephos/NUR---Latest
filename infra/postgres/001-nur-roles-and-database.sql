@@ -1,0 +1,30 @@
+\set ON_ERROR_STOP on
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'nur_admin') THEN
+    CREATE ROLE nur_admin LOGIN CREATEDB NOSUPERUSER NOCREATEROLE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'nur_app') THEN
+    CREATE ROLE nur_app LOGIN NOSUPERUSER NOCREATEROLE NOCREATEDB NOBYPASSRLS;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'nur_email_lookup') THEN
+    CREATE ROLE nur_email_lookup NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE BYPASSRLS;
+  END IF;
+END $$;
+
+ALTER ROLE nur_admin PASSWORD 'nur_admin_pw';
+ALTER ROLE nur_admin BYPASSRLS;
+ALTER ROLE nur_app PASSWORD 'nur_app_pw';
+ALTER ROLE nur_app NOBYPASSRLS;
+ALTER ROLE nur_email_lookup NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION BYPASSRLS;
+GRANT nur_email_lookup TO nur_admin WITH ADMIN OPTION;
+
+SELECT 'CREATE DATABASE nur OWNER nur_admin'
+WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'nur')\gexec
+
+\connect nur
+
+ALTER SCHEMA public OWNER TO nur_admin;
+GRANT USAGE ON SCHEMA public TO nur_app;
+GRANT nur_email_lookup TO nur_admin WITH ADMIN OPTION;

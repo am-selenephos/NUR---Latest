@@ -115,40 +115,95 @@ class ContextHydrator:
     ) -> SemanticHydrationResult:
         owner = str(scope_envelope.owner_user_id)
 
-        def owned(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-            return [item for item in items if str(item.get("owner_user_id")) == owner]
+        rejected_owner_items: list[tuple[str, dict[str, Any]]] = []
+
+        def owned(key: str, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            accepted: list[dict[str, Any]] = []
+            for item in items:
+                if str(item.get("owner_user_id")) == owner:
+                    accepted.append(item)
+                else:
+                    rejected_owner_items.append((key, item))
+            return accepted
 
         approved = [
-            item for item in owned(approved_memory)
+            item for item in owned("approved_memory", approved_memory)
             if str(item.get("status", "APPROVED")).upper() in {"APPROVED", "OWNER_APPROVED"}
         ]
         # Candidates are always excluded from Brain context even when owner-scoped.
-        excluded_candidate = owned(memory_candidates)
+        excluded_candidate = owned("memory_candidates", memory_candidates)
         families = {
             "approved_memory": approved,
-            "beliefs": owned(beliefs),
-            "user_model": owned(user_model_claims),
-            "research": owned(research_results),
-            "semantic_context": owned(semantic_context),
+            "beliefs": owned("beliefs", beliefs),
+            "user_model": owned("user_model", user_model_claims),
+            "research": owned("research", research_results),
+            "semantic_context": owned("semantic_context", semantic_context),
         }
         included: list[ContextSource] = []
         excluded: list[ContextSource] = []
+        degraded: list[ContextSource] = []
         used = 0
         output: dict[str, list[dict[str, Any]]] = {key: [] for key in families}
         for key, items in families.items():
             for item in items:
                 cost = _estimate_tokens(item)
                 if used + cost > max(0, token_budget):
-                    excluded.append(ContextSource(kind=key, id=str(item.get("id", "unknown")), reason="token budget"))
+                    source = ContextSource(
+                        kind=key,
+                        id=str(item.get("id", "unknown")),
+                        reason="hard context token budget exhausted",
+                        status="TRUNCATED",
+                        owner_user_id=scope_envelope.owner_user_id,
+                        token_estimate=cost,
+                        truncated=True,
+                        degraded=True,
+                        provenance=str(item.get("provenance_label") or "owner-scoped semantic source"),
+                    )
+                    excluded.append(source)
+                    degraded.append(source)
                     continue
                 output[key].append(item)
                 used += cost
-                included.append(ContextSource(kind=key, id=str(item.get("id", "unknown")), reason="owner-scoped semantic source"))
+                included.append(
+                    ContextSource(
+                        kind=key,
+                        id=str(item.get("id", "unknown")),
+                        reason="owner-scoped semantic source",
+                        owner_user_id=scope_envelope.owner_user_id,
+                        token_estimate=cost,
+                        provenance=str(item.get("provenance_label") or "owner-scoped semantic source"),
+                    )
+                )
         for item in excluded_candidate:
-            excluded.append(ContextSource(kind="memory_candidates", id=str(item.get("id", "unknown")), reason="unapproved candidate excluded"))
+            excluded.append(
+                ContextSource(
+                    kind="memory_candidates",
+                    id=str(item.get("id", "unknown")),
+                    reason="unapproved candidate excluded",
+                    status="EXCLUDED",
+                    owner_user_id=scope_envelope.owner_user_id,
+                )
+            )
+        for key, item in rejected_owner_items:
+            excluded.append(
+                ContextSource(
+                    kind=key,
+                    id=str(item.get("id", "unknown")),
+                    reason="owner mismatch excluded",
+                    status="EXCLUDED",
+                    degraded=True,
+                )
+            )
         for key, items in families.items():
             if not items:
-                excluded.append(ContextSource(kind=key, id="none", reason="no source supplied"))
+                excluded.append(
+                    ContextSource(
+                        kind=key,
+                        id="none",
+                        reason="no source supplied",
+                        status="EXCLUDED",
+                    )
+                )
         return SemanticHydrationResult(
             approved_memory=output["approved_memory"],
             memory_candidates=[],
@@ -160,6 +215,7 @@ class ContextHydrator:
                 scope_statement=scope_envelope.reason or "owner-scoped semantic context",
                 included=included,
                 excluded=excluded,
+                degraded=degraded,
                 token_budget=max(0, token_budget),
                 token_used=used,
             ),
@@ -625,31 +681,24 @@ class ContextHydrator:
                         estimated_tokens=0,
                     )
 
-        # Build context manifest reflecting exact evidence items
+        # Build context manifest reflecting exact runtime source outcomes.
         inc_sources = [
             ContextSource(
                 kind=str(r.get("kind", "unknown")),
                 id=str(r.get("id", "")),
                 reason=f"Relevant to query (salience rank {r.get('rank', 0):.2f})",
+                owner_user_id=owner_user_id,
+                token_estimate=_estimate_tokens(r.get("excerpt")),
+                provenance="hybrid_retrieval",
             )
             for r in retrieval_dicts
         ]
-        manifest = ContextManifest(
-            scope_statement=f"Owner {scope_envelope.sharing_boundary} scope",
-            included=inc_sources,
-            excluded=[],
-            token_budget=effective_total_budget,
-            token_used=source_results.get(
-                "hybrid_retrieval",
-                HydrationSourceResult(source_key="hybrid_retrieval", status="SKIPPED"),
-            ).estimated_tokens,
-        )
-
-        total_tokens_used = sum(
+        runtime_tokens_used = sum(
             res.estimated_tokens
             for res in source_results.values()
             if res.status in (SourceStatus.INCLUDED.value, SourceStatus.TRUNCATED.value)
         )
+        total_tokens_used = runtime_tokens_used + semantic.estimated_tokens
 
         # STRICT HARD BUDGET RUNTIME GUARD
         if total_tokens_used > effective_total_budget:
@@ -661,6 +710,52 @@ class ContextHydrator:
         excluded_sources = [k for k, v in source_statuses.items() if v == SourceStatus.SKIPPED.value]
         degraded_sources = [k for k, v in source_statuses.items() if v == SourceStatus.DEGRADED.value]
         truncated_sources = [k for k, v in source_statuses.items() if v == SourceStatus.TRUNCATED.value]
+
+        excluded_manifest_sources: list[ContextSource] = []
+        degraded_manifest_sources: list[ContextSource] = []
+        for source_key, result in source_results.items():
+            if result.status == SourceStatus.INCLUDED.value:
+                if source_key != "hybrid_retrieval":
+                    inc_sources.append(
+                        ContextSource(
+                            kind=source_key,
+                            id=source_key,
+                            reason="runtime source included by hydration recipe",
+                            owner_user_id=owner_user_id,
+                            token_estimate=result.estimated_tokens,
+                        )
+                    )
+                continue
+            source = ContextSource(
+                kind=source_key,
+                id=source_key,
+                reason=result.error_message or f"runtime source status: {result.status}",
+                status=result.status,
+                owner_user_id=owner_user_id,
+                token_estimate=result.estimated_tokens,
+                truncated=result.status == SourceStatus.TRUNCATED.value,
+                degraded=result.status in {
+                    SourceStatus.DEGRADED.value,
+                    SourceStatus.FAILED.value,
+                    SourceStatus.TRUNCATED.value,
+                },
+                provenance="capability hydration recipe",
+            )
+            if result.status == SourceStatus.TRUNCATED.value:
+                inc_sources.append(source)
+            else:
+                excluded_manifest_sources.append(source)
+            if source.degraded:
+                degraded_manifest_sources.append(source)
+
+        manifest = ContextManifest(
+            scope_statement=f"Owner {scope_envelope.sharing_boundary} scope",
+            included=inc_sources + semantic.manifest.included,
+            excluded=excluded_manifest_sources + semantic.manifest.excluded,
+            degraded=degraded_manifest_sources + semantic.manifest.degraded,
+            token_budget=effective_total_budget,
+            token_used=total_tokens_used,
+        )
 
         overall_status = HydrationStatus.SUCCESS
         if degraded_sources:
@@ -676,15 +771,6 @@ class ContextHydrator:
             degraded_sources=tuple(degraded_sources),
             truncated_sources=tuple(truncated_sources),
         )
-
-        if semantic_inputs:
-            manifest = ContextManifest(
-                scope_statement=manifest.scope_statement,
-                included=manifest.included + semantic.manifest.included,
-                excluded=manifest.excluded + semantic.manifest.excluded,
-                token_budget=manifest.token_budget,
-                token_used=manifest.token_used + semantic.estimated_tokens,
-            )
 
         return HydratedCapabilityContext(
             capability_id=capability.capability_id,
@@ -705,5 +791,5 @@ class ContextHydrator:
             semantic_context=semantic.semantic_context,
             source_statuses=source_statuses,
             hydration_report=report,
-            estimated_tokens=total_tokens_used + semantic.estimated_tokens,
+            estimated_tokens=total_tokens_used,
         )
