@@ -2071,9 +2071,12 @@ export class V197ApiClient {
     );
   }
 
-  agenticWorkflowEvents(workflowId: string): Promise<Array<Record<string, unknown>>> {
+  agenticWorkflowEvents(workflowId: string, afterSequence?: number): Promise<Array<Record<string, unknown>>> {
+    const query = afterSequence === undefined
+      ? ""
+      : `?after_sequence=${encodeURIComponent(String(Math.max(0, Math.floor(afterSequence))))}`;
     return this.get<{ events: Array<Record<string, unknown>> }>(
-      `/agentic/workflows/${encodeURIComponent(workflowId)}/events`,
+      `/agentic/workflows/${encodeURIComponent(workflowId)}/events${query}`,
     ).then(result => result.events);
   }
 

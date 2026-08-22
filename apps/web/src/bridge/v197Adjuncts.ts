@@ -34,6 +34,8 @@ import {
 
 const ROOT_ID = "nur-v197-adjunct-root";
 const STYLE_ID = "nur-v197-adjunct-style";
+const AGENTIC_DETAIL_POLL_MS = 1_500;
+const agenticDetailPollStops = new WeakMap<Document, () => void>();
 const MEMORY_TYPES: readonly V197MemoryType[] = [
   "EPISODIC",
   "SEMANTIC",
@@ -2895,6 +2897,72 @@ async function renderNotifications(document: Document, api: V197ApiClient): Prom
 
 const AGENTIC_TERMINAL_STATES = new Set(["SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"]);
 
+function stopAgenticDetailPolling(document: Document): void {
+  agenticDetailPollStops.get(document)?.();
+  agenticDetailPollStops.delete(document);
+}
+
+function latestAgenticSequence(events: Array<Record<string, unknown>>): number {
+  return events.reduce((latest, event) => {
+    const sequence = typeof event.sequence === "number" ? event.sequence : Number(event.sequence);
+    return Number.isFinite(sequence) && sequence >= 0 ? Math.max(latest, sequence) : latest;
+  }, 0);
+}
+
+function startAgenticDetailPolling(
+  document: Document,
+  api: V197ApiClient,
+  session: V197Session,
+  workflowId: string,
+  workflowState: string,
+  events: Array<Record<string, unknown>>,
+  lifecycleState: HTMLElement,
+): void {
+  stopAgenticDetailPolling(document);
+  if (AGENTIC_TERMINAL_STATES.has(workflowState)) return;
+  const view = document.defaultView;
+  if (!view) return;
+  let stopped = false;
+  let timeout: number | null = null;
+  const afterSequence = latestAgenticSequence(events);
+  const stop = () => {
+    stopped = true;
+    if (timeout !== null) view.clearTimeout(timeout);
+    timeout = null;
+  };
+  const schedule = () => {
+    if (stopped || timeout !== null) return;
+    timeout = view.setTimeout(() => void poll(), AGENTIC_DETAIL_POLL_MS);
+  };
+  const poll = async () => {
+    timeout = null;
+    if (stopped) return;
+    if (document.hidden) {
+      schedule();
+      return;
+    }
+    try {
+      const nextEvents = await api.agenticWorkflowEvents(workflowId, afterSequence);
+      if (stopped) return;
+      if (nextEvents.length) {
+        stop();
+        await renderAgenticDetail(document, api, session, workflowId);
+        return;
+      }
+    } catch (error) {
+      if (stopped) return;
+      setStatus(
+        lifecycleState,
+        error instanceof Error ? error.message : "The run ledger could not refresh.",
+        "warn",
+      );
+    }
+    schedule();
+  };
+  agenticDetailPollStops.set(document, stop);
+  schedule();
+}
+
 function agenticField(
   document: Document,
   label: string,
@@ -3259,6 +3327,7 @@ async function renderAgenticDetail(
   session: V197Session,
   workflowId: string,
 ): Promise<void> {
+  stopAgenticDetailPolling(document);
   const [workflow, events] = await Promise.all([
     api.agenticWorkflow(workflowId),
     api.agenticWorkflowEvents(workflowId),
@@ -3351,6 +3420,7 @@ async function renderAgenticDetail(
   if (!events.length) eventList.append(empty(document, "No event returned", "The API did not return an append-only event for this workflow."));
   eventPanel.append(eventList);
   grid.append(statePanel, stepsPanel, eventPanel);
+  startAgenticDetailPolling(document, api, session, workflow.id, workflow.state, events, lifecycleState);
 }
 
 function renderError(document: Document, error: unknown, backRoute = "/systems"): void {
@@ -3371,6 +3441,7 @@ export async function renderV197Adjunct(
   refreshSnapshot: RefreshSnapshot,
   session: V197Session,
 ): Promise<boolean> {
+  if (!route.startsWith("/agents/")) stopAgenticDetailPolling(document);
   const existing = document.getElementById(ROOT_ID);
   const isAdjunct = route === "/settings"
     || route === "/memory"
